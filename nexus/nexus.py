@@ -3,7 +3,7 @@ import datetime
 import requests
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
-from textual.widgets import Header, Footer, Static, DataTable, Label, Input, TextLog
+from textual.widgets import Header, Footer, Static, DataTable, Label, Input, RichLog
 from textual.reactive import reactive
 
 class SystemStats(Static):
@@ -100,7 +100,7 @@ class Nexus(App):
                 
                 with Vertical(id="chat-panel"):
                     yield Label("[bold green]System Intelligence Chat[/]")
-                    self.chat_log = TextLog(id="chat-log", highlight=True, markup=True)
+                    self.chat_log = RichLog(id="chat-log", highlight=True, markup=True)
                     yield self.chat_log
                     yield Input(placeholder="Ask Nexus anything...", id="chat-input")
         yield Footer()
@@ -122,17 +122,20 @@ class Nexus(App):
 
     def update_network(self) -> None:
         self.network_table.clear()
-        conns = psutil.net_connections()[:10]
-        for conn in conns:
-            try:
-                proc = psutil.Process(conn.pid).name() if conn.pid else "N/A"
-            except: proc = "Unknown"
-            
-            ip = conn.raddr.ip if conn.raddr else "Listen"
-            # Simple placeholder for connection-specific Geo-IP (to avoid rate limits)
-            loc = "Local" if ip == "Listen" or ip.startswith("127.") else "External"
-            
-            self.network_table.add_row(proc, ip, loc, conn.status)
+        try:
+            conns = psutil.net_connections()[:10]
+            for conn in conns:
+                try:
+                    proc = psutil.Process(conn.pid).name() if conn.pid else "N/A"
+                except: proc = "Unknown"
+                
+                ip = conn.raddr.ip if conn.raddr else "Listen"
+                loc = "Local" if ip == "Listen" or ip.startswith("127.") else "External"
+                self.network_table.add_row(proc, ip, loc, conn.status)
+        except psutil.AccessDenied:
+            self.network_table.add_row("ACCESS DENIED", "Run with sudo", "to see", "network")
+        except Exception as e:
+            self.network_table.add_row("ERROR", str(e), "", "")
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         query = event.value.strip()
