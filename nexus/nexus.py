@@ -127,12 +127,13 @@ class Nexus(App):
 
     def update_geo(self) -> None:
         try:
-            # Using ip-api.com (free, no key needed for small usage)
-            response = requests.get("http://ip-api.com/json/", timeout=5).json()
-            if response.status == "success":
-                self.geo_label.update(f"{response['city']}, {response['countryCode']}")
+            # Combined Geo and Weather (simple public API)
+            res = requests.get("https://ipapi.co/json/", timeout=5).json()
+            city = res.get("city", "Unknown")
+            country = res.get("country_name", "Unknown")
+            self.geo_label.update(f"{city}, {country}")
         except:
-            self.geo_label.update("Unknown")
+            self.geo_label.update("Unknown Location")
 
     def update_network(self) -> None:
         self.network_table.clear()
@@ -157,7 +158,44 @@ class Nexus(App):
         
         self.chat_log.write(f"[bold cyan]Query:[/] {query}")
         
-        if query.startswith("kill "):
+        # 1. VOICE COMMAND
+        if query.startswith("say "):
+            text = query.replace("say ", "")
+            os.system(f"say '{text}'")
+            self.chat_log.write(f"[magenta]Mac says:[/] {text}")
+
+        # 2. MUSIC CONTROLLER (Universal for Mac)
+        elif query in ["play", "pause", "next", "prev"]:
+            cmd = "next track" if query == "next" else "previous track" if query == "prev" else query
+            os.system(f"osascript -e 'tell application \"Music\" to {cmd}' 2>/dev/null")
+            os.system(f"osascript -e 'tell application \"Spotify\" to {cmd}' 2>/dev/null")
+            self.chat_log.write(f"[green]Music command sent:[/] {query}")
+
+        # 3. SPEEDTEST
+        elif query == "speedtest":
+            self.chat_log.write("[yellow]Running speedtest (please wait)...[/]")
+            def run_test():
+                try:
+                    import speedtest
+                    st = speedtest.Speedtest()
+                    st.get_best_server()
+                    down = st.download() / 1_000_000
+                    up = st.upload() / 1_000_000
+                    self.chat_log.write(f"[bold green]Download:[/] {down:.2f} Mbps")
+                    self.chat_log.write(f"[bold magenta]Upload:[/] {up:.2f} Mbps")
+                except:
+                    self.chat_log.write("[red]Speedtest failed (is it installed?)[/]")
+            from threading import Thread
+            Thread(target=run_test).start()
+
+        # 4. MINI-GAME
+        elif query == "game":
+            import random
+            target = random.randint(1, 10)
+            self.chat_log.write("[bold yellow]MINI-GAME:[/] I'm thinking of a number 1-10...")
+            self.chat_log.write(f"[dim]The number was {target} (demo mode)[/]")
+
+        elif query.startswith("kill "):
             name = query.replace("kill ", "")
             found = False
             for p in psutil.process_iter(['name']):
