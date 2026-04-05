@@ -1,0 +1,13 @@
+name: Keep Render Server Awake
+
+on:
+  schedule:
+    - cron: '*/14 * * * *' # Runs every 14 minutes
+  workflow_dispatch: # Allows manual trigger
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping HTTPS URL
+        run: curl -s https://nexus-terminalnexus.onrender.com/ > /dev/null
