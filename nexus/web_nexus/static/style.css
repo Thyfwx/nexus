@@ -1,0 +1,156 @@
+:root {
+    --bg-color: #050510;
+    --txt-color: #0ff;
+    --accent: #f0f;
+    --font-main: 'Fira Code', monospace;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--txt-color);
+    font-family: var(--font-main);
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+.monitor {
+    position: relative;
+    width: 95vw;
+    height: 95vh;
+    background: radial-gradient(circle, #1a1a2e 0%, #000 100%);
+    border-radius: 12px;
+    box-shadow: 0 0 50px rgba(0, 255, 255, 0.15);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.screen-glare {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 40%);
+    pointer-events: none;
+    z-index: 10;
+}
+
+.glass-panel {
+    display: grid;
+    grid-template-columns: 1fr 200px;
+    grid-template-rows: 50px 1fr;
+    grid-template-areas: 
+        "header header"
+        "main aside";
+    height: 100%;
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 255, 255, 0.1);
+}
+
+.status-bar {
+    grid-area: header;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border-bottom: 2px solid var(--accent);
+    background: rgba(0,0,0,0.5);
+    font-weight: 600;
+    text-shadow: 0 0 5px var(--txt-color);
+}
+
+.terminal-container {
+    grid-area: main;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.terminal-output {
+    flex-grow: 1;
+    overflow-y: auto;
+    margin-bottom: 10px;
+}
+
+.terminal-output p {
+    margin: 5px 0;
+    animation: fadeIn 0.3s ease-in;
+    line-height: 1.4;
+}
+
+.sys-msg { color: #88f; }
+
+.user-cmd { color: #fff; font-weight: bold; }
+
+.terminal-input-wrapper {
+    display: flex;
+    align-items: center;
+}
+
+.prompt {
+    color: var(--accent);
+    margin-right: 10px;
+    text-shadow: 0 0 5px var(--accent);
+}
+
+#terminal-input {
+    background: transparent;
+    border: none;
+    color: var(--txt-color);
+    font-family: inherit;
+    font-size: 1rem;
+    flex-grow: 1;
+    outline: none;
+    caret-color: var(--txt-color);
+}
+
+.quick-actions {
+    grid-area: aside;
+    border-left: 1px solid rgba(0, 255, 255, 0.2);
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    background: rgba(0,0,0,0.3);
+    gap: 15px;
+}
+
+.action-btn {
+    background: transparent;
+    border: 1px solid var(--txt-color);
+    color: var(--txt-color);
+    font-family: inherit;
+    padding: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.action-btn:hover {
+    background: var(--txt-color);
+    color: #000;
+    box-shadow: 0 0 15px var(--txt-color);
+    transform: scale(1.05);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Scrollbar styles to look hacker-ish */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.5); 
+}
+::-webkit-scrollbar-thumb {
+    background: var(--accent);
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--txt-color);
+}
