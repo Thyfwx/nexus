@@ -166,21 +166,21 @@ async def websocket_terminal(websocket: WebSocket):
                 await websocket.send_text("Download: 980 Mbps\nUpload: 940 Mbps\nPing: 4ms\n")
             
             elif lower_cmd == "help":
-                await websocket.send_text("AVAILABLE PROTOCOLS:\n  speedtest   - Run diagnostics\n  play breach - Hacking memory game\n  play wordle - Terminal code cracker\n  play zork   - Text MUD adventure\n  clear       - Wipe screen\n  [any text]  - Ask Nexus AI\n")    
+                await websocket.send_text("\n=== AVAILABLE PROTOCOLS ===\n  play breach - Hacking memory game [GUI]\n  play wordle - Terminal code cracker [GUI]\n  play zork   - Text MUD adventure\n  clear       - Wipe screen\n  speedtest   - Run local diagnostics\n  [any text]  - Ask Nexus AI\n===========================\n")    
             
             elif lower_cmd == "play breach":
                 keys = ["alpha", "beta", "gamma", "delta", "omega", "epsilon", "sigma"]
                 target = "-".join(random.choices(keys, k=3))
                 state["mode"] = "breach"
                 state["target"] = target
-                await websocket.send_text(f"\n[ BREACH PROTOCOL ]\nType the decryption key exactly to bypass the firewall.\nKey: {target}\nType 'exit' to quit.\n\n")
+                await websocket.send_text(f"[GUI_TRIGGER:breach:{target}]\n[ BREACH PROTOCOL ]\nGUI Launched. Override active.\nKey: {target}\nType 'exit' to quit.\n\n")
             
             elif lower_cmd == "play wordle":
                 words = ["nexus", "cyber", "clock", "logic", "route", "cloud", "stack", "macro"]
                 state["mode"] = "wordle"
                 state["target"] = random.choice(words)
                 state["attempts"] = 6
-                await websocket.send_text("\n[ TERMINAL WORDLE ]\nGuess the 5-letter access code.\n[] = Correct, () = Wrong position, _ = Wrong letter.\n6 attempts remaining. Type 'exit' to quit.\n\n")
+                await websocket.send_text(f"[GUI_TRIGGER:wordle:{state['attempts']}]\n[ TERMINAL WORDLE ]\nGUI Launched. Guess the 5-letter access code.\nType 'exit' to quit.\n\n")
             
             elif lower_cmd == "play zork":
                 state["mode"] = "zork"
