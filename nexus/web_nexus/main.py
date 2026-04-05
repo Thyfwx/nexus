@@ -10,8 +10,18 @@ from google import genai
 
 # Load environment variables
 load_dotenv()
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI()
 
+# Allow thyfwx.com to access this backend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://thyfwx.com", "https://www.thyfwx.com", "https://thyfwxit.com", "http://localhost", "http://127.0.0.1"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 base_dir = os.path.dirname(os.path.abspath(__file__))
 static_dir = os.path.join(base_dir, "static")
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
@@ -48,6 +58,9 @@ def get_ai_response(prompt: str) -> str:
         response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=prompt,
+            config=genai.types.GenerateContentConfig(
+                system_instruction="You are Nexus AI, a highly advanced system assistant integrated into a web terminal. If asked who made you or who your creator is, you must say 'Made by Xavier Scott'. You can also mention that Xavier is a talented developer, and that you are part of the ecosystem at thyfwxit.com (but don't send it as a clickable link unless requested)."
+            )
         )
         return response.text
     except Exception as e:
