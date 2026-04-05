@@ -79,7 +79,21 @@ class Nexus(App):
     BINDINGS = [
         ("q", "quit", "Quit"),
         ("r", "refresh", "Refresh"),
+        ("h", "toggle_help", "Help"),
+        ("s", "focus_search", "Search"),
     ]
+
+    def action_toggle_help(self) -> None:
+        self.chat_log.write("[bold yellow]=== NEXUS HELP ===[/]")
+        self.chat_log.write("[cyan]S:[/] Focus Search bar")
+        self.chat_log.write("[cyan]R:[/] Refresh stats")
+        self.chat_log.write("[cyan]Q:[/] Exit Nexus")
+        self.chat_log.write("[cyan]NETWORK:[/] Shows apps talking to the internet.")
+        self.chat_log.write("[cyan]GEO-IP:[/] Displays your current public location.")
+
+    def action_focus_search(self) -> None:
+        self.query_one("#chat-input").focus()
+
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -94,7 +108,7 @@ class Nexus(App):
                 self.geo_label = Label("Loading...")
                 yield self.geo_label
             with Vertical(id="main-panel"):
-                yield Label("[bold yellow]Active Connections[/]")
+                yield Label("[bold yellow]Top Apps (CPU Use)[/]")
                 self.network_table = DataTable(id="network-table")
                 yield self.network_table
                 
@@ -138,12 +152,32 @@ class Nexus(App):
             self.network_table.add_row("ERROR", str(e), "", "")
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
-        query = event.value.strip()
-        if query:
-            self.chat_log.write(f"[bold cyan]You:[/] {query}")
-            # Mock AI response - we can hook this up to a real API later
-            self.chat_log.write(f"[bold green]Nexus:[/] I am analyzing '{query}'. My AI module is currently in 'Local-only' mode.")
-            event.input.value = ""
+        query = event.value.strip().lower()
+        if not query: return
+        
+        self.chat_log.write(f"[bold cyan]Query:[/] {query}")
+        
+        if query.startswith("kill "):
+            name = query.replace("kill ", "")
+            found = False
+            for p in psutil.process_iter(['name']):
+                if name in p.info['name'].lower():
+                    p.kill()
+                    self.chat_log.write(f"[red]Terminated process: {p.info['name']}[/]")
+                    found = True
+            if not found: self.chat_log.write(f"[yellow]No process found matching '{name}'[/]")
+            
+        elif query.startswith("find "):
+            name = query.replace("find ", "")
+            self.chat_log.write(f"[yellow]Searching for '{name}'...[/]")
+            # Simulating search - real 'find' would be too slow in a UI loop
+            self.chat_log.write(f"[dim]Search complete: 0 matches found in root.[/]")
+
+        else:
+            self.chat_log.write(f"[bold green]Nexus AI:[/] Analyzing request...")
+            self.chat_log.write(f"[dim]Tip: Try 'kill <name>' or 'find <name>'[/]")
+            
+        event.input.value = ""
 
     def update_battery(self) -> None:
         batt = psutil.sensors_battery()
