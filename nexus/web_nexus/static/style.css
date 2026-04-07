@@ -225,6 +225,60 @@ body.reduce-motion *::after {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
+   BOOT SEQUENCE
+   ══════════════════════════════════════════════════════════════════════════ */
+
+#boot-section { margin-bottom: 4px; }
+
+.boot-line {
+    margin: 2px 0 !important;
+    line-height: 1.55 !important;
+    animation: fadeIn 0.15s ease-in !important;
+}
+
+.boot-tag {
+    color: var(--accent);
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-shadow: 0 0 6px var(--accent);
+}
+
+.boot-msg { color: #99aabb; }
+
+.boot-ok  { color: #4c4; font-weight: 700; }
+
+.boot-ready {
+    color: #00e676;
+    font-weight: 700;
+    letter-spacing: 2px;
+    margin-top: 8px !important;
+    text-shadow: 0 0 10px #00e676;
+    animation: fadeIn 0.5s ease-in !important;
+}
+
+.boot-bar-wrap {
+    display: inline-block;
+    width: 220px;
+    height: 4px;
+    background: #111;
+    border-radius: 2px;
+    overflow: hidden;
+    vertical-align: middle;
+    border: 1px solid #2a2a3a;
+    margin-left: 4px;
+}
+
+.boot-bar {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, var(--accent), var(--txt-color));
+    border-radius: 2px;
+    box-shadow: 0 0 8px var(--accent);
+    transition: width 0.04s linear;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
    ACCESSIBILITY PANEL
    ══════════════════════════════════════════════════════════════════════════ */
 

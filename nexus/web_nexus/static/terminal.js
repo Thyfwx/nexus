@@ -1,3 +1,124 @@
+// ── Boot Sequence ─────────────────────────────────────────────────────────────
+// Shows once per browser session (sessionStorage). On subsequent page loads
+// within the same session it shows a brief one-liner instead.
+// Auto-fades after 45s of no activity, or instantly when the user first types.
+
+const BOOT_KEY = 'nexus-session-v1';
+
+const BOOT_MSGS = [
+    { tag: 'BOOT',  text: 'Initializing quantum uplink...'  },
+    { tag: 'SCAN',  text: 'Probing neural pathways...'      },
+    { tag: 'SYNC',  text: 'Handshaking with mainframe...'   },
+    { tag: 'CRYPT', text: 'Securing encrypted channel...'   },
+    { tag: 'AUTH',  text: 'Verifying node credentials...'   },
+    { tag: 'ALLOC', text: 'Allocating memory buffers...'    },
+    { tag: 'EXEC',  text: 'Spawning AI core process...'     },
+];
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+async function runBoot() {
+    const section = document.createElement('div');
+    section.id = 'boot-section';
+    // Insert before any other output
+    const out = document.getElementById('terminal-output');
+    out.appendChild(section);
+
+    if (sessionStorage.getItem(BOOT_KEY)) {
+        // Quick reconnect line — no full animation
+        const p = document.createElement('p');
+        p.className = 'boot-line';
+        p.innerHTML = `<span class="boot-ok">✓</span> NEXUS uplink restored.`;
+        section.appendChild(p);
+        scheduleIdleFade(section);
+        return;
+    }
+
+    sessionStorage.setItem(BOOT_KEY, '1');
+
+    // Animated typewriter for each message
+    for (const { tag, text } of BOOT_MSGS) {
+        const p = document.createElement('p');
+        p.className = 'boot-line';
+
+        const tagEl = document.createElement('span');
+        tagEl.className = 'boot-tag';
+        tagEl.textContent = `[${tag}]`;
+        p.appendChild(tagEl);
+        p.appendChild(document.createTextNode(' '));
+
+        const msgEl = document.createElement('span');
+        msgEl.className = 'boot-msg';
+        p.appendChild(msgEl);
+
+        section.appendChild(p);
+        out.scrollTop = out.scrollHeight;
+
+        for (const ch of text) {
+            msgEl.textContent += ch;
+            await sleep(20);
+        }
+        await sleep(90);
+    }
+
+    // Progress bar
+    const barLine = document.createElement('p');
+    barLine.className = 'boot-line';
+    barLine.innerHTML = `<span class="boot-msg">Loading  </span><span class="boot-bar-wrap"><span class="boot-bar" id="bbar"></span></span>`;
+    section.appendChild(barLine);
+    out.scrollTop = out.scrollHeight;
+
+    const bar = document.getElementById('bbar');
+    for (let i = 0; i <= 100; i += 3) {
+        bar.style.width = `${i}%`;
+        await sleep(16);
+    }
+    await sleep(120);
+
+    // Ready banner
+    const ready = document.createElement('p');
+    ready.className = 'boot-ready';
+    ready.textContent = '◈  NEXUS ONLINE — SYSTEM READY';
+    section.appendChild(ready);
+    out.scrollTop = out.scrollHeight;
+
+    scheduleIdleFade(section);
+}
+
+let idleTimer = null;
+
+function scheduleIdleFade(section) {
+    const IDLE_MS = 45_000;
+
+    const reset = () => {
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => fadeBoot(section), IDLE_MS);
+    };
+
+    // Fade immediately on first real command
+    const inp = document.getElementById('terminal-input');
+    inp.addEventListener('keydown', function onFirstCmd(e) {
+        if (e.key === 'Enter' && inp.value.trim()) {
+            clearTimeout(idleTimer);
+            fadeBoot(section);
+            inp.removeEventListener('keydown', onFirstCmd);
+        }
+    });
+
+    // Reset timer on any activity
+    inp.addEventListener('keydown', reset);
+    document.querySelectorAll('.action-btn').forEach(b => b.addEventListener('click', reset));
+
+    reset();
+}
+
+function fadeBoot(el) {
+    if (!el || !el.isConnected) return;
+    el.style.transition = 'opacity 1.4s ease';
+    el.style.opacity    = '0';
+    setTimeout(() => el.remove(), 1400);
+}
+
 // ── WebSocket Setup ───────────────────────────────────────────────────────────
 const statsWs = new WebSocket(`ws://${location.host}/ws/stats`);
 const termWs  = new WebSocket(`ws://${location.host}/ws/terminal`);
@@ -726,3 +847,6 @@ document.getElementById('reduce-motion').addEventListener('change', (e) => {
     document.getElementById('reduce-motion').checked = motionOn;
     document.body.classList.toggle('reduce-motion', motionOn);
 })();
+
+// Kick off boot sequence
+runBoot();
