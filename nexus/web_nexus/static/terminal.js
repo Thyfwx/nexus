@@ -147,8 +147,13 @@ function connectTerm() {
         if (clean.trim()) printToTerminal(clean);
     };
 
-    // Silent reconnect — no error or disconnect message shown to user
-    termWs.onclose = () => setTimeout(connectTerm, 3000);
+    // Keepalive ping every 25 s — prevents idle timeout disconnects
+    const pingId = setInterval(() => {
+        if (termWs.readyState === WebSocket.OPEN) termWs.send('__ping__');
+    }, 25000);
+
+    // Silent reconnect — no message shown to user, clear ping interval first
+    termWs.onclose = () => { clearInterval(pingId); setTimeout(connectTerm, 3000); };
     termWs.onerror = () => {};
 }
 connectTerm();
@@ -201,6 +206,7 @@ input.addEventListener('keydown', (e) => {
 
     if (cmd.toLowerCase() === 'clear') {
         output.innerHTML = '';
+        chatHistory.length = 0;   // also wipe AI conversation history
     } else {
         printToTerminal(`root@nexus:~# ${cmd}`, 'user-cmd');
         chatHistory.push({ role: 'user', content: cmd });
@@ -214,6 +220,7 @@ document.querySelectorAll('.action-btn').forEach(btn => {
         const cmd = btn.getAttribute('data-cmd');
         if (cmd === 'clear') {
             output.innerHTML = '';
+            chatHistory.length = 0;
         } else {
             printToTerminal(`root@nexus:~# ${cmd}`, 'user-cmd');
             sendTerm({ command: cmd.toLowerCase(), history: [] });

@@ -4,7 +4,7 @@ import os
 import json
 import requests as req_lib
 import psutil
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
@@ -228,28 +228,40 @@ def run_speedtest() -> str:
 @app.websocket("/ws/terminal")
 async def websocket_terminal(websocket: WebSocket):
     await websocket.accept()
-    try:
-        await websocket.send_text(
-            "Uplink Established. Nexus AI Online.\n"
-            "Type 'help' for available protocols.\n"
-        )
-        # Push current model to badge immediately on connect
-        await websocket.send_text(f"[MODEL:{MODELS[current_model_idx]['label']}]")
 
-        while True:
+    # Send greeting + model badge once on connect
+    await websocket.send_text(
+        "Uplink Established. Nexus AI Online.\n"
+        "Type 'help' for available protocols.\n"
+    )
+    await websocket.send_text(f"[MODEL:{MODELS[current_model_idx]['label']}]")
+
+    while True:
+        try:
             raw = await websocket.receive_text()
-            try:
-                data    = json.loads(raw)
-                cmd     = data.get("command", "").strip().lower()
-                history = data.get("history", [])
-            except Exception:
-                cmd     = raw.strip().lower()
-                history = []
+        except WebSocketDisconnect:
+            break
+        except Exception as e:
+            print(f"[WS] receive error: {e}")
+            break
 
-            if not cmd:
-                continue
+        # Keepalive ping — client sends "__ping__", we ignore it
+        if raw.strip() == "__ping__":
+            continue
 
-            # ── status ───────────────────────────────────────────────────────
+        try:
+            data    = json.loads(raw)
+            cmd     = data.get("command", "").strip().lower()
+            history = data.get("history", [])
+        except Exception:
+            cmd     = raw.strip().lower()
+            history = []
+
+        if not cmd:
+            continue
+
+        try:
+            # ── status ───────────────────────────────────────────────────
             if cmd == "status":
                 cpu = psutil.cpu_percent()
                 mem = psutil.virtual_memory().percent
@@ -264,7 +276,7 @@ async def websocket_terminal(websocket: WebSocket):
                     f"AI KERNEL:    ONLINE\n"
                 )
 
-            # ── config — show which keys are loaded (masked) ─────────────────
+            # ── config ───────────────────────────────────────────────────
             elif cmd == "config":
                 def key_status(name):
                     v = os.getenv(name)
@@ -280,7 +292,7 @@ async def websocket_terminal(websocket: WebSocket):
                     f"--------------------\n"
                 )
 
-            # ── models ───────────────────────────────────────────────────────
+            # ── models ───────────────────────────────────────────────────
             elif cmd == "models":
                 lines = "\n".join(
                     f"  {'→' if i == current_model_idx else ' '} {i+1}. {m['label']:26} [{m['provider']}]"
@@ -292,7 +304,7 @@ async def websocket_terminal(websocket: WebSocket):
                     f"========================\n"
                 )
 
-            # ── model <n> ────────────────────────────────────────────────────
+            # ── model <n> ────────────────────────────────────────────────
             elif cmd.startswith("model "):
                 arg = cmd.removeprefix("model ").strip()
                 try:
@@ -307,7 +319,7 @@ async def websocket_terminal(websocket: WebSocket):
                 except ValueError:
                     await websocket.send_text("[ERROR] Usage:  model <number>  e.g.  model 2")
 
-            # ── help ─────────────────────────────────────────────────────────
+            # ── help ─────────────────────────────────────────────────────
             elif cmd == "help":
                 await websocket.send_text(
                     "\n=== NEXUS PROTOCOLS ===\n"
@@ -327,11 +339,11 @@ async def websocket_terminal(websocket: WebSocket):
                     "=======================\n"
                 )
 
-            # ── monitor ──────────────────────────────────────────────────────
+            # ── monitor ──────────────────────────────────────────────────
             elif cmd == "monitor":
                 await websocket.send_text("[TRIGGER:monitor]\nOpening System Telemetry…")
 
-            # ── games ────────────────────────────────────────────────────────
+            # ── games ────────────────────────────────────────────────────
             elif cmd == "play pong":
                 await websocket.send_text("[TRIGGER:pong]\nInitializing Pong…")
             elif cmd == "play breach":
@@ -339,24 +351,24 @@ async def websocket_terminal(websocket: WebSocket):
             elif cmd == "play wordle":
                 await websocket.send_text("[TRIGGER:wordle]\nStarting Wordle…")
 
-            # ── about ────────────────────────────────────────────────────────
+            # ── about ────────────────────────────────────────────────────
             elif cmd == "about":
                 await websocket.send_text(
                     "\n--- ABOUT NEXUS ---\n"
                     "Advanced AI command-line environment.\n"
                     "Created by: Xavier Scott\n"
                     "Ecosystem:  thyfwxit.com\n"
-                    "Version:    3.1.0\n"
+                    "Version:    3.2.0\n"
                 )
 
-            # ── speedtest ────────────────────────────────────────────────────
+            # ── speedtest ────────────────────────────────────────────────
             elif cmd == "speedtest":
                 await websocket.send_text("[INFO] Running speedtest… (15–30 seconds)")
                 loop   = asyncio.get_running_loop()
                 result = await loop.run_in_executor(None, run_speedtest)
                 await websocket.send_text(result)
 
-            # ── image ─────────────────────────────────────────────────────────
+            # ── image ─────────────────────────────────────────────────────
             elif (cmd.startswith("image ")
                   or cmd.startswith("generate image ")
                   or cmd.startswith("draw ")):
@@ -376,7 +388,7 @@ async def websocket_terminal(websocket: WebSocket):
                     result = await loop.run_in_executor(None, generate_image, prompt)
                     await websocket.send_text(result)
 
-            # ── AI fallback (auto-rotating) ───────────────────────────────────
+            # ── AI fallback (auto-rotating) ───────────────────────────────
             else:
                 loop   = asyncio.get_running_loop()
                 result = await loop.run_in_executor(None, get_ai_response, cmd, history)
@@ -390,8 +402,15 @@ async def websocket_terminal(websocket: WebSocket):
 
                 await websocket.send_text(sanitize_ai(result["text"]))
 
-    except Exception as e:
-        print(f"WS Error: {e}")
+        except WebSocketDisconnect:
+            break
+        except Exception as e:
+            # Log the error server-side but keep the connection alive
+            print(f"[CMD ERROR] {cmd!r}: {e}")
+            try:
+                await websocket.send_text("[ERROR] Something went wrong — connection stays open.")
+            except Exception:
+                break
 
 
 # ── WebSocket — Stats ─────────────────────────────────────────────────────────
