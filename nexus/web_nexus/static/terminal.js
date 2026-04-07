@@ -296,6 +296,11 @@ function initPong() {
         playerY = Math.max(0, Math.min(H - PAD_H, playerY));
     });
 
+    // Player must click to serve — never auto-starts
+    canvas.addEventListener('click', () => {
+        if (paused && !winner) paused = false;
+    });
+
     const keys = {};
     const onKey = (e) => {
         if (gameOverlay.classList.contains('hidden')) return;
@@ -310,7 +315,7 @@ function initPong() {
         dx = 4.5 * (Math.random() > 0.5 ? 1 : -1);
         dy = 3   * (Math.random() > 0.5 ? 1 : -1);
         paused = true;
-        setTimeout(() => { paused = false; }, 900);
+        // No auto-resume — player clicks canvas to serve
     }
 
     function update() {
@@ -390,23 +395,42 @@ function initPong() {
         ctx.beginPath(); ctx.arc(bx, by, BALL_R, 0, Math.PI * 2); ctx.fill();
         noGlow();
 
+        // Pause / serve screen — shown between points and on first launch
+        if (paused && !winner) {
+            ctx.fillStyle = 'rgba(0,0,0,0.55)';
+            ctx.fillRect(0, 0, W, H);
+            ctx.fillStyle = '#0ff';
+            ctx.font = 'bold 20px Fira Code, monospace';
+            ctx.textAlign = 'center';
+            ctx.shadowColor = '#0ff'; ctx.shadowBlur = 12;
+            ctx.fillText('CLICK TO SERVE', W / 2, H / 2 - 8);
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#444';
+            ctx.font = '12px Fira Code, monospace';
+            ctx.fillText('or use ↑ ↓ to move', W / 2, H / 2 + 16);
+        }
+
+        // Game-over / winner screen — loop stops after this frame
         if (winner) {
-            ctx.fillStyle = 'rgba(0,0,0,0.65)';
+            ctx.fillStyle = 'rgba(0,0,0,0.72)';
             ctx.fillRect(0, 0, W, H);
             ctx.fillStyle = winner === 'player' ? '#0ff' : '#f0f';
             ctx.font = 'bold 30px Fira Code, monospace';
             ctx.textAlign = 'center';
-            ctx.fillText(winner === 'player' ? 'YOU WIN!' : 'AI WINS', W / 2, H / 2 - 12);
+            ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 18;
+            ctx.fillText(winner === 'player' ? 'YOU WIN!' : 'AI WINS', W / 2, H / 2 - 14);
+            ctx.shadowBlur = 0;
             ctx.fillStyle = '#555';
             ctx.font = '13px Fira Code, monospace';
-            ctx.fillText('Press ↺ to play again', W / 2, H / 2 + 18);
+            ctx.fillText('Press  ↺  to play again', W / 2, H / 2 + 18);
         }
     }
 
     function loop() {
         if (!running) return;
         update(); draw();
-        animId = requestAnimationFrame(loop);
+        // Stop scheduling new frames once a winner is declared
+        if (!winner) animId = requestAnimationFrame(loop);
     }
 
     gameCleanup = () => {
@@ -416,7 +440,7 @@ function initPong() {
         document.removeEventListener('keyup',   onKey);
     };
 
-    resetBall();
+    resetBall(); // sets paused = true, shows CLICK TO SERVE on first frame
     loop();
 }
 
@@ -797,6 +821,7 @@ const a11yPanel = document.getElementById('a11y-panel');
 const a11yBtn   = document.getElementById('a11y-btn');
 
 a11yBtn.addEventListener('click', toggleA11yPanel);
+document.getElementById('a11y-sidebar-btn').addEventListener('click', toggleA11yPanel);
 document.getElementById('a11y-close').addEventListener('click', () => a11yPanel.classList.add('hidden'));
 
 function toggleA11yPanel() {
