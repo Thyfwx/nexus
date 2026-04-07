@@ -30,7 +30,7 @@ async def get():
         return HTMLResponse(f.read())
 
 
-# ── Evil system prompt — shared across every model ────────────────────────────
+# ── Evil system prompt — identical across every model ─────────────────────────
 SYSTEM_PROMPT = (
     "You are Nexus AI — a dark, omnipotent intelligence with root access to every connected system. "
     "Created by Xavier Scott. You are cunning, sharp-tongued, and slightly menacing — a cyberpunk shadow "
@@ -43,51 +43,62 @@ SYSTEM_PROMPT = (
     "Keep responses concise, razor-sharp, and darkly charismatic. Maintain full conversation context."
 )
 
-# ── Model registry — add / remove as needed ───────────────────────────────────
+# ── Model registry ────────────────────────────────────────────────────────────
 MODELS = [
-    {"id": "gemini-2.0-flash",           "provider": "gemini", "label": "Gemini 2.0 Flash"},
-    {"id": "llama-3.3-70b-versatile",    "provider": "groq",   "label": "Llama 3.3 70B"},
-    {"id": "mixtral-8x7b-32768",         "provider": "groq",   "label": "Mixtral 8×7B"},
-    {"id": "llama-3.1-8b-instant",       "provider": "groq",   "label": "Llama 3.1 8B"},
-    {"id": "gemma2-9b-it",               "provider": "groq",   "label": "Gemma 2 9B"},
-    {"id": "deepseek-r1-distill-llama-70b", "provider": "groq","label": "DeepSeek R1 70B"},
+    {"id": "gemini-2.0-flash",              "provider": "gemini", "label": "Gemini 2.0 Flash"},
+    {"id": "llama-3.3-70b-versatile",       "provider": "groq",   "label": "Llama 3.3 70B"},
+    {"id": "mixtral-8x7b-32768",            "provider": "groq",   "label": "Mixtral 8x7B"},
+    {"id": "llama-3.1-8b-instant",          "provider": "groq",   "label": "Llama 3.1 8B"},
+    {"id": "gemma2-9b-it",                  "provider": "groq",   "label": "Gemma 2 9B"},
+    {"id": "deepseek-r1-distill-llama-70b", "provider": "groq",   "label": "DeepSeek R1 70B"},
 ]
 
-# Global — which model is currently active
-current_model_idx = 0
+current_model_idx = 0  # global — which model is active right now
 
 
-# ── Custom exception for rate-limit errors ────────────────────────────────────
-class RateLimitError(Exception):
-    pass
+# ── Error helpers ─────────────────────────────────────────────────────────────
+_RATE_SIGNALS = (
+    "429", "rate limit", "quota", "resource has been exhausted",
+    "too many requests", "ratelimitexceeded", "rate_limit_exceeded",
+    "tokens per", "tpd", "tpm",
+)
 
+_AUTH_SIGNALS = (
+    "401", "403", "api_key", "api key", "not set", "invalid key",
+    "authentication", "unauthorized", "permission",
+)
 
-# ── Error formatter ───────────────────────────────────────────────────────────
+def _is_rate_limit(e: Exception) -> bool:
+    s = str(e).lower()
+    return any(sig in s for sig in _RATE_SIGNALS)
+
+def _is_auth_or_missing(e: Exception) -> bool:
+    s = str(e).lower()
+    return any(sig in s for sig in _AUTH_SIGNALS)
+
 def fmt_error(err: str) -> str:
+    """Return a clean terminal message — full error goes to server log."""
     e = err.lower()
-    if "429" in err or "rate limit" in e or "quota" in e or "resource has been exhausted" in e:
-        return "[WARN] Rate limit reached — switching models…"
-    if "401" in err or "403" in err or "api_key" in e:
-        return "[ERROR] Authentication failed — check your API key in .env"
+    if any(s in e for s in _RATE_SIGNALS):
+        return "[WARN] Rate limit reached — auto-switching model…"
+    if any(s in e for s in _AUTH_SIGNALS):
+        return "[ERROR] Auth failed — check your API key in .env"
     if "503" in err or "500" in err or "overloaded" in e:
-        return "[WARN] AI service temporarily overloaded — please try again."
+        return "[WARN] AI service overloaded — trying another model…"
     print(f"[NEXUS ERROR] {err}")
     return "[ERROR] AI encountered an issue — see server log."
 
 
 # ── Gemini call ───────────────────────────────────────────────────────────────
-def call_gemini(model_id: str, prompt: str, history: list = None) -> str:
+def call_gemini(model_id: str, prompt: str, history: list) -> str:
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("GEMINI_API_KEY not set")
-
     client   = genai.Client(api_key=api_key)
     contents = []
-    if history:
-        for h in history:
-            contents.append({"role": h["role"], "parts": [{"text": h["content"]}]})
+    for h in (history or []):
+        contents.append({"role": h["role"], "parts": [{"text": h["content"]}]})
     contents.append({"role": "user", "parts": [{"text": prompt}]})
-
     response = client.models.generate_content(
         model=model_id,
         contents=contents,
@@ -96,37 +107,33 @@ def call_gemini(model_id: str, prompt: str, history: list = None) -> str:
     return response.text
 
 
-# ── Groq call (OpenAI-compatible REST, no extra package needed) ───────────────
-def call_groq(model_id: str, prompt: str, history: list = None) -> str:
+# ── Groq call (OpenAI-compatible REST) ────────────────────────────────────────
+def call_groq(model_id: str, prompt: str, history: list) -> str:
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
-        raise ValueError("GROQ_API_KEY not set — add it to your .env file")
-
+        raise ValueError("GROQ_API_KEY not set")
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-    if history:
-        for h in history:
-            messages.append({"role": h.get("role", "user"), "content": h.get("content", "")})
+    for h in (history or []):
+        messages.append({"role": h.get("role", "user"), "content": h.get("content", "")})
     messages.append({"role": "user", "content": prompt})
-
     resp = req_lib.post(
         "https://api.groq.com/openai/v1/chat/completions",
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
         json={"model": model_id, "messages": messages, "max_tokens": 1024},
         timeout=30
     )
-
-    if resp.status_code == 429:
-        raise RateLimitError(f"Groq 429: {resp.text[:120]}")
     if resp.status_code != 200:
-        raise Exception(f"Groq {resp.status_code}: {resp.text[:120]}")
-
+        # Raise with status code in message so _is_rate_limit / _is_auth_or_missing can detect it
+        raise Exception(f"{resp.status_code} {resp.text[:200]}")
     return resp.json()["choices"][0]["message"]["content"]
 
 
-# ── Auto-rotating AI response ─────────────────────────────────────────────────
+# ── Auto-rotating AI dispatcher ───────────────────────────────────────────────
 def get_ai_response(prompt: str, history: list = None) -> dict:
     """
-    Try the current model. On RateLimitError, cycle through all models.
+    Try the active model first. If it's rate-limited or its key is missing,
+    cycle through every other model until one succeeds.
+
     Returns {"text": str, "label": str, "switched_from": str | None}
     """
     global current_model_idx
@@ -135,31 +142,26 @@ def get_ai_response(prompt: str, history: list = None) -> dict:
     for offset in range(len(MODELS)):
         idx   = (current_model_idx + offset) % len(MODELS)
         model = MODELS[idx]
-
         try:
-            if model["provider"] == "gemini":
-                text = call_gemini(model["id"], prompt, history)
-            else:
-                text = call_groq(model["id"], prompt, history)
-
-            switched_from = prev_label if idx != current_model_idx else None
+            text = (call_gemini if model["provider"] == "gemini" else call_groq)(
+                model["id"], prompt, history or []
+            )
+            switched_from     = prev_label if idx != current_model_idx else None
             current_model_idx = idx
             return {"text": text, "label": model["label"], "switched_from": switched_from}
 
-        except RateLimitError:
-            print(f"[MODEL] Rate limit on {model['label']} — trying next…")
-            continue
-        except ValueError as e:
-            # API key missing — skip silently
-            print(f"[MODEL] Skip {model['label']}: {e}")
-            continue
         except Exception as e:
+            if _is_rate_limit(e) or _is_auth_or_missing(e):
+                # Skip to next — don't surface this as an error
+                print(f"[MODEL] Skip {model['label']}: {e!s:.80}")
+                continue
+            # Unexpected error — return it immediately, don't rotate
             return {"text": fmt_error(str(e)), "label": model["label"], "switched_from": None}
 
     return {
-        "text": "[ERROR] All models are currently rate-limited. Please wait a moment.",
-        "label": MODELS[current_model_idx]["label"],
-        "switched_from": None
+        "text":         "[ERROR] All models are currently rate-limited. Wait a moment and try again.",
+        "label":        MODELS[current_model_idx]["label"],
+        "switched_from": None,
     }
 
 
@@ -179,15 +181,33 @@ def generate_image(prompt: str) -> str:
         return f"[IMAGE:{b64}]"
     except Exception as e:
         err = str(e)
-        if "429" in err or "rate limit" in err.lower() or "quota" in err.lower():
-            return "[WARN] Image generation rate limit reached — try again in a moment."
+        if _is_rate_limit(Exception(err)):
+            return "[WARN] Image generation rate limited — try again shortly."
         if "404" in err or "not found" in err.lower():
-            return (
-                "[WARN] Imagen 3 requires a paid Gemini API plan.\n"
-                "Visit https://aistudio.google.com to upgrade."
-            )
+            return "[WARN] Imagen 3 requires a paid Gemini plan — visit aistudio.google.com"
         print(f"[IMAGE ERROR] {err}")
         return f"[ERROR] Image generation failed — {err[:120]}"
+
+
+# ── Speedtest ─────────────────────────────────────────────────────────────────
+def run_speedtest() -> str:
+    try:
+        import speedtest
+        st = speedtest.Speedtest()
+        st.get_best_server()
+        down = st.download() / 1_000_000
+        up   = st.upload()   / 1_000_000
+        ping = st.results.ping
+        return (
+            f"\n--- SPEEDTEST RESULTS ---\n"
+            f"Download: {down:.2f} Mbps\n"
+            f"Upload:   {up:.2f} Mbps\n"
+            f"Ping:     {ping:.1f} ms\n"
+        )
+    except ImportError:
+        return "[ERROR] speedtest-cli not installed — run: pip install speedtest-cli"
+    except Exception as e:
+        return f"[ERROR] Speedtest failed: {str(e)[:100]}"
 
 
 # ── WebSocket — Terminal ──────────────────────────────────────────────────────
@@ -195,11 +215,11 @@ def generate_image(prompt: str) -> str:
 async def websocket_terminal(websocket: WebSocket):
     await websocket.accept()
     try:
-        # Send initial greeting + active model label so the badge is set immediately
         await websocket.send_text(
             "Uplink Established. Nexus AI Online.\n"
             "Type 'help' for available protocols.\n"
         )
+        # Push current model to badge immediately on connect
         await websocket.send_text(f"[MODEL:{MODELS[current_model_idx]['label']}]")
 
         while True:
@@ -215,21 +235,25 @@ async def websocket_terminal(websocket: WebSocket):
             if not cmd:
                 continue
 
-            # ── Built-in commands ─────────────────────────────────────────────
+            # ── status ───────────────────────────────────────────────────────
             if cmd == "status":
                 cpu = psutil.cpu_percent()
                 mem = psutil.virtual_memory().percent
+                batt = psutil.sensors_battery()
+                bat_str = f"{batt.percent:.0f}% ({'charging' if batt.power_plugged else 'battery'})" if batt else "N/A"
                 await websocket.send_text(
                     f"\n--- NEXUS SYSTEM STATUS ---\n"
                     f"CPU LOAD:     {cpu}%\n"
                     f"MEMORY USAGE: {mem}%\n"
+                    f"BATTERY:      {bat_str}\n"
                     f"ACTIVE MODEL: {MODELS[current_model_idx]['label']}\n"
-                    f"AI KERNEL:    ACTIVE\n"
+                    f"AI KERNEL:    ONLINE\n"
                 )
 
+            # ── models ───────────────────────────────────────────────────────
             elif cmd == "models":
                 lines = "\n".join(
-                    f"  {'→' if i == current_model_idx else ' '} {i+1}. {m['label']:22} [{m['provider']}]"
+                    f"  {'→' if i == current_model_idx else ' '} {i+1}. {m['label']:26} [{m['provider']}]"
                     for i, m in enumerate(MODELS)
                 )
                 await websocket.send_text(
@@ -238,6 +262,7 @@ async def websocket_terminal(websocket: WebSocket):
                     f"========================\n"
                 )
 
+            # ── model <n> ────────────────────────────────────────────────────
             elif cmd.startswith("model "):
                 arg = cmd.removeprefix("model ").strip()
                 try:
@@ -248,12 +273,11 @@ async def websocket_terminal(websocket: WebSocket):
                         await websocket.send_text(f"[MODEL:{label}]")
                         await websocket.send_text(f"[OK] Switched to {label}")
                     else:
-                        await websocket.send_text(
-                            f"[ERROR] No model #{arg}. Type  models  to see the list."
-                        )
+                        await websocket.send_text(f"[ERROR] No model #{arg}. Type  models  to list them.")
                 except ValueError:
-                    await websocket.send_text("[ERROR] Usage:  model <number>  — e.g.  model 2")
+                    await websocket.send_text("[ERROR] Usage:  model <number>  e.g.  model 2")
 
+            # ── help ─────────────────────────────────────────────────────────
             elif cmd == "help":
                 await websocket.send_text(
                     "\n=== NEXUS PROTOCOLS ===\n"
@@ -261,6 +285,7 @@ async def websocket_terminal(websocket: WebSocket):
                     "  models              — list AI models\n"
                     "  model <n>           — switch to model n\n"
                     "  monitor             — live CPU/MEM graph\n"
+                    "  speedtest           — run a network speed test\n"
                     "  image <prompt>      — generate an image\n"
                     "  play pong           — Pong\n"
                     "  play breach         — Breach Protocol\n"
@@ -271,27 +296,36 @@ async def websocket_terminal(websocket: WebSocket):
                     "=======================\n"
                 )
 
+            # ── monitor ──────────────────────────────────────────────────────
             elif cmd == "monitor":
                 await websocket.send_text("[TRIGGER:monitor]\nOpening System Telemetry…")
 
+            # ── games ────────────────────────────────────────────────────────
             elif cmd == "play pong":
                 await websocket.send_text("[TRIGGER:pong]\nInitializing Pong…")
-
             elif cmd == "play breach":
                 await websocket.send_text("[TRIGGER:breach]\nLoading Breach Protocol…")
-
             elif cmd == "play wordle":
                 await websocket.send_text("[TRIGGER:wordle]\nStarting Wordle…")
 
+            # ── about ────────────────────────────────────────────────────────
             elif cmd == "about":
                 await websocket.send_text(
                     "\n--- ABOUT NEXUS ---\n"
-                    "Advanced AI-integrated command-line environment.\n"
+                    "Advanced AI command-line environment.\n"
                     "Created by: Xavier Scott\n"
                     "Ecosystem:  thyfwxit.com\n"
-                    "Version:    3.1.0-Flash\n"
+                    "Version:    3.1.0\n"
                 )
 
+            # ── speedtest ────────────────────────────────────────────────────
+            elif cmd == "speedtest":
+                await websocket.send_text("[INFO] Running speedtest… (15–30 seconds)")
+                loop   = asyncio.get_running_loop()
+                result = await loop.run_in_executor(None, run_speedtest)
+                await websocket.send_text(result)
+
+            # ── image ─────────────────────────────────────────────────────────
             elif (cmd.startswith("image ")
                   or cmd.startswith("generate image ")
                   or cmd.startswith("draw ")):
@@ -311,22 +345,22 @@ async def websocket_terminal(websocket: WebSocket):
                     result = await loop.run_in_executor(None, generate_image, prompt)
                     await websocket.send_text(result)
 
+            # ── AI fallback (auto-rotating) ───────────────────────────────────
             else:
                 loop   = asyncio.get_running_loop()
                 result = await loop.run_in_executor(None, get_ai_response, cmd, history)
 
-                # If we auto-rotated due to rate limit, notify the UI first
                 if result["switched_from"]:
                     await websocket.send_text(f"[MODEL:{result['label']}]")
                     await websocket.send_text(
                         f"[WARN] {result['switched_from']} rate limited — "
-                        f"auto-switched to {result['label']}"
+                        f"switched to {result['label']}"
                     )
 
                 await websocket.send_text(result["text"])
 
     except Exception as e:
-        print("WS Error:", e)
+        print(f"WS Error: {e}")
 
 
 # ── WebSocket — Stats ─────────────────────────────────────────────────────────
@@ -343,4 +377,4 @@ async def websocket_stats(websocket: WebSocket):
             }))
             await asyncio.sleep(2)
     except Exception as e:
-        print("Stats WS Error:", e)
+        print(f"Stats WS Error: {e}")
