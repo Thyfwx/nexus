@@ -138,7 +138,31 @@ termWs.onmessage = (e) => {
         wsGreetingDone = true;
         if (!isFirstVisit) return;
     }
-    const clean = handleTriggers(e.data);
+
+    const raw = e.data;
+
+    // ── Inline image payload: [IMAGE:base64data] ──────────────────────────
+    if (raw.startsWith('[IMAGE:') && raw.endsWith(']')) {
+        const b64 = raw.slice(7, -1);
+        const wrap = document.createElement('div');
+        wrap.className = 'terminal-image-wrap';
+        const img = document.createElement('img');
+        img.src       = `data:image/png;base64,${b64}`;
+        img.className = 'terminal-image';
+        img.alt       = 'Generated image';
+        // Click to open full-size in new tab
+        img.title = 'Click to open full size';
+        img.addEventListener('click', () => {
+            const w = window.open();
+            w.document.write(`<img src="${img.src}" style="max-width:100%">`);
+        });
+        wrap.appendChild(img);
+        output.appendChild(wrap);
+        output.scrollTop = output.scrollHeight;
+        return;
+    }
+
+    const clean = handleTriggers(raw);
     if (clean.trim()) printToTerminal(clean);
 };
 
@@ -840,6 +864,16 @@ const a11yBtn   = document.getElementById('a11y-btn');
 
 a11yBtn.addEventListener('click', toggleA11yPanel);
 document.getElementById('a11y-sidebar-btn').addEventListener('click', toggleA11yPanel);
+
+// Image generation button — prompt user for a description then send command
+document.getElementById('image-prompt-btn').addEventListener('click', () => {
+    const desc = window.prompt('Describe the image you want to generate:');
+    if (!desc || !desc.trim()) return;
+    const cmd = `image ${desc.trim()}`;
+    printToTerminal(`root@nexus:~# ${cmd}`, 'user-cmd');
+    termWs.send(JSON.stringify({ command: cmd, history: [] }));
+    input.focus();
+});
 document.getElementById('a11y-close').addEventListener('click', () => a11yPanel.classList.add('hidden'));
 
 function toggleA11yPanel() {
