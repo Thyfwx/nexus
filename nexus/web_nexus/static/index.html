@@ -5,9 +5,82 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nexus Web Terminal</title>
     <link rel="stylesheet" href="/static/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Open+Sans:wght@400;600&family=Inconsolata:wght@400;700&display=swap" rel="stylesheet">
 </head>
-<body>
+<body class="theme-cyber font-mono size-s space-n">
+
+    <!-- Accessibility Toggle Button -->
+    <button id="a11y-btn" title="Accessibility Options" aria-label="Open accessibility options">A</button>
+
+    <!-- Accessibility Panel -->
+    <aside id="a11y-panel" class="a11y-panel hidden" aria-label="Accessibility Options">
+        <div class="a11y-header">
+            <span>Accessibility</span>
+            <button id="a11y-close" aria-label="Close">✕</button>
+        </div>
+
+        <div class="a11y-section">
+            <span class="a11y-label">Text Size</span>
+            <div class="a11y-row" role="group">
+                <button class="a11y-opt" data-group="size" data-value="size-s">S</button>
+                <button class="a11y-opt" data-group="size" data-value="size-m">M</button>
+                <button class="a11y-opt" data-group="size" data-value="size-l">L</button>
+                <button class="a11y-opt" data-group="size" data-value="size-xl">XL</button>
+            </div>
+        </div>
+
+        <div class="a11y-section">
+            <span class="a11y-label">Font Style</span>
+            <div class="a11y-row" role="group">
+                <button class="a11y-opt" data-group="font" data-value="font-mono">Mono</button>
+                <button class="a11y-opt" data-group="font" data-value="font-incn">Wide</button>
+                <button class="a11y-opt" data-group="font" data-value="font-sans">Sans</button>
+                <button class="a11y-opt" data-group="font" data-value="font-serif">Serif</button>
+            </div>
+        </div>
+
+        <div class="a11y-section">
+            <span class="a11y-label">Color Theme</span>
+            <div class="a11y-row" role="group">
+                <button class="a11y-opt" data-group="theme" data-value="theme-cyber">Cyber</button>
+                <button class="a11y-opt" data-group="theme" data-value="theme-hicon">Hi-Con</button>
+                <button class="a11y-opt" data-group="theme" data-value="theme-soft">Soft</button>
+                <button class="a11y-opt" data-group="theme" data-value="theme-light">Light</button>
+            </div>
+        </div>
+
+        <div class="a11y-section">
+            <span class="a11y-label">Line Spacing</span>
+            <div class="a11y-row" role="group">
+                <button class="a11y-opt" data-group="spacing" data-value="space-n">Norm</button>
+                <button class="a11y-opt" data-group="spacing" data-value="space-r">Relax</button>
+                <button class="a11y-opt" data-group="spacing" data-value="space-d">2×</button>
+            </div>
+        </div>
+
+        <div class="a11y-section">
+            <label class="a11y-toggle-label">
+                <input type="checkbox" id="reduce-motion">
+                <span>Reduce Motion</span>
+            </label>
+        </div>
+    </aside>
+
+    <!-- Game Overlay -->
+    <div id="game-overlay" class="game-overlay hidden" role="dialog" aria-modal="true">
+        <div class="game-window">
+            <div class="game-header">
+                <span id="game-title">GAME</span>
+                <div class="game-controls">
+                    <button id="game-restart" title="Restart">↺</button>
+                    <button id="game-close" title="Close [Esc]">✕</button>
+                </div>
+            </div>
+            <div id="game-content"></div>
+        </div>
+    </div>
+
+    <!-- Main Terminal -->
     <div class="monitor">
         <div class="screen-glare"></div>
         <div class="glass-panel">
@@ -17,7 +90,7 @@
                 <div class="status-item">BAT: <span id="bat-stat">--</span>%</div>
                 <div class="status-item geo-stat">LOC: Locating...</div>
             </header>
-            
+
             <main class="terminal-container">
                 <div class="terminal-output" id="terminal-output">
                     <p class="sys-msg">Initializing NEXUS kernel...</p>
@@ -26,17 +99,22 @@
                 </div>
                 <div class="terminal-input-wrapper">
                     <span class="prompt">root@nexus:~#</span>
-                    <input type="text" id="terminal-input" autocomplete="off" autofocus>
+                    <input type="text" id="terminal-input" autocomplete="off" autofocus aria-label="Terminal command input">
                 </div>
             </main>
 
             <aside class="quick-actions">
+                <button class="action-btn" data-cmd="play pong">Pong</button>
+                <button class="action-btn" data-cmd="play breach">Breach</button>
+                <button class="action-btn" data-cmd="play wordle">Wordle</button>
+                <button class="action-btn" data-cmd="monitor">Monitor</button>
                 <button class="action-btn" data-cmd="speedtest">Speedtest</button>
                 <button class="action-btn" data-cmd="help">Help</button>
                 <button class="action-btn" data-cmd="clear">Clear</button>
             </aside>
         </div>
     </div>
+
     <script src="/static/terminal.js"></script>
 </body>
 </html>
