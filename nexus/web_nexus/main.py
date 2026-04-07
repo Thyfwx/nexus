@@ -50,7 +50,19 @@ def get_ai_response(prompt: str, history: list = None) -> str:
         )
         return response.text
     except Exception as e:
-        return f"AI Error: {str(e)}"
+        err = str(e)
+        # Rate limit / quota exceeded (HTTP 429)
+        if "429" in err or "rate limit" in err.lower() or "quota" in err.lower() or "Resource has been exhausted" in err:
+            return "[WARN] AI rate limit reached. The model is taking a breather — try again in a moment."
+        # Invalid / missing API key
+        if "401" in err or "403" in err or "API_KEY" in err or "invalid" in err.lower():
+            return "[ERROR] AI authentication failed. Check that GEMINI_API_KEY is set correctly."
+        # Model overloaded / server error
+        if "503" in err or "500" in err or "overloaded" in err.lower():
+            return "[WARN] AI service is temporarily overloaded. Please try again shortly."
+        # Generic fallback — log full error server-side but show a clean message in the terminal
+        print(f"[AI ERROR] {err}")
+        return "[ERROR] AI encountered an issue. Check the server log for details."
 
 @app.websocket("/ws/terminal")
 async def websocket_terminal(websocket: WebSocket):

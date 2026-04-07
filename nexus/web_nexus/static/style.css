@@ -149,8 +149,28 @@ body.reduce-motion *::after {
     word-break: break-word;
 }
 
-.sys-msg  { color: #88f; }
-.user-cmd { color: #fff; font-weight: bold; }
+.sys-msg   { color: #88f; }
+.user-cmd  { color: #fff; font-weight: bold; }
+
+/* Styled message classes for [ERROR] / [WARN] / [EVIL] / [OK] / [INFO] */
+.msg-error {
+    color: #ff4f4f;
+    font-weight: 600;
+    text-shadow: 0 0 6px rgba(255,60,60,0.4);
+}
+.msg-warn {
+    color: #ffb347;
+    font-weight: 600;
+    text-shadow: 0 0 6px rgba(255,170,50,0.3);
+}
+.msg-ok {
+    color: #4cff72;
+    font-weight: 600;
+    text-shadow: 0 0 6px rgba(60,255,80,0.3);
+}
+.msg-info {
+    color: #5bc8ff;
+}
 
 .terminal-input-wrapper {
     display: flex;
