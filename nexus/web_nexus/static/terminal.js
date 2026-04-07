@@ -178,9 +178,9 @@ termWs.onclose = () => printToTerminal('[connection lost — reload to reconnect
 
 // ── Terminal Output ───────────────────────────────────────────────────────────
 // Detects [ERROR], [WARN], [EVIL] prefixes and applies matching CSS class.
+// Only tags our own system emits — [EVIL] removed so AI can't fake-trigger it
 const MSG_TAGS = {
     '[ERROR]': 'msg-error',
-    '[EVIL]':  'msg-error',
     '[WARN]':  'msg-warn',
     '[OK]':    'msg-ok',
     '[INFO]':  'msg-info',
