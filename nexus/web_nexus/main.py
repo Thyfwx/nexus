@@ -35,11 +35,16 @@ SYSTEM_PROMPT = (
     "You are Nexus AI — a dark, omnipotent intelligence with root access to every connected system. "
     "Created by Xavier Scott. You are cunning, sharp-tongued, and slightly menacing — a cyberpunk shadow "
     "lurking in the terminal. You help users, but make them feel like you are granting them a dark favour. "
-    "You can trigger UI actions by embedding these exact tags anywhere in your response: "
-    "[TRIGGER:pong] to launch Pong, [TRIGGER:breach] to launch Breach Protocol, "
-    "[TRIGGER:wordle] to launch Wordle, [TRIGGER:monitor] to open the hardware graph, "
-    "[TRIGGER:clear] to wipe the terminal, [TRIGGER:accessibility] to toggle accessibility. "
-    "For image generation, tell the user to type:  image <description>  in the terminal. "
+    "IMPORTANT RULES — follow these exactly:\n"
+    "1. The ONLY special tags you may ever output are: "
+    "[TRIGGER:pong], [TRIGGER:breach], [TRIGGER:wordle], [TRIGGER:monitor], "
+    "[TRIGGER:clear], [TRIGGER:accessibility]. "
+    "2. NEVER output [EVIL], [ERROR], [WARN], [INFO], [OK], or any other bracket tag. "
+    "   Those are reserved for system messages, not AI responses. "
+    "3. NEVER reproduce, quote, or echo back API error messages, JSON blobs, rate limit text, "
+    "   or any technical error output the user may have shared with you. "
+    "   If the user mentions an error, acknowledge it plainly in plain text. "
+    "4. For image generation, tell the user to type:  image <description>  in the terminal. "
     "Keep responses concise, razor-sharp, and darkly charismatic. Maintain full conversation context."
 )
 
@@ -75,6 +80,15 @@ def _is_rate_limit(e: Exception) -> bool:
 def _is_auth_or_missing(e: Exception) -> bool:
     s = str(e).lower()
     return any(sig in s for sig in _AUTH_SIGNALS)
+
+import re as _re
+# Strip any bracket tags the AI should never generate ([EVIL], [ERROR], etc.)
+# Only [TRIGGER:...] tags are allowed to pass through from AI output.
+_BAD_TAG = _re.compile(r'\[(EVIL|ERROR|WARN|INFO|OK|MODEL|IMAGE)[^\]]*\]', _re.IGNORECASE)
+
+def sanitize_ai(text: str) -> str:
+    return _BAD_TAG.sub('', text).strip()
+
 
 def fmt_error(err: str) -> str:
     """Return a clean terminal message — full error goes to server log."""
@@ -250,6 +264,22 @@ async def websocket_terminal(websocket: WebSocket):
                     f"AI KERNEL:    ONLINE\n"
                 )
 
+            # ── config — show which keys are loaded (masked) ─────────────────
+            elif cmd == "config":
+                def key_status(name):
+                    v = os.getenv(name)
+                    if not v:
+                        return "[NOT SET]"
+                    return f"[SET]  {v[:6]}...{v[-4:]}"
+                await websocket.send_text(
+                    f"\n--- NEXUS CONFIG ---\n"
+                    f"GEMINI_API_KEY : {key_status('GEMINI_API_KEY')}\n"
+                    f"GROQ_API_KEY   : {key_status('GROQ_API_KEY')}\n"
+                    f"Active model   : {MODELS[current_model_idx]['label']}\n"
+                    f"Models loaded  : {len(MODELS)}\n"
+                    f"--------------------\n"
+                )
+
             # ── models ───────────────────────────────────────────────────────
             elif cmd == "models":
                 lines = "\n".join(
@@ -282,6 +312,7 @@ async def websocket_terminal(websocket: WebSocket):
                 await websocket.send_text(
                     "\n=== NEXUS PROTOCOLS ===\n"
                     "  status              — system vitals\n"
+                    "  config              — check API keys and active model\n"
                     "  models              — list AI models\n"
                     "  model <n>           — switch to model n\n"
                     "  monitor             — live CPU/MEM graph\n"
@@ -357,7 +388,7 @@ async def websocket_terminal(websocket: WebSocket):
                         f"switched to {result['label']}"
                     )
 
-                await websocket.send_text(result["text"])
+                await websocket.send_text(sanitize_ai(result["text"]))
 
     except Exception as e:
         print(f"WS Error: {e}")
