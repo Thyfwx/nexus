@@ -228,6 +228,38 @@ body.reduce-motion *::after {
     transform: scale(1.04);
 }
 
+/* Image generation sidebar button */
+.image-action-btn {
+    border-color: #0f8 !important;
+    color: #0f8 !important;
+    font-weight: 700;
+    box-shadow: 0 0 6px rgba(0,255,128,0.15);
+}
+.image-action-btn:hover {
+    background: #0f8 !important;
+    color: #000 !important;
+    box-shadow: 0 0 14px #0f8 !important;
+}
+
+/* Inline terminal image */
+.terminal-image-wrap {
+    margin: 8px 0 4px;
+}
+.terminal-image {
+    display: block;
+    max-width: 280px;
+    max-height: 280px;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    box-shadow: 0 0 18px rgba(0,255,255,0.18);
+    cursor: pointer;
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+.terminal-image:hover {
+    box-shadow: 0 0 28px rgba(0,255,255,0.35);
+    transform: scale(1.02);
+}
+
 /* Accessibility sidebar button — distinct from game buttons */
 .a11y-action-btn {
     border-color: var(--accent) !important;
