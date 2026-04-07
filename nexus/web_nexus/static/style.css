@@ -127,6 +127,18 @@ body.reduce-motion *::after {
 }
 
 /* ── Terminal ──────────────────────────────────────────────────────────────── */
+/* Model badge in status bar */
+.model-badge {
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.2s;
+    white-space: nowrap;
+}
+.model-badge:hover { color: var(--accent); }
+.model-badge:hover #model-stat {
+    text-shadow: 0 0 8px var(--accent);
+}
+
 .terminal-container {
     grid-area: main;
     padding: 20px;

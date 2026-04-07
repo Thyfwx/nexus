@@ -141,6 +141,14 @@ termWs.onmessage = (e) => {
 
     const raw = e.data;
 
+    // ── Model switch notification: [MODEL:label] ──────────────────────────
+    if (raw.startsWith('[MODEL:') && raw.endsWith(']')) {
+        const label = raw.slice(7, -1);
+        const badge = document.getElementById('model-stat');
+        if (badge) badge.textContent = label;
+        return; // silent — no terminal output
+    }
+
     // ── Inline image payload: [IMAGE:base64data] ──────────────────────────
     if (raw.startsWith('[IMAGE:') && raw.endsWith(']')) {
         const b64 = raw.slice(7, -1);
@@ -864,6 +872,13 @@ const a11yBtn   = document.getElementById('a11y-btn');
 
 a11yBtn.addEventListener('click', toggleA11yPanel);
 document.getElementById('a11y-sidebar-btn').addEventListener('click', toggleA11yPanel);
+
+// Model badge — click to list models in terminal
+document.getElementById('model-badge').addEventListener('click', () => {
+    printToTerminal('root@nexus:~# models', 'user-cmd');
+    termWs.send(JSON.stringify({ command: 'models', history: [] }));
+    input.focus();
+});
 
 // Image generation button — prompt user for a description then send command
 document.getElementById('image-prompt-btn').addEventListener('click', () => {
