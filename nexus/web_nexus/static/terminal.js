@@ -79,21 +79,21 @@ async function runBoot() {
     scheduleIdleFade(section);
 }
 
-let idleTimer = null;
+let bootIdleTimer = null;
 
 function scheduleIdleFade(section) {
     const IDLE_MS = 45_000;
 
     const reset = () => {
-        clearTimeout(idleTimer);
-        idleTimer = setTimeout(() => fadeBoot(section), IDLE_MS);
+        clearTimeout(bootIdleTimer);
+        bootIdleTimer = setTimeout(() => fadeBoot(section), IDLE_MS);
     };
 
     // Fade immediately on first real command
     const inp = document.getElementById('terminal-input');
     inp.addEventListener('keydown', function onFirstCmd(e) {
         if (e.key === 'Enter' && inp.value.trim()) {
-            clearTimeout(idleTimer);
+            clearTimeout(bootIdleTimer);
             fadeBoot(section);
             inp.removeEventListener('keydown', onFirstCmd);
         }
@@ -113,68 +113,110 @@ function fadeBoot(el) {
     setTimeout(() => el.remove(), 1400);
 }
 
-// ── WebSocket Setup ───────────────────────────────────────────────────────────
-const statsWs = new WebSocket(`ws://${location.host}/ws/stats`);
-const termWs  = new WebSocket(`ws://${location.host}/ws/terminal`);
-
+// ── DOM refs ──────────────────────────────────────────────────────────────────
 const cpuStat = document.getElementById('cpu-stat');
 const memStat = document.getElementById('mem-stat');
 const batStat = document.getElementById('bat-stat');
 const output  = document.getElementById('terminal-output');
 const input   = document.getElementById('terminal-input');
 
-statsWs.onmessage = (e) => {
-    const d = JSON.parse(e.data);
-    cpuStat.textContent = d.cpu.toFixed(1);
-    memStat.textContent = d.mem.toFixed(1);
-    batStat.textContent = d.battery;
-};
+// ── WebSocket helpers ─────────────────────────────────────────────────────────
+let statsWs, termWs;
+let termConnCount = 0;   // how many times the terminal WS has connected
 
-let wsGreetingDone = false;
-termWs.onmessage = (e) => {
-    // Suppress the server's "Uplink Established" greeting on return visits —
-    // it only needs to be seen once, not on every page load / tab open.
-    if (!wsGreetingDone) {
-        wsGreetingDone = true;
-        if (!isFirstVisit) return;
+// Safe send — drops silently if socket isn't open
+function sendTerm(payload) {
+    if (termWs && termWs.readyState === WebSocket.OPEN) {
+        termWs.send(typeof payload === 'string' ? payload : JSON.stringify(payload));
     }
+}
 
-    const raw = e.data;
+// ── Stats WebSocket (auto-reconnects silently) ────────────────────────────────
+function connectStats() {
+    statsWs = new WebSocket(`ws://${location.host}/ws/stats`);
+    statsWs.onmessage = (e) => {
+        try {
+            const d = JSON.parse(e.data);
+            cpuStat.textContent = d.cpu.toFixed(1);
+            memStat.textContent = d.mem.toFixed(1);
+            batStat.textContent = d.battery;
+        } catch (_) {}
+    };
+    statsWs.onclose = () => setTimeout(connectStats, 3000);
+    statsWs.onerror = () => {};
+}
+connectStats();
 
-    // ── Model switch notification: [MODEL:label] ──────────────────────────
-    if (raw.startsWith('[MODEL:') && raw.endsWith(']')) {
-        const label = raw.slice(7, -1);
-        const badge = document.getElementById('model-stat');
-        if (badge) badge.textContent = label;
-        return; // silent — no terminal output
-    }
+// ── Terminal WebSocket (auto-reconnects silently) ─────────────────────────────
+// Server greeting and model badge are ONLY shown on the very first ever connect.
+// Every subsequent connect (reconnect, server restart, etc.) is fully silent.
+function connectTerm() {
+    termConnCount++;
+    const isFreshConnect = termConnCount === 1;
 
-    // ── Inline image payload: [IMAGE:base64data] ──────────────────────────
-    if (raw.startsWith('[IMAGE:') && raw.endsWith(']')) {
-        const b64 = raw.slice(7, -1);
-        const wrap = document.createElement('div');
-        wrap.className = 'terminal-image-wrap';
-        const img = document.createElement('img');
-        img.src       = `data:image/png;base64,${b64}`;
-        img.className = 'terminal-image';
-        img.alt       = 'Generated image';
-        // Click to open full-size in new tab
-        img.title = 'Click to open full size';
-        img.addEventListener('click', () => {
-            const w = window.open();
-            w.document.write(`<img src="${img.src}" style="max-width:100%">`);
-        });
-        wrap.appendChild(img);
-        output.appendChild(wrap);
-        output.scrollTop = output.scrollHeight;
-        return;
-    }
+    termWs = new WebSocket(`ws://${location.host}/ws/terminal`);
 
-    const clean = handleTriggers(raw);
-    if (clean.trim()) printToTerminal(clean);
-};
+    termWs.onmessage = (e) => {
+        const raw = e.data;
 
-termWs.onclose = () => printToTerminal('[connection lost — reload to reconnect]', 'sys-msg');
+        // ── Model badge update — always silent ────────────────────────────
+        if (raw.startsWith('[MODEL:') && raw.endsWith(']')) {
+            const label = raw.slice(7, -1);
+            const badge = document.getElementById('model-stat');
+            if (badge) badge.textContent = label;
+            return;
+        }
+
+        // ── Server greeting — show only on very first visit, never again ──
+        const isGreeting = raw.includes('Uplink Established') ||
+                           raw.includes("Type 'help'")        ||
+                           raw.includes('Nexus AI Online');
+        if (isGreeting) {
+            if (isFirstVisit && isFreshConnect) printToTerminal(raw);
+            return;
+        }
+
+        // ── Image payload ─────────────────────────────────────────────────
+        if (raw.startsWith('[IMAGE:') && raw.endsWith(']')) {
+            const b64  = raw.slice(7, -1);
+            const wrap = document.createElement('div');
+            wrap.className = 'terminal-image-wrap';
+            const img  = document.createElement('img');
+            img.src       = `data:image/png;base64,${b64}`;
+            img.className = 'terminal-image';
+            img.alt       = 'Generated image';
+            img.title     = 'Click to open full size';
+            img.addEventListener('click', () => {
+                const w = window.open();
+                w.document.write(`<img src="${img.src}" style="max-width:100%">`);
+            });
+            wrap.appendChild(img);
+            output.appendChild(wrap);
+            output.scrollTop = output.scrollHeight;
+            return;
+        }
+
+        const clean = handleTriggers(raw);
+        if (clean.trim()) printToTerminal(clean);
+    };
+
+    // Silent reconnect — no error or disconnect message shown to user
+    termWs.onclose = () => setTimeout(connectTerm, 3000);
+    termWs.onerror = () => {};
+}
+connectTerm();
+
+// ── Global idle timer — wipe terminal after 5 min of no input ────────────────
+let idleTimer;
+function resetIdle() {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+        output.innerHTML = '';
+    }, 5 * 60 * 1000);
+}
+document.addEventListener('keydown', resetIdle);
+document.addEventListener('click',   resetIdle);
+resetIdle();
 
 // ── Terminal Output ───────────────────────────────────────────────────────────
 // Detects [ERROR], [WARN], [EVIL] prefixes and applies matching CSS class.
@@ -215,7 +257,7 @@ input.addEventListener('keydown', (e) => {
     } else {
         printToTerminal(`root@nexus:~# ${cmd}`, 'user-cmd');
         chatHistory.push({ role: 'user', content: cmd });
-        termWs.send(JSON.stringify({ command: cmd.toLowerCase(), history: chatHistory.slice(-10) }));
+        sendTerm({ command: cmd.toLowerCase(), history: chatHistory.slice(-10) });
     }
     input.value = '';
 });
@@ -227,7 +269,7 @@ document.querySelectorAll('.action-btn').forEach(btn => {
             output.innerHTML = '';
         } else {
             printToTerminal(`root@nexus:~# ${cmd}`, 'user-cmd');
-            termWs.send(JSON.stringify({ command: cmd.toLowerCase(), history: [] }));
+            sendTerm({ command: cmd.toLowerCase(), history: [] });
             input.focus();
         }
     });
@@ -876,7 +918,7 @@ document.getElementById('a11y-sidebar-btn').addEventListener('click', toggleA11y
 // Model badge — click to list models in terminal
 document.getElementById('model-badge').addEventListener('click', () => {
     printToTerminal('root@nexus:~# models', 'user-cmd');
-    termWs.send(JSON.stringify({ command: 'models', history: [] }));
+    sendTerm({ command: 'models', history: [] });
     input.focus();
 });
 
@@ -886,7 +928,7 @@ document.getElementById('image-prompt-btn').addEventListener('click', () => {
     if (!desc || !desc.trim()) return;
     const cmd = `image ${desc.trim()}`;
     printToTerminal(`root@nexus:~# ${cmd}`, 'user-cmd');
-    termWs.send(JSON.stringify({ command: cmd, history: [] }));
+    sendTerm({ command: cmd, history: [] });
     input.focus();
 });
 document.getElementById('a11y-close').addEventListener('click', () => a11yPanel.classList.add('hidden'));
