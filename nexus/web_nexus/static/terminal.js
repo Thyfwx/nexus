@@ -1,9 +1,11 @@
 // ── Boot Sequence ─────────────────────────────────────────────────────────────
-// Shows once per browser session (sessionStorage). On subsequent page loads
-// within the same session it shows a brief one-liner instead.
+// Plays the full animation exactly ONCE (localStorage). On every subsequent
+// visit — new tabs, refreshes, reopened windows — it is completely silent.
+// The server greeting is also suppressed after the first visit.
 // Auto-fades after 45s of no activity, or instantly when the user first types.
 
-const BOOT_KEY = 'nexus-session-v1';
+const BOOT_KEY    = 'nexus-boot-v1';
+const isFirstVisit = !localStorage.getItem(BOOT_KEY);
 
 const BOOT_MSGS = [
     { tag: 'BOOT',  text: 'Initializing quantum uplink...'  },
@@ -18,23 +20,15 @@ const BOOT_MSGS = [
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 async function runBoot() {
+    // Return visits: completely silent — no text, no section, nothing
+    if (!isFirstVisit) return;
+
+    localStorage.setItem(BOOT_KEY, '1');
+
     const section = document.createElement('div');
     section.id = 'boot-section';
-    // Insert before any other output
     const out = document.getElementById('terminal-output');
     out.appendChild(section);
-
-    if (sessionStorage.getItem(BOOT_KEY)) {
-        // Quick reconnect line — no full animation
-        const p = document.createElement('p');
-        p.className = 'boot-line';
-        p.innerHTML = `<span class="boot-ok">✓</span> NEXUS uplink restored.`;
-        section.appendChild(p);
-        scheduleIdleFade(section);
-        return;
-    }
-
-    sessionStorage.setItem(BOOT_KEY, '1');
 
     // Animated typewriter for each message
     for (const { tag, text } of BOOT_MSGS) {
@@ -136,7 +130,14 @@ statsWs.onmessage = (e) => {
     batStat.textContent = d.battery;
 };
 
+let wsGreetingDone = false;
 termWs.onmessage = (e) => {
+    // Suppress the server's "Uplink Established" greeting on return visits —
+    // it only needs to be seen once, not on every page load / tab open.
+    if (!wsGreetingDone) {
+        wsGreetingDone = true;
+        if (!isFirstVisit) return;
+    }
     const clean = handleTriggers(e.data);
     if (clean.trim()) printToTerminal(clean);
 };
