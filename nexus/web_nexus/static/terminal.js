@@ -1,28 +1,14 @@
 // ── Boot Sequence ─────────────────────────────────────────────────────────────
-// Plays the full animation exactly ONCE (localStorage). On every subsequent
-// visit — new tabs, refreshes, reopened windows — it is completely silent.
-// The server greeting is also suppressed after the first visit.
-// Auto-fades after 45s of no activity, or instantly when the user first types.
+// Shows a clean single banner ONCE ever (localStorage). Completely silent on
+// every subsequent visit. The server greeting is also suppressed after first visit.
 
-const BOOT_KEY    = 'nexus-boot-v1';
+const BOOT_KEY     = 'nexus-boot-v2';   // bumped version clears old boot state
 const isFirstVisit = !localStorage.getItem(BOOT_KEY);
-
-const BOOT_MSGS = [
-    { tag: 'BOOT',  text: 'Initializing quantum uplink...'  },
-    { tag: 'SCAN',  text: 'Probing neural pathways...'      },
-    { tag: 'SYNC',  text: 'Handshaking with mainframe...'   },
-    { tag: 'CRYPT', text: 'Securing encrypted channel...'   },
-    { tag: 'AUTH',  text: 'Verifying node credentials...'   },
-    { tag: 'ALLOC', text: 'Allocating memory buffers...'    },
-    { tag: 'EXEC',  text: 'Spawning AI core process...'     },
-];
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 async function runBoot() {
-    // Return visits: completely silent — no text, no section, nothing
     if (!isFirstVisit) return;
-
     localStorage.setItem(BOOT_KEY, '1');
 
     const section = document.createElement('div');
@@ -30,50 +16,11 @@ async function runBoot() {
     const out = document.getElementById('terminal-output');
     out.appendChild(section);
 
-    // Animated typewriter for each message
-    for (const { tag, text } of BOOT_MSGS) {
-        const p = document.createElement('p');
-        p.className = 'boot-line';
-
-        const tagEl = document.createElement('span');
-        tagEl.className = 'boot-tag';
-        tagEl.textContent = `[${tag}]`;
-        p.appendChild(tagEl);
-        p.appendChild(document.createTextNode(' '));
-
-        const msgEl = document.createElement('span');
-        msgEl.className = 'boot-msg';
-        p.appendChild(msgEl);
-
-        section.appendChild(p);
-        out.scrollTop = out.scrollHeight;
-
-        for (const ch of text) {
-            msgEl.textContent += ch;
-            await sleep(20);
-        }
-        await sleep(90);
-    }
-
-    // Progress bar
-    const barLine = document.createElement('p');
-    barLine.className = 'boot-line';
-    barLine.innerHTML = `<span class="boot-msg">Loading  </span><span class="boot-bar-wrap"><span class="boot-bar" id="bbar"></span></span>`;
-    section.appendChild(barLine);
-    out.scrollTop = out.scrollHeight;
-
-    const bar = document.getElementById('bbar');
-    for (let i = 0; i <= 100; i += 3) {
-        bar.style.width = `${i}%`;
-        await sleep(16);
-    }
-    await sleep(120);
-
-    // Ready banner
-    const ready = document.createElement('p');
-    ready.className = 'boot-ready';
-    ready.textContent = '◈  NEXUS ONLINE — SYSTEM READY';
-    section.appendChild(ready);
+    // Single clean banner — no wall of text
+    const banner = document.createElement('p');
+    banner.className = 'boot-ready';
+    banner.textContent = '◈  NEXUS v3.0  —  SYSTEM ONLINE';
+    section.appendChild(banner);
     out.scrollTop = out.scrollHeight;
 
     scheduleIdleFade(section);
