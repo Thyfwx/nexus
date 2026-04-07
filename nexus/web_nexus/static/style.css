@@ -208,6 +208,25 @@ body.reduce-motion *::after {
     transform: scale(1.04);
 }
 
+/* Accessibility sidebar button — distinct from game buttons */
+.a11y-action-btn {
+    border-color: var(--accent) !important;
+    color: var(--accent) !important;
+    font-weight: 700;
+    box-shadow: 0 0 6px rgba(255,0,255,0.2);
+}
+.a11y-action-btn:hover {
+    background: var(--accent) !important;
+    color: #000 !important;
+    box-shadow: 0 0 14px var(--accent) !important;
+}
+
+.sidebar-divider {
+    border: none;
+    border-top: 1px solid rgba(0,255,255,0.12);
+    margin: 0;
+}
+
 /* ── Scrollbar ─────────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar       { width: 6px; }
 ::-webkit-scrollbar-track { background: rgba(0,0,0,0.4); }
