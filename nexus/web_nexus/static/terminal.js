@@ -144,7 +144,24 @@ termWs.onmessage = (e) => {
 termWs.onclose = () => printToTerminal('[connection lost — reload to reconnect]', 'sys-msg');
 
 // ── Terminal Output ───────────────────────────────────────────────────────────
+// Detects [ERROR], [WARN], [EVIL] prefixes and applies matching CSS class.
+const MSG_TAGS = {
+    '[ERROR]': 'msg-error',
+    '[EVIL]':  'msg-error',
+    '[WARN]':  'msg-warn',
+    '[OK]':    'msg-ok',
+    '[INFO]':  'msg-info',
+};
+
 function printToTerminal(text, cls = 'sys-msg') {
+    // Check for a known styled prefix on the first line
+    for (const [tag, tagCls] of Object.entries(MSG_TAGS)) {
+        if (text.trimStart().startsWith(tag)) {
+            cls = tagCls;
+            break;
+        }
+    }
+
     const p = document.createElement('p');
     p.className = cls;
     p.innerHTML = text.replace(/\n/g, '<br>');
