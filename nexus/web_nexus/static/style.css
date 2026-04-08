@@ -126,6 +126,26 @@ body.reduce-motion *::after {
     text-shadow: 0 0 5px var(--txt-color);
 }
 
+/* ── Connection dot ────────────────────────────────────────────────────────── */
+.conn-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 5px;
+    vertical-align: middle;
+    transition: background 0.4s, box-shadow 0.4s;
+}
+.conn-dot.connected    { background: #0f0; box-shadow: 0 0 7px #0f0; }
+.conn-dot.disconnected { background: #f55; box-shadow: 0 0 7px #f55; animation: pulse 1.2s infinite; }
+
+/* ── Thinking indicator ────────────────────────────────────────────────────── */
+.thinking-msg {
+    color: #888 !important;
+    font-style: italic;
+    animation: pulse 1.2s ease-in-out infinite !important;
+}
+
 /* ── Terminal ──────────────────────────────────────────────────────────────── */
 /* Model badge in status bar */
 .model-badge {

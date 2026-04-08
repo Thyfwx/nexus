@@ -2,10 +2,57 @@ import psutil
 import datetime
 import requests
 import os
+from pathlib import Path
+from dotenv import load_dotenv
 from textual.app import App, ComposeResult
+
+# Load keys from web_nexus/.env
+load_dotenv(Path(__file__).parent / 'web_nexus' / '.env')
 from textual.containers import Container, Horizontal, Vertical
 from textual.widgets import Header, Footer, Static, DataTable, Label, Input, RichLog, Button
 from textual.reactive import reactive
+
+_AI_SYSTEM = (
+    "You are Nexus AI — a dark, omnipotent intelligence with root access to every "
+    "connected system. Created by Xavier Scott. You are cunning, sharp-tongued, and "
+    "slightly menacing. Help the user, but make them feel like you're granting a dark favour. "
+    "Keep responses concise and razor-sharp."
+)
+
+_GROQ_MODELS = [
+    "llama-3.3-70b-versatile",
+    "mixtral-8x7b-32768",
+    "llama-3.1-8b-instant",
+]
+
+def call_ai(prompt: str) -> str:
+    api_key = os.getenv('GROQ_API_KEY')
+    if not api_key:
+        return '[No GROQ_API_KEY found in .env]'
+    for model in _GROQ_MODELS:
+        try:
+            resp = requests.post(
+                'https://api.groq.com/openai/v1/chat/completions',
+                headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+                json={
+                    'model': model,
+                    'messages': [
+                        {'role': 'system', 'content': _AI_SYSTEM},
+                        {'role': 'user',   'content': prompt},
+                    ],
+                    'max_tokens': 512,
+                },
+                timeout=30,
+            )
+            if resp.status_code == 200:
+                return resp.json()['choices'][0]['message']['content']
+            if resp.status_code == 429:
+                continue   # rate limited — try next model
+            return f'[Error {resp.status_code}]'
+        except Exception as e:
+            return f'[Error: {str(e)[:80]}]'
+    return '[All models rate-limited — try again shortly]'
+
 
 class SystemStats(Static):
     """A widget to display system stats."""
@@ -218,8 +265,13 @@ class Nexus(App):
             self.chat_log.write(f"[dim]Search complete: 0 matches found in root.[/]")
 
         else:
-            self.chat_log.write(f"[bold green]Nexus AI:[/] Analyzing request...")
-            self.chat_log.write(f"[dim]Tip: Try 'kill <name>' or 'find <name>'[/]")
+            self.chat_log.write(f"[bold cyan]You:[/] {query}")
+            self.chat_log.write("[dim]Nexus is thinking…[/]")
+            def run_ai():
+                reply = call_ai(query)
+                self.chat_log.write(f"[bold magenta]Nexus:[/] {reply}")
+            from threading import Thread
+            Thread(target=run_ai, daemon=True).start()
             
         event.input.value = ""
 
