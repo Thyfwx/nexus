@@ -60,19 +60,9 @@ SYSTEM_PROMPT = (
 
 # ── Model registry ────────────────────────────────────────────────────────────
 MODELS = [
-    # Gemini first — primary AI
-    {"id": "gemini-2.0-flash",                      "provider": "gemini", "label": "Gemini 2.0 Flash"},
-    {"id": "gemini-1.5-flash",                      "provider": "gemini", "label": "Gemini 1.5 Flash"},
-    # Groq — fast fallback
-    {"id": "llama-3.3-70b-versatile",               "provider": "groq",   "label": "Llama 3.3 70B"},
-    {"id": "llama-3.1-8b-instant",                  "provider": "groq",   "label": "Llama 3.1 8B"},
-    {"id": "gemma2-9b-it",                          "provider": "groq",   "label": "Gemma 2 9B"},
-    {"id": "deepseek-r1-distill-llama-70b",         "provider": "groq",   "label": "DeepSeek R1 70B"},
-    {"id": "mixtral-8x7b-32768",                    "provider": "groq",   "label": "Mixtral 8x7B"},
-    # Hugging Face — last resort
-    {"id": "Qwen/Qwen2.5-72B-Instruct",             "provider": "hf",     "label": "Qwen 2.5 72B"},
-    {"id": "mistralai/Mistral-7B-Instruct-v0.3",    "provider": "hf",     "label": "Mistral 7B (HF)"},
-    {"id": "HuggingFaceH4/zephyr-7b-beta",          "provider": "hf",     "label": "Zephyr 7B"},
+    # Gemini only — no fallback to other providers
+    {"id": "gemini-2.0-flash",  "provider": "gemini", "label": "Gemini 2.0 Flash"},
+    {"id": "gemini-1.5-flash",  "provider": "gemini", "label": "Gemini 1.5 Flash"},
 ]
 
 current_model_idx = 0  # global — which model is active right now
