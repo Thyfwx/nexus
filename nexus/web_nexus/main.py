@@ -39,6 +39,78 @@ async def get():
             headers={"Cache-Control": "no-store, no-cache, must-revalidate"}
         )
 
+@app.get("/ping")
+async def ping():
+    """Lightweight wake-up endpoint — browser hits this to spin up Render before WS."""
+    return _JSONResponse({"ok": True})
+
+from fastapi import Request
+from fastapi.responses import JSONResponse as _JSONResponse
+
+@app.post("/ai")
+async def ai_http(request: Request):
+    """
+    HTTP fallback when WebSocket is unavailable (Render cold-start).
+    Body: { "prompt": str, "history": [...], "system": str }
+    Returns: { "text": str }
+    """
+    body    = await request.json()
+    prompt  = body.get("prompt", "").strip()
+    history = body.get("history", [])
+    system  = body.get("system", "")
+
+    if not prompt:
+        return _JSONResponse({"error": "No prompt"}, status_code=400)
+
+    # Override system prompt if caller provides one (e.g. CODER / SAGE mode)
+    original = SYSTEM_PROMPT
+    loop = asyncio.get_running_loop()
+
+    if system:
+        # Temporarily pass custom system via a one-shot wrapper
+        def _call():
+            return call_gemini("gemini-2.0-flash", prompt, history)
+        # We can't patch SYSTEM_PROMPT safely in concurrent code, so build
+        # the REST payload directly here with the caller's system prompt.
+        def _call_with_system():
+            api_key = _key("GEMINI_API_KEY")
+            if not api_key:
+                raise ValueError("GEMINI_API_KEY not set")
+            contents = []
+            for h in (history or []):
+                role = "model" if h.get("role") == "assistant" else "user"
+                contents.append({"role": role, "parts": [{"text": h.get("content", "")}]})
+            contents.append({"role": "user", "parts": [{"text": prompt}]})
+            payload = {
+                "system_instruction": {"parts": [{"text": system}]},
+                "contents": contents,
+                "generationConfig": {"maxOutputTokens": 1500, "temperature": 0.9},
+            }
+            import requests as _r
+            resp = _r.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}",
+                json=payload, timeout=25,
+            )
+            if resp.status_code != 200:
+                raise Exception(f"{resp.status_code} {resp.text[:200]}")
+            data = resp.json()
+            try:
+                return data["candidates"][0]["content"]["parts"][0]["text"]
+            except (KeyError, IndexError):
+                raise RuntimeError(f"No text in response: {str(data)[:200]}")
+        fn = _call_with_system
+    else:
+        fn = lambda: call_gemini("gemini-2.0-flash", prompt, history)
+
+    try:
+        result = await asyncio.wait_for(loop.run_in_executor(None, fn), timeout=28.0)
+        return _JSONResponse({"text": sanitize_ai(result)})
+    except asyncio.TimeoutError:
+        return _JSONResponse({"error": "Gemini timed out"}, status_code=504)
+    except Exception as e:
+        print(f"[/ai] {e}")
+        return _JSONResponse({"error": str(e)[:200]}, status_code=500)
+
 
 # ── Evil system prompt — identical across every model ─────────────────────────
 SYSTEM_PROMPT = (
