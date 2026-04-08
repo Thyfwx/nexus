@@ -1,65 +1,3 @@
-// ── Boot Sequence ─────────────────────────────────────────────────────────────
-// Shows a clean single banner ONCE ever (localStorage). Completely silent on
-// every subsequent visit. The server greeting is also suppressed after first visit.
-
-const BOOT_KEY     = 'nexus-boot-v2';   // bumped version clears old boot state
-const isFirstVisit = !localStorage.getItem(BOOT_KEY);
-
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
-async function runBoot() {
-    if (!isFirstVisit) return;
-    localStorage.setItem(BOOT_KEY, '1');
-
-    const section = document.createElement('div');
-    section.id = 'boot-section';
-    const out = document.getElementById('terminal-output');
-    out.appendChild(section);
-
-    // Single clean banner — no wall of text
-    const banner = document.createElement('p');
-    banner.className = 'boot-ready';
-    banner.textContent = '◈  NEXUS v3.0  —  SYSTEM ONLINE';
-    section.appendChild(banner);
-    out.scrollTop = out.scrollHeight;
-
-    scheduleIdleFade(section);
-}
-
-let bootIdleTimer = null;
-
-function scheduleIdleFade(section) {
-    const IDLE_MS = 45_000;
-
-    const reset = () => {
-        clearTimeout(bootIdleTimer);
-        bootIdleTimer = setTimeout(() => fadeBoot(section), IDLE_MS);
-    };
-
-    // Fade immediately on first real command
-    const inp = document.getElementById('terminal-input');
-    inp.addEventListener('keydown', function onFirstCmd(e) {
-        if (e.key === 'Enter' && inp.value.trim()) {
-            clearTimeout(bootIdleTimer);
-            fadeBoot(section);
-            inp.removeEventListener('keydown', onFirstCmd);
-        }
-    });
-
-    // Reset timer on any activity
-    inp.addEventListener('keydown', reset);
-    document.querySelectorAll('.action-btn').forEach(b => b.addEventListener('click', reset));
-
-    reset();
-}
-
-function fadeBoot(el) {
-    if (!el || !el.isConnected) return;
-    el.style.transition = 'opacity 1.4s ease';
-    el.style.opacity    = '0';
-    setTimeout(() => el.remove(), 1400);
-}
-
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 const cpuStat = document.getElementById('cpu-stat');
 const memStat = document.getElementById('mem-stat');
@@ -979,5 +917,3 @@ document.getElementById('reduce-motion').addEventListener('change', (e) => {
     document.body.classList.toggle('reduce-motion', motionOn);
 })();
 
-// Kick off boot sequence
-runBoot();
