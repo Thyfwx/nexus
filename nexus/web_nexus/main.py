@@ -27,7 +27,10 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 @app.get("/")
 async def get():
     with open(os.path.join(static_dir, "index.html"), "r") as f:
-        return HTMLResponse(f.read())
+        return HTMLResponse(
+            f.read(),
+            headers={"Cache-Control": "no-store, no-cache, must-revalidate"}
+        )
 
 
 # ── Evil system prompt — identical across every model ─────────────────────────
