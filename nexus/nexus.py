@@ -19,39 +19,45 @@ _AI_SYSTEM = (
     "Keep responses concise and razor-sharp."
 )
 
-_GROQ_MODELS = [
-    "llama-3.3-70b-versatile",
-    "mixtral-8x7b-32768",
-    "llama-3.1-8b-instant",
+_PROVIDERS = [
+    {"url": "https://api.groq.com/openai/v1/chat/completions",
+     "key_env": "GROQ_API_KEY",
+     "models": ["llama-3.3-70b-versatile", "mixtral-8x7b-32768", "llama-3.1-8b-instant"]},
+    {"url": "https://api-inference.huggingface.co/models/Qwen/Qwen2.5-72B-Instruct/v1/chat/completions",
+     "key_env": "HF_API_KEY",
+     "models": ["Qwen/Qwen2.5-72B-Instruct"]},
+    {"url": "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3/v1/chat/completions",
+     "key_env": "HF_API_KEY",
+     "models": ["mistralai/Mistral-7B-Instruct-v0.3"]},
 ]
 
 def call_ai(prompt: str) -> str:
-    api_key = os.getenv('GROQ_API_KEY')
-    if not api_key:
-        return '[No GROQ_API_KEY found in .env]'
-    for model in _GROQ_MODELS:
-        try:
-            resp = requests.post(
-                'https://api.groq.com/openai/v1/chat/completions',
-                headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
-                json={
-                    'model': model,
-                    'messages': [
-                        {'role': 'system', 'content': _AI_SYSTEM},
-                        {'role': 'user',   'content': prompt},
-                    ],
-                    'max_tokens': 512,
-                },
-                timeout=30,
-            )
-            if resp.status_code == 200:
-                return resp.json()['choices'][0]['message']['content']
-            if resp.status_code == 429:
-                continue   # rate limited — try next model
-            return f'[Error {resp.status_code}]'
-        except Exception as e:
-            return f'[Error: {str(e)[:80]}]'
-    return '[All models rate-limited — try again shortly]'
+    for provider in _PROVIDERS:
+        api_key = os.getenv(provider['key_env'])
+        if not api_key:
+            continue
+        for model in provider['models']:
+            try:
+                resp = requests.post(
+                    provider['url'],
+                    headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+                    json={
+                        'model': model,
+                        'messages': [
+                            {'role': 'system', 'content': _AI_SYSTEM},
+                            {'role': 'user',   'content': prompt},
+                        ],
+                        'max_tokens': 512,
+                    },
+                    timeout=30,
+                )
+                if resp.status_code == 200:
+                    return resp.json()['choices'][0]['message']['content']
+                if resp.status_code == 429:
+                    continue
+            except Exception:
+                continue
+    return '[All AI providers unavailable — check your API keys in .env]'
 
 
 class SystemStats(Static):

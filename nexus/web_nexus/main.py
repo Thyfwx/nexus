@@ -60,12 +60,19 @@ SYSTEM_PROMPT = (
 
 # ── Model registry ────────────────────────────────────────────────────────────
 MODELS = [
-    {"id": "gemini-2.0-flash",              "provider": "gemini", "label": "Gemini 2.0 Flash"},
-    {"id": "llama-3.3-70b-versatile",       "provider": "groq",   "label": "Llama 3.3 70B"},
-    {"id": "mixtral-8x7b-32768",            "provider": "groq",   "label": "Mixtral 8x7B"},
-    {"id": "llama-3.1-8b-instant",          "provider": "groq",   "label": "Llama 3.1 8B"},
-    {"id": "gemma2-9b-it",                  "provider": "groq",   "label": "Gemma 2 9B"},
-    {"id": "deepseek-r1-distill-llama-70b", "provider": "groq",   "label": "DeepSeek R1 70B"},
+    # Gemini
+    {"id": "gemini-2.0-flash",                      "provider": "gemini", "label": "Gemini 2.0 Flash"},
+    # Groq
+    {"id": "llama-3.3-70b-versatile",               "provider": "groq",   "label": "Llama 3.3 70B"},
+    {"id": "mixtral-8x7b-32768",                    "provider": "groq",   "label": "Mixtral 8x7B"},
+    {"id": "llama-3.1-8b-instant",                  "provider": "groq",   "label": "Llama 3.1 8B"},
+    {"id": "gemma2-9b-it",                          "provider": "groq",   "label": "Gemma 2 9B"},
+    {"id": "deepseek-r1-distill-llama-70b",         "provider": "groq",   "label": "DeepSeek R1 70B"},
+    # Hugging Face
+    {"id": "Qwen/Qwen2.5-72B-Instruct",             "provider": "hf",     "label": "Qwen 2.5 72B"},
+    {"id": "mistralai/Mistral-7B-Instruct-v0.3",    "provider": "hf",     "label": "Mistral 7B (HF)"},
+    {"id": "HuggingFaceH4/zephyr-7b-beta",          "provider": "hf",     "label": "Zephyr 7B"},
+    {"id": "microsoft/Phi-3.5-mini-instruct",       "provider": "hf",     "label": "Phi-3.5 Mini"},
 ]
 
 current_model_idx = 0  # global — which model is active right now
@@ -131,6 +138,26 @@ def call_gemini(model_id: str, prompt: str, history: list) -> str:
     return response.text
 
 
+# ── Hugging Face Inference API (OpenAI-compatible chat completions) ───────────
+def call_hf(model_id: str, prompt: str, history: list) -> str:
+    api_key = _key("HF_API_KEY")
+    if not api_key:
+        raise ValueError("HF_API_KEY not set")
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    for h in (history or []):
+        messages.append({"role": h.get("role", "user"), "content": h.get("content", "")})
+    messages.append({"role": "user", "content": prompt})
+    resp = req_lib.post(
+        f"https://api-inference.huggingface.co/models/{model_id}/v1/chat/completions",
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json={"model": model_id, "messages": messages, "max_tokens": 1024, "stream": False},
+        timeout=60,
+    )
+    if resp.status_code != 200:
+        raise Exception(f"{resp.status_code} {resp.text[:200]}")
+    return resp.json()["choices"][0]["message"]["content"]
+
+
 # ── Groq call (OpenAI-compatible REST) ────────────────────────────────────────
 def call_groq(model_id: str, prompt: str, history: list) -> str:
     api_key = _key("GROQ_API_KEY")
@@ -167,9 +194,12 @@ def get_ai_response(prompt: str, history: list = None) -> dict:
         idx   = (current_model_idx + offset) % len(MODELS)
         model = MODELS[idx]
         try:
-            text = (call_gemini if model["provider"] == "gemini" else call_groq)(
-                model["id"], prompt, history or []
-            )
+            if model["provider"] == "gemini":
+                text = call_gemini(model["id"], prompt, history or [])
+            elif model["provider"] == "hf":
+                text = call_hf(model["id"], prompt, history or [])
+            else:
+                text = call_groq(model["id"], prompt, history or [])
             switched_from     = prev_label if idx != current_model_idx else None
             current_model_idx = idx
             return {"text": text, "label": model["label"], "switched_from": switched_from}
@@ -190,27 +220,59 @@ def get_ai_response(prompt: str, history: list = None) -> dict:
 
 
 # ── Image generation ──────────────────────────────────────────────────────────
-def generate_image(prompt: str) -> str:
+def _imagen_gemini(prompt: str):
+    """Returns base64 string or raises."""
     api_key = _key("GEMINI_API_KEY")
     if not api_key:
-        return "[ERROR] GEMINI_API_KEY is not set."
+        raise ValueError("GEMINI_API_KEY not set")
+    client   = genai.Client(api_key=api_key)
+    response = client.models.generate_images(
+        model="imagen-3.0-generate-002",
+        prompt=prompt,
+        config=genai.types.GenerateImagesConfig(number_of_images=1, aspect_ratio="1:1")
+    )
+    return base64.b64encode(response.generated_images[0].image.image_bytes).decode("utf-8")
+
+
+def _imagen_hf_flux(prompt: str):
+    """Returns base64 string via HF FLUX.1-schnell or raises."""
+    api_key = _key("HF_API_KEY")
+    if not api_key:
+        raise ValueError("HF_API_KEY not set")
+    resp = req_lib.post(
+        "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell",
+        headers={"Authorization": f"Bearer {api_key}"},
+        json={"inputs": prompt},
+        timeout=120,
+    )
+    if resp.status_code != 200:
+        raise Exception(f"{resp.status_code} {resp.text[:200]}")
+    return base64.b64encode(resp.content).decode("utf-8")
+
+
+def generate_image(prompt: str) -> str:
+    """Try Gemini Imagen 3 first, fall back to HF FLUX.1-schnell."""
+    # 1 — Gemini Imagen 3
     try:
-        client   = genai.Client(api_key=api_key)
-        response = client.models.generate_images(
-            model="imagen-3.0-generate-002",
-            prompt=prompt,
-            config=genai.types.GenerateImagesConfig(number_of_images=1, aspect_ratio="1:1")
-        )
-        b64 = base64.b64encode(response.generated_images[0].image.image_bytes).decode("utf-8")
+        b64 = _imagen_gemini(prompt)
         return f"[IMAGE:{b64}]"
     except Exception as e:
         err = str(e)
-        if _is_rate_limit(Exception(err)):
-            return "[WARN] Image generation rate limited — try again shortly."
         if "404" in err or "not found" in err.lower():
-            return "[WARN] Imagen 3 requires a paid Gemini plan — visit aistudio.google.com"
-        print(f"[IMAGE ERROR] {err}")
-        return f"[ERROR] Image generation failed — {err[:120]}"
+            print("[IMAGE] Imagen 3 not available on this plan — trying HF FLUX")
+        elif _is_rate_limit(Exception(err)):
+            print("[IMAGE] Imagen 3 rate limited — trying HF FLUX")
+        else:
+            print(f"[IMAGE] Gemini failed: {err[:80]} — trying HF FLUX")
+
+    # 2 — HF FLUX.1-schnell
+    try:
+        b64 = _imagen_hf_flux(prompt)
+        return f"[IMAGE:{b64}]"
+    except Exception as e:
+        print(f"[IMAGE] HF FLUX failed: {e!s:.80}")
+
+    return "[WARN] Image generation unavailable — check GEMINI_API_KEY or HF_API_KEY in .env"
 
 
 # ── Speedtest ─────────────────────────────────────────────────────────────────
