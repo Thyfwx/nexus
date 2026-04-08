@@ -60,15 +60,15 @@ SYSTEM_PROMPT = (
 
 # ── Model registry ────────────────────────────────────────────────────────────
 MODELS = [
-    # Groq first — fast, reliable, no cold-start issues
+    # Gemini first — primary AI
+    {"id": "gemini-2.5-flash",                      "provider": "gemini", "label": "Gemini 2.5 Flash"},
+    {"id": "gemini-2.0-flash",                      "provider": "gemini", "label": "Gemini 2.0 Flash"},
+    # Groq — fast fallback
     {"id": "llama-3.3-70b-versatile",               "provider": "groq",   "label": "Llama 3.3 70B"},
     {"id": "llama-3.1-8b-instant",                  "provider": "groq",   "label": "Llama 3.1 8B"},
     {"id": "gemma2-9b-it",                          "provider": "groq",   "label": "Gemma 2 9B"},
     {"id": "deepseek-r1-distill-llama-70b",         "provider": "groq",   "label": "DeepSeek R1 70B"},
     {"id": "mixtral-8x7b-32768",                    "provider": "groq",   "label": "Mixtral 8x7B"},
-    # Gemini — upgraded to 2.5 flash, used as fallback
-    {"id": "gemini-2.5-flash",                      "provider": "gemini", "label": "Gemini 2.5 Flash"},
-    {"id": "gemini-2.0-flash",                      "provider": "gemini", "label": "Gemini 2.0 Flash"},
     # Hugging Face — last resort
     {"id": "Qwen/Qwen2.5-72B-Instruct",             "provider": "hf",     "label": "Qwen 2.5 72B"},
     {"id": "mistralai/Mistral-7B-Instruct-v0.3",    "provider": "hf",     "label": "Mistral 7B (HF)"},
@@ -130,7 +130,9 @@ def call_gemini(model_id: str, prompt: str, history: list) -> str:
     client   = genai.Client(api_key=api_key)
     contents = []
     for h in (history or []):
-        contents.append({"role": h["role"], "parts": [{"text": h["content"]}]})
+        # Gemini requires "model" not "assistant" — map OpenAI role names
+        role = "model" if h["role"] == "assistant" else h["role"]
+        contents.append({"role": role, "parts": [{"text": h["content"]}]})
     contents.append({"role": "user", "parts": [{"text": prompt}]})
 
     # Gemini SDK has no built-in request timeout — enforce 20s with a thread event
@@ -144,7 +146,10 @@ def call_gemini(model_id: str, prompt: str, history: list) -> str:
                 contents=contents,
                 config=genai.types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT)
             )
-            result_box.append(resp.text)
+            text = resp.text
+            if not text:
+                raise RuntimeError("Gemini returned empty response (safety filter or None)")
+            result_box.append(text)
         except Exception as e:
             error_box.append(e)
 
