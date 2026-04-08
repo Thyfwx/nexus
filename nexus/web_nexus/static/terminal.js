@@ -95,13 +95,17 @@ function connectStats() {
 connectStats();
 
 // ── Terminal WebSocket (auto-reconnects silently) ─────────────────────────────
-// Server greeting and model badge are ONLY shown on the very first ever connect.
-// Every subsequent connect (reconnect, server restart, etc.) is fully silent.
+let lastSendTime = 0;   // tracks last outbound message for smart keepalive
+
 function connectTerm() {
     termConnCount++;
-    const isFreshConnect = termConnCount === 1;
+    const connDot = document.getElementById('conn-dot');
 
     termWs = new WebSocket(`ws://${location.host}/ws/terminal`);
+
+    termWs.onopen = () => {
+        if (connDot) connDot.className = 'conn-dot connected';
+    };
 
     termWs.onmessage = (e) => {
         const raw = e.data;
@@ -114,17 +118,9 @@ function connectTerm() {
             return;
         }
 
-        // ── Server greeting — show only on very first visit, never again ──
-        const isGreeting = raw.includes('Uplink Established') ||
-                           raw.includes("Type 'help'")        ||
-                           raw.includes('Nexus AI Online');
-        if (isGreeting) {
-            if (isFirstVisit && isFreshConnect) printToTerminal(raw);
-            return;
-        }
-
         // ── Image payload ─────────────────────────────────────────────────
         if (raw.startsWith('[IMAGE:') && raw.endsWith(']')) {
+            hideThinking();
             const b64  = raw.slice(7, -1);
             const wrap = document.createElement('div');
             wrap.className = 'terminal-image-wrap';
@@ -143,36 +139,46 @@ function connectTerm() {
             return;
         }
 
+        hideThinking();
         const clean = handleTriggers(raw);
         if (clean.trim()) printToTerminal(clean);
     };
 
-    // Keepalive ping every 25 s — prevents idle timeout disconnects
+    // Smart keepalive — only pings when connection has been idle for 20 s
     const pingId = setInterval(() => {
-        if (termWs.readyState === WebSocket.OPEN) termWs.send('__ping__');
-    }, 25000);
+        if (termWs.readyState === WebSocket.OPEN && Date.now() - lastSendTime > 20000) {
+            termWs.send('__ping__');
+            lastSendTime = Date.now();
+        }
+    }, 10000);
 
-    // Silent reconnect — no message shown to user, clear ping interval first
-    termWs.onclose = () => { clearInterval(pingId); setTimeout(connectTerm, 3000); };
+    // Silent reconnect — no message shown to user
+    termWs.onclose = () => {
+        if (connDot) connDot.className = 'conn-dot disconnected';
+        clearInterval(pingId);
+        setTimeout(connectTerm, 3000);
+    };
     termWs.onerror = () => {};
 }
 connectTerm();
 
-// ── Global idle timer — wipe terminal after 5 min of no input ────────────────
-let idleTimer;
-function resetIdle() {
-    clearTimeout(idleTimer);
-    idleTimer = setTimeout(() => {
-        output.innerHTML = '';
-    }, 5 * 60 * 1000);
+// ── Thinking indicator ────────────────────────────────────────────────────────
+let thinkingEl = null;
+
+function showThinking() {
+    if (thinkingEl) return;
+    thinkingEl = document.createElement('p');
+    thinkingEl.className = 'thinking-msg';
+    thinkingEl.textContent = 'Nexus is thinking…';
+    output.appendChild(thinkingEl);
+    output.scrollTop = output.scrollHeight;
 }
-document.addEventListener('keydown', resetIdle);
-document.addEventListener('click',   resetIdle);
-resetIdle();
+
+function hideThinking() {
+    if (thinkingEl) { thinkingEl.remove(); thinkingEl = null; }
+}
 
 // ── Terminal Output ───────────────────────────────────────────────────────────
-// Detects [ERROR], [WARN], [EVIL] prefixes and applies matching CSS class.
-// Only tags our own system emits — [EVIL] removed so AI can't fake-trigger it
 const MSG_TAGS = {
     '[ERROR]': 'msg-error',
     '[WARN]':  'msg-warn',
@@ -181,14 +187,9 @@ const MSG_TAGS = {
 };
 
 function printToTerminal(text, cls = 'sys-msg') {
-    // Check for a known styled prefix on the first line
     for (const [tag, tagCls] of Object.entries(MSG_TAGS)) {
-        if (text.trimStart().startsWith(tag)) {
-            cls = tagCls;
-            break;
-        }
+        if (text.trimStart().startsWith(tag)) { cls = tagCls; break; }
     }
-
     const p = document.createElement('p');
     p.className = cls;
     p.innerHTML = text.replace(/\n/g, '<br>');
@@ -196,21 +197,62 @@ function printToTerminal(text, cls = 'sys-msg') {
     output.scrollTop = output.scrollHeight;
 }
 
+// ── Chat history — persisted across page refreshes ───────────────────────────
+const HISTORY_KEY = 'nexus-chat-history';
+const chatHistory = (() => {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }
+    catch (_) { return []; }
+})();
+
+function saveChatHistory() {
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(chatHistory.slice(-20))); }
+    catch (_) {}
+}
+
+// ── Command history — ↑/↓ to cycle through previous commands ─────────────────
+const cmdHistory = [];
+let histIdx = -1;
+
 // ── Input Handler ─────────────────────────────────────────────────────────────
-const chatHistory = [];
+// Built-in commands that don't need the thinking indicator
+const LOCAL_CMDS = new Set(['clear','help','status','config','models','about',
+                            'play pong','play breach','play wordle','monitor']);
 
 input.addEventListener('keydown', (e) => {
+    // ↑/↓ command history navigation
+    if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!cmdHistory.length) return;
+        histIdx = Math.min(histIdx + 1, cmdHistory.length - 1);
+        input.value = cmdHistory[cmdHistory.length - 1 - histIdx];
+        return;
+    }
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (histIdx <= 0) { histIdx = -1; input.value = ''; return; }
+        histIdx--;
+        input.value = cmdHistory[cmdHistory.length - 1 - histIdx];
+        return;
+    }
+
     if (e.key !== 'Enter') return;
     const cmd = input.value.trim();
     if (!cmd) return;
 
+    cmdHistory.push(cmd);
+    histIdx = -1;
+
     if (cmd.toLowerCase() === 'clear') {
         output.innerHTML = '';
-        chatHistory.length = 0;   // also wipe AI conversation history
+        chatHistory.length = 0;
+        saveChatHistory();
     } else {
         printToTerminal(`root@nexus:~# ${cmd}`, 'user-cmd');
         chatHistory.push({ role: 'user', content: cmd });
-        sendTerm({ command: cmd.toLowerCase(), history: chatHistory.slice(-10) });
+        saveChatHistory();
+        const isLocal = LOCAL_CMDS.has(cmd.toLowerCase());
+        if (!isLocal) showThinking();
+        sendTerm({ command: cmd.toLowerCase(), history: chatHistory.slice(-20) });
     }
     input.value = '';
 });
@@ -221,6 +263,7 @@ document.querySelectorAll('.action-btn').forEach(btn => {
         if (cmd === 'clear') {
             output.innerHTML = '';
             chatHistory.length = 0;
+            saveChatHistory();
         } else {
             printToTerminal(`root@nexus:~# ${cmd}`, 'user-cmd');
             sendTerm({ command: cmd.toLowerCase(), history: [] });

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nexus Web Terminal</title>
-    <link rel="stylesheet" href="/static/style.css?v=3.5">
+    <link rel="stylesheet" href="/static/style.css?v=3.6">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Open+Sans:wght@400;600&family=Inconsolata:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body class="theme-cyber font-mono size-s space-n">
@@ -89,6 +89,7 @@
                 <div class="status-item">MEM: <span id="mem-stat">--</span>%</div>
                 <div class="status-item">BAT: <span id="bat-stat">--</span>%</div>
                 <div class="status-item geo-stat">LOC: Locating...</div>
+                <div class="status-item"><span id="conn-dot" class="conn-dot disconnected"></span> LINK</div>
                 <div class="status-item model-badge" id="model-badge" title="Click to switch model">
                     AI: <span id="model-stat">—</span>
                 </div>
@@ -119,6 +120,6 @@
         </div>
     </div>
 
-    <script src="/static/terminal.js?v=3.5"></script>
+    <script src="/static/terminal.js?v=3.6"></script>
 </body>
 </html>

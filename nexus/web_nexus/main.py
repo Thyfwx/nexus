@@ -229,11 +229,7 @@ def run_speedtest() -> str:
 async def websocket_terminal(websocket: WebSocket):
     await websocket.accept()
 
-    # Send greeting + model badge once on connect
-    await websocket.send_text(
-        "Uplink Established. Nexus AI Online.\n"
-        "Type 'help' for available protocols.\n"
-    )
+    # Only send model badge on connect — no greeting text that would repeat on reconnect
     await websocket.send_text(f"[MODEL:{MODELS[current_model_idx]['label']}]")
 
     while True:
