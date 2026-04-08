@@ -147,29 +147,92 @@ function saveChatHistory() {
     catch (_) {}
 }
 
-// ── Command history — ↑/↓ to cycle through previous commands ─────────────────
+// ── Command history — ↑/↓ to cycle ───────────────────────────────────────────
 const cmdHistory = [];
 let histIdx = -1;
 
+// ── Ghost suggestions ─────────────────────────────────────────────────────────
+const ALL_CMDS = [
+    'help', 'status', 'config', 'models', 'about', 'clear', 'reset',
+    'monitor', 'speedtest', 'play pong', 'play breach', 'play wordle',
+    'image ', 'model ',
+];
+
+// Rotating placeholder hints when input is empty
+const PLACEHOLDERS = [
+    'Ask Nexus anything…',
+    'Try: image cyberpunk city at night',
+    'Try: play pong',
+    'Try: speedtest',
+    'Try: what can you do?',
+    'Try: status',
+];
+let phIdx = 0;
+setInterval(() => {
+    if (!input.value) {
+        input.placeholder = PLACEHOLDERS[phIdx++ % PLACEHOLDERS.length];
+    }
+}, 3500);
+input.placeholder = PLACEHOLDERS[0];
+
+const suggestEl = document.getElementById('suggestions');
+
+function updateSuggestions(val) {
+    if (!suggestEl) return;
+    const q = val.trim().toLowerCase();
+    const matches = q
+        ? ALL_CMDS.filter(c => c.startsWith(q) && c.trim() !== q).slice(0, 6)
+        : ALL_CMDS.slice(0, 6);
+
+    suggestEl.innerHTML = matches.map(c =>
+        `<button class="suggestion-chip" data-cmd="${c}">${c.trim()}</button>`
+    ).join('');
+
+    suggestEl.querySelectorAll('.suggestion-chip').forEach(btn => {
+        btn.addEventListener('mousedown', (e) => {
+            e.preventDefault();          // don't blur input
+            input.value = btn.dataset.cmd;
+            input.focus();
+            updateSuggestions(input.value);
+        });
+    });
+}
+
+input.addEventListener('input', () => updateSuggestions(input.value));
+updateSuggestions('');   // show defaults on load
+
 // ── Input Handler ─────────────────────────────────────────────────────────────
-// Built-in commands that don't need the thinking indicator
-const LOCAL_CMDS = new Set(['clear','help','status','config','models','about',
-                            'play pong','play breach','play wordle','monitor']);
+const LOCAL_CMDS = new Set(['clear','reset','help','status','config','models',
+                            'about','play pong','play breach','play wordle','monitor']);
+
+// Track pending reset confirmation
+let awaitingReset = false;
 
 input.addEventListener('keydown', (e) => {
-    // ↑/↓ command history navigation
+    // ↑/↓ command history
     if (e.key === 'ArrowUp') {
         e.preventDefault();
         if (!cmdHistory.length) return;
         histIdx = Math.min(histIdx + 1, cmdHistory.length - 1);
         input.value = cmdHistory[cmdHistory.length - 1 - histIdx];
+        updateSuggestions(input.value);
         return;
     }
     if (e.key === 'ArrowDown') {
         e.preventDefault();
-        if (histIdx <= 0) { histIdx = -1; input.value = ''; return; }
+        if (histIdx <= 0) { histIdx = -1; input.value = ''; updateSuggestions(''); return; }
         histIdx--;
         input.value = cmdHistory[cmdHistory.length - 1 - histIdx];
+        updateSuggestions(input.value);
+        return;
+    }
+
+    // Tab completion
+    if (e.key === 'Tab') {
+        e.preventDefault();
+        const q = input.value.toLowerCase();
+        const match = ALL_CMDS.find(c => c.startsWith(q) && c.trim() !== q);
+        if (match) { input.value = match; updateSuggestions(input.value); }
         return;
     }
 
@@ -179,20 +242,48 @@ input.addEventListener('keydown', (e) => {
 
     cmdHistory.push(cmd);
     histIdx = -1;
-
-    if (cmd.toLowerCase() === 'clear') {
-        output.innerHTML = '';
-        chatHistory.length = 0;
-        saveChatHistory();
-    } else {
-        printToTerminal(`root@nexus:~# ${cmd}`, 'user-cmd');
-        chatHistory.push({ role: 'user', content: cmd });
-        saveChatHistory();
-        const isLocal = LOCAL_CMDS.has(cmd.toLowerCase());
-        if (!isLocal) showThinking();
-        sendTerm({ command: cmd.toLowerCase(), history: chatHistory.slice(-20) });
-    }
     input.value = '';
+    updateSuggestions('');
+
+    const cmdLow = cmd.toLowerCase();
+
+    // ── clear — screen only, history preserved ────────────────────────────
+    if (cmdLow === 'clear') {
+        output.innerHTML = '';
+        return;
+    }
+
+    // ── reset — two-step confirmation before wiping history ───────────────
+    if (cmdLow === 'reset') {
+        printToTerminal(`root@nexus:~# ${cmd}`, 'user-cmd');
+        printToTerminal(
+            '[WARN] This will wipe your screen AND your entire AI conversation history.\n' +
+            'Type  reset confirm  to proceed, or anything else to cancel.',
+            'msg-warn'
+        );
+        awaitingReset = true;
+        return;
+    }
+
+    if (awaitingReset) {
+        awaitingReset = false;
+        if (cmdLow === 'reset confirm') {
+            output.innerHTML = '';
+            chatHistory.length = 0;
+            saveChatHistory();
+            printToTerminal('[OK] Terminal and conversation history wiped.', 'msg-ok');
+        } else {
+            printToTerminal('[INFO] Reset cancelled.', 'msg-info');
+        }
+        return;
+    }
+
+    // ── regular command ───────────────────────────────────────────────────
+    printToTerminal(`root@nexus:~# ${cmd}`, 'user-cmd');
+    chatHistory.push({ role: 'user', content: cmd });
+    saveChatHistory();
+    if (!LOCAL_CMDS.has(cmdLow)) showThinking();
+    sendTerm({ command: cmdLow, history: chatHistory.slice(-20) });
 });
 
 document.querySelectorAll('.action-btn').forEach(btn => {
@@ -200,13 +291,12 @@ document.querySelectorAll('.action-btn').forEach(btn => {
         const cmd = btn.getAttribute('data-cmd');
         if (cmd === 'clear') {
             output.innerHTML = '';
-            chatHistory.length = 0;
-            saveChatHistory();
         } else {
             printToTerminal(`root@nexus:~# ${cmd}`, 'user-cmd');
             sendTerm({ command: cmd.toLowerCase(), history: [] });
             input.focus();
         }
+        updateSuggestions('');
     });
 });
 

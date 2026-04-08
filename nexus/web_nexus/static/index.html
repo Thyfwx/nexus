@@ -11,14 +11,14 @@
          This kills any stale cached terminal.js without needing a server restart. -->
     <script>
         (function () {
-            var V = '3.8';
+            var V = '3.9';
             if (localStorage.getItem('nx-js') !== V) {
                 localStorage.setItem('nx-js', V);
                 location.reload(true);
             }
         })();
     </script>
-    <link rel="stylesheet" href="/static/style.css?v=3.8">
+    <link rel="stylesheet" href="/static/style.css?v=3.9">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Open+Sans:wght@400;600&family=Inconsolata:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body class="theme-cyber font-mono size-s space-n">
@@ -111,6 +111,7 @@
 
             <main class="terminal-container">
                 <div class="terminal-output" id="terminal-output"></div>
+                <div id="suggestions" class="suggestions"></div>
                 <div class="terminal-input-wrapper">
                     <span class="prompt">root@nexus:~#</span>
                     <input type="text" id="terminal-input" autocomplete="off" autofocus aria-label="Terminal command input">
@@ -134,6 +135,6 @@
         </div>
     </div>
 
-    <script src="/static/terminal.js?v=3.8"></script>
+    <script src="/static/terminal.js?v=3.9"></script>
 </body>
 </html>
