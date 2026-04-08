@@ -60,19 +60,19 @@ SYSTEM_PROMPT = (
 
 # ── Model registry ────────────────────────────────────────────────────────────
 MODELS = [
-    # Gemini
-    {"id": "gemini-2.0-flash",                      "provider": "gemini", "label": "Gemini 2.0 Flash"},
-    # Groq
+    # Groq first — fast, reliable, no cold-start issues
     {"id": "llama-3.3-70b-versatile",               "provider": "groq",   "label": "Llama 3.3 70B"},
-    {"id": "mixtral-8x7b-32768",                    "provider": "groq",   "label": "Mixtral 8x7B"},
     {"id": "llama-3.1-8b-instant",                  "provider": "groq",   "label": "Llama 3.1 8B"},
     {"id": "gemma2-9b-it",                          "provider": "groq",   "label": "Gemma 2 9B"},
     {"id": "deepseek-r1-distill-llama-70b",         "provider": "groq",   "label": "DeepSeek R1 70B"},
-    # Hugging Face
+    {"id": "mixtral-8x7b-32768",                    "provider": "groq",   "label": "Mixtral 8x7B"},
+    # Gemini — upgraded to 2.5 flash, used as fallback
+    {"id": "gemini-2.5-flash",                      "provider": "gemini", "label": "Gemini 2.5 Flash"},
+    {"id": "gemini-2.0-flash",                      "provider": "gemini", "label": "Gemini 2.0 Flash"},
+    # Hugging Face — last resort
     {"id": "Qwen/Qwen2.5-72B-Instruct",             "provider": "hf",     "label": "Qwen 2.5 72B"},
     {"id": "mistralai/Mistral-7B-Instruct-v0.3",    "provider": "hf",     "label": "Mistral 7B (HF)"},
     {"id": "HuggingFaceH4/zephyr-7b-beta",          "provider": "hf",     "label": "Zephyr 7B"},
-    {"id": "microsoft/Phi-3.5-mini-instruct",       "provider": "hf",     "label": "Phi-3.5 Mini"},
 ]
 
 current_model_idx = 0  # global — which model is active right now
@@ -227,15 +227,13 @@ def get_ai_response(prompt: str, history: list = None) -> dict:
             return {"text": text, "label": model["label"], "switched_from": switched_from}
 
         except Exception as e:
-            if _is_rate_limit(e) or _is_auth_or_missing(e):
-                # Skip to next — don't surface this as an error
-                print(f"[MODEL] Skip {model['label']}: {e!s:.80}")
-                continue
-            # Unexpected error — return it immediately, don't rotate
-            return {"text": fmt_error(str(e)), "label": model["label"], "switched_from": None}
+            # Always rotate — never bail on a single model failure.
+            # Every exception type (timeout, API error, bad response, auth) tries the next model.
+            print(f"[MODEL] Skip {model['label']}: {e!s:.120}")
+            continue
 
     return {
-        "text":         "[ERROR] All models are currently rate-limited. Wait a moment and try again.",
+        "text":         "All AI models are currently unavailable. Wait a moment and try again.",
         "label":        MODELS[current_model_idx]["label"],
         "switched_from": None,
     }
