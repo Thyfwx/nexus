@@ -122,6 +122,8 @@ def fmt_error(err: str) -> str:
 
 # ── Gemini call ───────────────────────────────────────────────────────────────
 def call_gemini(model_id: str, prompt: str, history: list) -> str:
+    import signal as _signal, threading as _threading
+
     api_key = _key("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("GEMINI_API_KEY not set")
@@ -130,12 +132,32 @@ def call_gemini(model_id: str, prompt: str, history: list) -> str:
     for h in (history or []):
         contents.append({"role": h["role"], "parts": [{"text": h["content"]}]})
     contents.append({"role": "user", "parts": [{"text": prompt}]})
-    response = client.models.generate_content(
-        model=model_id,
-        contents=contents,
-        config=genai.types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT)
-    )
-    return response.text
+
+    # Gemini SDK has no built-in request timeout — enforce 20s with a thread event
+    result_box: list = []
+    error_box:  list = []
+
+    def _call():
+        try:
+            resp = client.models.generate_content(
+                model=model_id,
+                contents=contents,
+                config=genai.types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT)
+            )
+            result_box.append(resp.text)
+        except Exception as e:
+            error_box.append(e)
+
+    t = _threading.Thread(target=_call, daemon=True)
+    t.start()
+    t.join(timeout=20)
+    if t.is_alive():
+        raise TimeoutError("Gemini call exceeded 20s")
+    if error_box:
+        raise error_box[0]
+    if not result_box:
+        raise RuntimeError("Gemini returned no result")
+    return result_box[0]
 
 
 # ── Hugging Face Inference API (OpenAI-compatible chat completions) ───────────
@@ -458,8 +480,18 @@ async def websocket_terminal(websocket: WebSocket):
 
             # ── AI fallback (auto-rotating) ───────────────────────────────
             else:
-                loop   = asyncio.get_running_loop()
-                result = await loop.run_in_executor(None, get_ai_response, cmd, history)
+                loop = asyncio.get_running_loop()
+                try:
+                    result = await asyncio.wait_for(
+                        loop.run_in_executor(None, get_ai_response, cmd, history),
+                        timeout=25.0  # hard cap — prevents Gemini hangs from killing the WS
+                    )
+                except asyncio.TimeoutError:
+                    await websocket.send_text(
+                        "[ERROR] Response timed out (25s) — model may be overloaded. "
+                        "Try again or type  model 2  to switch to Groq."
+                    )
+                    continue
 
                 if result["switched_from"]:
                     await websocket.send_text(f"[MODEL:{result['label']}]")
