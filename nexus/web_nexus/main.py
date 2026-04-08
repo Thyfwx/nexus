@@ -10,7 +10,14 @@ from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from google import genai
 
-load_dotenv()
+_ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+load_dotenv(_ENV_PATH)
+
+def _key(name: str) -> str:
+    """Always re-reads .env so key changes take effect without a server restart."""
+    load_dotenv(_ENV_PATH, override=True)
+    return os.getenv(name, '')
+
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -108,7 +115,7 @@ def fmt_error(err: str) -> str:
 
 # ── Gemini call ───────────────────────────────────────────────────────────────
 def call_gemini(model_id: str, prompt: str, history: list) -> str:
-    api_key = os.getenv("GEMINI_API_KEY")
+    api_key = _key("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("GEMINI_API_KEY not set")
     client   = genai.Client(api_key=api_key)
@@ -126,7 +133,7 @@ def call_gemini(model_id: str, prompt: str, history: list) -> str:
 
 # ── Groq call (OpenAI-compatible REST) ────────────────────────────────────────
 def call_groq(model_id: str, prompt: str, history: list) -> str:
-    api_key = os.getenv("GROQ_API_KEY")
+    api_key = _key("GROQ_API_KEY")
     if not api_key:
         raise ValueError("GROQ_API_KEY not set")
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
@@ -184,7 +191,7 @@ def get_ai_response(prompt: str, history: list = None) -> dict:
 
 # ── Image generation ──────────────────────────────────────────────────────────
 def generate_image(prompt: str) -> str:
-    api_key = os.getenv("GEMINI_API_KEY")
+    api_key = _key("GEMINI_API_KEY")
     if not api_key:
         return "[ERROR] GEMINI_API_KEY is not set."
     try:
@@ -278,7 +285,7 @@ async def websocket_terminal(websocket: WebSocket):
             # ── config ───────────────────────────────────────────────────
             elif cmd == "config":
                 def key_status(name):
-                    v = os.getenv(name)
+                    v = _key(name)
                     if not v:
                         return "[NOT SET]"
                     return f"[SET]  {v[:6]}...{v[-4:]}"
