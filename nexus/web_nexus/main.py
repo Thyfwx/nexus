@@ -61,8 +61,8 @@ SYSTEM_PROMPT = (
 # ── Model registry ────────────────────────────────────────────────────────────
 MODELS = [
     # Gemini first — primary AI
-    {"id": "gemini-2.5-flash",                      "provider": "gemini", "label": "Gemini 2.5 Flash"},
     {"id": "gemini-2.0-flash",                      "provider": "gemini", "label": "Gemini 2.0 Flash"},
+    {"id": "gemini-1.5-flash",                      "provider": "gemini", "label": "Gemini 1.5 Flash"},
     # Groq — fast fallback
     {"id": "llama-3.3-70b-versatile",               "provider": "groq",   "label": "Llama 3.3 70B"},
     {"id": "llama-3.1-8b-instant",                  "provider": "groq",   "label": "Llama 3.1 8B"},
@@ -120,49 +120,44 @@ def fmt_error(err: str) -> str:
     return "[ERROR] AI encountered an issue — see server log."
 
 
-# ── Gemini call ───────────────────────────────────────────────────────────────
+# ── Gemini call — uses REST API directly (no SDK version dependency) ─────────
 def call_gemini(model_id: str, prompt: str, history: list) -> str:
-    import signal as _signal, threading as _threading
-
     api_key = _key("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("GEMINI_API_KEY not set")
-    client   = genai.Client(api_key=api_key)
+
+    # Build Gemini-format contents (role must be "user" or "model")
     contents = []
     for h in (history or []):
-        # Gemini requires "model" not "assistant" — map OpenAI role names
-        role = "model" if h["role"] == "assistant" else h["role"]
+        role = "model" if h["role"] == "assistant" else "user"
         contents.append({"role": role, "parts": [{"text": h["content"]}]})
     contents.append({"role": "user", "parts": [{"text": prompt}]})
 
-    # Gemini SDK has no built-in request timeout — enforce 20s with a thread event
-    result_box: list = []
-    error_box:  list = []
+    payload = {
+        "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+        "contents": contents,
+        "generationConfig": {"maxOutputTokens": 1024, "temperature": 0.9},
+    }
 
-    def _call():
-        try:
-            resp = client.models.generate_content(
-                model=model_id,
-                contents=contents,
-                config=genai.types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT)
-            )
-            text = resp.text
-            if not text:
-                raise RuntimeError("Gemini returned empty response (safety filter or None)")
-            result_box.append(text)
-        except Exception as e:
-            error_box.append(e)
+    url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{model_id}:generateContent?key={api_key}"
+    )
+    resp = req_lib.post(url, json=payload, timeout=25)
 
-    t = _threading.Thread(target=_call, daemon=True)
-    t.start()
-    t.join(timeout=20)
-    if t.is_alive():
-        raise TimeoutError("Gemini call exceeded 20s")
-    if error_box:
-        raise error_box[0]
-    if not result_box:
-        raise RuntimeError("Gemini returned no result")
-    return result_box[0]
+    if resp.status_code != 200:
+        raise Exception(f"{resp.status_code} {resp.text[:300]}")
+
+    data = resp.json()
+    try:
+        text = data["candidates"][0]["content"]["parts"][0]["text"]
+    except (KeyError, IndexError):
+        finish = data.get("candidates", [{}])[0].get("finishReason", "UNKNOWN")
+        raise RuntimeError(f"Gemini no text — finishReason: {finish} | raw: {str(data)[:200]}")
+
+    if not text:
+        raise RuntimeError("Gemini returned empty text")
+    return text
 
 
 # ── Hugging Face Inference API (OpenAI-compatible chat completions) ───────────
@@ -411,6 +406,14 @@ async def websocket_terminal(websocket: WebSocket):
                         await websocket.send_text(f"[ERROR] No model #{arg}. Type  models  to list them.")
                 except ValueError:
                     await websocket.send_text("[ERROR] Usage:  model <number>  e.g.  model 2")
+
+            # ── test gemini ──────────────────────────────────────────────
+            elif cmd == "test gemini":
+                try:
+                    text = call_gemini("gemini-2.0-flash", "Say 'Gemini online.' in exactly 3 words.", [])
+                    await websocket.send_text(f"[OK] Gemini test passed: {text.strip()[:100]}")
+                except Exception as e:
+                    await websocket.send_text(f"[ERROR] Gemini test failed: {e!s:.300}")
 
             # ── help ─────────────────────────────────────────────────────
             elif cmd == "help":
