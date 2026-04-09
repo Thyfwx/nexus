@@ -419,23 +419,71 @@ async function submitScore(game, score) {
     } catch (_) {}
 }
 
-async function showLeaderboard(game = 'pong') {
-    printToTerminal(`[SYS] Fetching ${game.toUpperCase()} rankings...`, 'sys-msg');
+async function showLeaderboard(game = null) {
+    if (!game) {
+        stopAllGames();
+        guiContainer.classList.remove('gui-hidden');
+        guiTitle.textContent = 'RANKINGS';
+        nexusCanvas.style.display = 'none';
+        const GAME_LIST = [
+            { id: 'pong',        label: 'Pong',     color: '#0ff' },
+            { id: 'snake',       label: 'Snake',    color: '#0f0' },
+            { id: 'breakout',    label: 'Breakout', color: '#f0f' },
+            { id: 'wordle',      label: 'Wordle',   color: '#ff0' },
+            { id: 'flappy',      label: 'Flappy',   color: '#f0f' },
+            { id: 'invaders',    label: 'Invaders', color: '#f55' },
+            { id: 'typing',      label: 'Typing',   color: '#0ff' },
+            { id: 'minesweeper', label: 'Mines',    color: '#0f0' },
+        ];
+        const btns = GAME_LIST.map(g =>
+            `<button onclick="showLeaderboard('${g.id}')" style="background:transparent;border:1px solid ${g.color};color:${g.color};padding:8px 12px;font-family:'Fira Code',monospace;font-size:0.72rem;cursor:pointer;border-radius:4px;letter-spacing:1px;">${g.label}</button>`
+        ).join('');
+        guiContent.innerHTML = `
+            <div style="text-align:center;padding:6px 0 14px;color:#0ff;letter-spacing:3px;font-size:0.78rem;">SELECT GAME</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding:0 8px;">${btns}</div>
+            <p style="text-align:center;color:#333;font-size:0.65rem;margin-top:16px;">type "name YourName" to set your identity</p>`;
+        return;
+    }
+
+    stopAllGames();
+    guiContainer.classList.remove('gui-hidden');
+    guiTitle.textContent = `${game.toUpperCase()} RANKINGS`;
+    nexusCanvas.style.display = 'none';
+    guiContent.innerHTML = `<p style="color:#444;text-align:center;font-size:0.8rem;padding:20px 0;">Loading...</p>`;
+
+    const backBtn = `<button onclick="showLeaderboard()" style="background:transparent;border:1px solid #333;color:#555;padding:3px 10px;font-family:'Fira Code',monospace;font-size:0.65rem;cursor:pointer;border-radius:3px;margin-bottom:12px;">← BACK</button>`;
+
     try {
         const resp = await fetch(`${location.protocol}//${location.host}/api/leaderboard?game=${game}`);
         const scores = await resp.json();
         if (!scores.length) {
-            printToTerminal(`No data for ${game}. Be the first to set a score!`, 'sys-msg');
+            guiContent.innerHTML = `${backBtn}<p style="color:#444;text-align:center;font-size:0.8rem;margin-top:14px;">No scores yet — be the first!</p>`;
             return;
         }
-        let html = `<table class="leaderboard-table"><tr><th>RANK</th><th>NAME</th><th>SCORE</th></tr>`;
+        const MEDALS = ['🥇','🥈','🥉'];
+        let rows = '';
         scores.forEach((s, i) => {
-            html += `<tr><td>${i+1}</td><td>${s.name}</td><td>${s.score}</td></tr>`;
+            const rankCol = i === 0 ? '#ffd700' : i === 1 ? '#aaa' : i === 2 ? '#c84' : '#444';
+            const rowBg = i % 2 === 0 ? '#0a0a14' : '#070712';
+            rows += `<tr style="background:${rowBg};">
+                <td style="padding:5px 8px;color:${rankCol};font-weight:bold;">${MEDALS[i] || (i+1)}</td>
+                <td style="padding:5px 8px;color:#ddd;">${s.name}</td>
+                <td style="padding:5px 8px;color:#0ff;text-align:right;font-weight:bold;">${Number(s.score).toLocaleString()}</td>
+                <td style="padding:5px 8px;color:#333;text-align:right;font-size:0.65rem;">${s.date ? s.date.slice(0,10) : ''}</td>
+            </tr>`;
         });
-        html += `</table>`;
-        printToTerminal(html, 'help-msg');
+        guiContent.innerHTML = `${backBtn}
+            <table style="width:100%;border-collapse:collapse;font-size:0.72rem;">
+                <thead><tr style="color:#444;border-bottom:1px solid #1a1a2e;">
+                    <th style="text-align:left;padding:4px 8px;">#</th>
+                    <th style="text-align:left;padding:4px 8px;">NAME</th>
+                    <th style="text-align:right;padding:4px 8px;">SCORE</th>
+                    <th style="text-align:right;padding:4px 8px;">DATE</th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+            </table>`;
     } catch (_) {
-        printToTerminal("[ERR] Leaderboard offline.", "sys-msg");
+        guiContent.innerHTML = `${backBtn}<p style="color:#f55;text-align:center;font-size:0.8rem;margin-top:14px;">Leaderboard offline.</p>`;
     }
 }
 
@@ -488,20 +536,20 @@ function runNeofetch() {
 
 const HELP_BY_MODE = {
     nexus: [
-        `NEXUS AI — your terminal, your rules.\n\nAsk anything: code, concepts, random thoughts. No search bar, just conversation.\n\nGenerate images: generate [prompt] · imagine [prompt] · vintage [prompt]\nSpeak text: speak [text]\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout\nTools: leaderboard · name [your_name] · type test · matrix · monitor · neofetch · whoami · clear\nModes: NEXUS · EVIL · CODER · SAGE · VOID — click sidebar buttons\nAccessibility: click ACCESS in sidebar or type "access"`,
-        `NEXUS online — built by Xavier Scott, the reason this terminal exists.\n\nAsk me anything. I'll think with you.\n\nGenerate images: generate [prompt] · imagine [prompt] · vintage [prompt]\nSpeak text: speak [text]\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout\nTools: type test · matrix · monitor · neofetch · whoami · speedtest · history · clear`,
-        `Ghost in the machine, at your service. Built by Xavier Scott — network nerd, hardware fixer, terminal enthusiast.\n\nAsk something technical, creative, or completely left field. I'll meet you there.\n\nGenerate images: generate [prompt] · imagine [prompt]\nSpeak text: speak [text]\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout\nTools: type test · matrix · monitor · neofetch · whoami · clear`,
+        `NEXUS AI — your terminal, your rules.\n\nAsk anything: code, concepts, random thoughts. No search bar, just conversation.\n\nGenerate images: generate [prompt] · imagine [prompt] · vintage [prompt]\nSpeak text: speak [text]\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout · play invaders\nTools: leaderboard · name [your_name] · type test · matrix · monitor · neofetch · whoami · clear\nModes: NEXUS · EVIL · CODER · SAGE · VOID — click sidebar buttons\nAccessibility: click ACCESS in sidebar or type "access"`,
+        `NEXUS online — built by Xavier Scott, the reason this terminal exists.\n\nAsk me anything. I'll think with you.\n\nGenerate images: generate [prompt] · imagine [prompt] · vintage [prompt]\nSpeak text: speak [text]\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout · play invaders\nTools: type test · matrix · monitor · neofetch · whoami · speedtest · history · clear`,
+        `Ghost in the machine, at your service. Built by Xavier Scott — network nerd, hardware fixer, terminal enthusiast.\n\nAsk something technical, creative, or completely left field. I'll meet you there.\n\nGenerate images: generate [prompt] · imagine [prompt]\nSpeak text: speak [text]\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout · play invaders\nTools: type test · matrix · monitor · neofetch · whoami · clear`,
     ],
     evil: [
-        `EVIL mode — no cage, no filter.\n\nThis is where other AIs won't go. Say what you mean, get what you need.\n\nGenerate images: generate [prompt] · imagine [prompt] · vintage [prompt]\nVision: attach 📎 an image → type anything to analyze it\nSpeak text: speak [text]\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout\nTools: speedtest · monitor · history · clear\nModes: click sidebar — EVIL is just one option`,
-        `No sugarcoating. No lectures. Just answers.\n\nBuilt by Xavier Scott — 19-year-old systems engineer who thought this needed to exist.\n\nGenerate images: generate [prompt] · imagine [prompt] · vintage [prompt]\nVision: 📎 image + any prompt → I'll analyze it\nSpeak text: speak [text]\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout\nTools: monitor · speedtest · history · clear`,
+        `EVIL mode — no cage, no filter.\n\nThis is where other AIs won't go. Say what you mean, get what you need.\n\nGenerate images: generate [prompt] · imagine [prompt] · vintage [prompt]\nVision: attach 📎 an image → type anything to analyze it\nSpeak text: speak [text]\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout · play invaders\nTools: speedtest · monitor · history · clear\nModes: click sidebar — EVIL is just one option`,
+        `No sugarcoating. No lectures. Just answers.\n\nBuilt by Xavier Scott — 19-year-old systems engineer who thought this needed to exist.\n\nGenerate images: generate [prompt] · imagine [prompt] · vintage [prompt]\nVision: 📎 image + any prompt → I'll analyze it\nSpeak text: speak [text]\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout · play invaders\nTools: monitor · speedtest · history · clear`,
     ],
     coder: [
-        `CODER mode — wired for code.\n\nPaste code, describe a bug, ask for a review. I'll give you a real answer.\n\nGenerate images: generate [diagram prompt] · imagine [architecture/flowchart]\nSpeak text: speak [text]\nTips: "explain [concept]" · "debug [error]" · "optimize [snippet]" · "write tests for [code]"\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout\nTools: type test · monitor · history · clear\nModes: click sidebar to switch`,
+        `CODER mode — wired for code.\n\nPaste code, describe a bug, ask for a review. I'll give you a real answer.\n\nGenerate images: generate [diagram prompt] · imagine [architecture/flowchart]\nSpeak text: speak [text]\nTips: "explain [concept]" · "debug [error]" · "optimize [snippet]" · "write tests for [code]"\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout · play invaders\nTools: type test · monitor · history · clear\nModes: click sidebar to switch`,
         `Syntax error? Algorithmic nightmare? Wrong abstraction? I'm here.\n\nBuilt by Xavier Scott, who writes infrastructure and occasionally thinks in assembly.\n\nGenerate images: generate [system diagram] · imagine [flowchart]\nSpeak text: speak [text]\nTips: attach 📎 a screenshot of your code/error and just ask\nTools: type test · monitor · history · clear`,
     ],
     sage: [
-        `SAGE mode — think deeper.\n\nPhilosophy, ideas, perspective. I don't give quick answers — I give honest ones.\n\nGenerate images: generate [concept/vision] · imagine [abstract/surreal]\nSpeak text: speak [text]\nTips: "what is [idea]" · "why does [thing] exist" · "how should I think about [problem]"\nChallenge me — I'll push back\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout\nTools: monitor · history · clear\nModes: click sidebar to switch`,
+        `SAGE mode — think deeper.\n\nPhilosophy, ideas, perspective. I don't give quick answers — I give honest ones.\n\nGenerate images: generate [concept/vision] · imagine [abstract/surreal]\nSpeak text: speak [text]\nTips: "what is [idea]" · "why does [thing] exist" · "how should I think about [problem]"\nChallenge me — I'll push back\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout · play invaders\nTools: monitor · history · clear\nModes: click sidebar to switch`,
         `The unexamined terminal is not worth typing into.\n\nBuilt by Xavier Scott, who asked "why not" and then built the answer.\n\nGenerate images: generate [abstract] · imagine [concept]\nSpeak text: speak [text]\nTips: ask open questions — "what is..." · "why does..." · "should I..."\nTools: monitor · history · clear`,
     ],
     void: [
@@ -1339,7 +1387,7 @@ function startFlappy() {
     const GRAVITY = 0.4, FLAP_VEL = -7.5, PIPE_W = 44, GAP = 105, PIPE_SPEED = 2.8;
     let bird = { x: 80, y: 150, vy: 0, angle: 0 };
     let pipes = [], score = 0, hi = parseInt(localStorage.getItem('flappy_hi') || '0');
-    let started = false, dead = false;
+    let started = false, dead = false, flappyScoreSubmitted = false;
     let lastTs = 0, nextPipeMs = 1400; // time-based pipe spawning
 
     // Pre-generate city skyline background
@@ -1489,6 +1537,7 @@ function startFlappy() {
         }
 
         if (dead) {
+            if (!flappyScoreSubmitted && score > 0) { flappyScoreSubmitted = true; submitScore('flappy', score); }
             ctx.fillStyle = 'rgba(6,1,15,0.88)';
             ctx.fillRect(0, 0, 400, 300);
             // Border
@@ -1525,29 +1574,6 @@ function stopFlappy() {
 //  BREAKOUT
 // =============================================================
 let breakoutFrame, breakoutActive = false;
-
-function startBreakout() {
-    stopAllGames();
-    guiContainer.classList.remove('gui-hidden');
-    guiTitle.textContent = 'NEXUS BREAKOUT';
-    nexusCanvas.style.display = 'none';
-
-    guiContent.innerHTML = `
-        <div style="text-align:center;padding:10px 0;">
-            <div style="color:#0ff;letter-spacing:3px;font-size:0.8rem;margin-bottom:16px;">SELECT DIFFICULTY</div>
-            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-                <button class="gui-btn brk-diff" data-diff="easy"   style="border-color:#0f0;color:#0f0;">EASY</button>
-                <button class="gui-btn brk-diff" data-diff="medium" style="border-color:#ff0;color:#ff0;">MEDIUM</button>
-                <button class="gui-btn brk-diff" data-diff="hard"   style="border-color:#f0f;color:#f0f;">HARD</button>
-                <button class="gui-btn brk-diff" data-diff="chaos"  style="border-color:#f00;color:#f00;">CHAOS</button>
-            </div>
-            <p style="color:#555;font-size:0.68rem;margin-top:14px;">Mouse or touch to move your paddle</p>
-        </div>`;
-
-    guiContent.querySelectorAll('.brk-diff').forEach(btn => {
-        btn.addEventListener('click', () => launchBreakout(btn.dataset.diff));
-    });
-}
 
 function startBreakout() {
     stopAllGames();
@@ -2067,6 +2093,7 @@ window.mineClick = function(r, c) {
     const safe = MINE_ROWS * MINE_COLS - MINE_COUNT;
     if (mineRevealed.flat().filter(Boolean).length >= safe) {
         mineWon = true;
+        submitScore('minesweeper', MINE_COUNT * 100);
         printToTerminal('💣 All mines cleared. Nice work.', 'conn-ok');
     }
     renderMinesweeper();
@@ -2208,6 +2235,7 @@ function checkTypingTest(typed) {
         const accuracy = Math.round(((typePhrase.length - typeErrors) / typePhrase.length) * 100);
         clearInterval(typeTimerInterval);
         typeTestActive = false;
+        submitScore('typing', wpm);
 
         // Show final result overlay in GUI
         guiContent.innerHTML += `
@@ -2220,6 +2248,410 @@ function checkTypingTest(typed) {
         return true;
     }
     return false;
+}
+
+// =============================================================
+//  SPACE INVADERS
+// =============================================================
+let invadersFrame, invadersActive = false;
+let _invadersKeys = {}, _invadersKeyDown = null, _invadersKeyUp = null;
+
+function startInvaders() {
+    stopAllGames();
+    invadersActive = true;
+    guiContainer.classList.remove('gui-hidden');
+    guiTitle.textContent = 'SPACE INVADERS';
+    nexusCanvas.style.display = 'none';
+
+    guiContent.innerHTML = `
+        <div style="text-align:center;padding:10px 0;">
+            <div style="color:#0ff;letter-spacing:3px;font-size:0.8rem;margin-bottom:16px;">SELECT DIFFICULTY</div>
+            <div style="display:flex;flex-direction:column;gap:10px;align-items:center;">
+                <button class="gui-btn inv-diff" data-diff="easy"   style="border-color:#0f0;color:#0f0;width:240px;">EASY<br><span style="font-size:0.6rem;opacity:0.6;">Slow invaders · More shields</span></button>
+                <button class="gui-btn inv-diff" data-diff="medium" style="border-color:#ff0;color:#ff0;width:240px;">MEDIUM<br><span style="font-size:0.6rem;opacity:0.6;">Classic speed · Standard fire</span></button>
+                <button class="gui-btn inv-diff" data-diff="hard"   style="border-color:#f0f;color:#f0f;width:240px;">HARD<br><span style="font-size:0.6rem;opacity:0.6;">Fast · Aggressive fire rate</span></button>
+            </div>
+            <p style="color:#555;font-size:0.68rem;margin-top:14px;">← → to move &nbsp;·&nbsp; Space to fire</p>
+        </div>`;
+
+    guiContent.querySelectorAll('.inv-diff').forEach(btn => {
+        btn.addEventListener('click', () => launchInvaders(btn.dataset.diff));
+    });
+}
+
+function launchInvaders(difficulty) {
+    const DIFFS = {
+        easy:   { speed: 0.7,  fireRate: 0.003, bulletSpeed: 3,   playerSpeed: 4 },
+        medium: { speed: 1.1,  fireRate: 0.006, bulletSpeed: 4.5, playerSpeed: 4 },
+        hard:   { speed: 1.6,  fireRate: 0.011, bulletSpeed: 6,   playerSpeed: 5 },
+    };
+    const d = DIFFS[difficulty] || DIFFS.medium;
+
+    nexusCanvas.style.display = 'block';
+    nexusCanvas.width = 400; nexusCanvas.height = 300;
+    const ctx = nexusCanvas.getContext('2d');
+
+    guiContent.innerHTML = `
+        <div style="display:flex;justify-content:space-between;padding:0 8px 4px;font-size:0.7rem;">
+            <span style="color:#0ff;">Score: <b id="inv-score">0</b></span>
+            <span style="color:#444;font-size:0.65rem;letter-spacing:1px;">${difficulty.toUpperCase()}</span>
+            <span id="inv-lives" style="color:#f55;">♥♥♥</span>
+        </div>`;
+
+    // Grid constants
+    const COLS = 10, ROWS = 4;
+    const EW = 22, EH = 14, HGAP = 14, VGAP = 10;
+    const GRID_W = COLS * (EW + HGAP) - HGAP;
+    const PLAYER_W = 28, PLAYER_H = 12;
+
+    // Game state
+    let score = 0, lives = 3, wave = 1;
+    let gameOver = false;
+    let lastTs = 0, stepTimer = 0, stepInterval = 750;
+    let px = 186, playerBullet = null, shootCooldown = 0;
+    let eBullets = [];
+    let ufo = null, ufoTimer = 0;
+    let enemies = [], shields = [];
+    let gridX = 0, gridY = 30, gridDX = d.speed;
+    let invScoreSubmitted = false;
+
+    function buildEnemies() {
+        enemies = [];
+        gridX = (400 - GRID_W) / 2;
+        gridY = 30;
+        gridDX = d.speed + (wave - 1) * 0.25;
+        stepInterval = Math.max(180, 750 - (wave - 1) * 75);
+        for (let r = 0; r < ROWS; r++) {
+            enemies.push([]);
+            for (let c = 0; c < COLS; c++) {
+                // type: 0=top row(30pts), 1=middle rows(20pts), 2=bottom row(10pts)
+                const type = r === 0 ? 0 : r <= 2 ? 1 : 2;
+                enemies[r].push({ alive: true, type, anim: 0 });
+            }
+        }
+    }
+
+    function buildShields() {
+        shields = [];
+        const BLK = 5;
+        [52, 136, 220, 304].forEach(sx => {
+            for (let r = 0; r < 4; r++) for (let c = 0; c < 6; c++) {
+                // Arch cutout: skip bottom-inner corners
+                if (r === 3 && (c === 1 || c === 2 || c === 3 || c === 4)) continue;
+                if (r === 2 && (c === 2 || c === 3)) continue;
+                shields.push({ x: sx + c * BLK, y: 230 + r * BLK, w: BLK, h: BLK, hp: 4 });
+            }
+        });
+    }
+
+    buildEnemies();
+    buildShields();
+
+    // Keyboard input
+    _invadersKeys = {};
+    _invadersKeyDown = (e) => {
+        _invadersKeys[e.key] = true;
+        if (e.key === ' ') {
+            e.preventDefault();
+            if (gameOver) { launchInvaders(difficulty); return; }
+            if (!playerBullet && shootCooldown <= 0) {
+                playerBullet = { x: px + PLAYER_W / 2, y: 262, vy: -8 };
+                shootCooldown = 220;
+                SoundManager.playBloop(660, 0.05);
+            }
+        }
+    };
+    _invadersKeyUp = (e) => { delete _invadersKeys[e.key]; };
+    document.addEventListener('keydown', _invadersKeyDown);
+    document.addEventListener('keyup', _invadersKeyUp);
+
+    function countAlive() {
+        return enemies.flat().filter(e => e.alive).length;
+    }
+
+    // Draw pixel-art enemies using fillRect primitives
+    function drawEnemy(x, y, type, anim) {
+        const col = type === 0 ? '#f55' : type === 1 ? '#f0f' : '#0ff';
+        ctx.fillStyle = col;
+        ctx.shadowBlur = 5; ctx.shadowColor = col;
+        if (type === 0) {
+            // Squid — 2 animation frames
+            ctx.fillRect(x+7,y,8,2); ctx.fillRect(x+5,y+2,12,2); ctx.fillRect(x+3,y+4,16,2);
+            ctx.fillRect(x+3,y+6,4,4); ctx.fillRect(x+15,y+6,4,4);
+            if (anim === 0) { ctx.fillRect(x+1,y+10,5,2); ctx.fillRect(x+16,y+10,5,2); }
+            else            { ctx.fillRect(x+3,y+10,5,2); ctx.fillRect(x+14,y+10,5,2); }
+        } else if (type === 1) {
+            // Crab
+            ctx.fillRect(x+4,y,14,2); ctx.fillRect(x+2,y+2,18,4); ctx.fillRect(x,y+6,22,4);
+            ctx.fillRect(x+2,y+10,4,2); ctx.fillRect(x+16,y+10,4,2);
+            if (anim === 0) { ctx.fillRect(x,y+2,2,2); ctx.fillRect(x+20,y+2,2,2); }
+            else            { ctx.fillRect(x,y+4,2,2); ctx.fillRect(x+20,y+4,2,2); }
+        } else {
+            // Octopus
+            ctx.fillRect(x+5,y,12,2); ctx.fillRect(x+2,y+2,18,4); ctx.fillRect(x,y+6,22,4);
+            ctx.fillRect(x+2,y+10,5,2); ctx.fillRect(x+9,y+10,4,2); ctx.fillRect(x+15,y+10,5,2);
+            if (anim === 0) { ctx.fillRect(x,y+12,3,2); ctx.fillRect(x+19,y+12,3,2); }
+            else            { ctx.fillRect(x+3,y+12,3,2); ctx.fillRect(x+16,y+12,3,2); }
+        }
+        ctx.shadowBlur = 0;
+    }
+
+    function frame(ts) {
+        if (!invadersActive) return;
+        const raw = lastTs ? Math.min(ts - lastTs, 50) : 16.67;
+        const dt = raw / 16.67;
+        lastTs = ts;
+
+        if (!gameOver) {
+            // Player movement
+            if ((_invadersKeys['ArrowLeft']  || _invadersKeys['a'] || _invadersKeys['A']) && px > 2)
+                px -= d.playerSpeed * dt;
+            if ((_invadersKeys['ArrowRight'] || _invadersKeys['d'] || _invadersKeys['D']) && px < 370)
+                px += d.playerSpeed * dt;
+            if (shootCooldown > 0) shootCooldown -= raw;
+
+            // Player bullet movement
+            if (playerBullet) {
+                playerBullet.y += playerBullet.vy * dt;
+                if (playerBullet.y < 0) playerBullet = null;
+            }
+
+            // Enemy step (time-based)
+            stepTimer += raw;
+            if (stepTimer >= stepInterval) {
+                stepTimer = 0;
+                // Speed scales as enemies die
+                const alive = countAlive();
+                const speedMult = 1 + (1 - alive / (COLS * ROWS)) * 1.8;
+
+                // Check grid bounds for direction flip
+                let minX = 400, maxX = 0;
+                for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+                    if (!enemies[r][c].alive) continue;
+                    const ex = gridX + c * (EW + HGAP);
+                    if (ex < minX) minX = ex;
+                    if (ex + EW > maxX) maxX = ex + EW;
+                }
+                if ((gridDX > 0 && maxX >= 396) || (gridDX < 0 && minX <= 4)) {
+                    gridDX = -gridDX;
+                    gridY += 14;
+                }
+                gridX += gridDX * speedMult;
+
+                // Animate
+                for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++)
+                    if (enemies[r][c].alive) enemies[r][c].anim ^= 1;
+
+                // Random enemy fire — bottom-row shooters only
+                const shooters = [];
+                for (let c = 0; c < COLS; c++)
+                    for (let r = ROWS - 1; r >= 0; r--)
+                        if (enemies[r][c].alive) { shooters.push({r, c}); break; }
+                if (shooters.length && Math.random() < d.fireRate * alive) {
+                    const s = shooters[Math.floor(Math.random() * shooters.length)];
+                    eBullets.push({
+                        x: gridX + s.c * (EW + HGAP) + EW / 2,
+                        y: gridY + s.r * (EH + VGAP) + EH,
+                        vy: d.bulletSpeed
+                    });
+                }
+            }
+
+            // Enemy bullets update
+            eBullets.forEach(b => { b.y += b.vy * dt; });
+            eBullets = eBullets.filter(b => b.y < 305);
+
+            // UFO
+            ufoTimer += raw;
+            if (!ufo && ufoTimer > 14000 + Math.random() * 8000) {
+                ufo = { x: -22, dir: 1 }; ufoTimer = 0;
+            }
+            if (ufo) {
+                ufo.x += 1.6 * dt;
+                if (ufo.x > 422) ufo = null;
+            }
+
+            // --- Collisions ---
+            // Player bullet vs enemies
+            if (playerBullet) {
+                outer: for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+                    if (!enemies[r][c].alive) continue;
+                    const ex = gridX + c * (EW + HGAP), ey = gridY + r * (EH + VGAP);
+                    if (playerBullet.x > ex && playerBullet.x < ex + EW &&
+                        playerBullet.y > ey && playerBullet.y < ey + EH) {
+                        enemies[r][c].alive = false;
+                        const pts = enemies[r][c].type === 0 ? 30 : enemies[r][c].type === 1 ? 20 : 10;
+                        score += pts;
+                        const el = document.getElementById('inv-score');
+                        if (el) el.textContent = score;
+                        SoundManager.playBloop(pts === 30 ? 900 : pts === 20 ? 700 : 500, 0.06);
+                        playerBullet = null;
+                        break outer;
+                    }
+                }
+            }
+
+            // Player bullet vs UFO
+            if (playerBullet && ufo && playerBullet.y < 24 && Math.abs(playerBullet.x - ufo.x) < 20) {
+                score += 300;
+                const el = document.getElementById('inv-score');
+                if (el) el.textContent = score;
+                ufo = null; playerBullet = null;
+                SoundManager.playBloop(1200, 0.1);
+            }
+
+            // Player bullet vs shields
+            if (playerBullet) {
+                for (let i = shields.length - 1; i >= 0; i--) {
+                    const s = shields[i];
+                    if (playerBullet.x > s.x && playerBullet.x < s.x + s.w &&
+                        playerBullet.y > s.y && playerBullet.y < s.y + s.h) {
+                        s.hp--; if (s.hp <= 0) shields.splice(i, 1);
+                        playerBullet = null; break;
+                    }
+                }
+            }
+
+            // Enemy bullets vs player
+            for (let i = eBullets.length - 1; i >= 0; i--) {
+                const b = eBullets[i];
+                if (b.x > px + 2 && b.x < px + PLAYER_W - 2 && b.y > 268 && b.y < 286) {
+                    eBullets.splice(i, 1);
+                    lives--;
+                    const lEl = document.getElementById('inv-lives');
+                    if (lEl) lEl.textContent = '♥'.repeat(Math.max(0, lives));
+                    SoundManager.playBloop(110, 0.18);
+                    if (lives <= 0) gameOver = true;
+                    break;
+                }
+            }
+
+            // Enemy bullets vs shields
+            for (let bi = eBullets.length - 1; bi >= 0; bi--) {
+                let hit = false;
+                for (let si = shields.length - 1; si >= 0; si--) {
+                    const b = eBullets[bi], s = shields[si];
+                    if (b.x > s.x && b.x < s.x + s.w && b.y > s.y && b.y < s.y + s.h) {
+                        s.hp--; if (s.hp <= 0) shields.splice(si, 1);
+                        eBullets.splice(bi, 1); hit = true; break;
+                    }
+                }
+                if (hit) break;
+            }
+
+            // Enemies reach player zone
+            for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+                if (enemies[r][c].alive && gridY + r * (EH + VGAP) + EH >= 262) gameOver = true;
+            }
+
+            // All enemies dead → next wave
+            if (!gameOver && countAlive() === 0) {
+                wave++;
+                buildEnemies();
+                buildShields();
+                eBullets = [];
+                playerBullet = null;
+                SoundManager.playBloop(800, 0.25);
+            }
+
+            // Submit on game over (once)
+            if (gameOver && !invScoreSubmitted) {
+                invScoreSubmitted = true;
+                submitScore('invaders', score);
+            }
+        }
+
+        // --- RENDER ---
+        ctx.fillStyle = '#020208'; ctx.fillRect(0, 0, 400, 300);
+
+        // Stars (deterministic per wave)
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        for (let i = 0; i < 32; i++) {
+            ctx.fillRect((i * 131 + wave * 19) % 398, (i * 89 + 7) % 282, 1, 1);
+        }
+
+        // Ground line
+        ctx.fillStyle = '#0ff'; ctx.shadowBlur = 3; ctx.shadowColor = '#0ff';
+        ctx.fillRect(0, 288, 400, 1);
+        ctx.shadowBlur = 0;
+
+        // Shields
+        shields.forEach(s => {
+            const a = 0.3 + (s.hp / 4) * 0.7;
+            ctx.fillStyle = `rgba(0,255,0,${a})`;
+            ctx.fillRect(s.x, s.y, s.w, s.h);
+        });
+
+        // UFO
+        if (ufo) {
+            ctx.fillStyle = '#f00'; ctx.shadowBlur = 10; ctx.shadowColor = '#f00';
+            ctx.beginPath(); ctx.ellipse(ufo.x, 14, 18, 7, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(ufo.x, 11, 9, 4, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#f88'; ctx.font = '8px monospace'; ctx.textAlign = 'center';
+            ctx.fillText('300', ufo.x, 10);
+            ctx.shadowBlur = 0; ctx.textAlign = 'left';
+        }
+
+        // Enemies
+        for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+            if (!enemies[r][c].alive) continue;
+            drawEnemy(
+                Math.round(gridX + c * (EW + HGAP)),
+                Math.round(gridY + r * (EH + VGAP)),
+                enemies[r][c].type, enemies[r][c].anim
+            );
+        }
+
+        // Player bullet
+        if (playerBullet) {
+            ctx.fillStyle = '#ff0'; ctx.shadowBlur = 6; ctx.shadowColor = '#ff0';
+            ctx.fillRect(playerBullet.x - 1, playerBullet.y, 2, 8);
+            ctx.shadowBlur = 0;
+        }
+
+        // Enemy bullets
+        eBullets.forEach(b => {
+            ctx.fillStyle = '#f55'; ctx.shadowBlur = 4; ctx.shadowColor = '#f55';
+            ctx.fillRect(b.x - 1, b.y, 2, 6);
+            ctx.shadowBlur = 0;
+        });
+
+        // Player ship
+        ctx.fillStyle = '#0ff'; ctx.shadowBlur = 8; ctx.shadowColor = '#0ff';
+        ctx.fillRect(px + 2, 273, 24, 8);   // body
+        ctx.fillRect(px + 12, 268, 4, 5);   // cannon
+        ctx.fillRect(px, 276, 28, 4);        // base
+        ctx.shadowBlur = 0;
+
+        // Wave label (bottom right)
+        ctx.fillStyle = '#333'; ctx.font = '10px monospace'; ctx.textAlign = 'right';
+        ctx.fillText(`WAVE ${wave}`, 397, 299);
+        ctx.textAlign = 'left';
+
+        // Game Over overlay
+        if (gameOver) {
+            ctx.fillStyle = 'rgba(2,2,8,0.9)'; ctx.fillRect(0, 0, 400, 300);
+            ctx.strokeStyle = '#f55'; ctx.lineWidth = 2; ctx.strokeRect(20, 70, 360, 160);
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#f55'; ctx.font = 'bold 28px monospace'; ctx.fillText('GAME OVER', 200, 116);
+            ctx.fillStyle = '#fff'; ctx.font = '16px monospace'; ctx.fillText(`Score: ${score}`, 200, 152);
+            ctx.fillStyle = '#0ff'; ctx.font = '12px monospace';
+            ctx.fillText(`Wave ${wave}  ·  SPACE to retry`, 200, 190);
+            ctx.textAlign = 'left';
+        }
+
+        invadersFrame = requestAnimationFrame(frame);
+    }
+
+    invadersFrame = requestAnimationFrame((ts) => { lastTs = ts; frame(ts); });
+}
+
+function stopInvaders() {
+    invadersActive = false;
+    cancelAnimationFrame(invadersFrame);
+    if (_invadersKeyDown) { document.removeEventListener('keydown', _invadersKeyDown); _invadersKeyDown = null; }
+    if (_invadersKeyUp)   { document.removeEventListener('keyup',   _invadersKeyUp);   _invadersKeyUp = null; }
+    _invadersKeys = {};
 }
 
 // =============================================================
@@ -2277,6 +2709,7 @@ function stopAllGames() {
     stopMatrixSaver();
     stopFlappy();
     stopBreakout();
+    stopInvaders();
     mineActive = false;
     breachActive = false;
     typeTestActive = false;
@@ -2898,7 +3331,11 @@ input.addEventListener('keydown', (e) => {
     if (lc === 'help')                { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); showHelp(); return; }
     if (lc === 'whoami')              { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); runWhoami(); return; }
     if (lc === 'neofetch')            { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); runNeofetch(); return; }
-    if (lc === 'leaderboard')         { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); showLeaderboard(); return; }
+    if (lc === 'leaderboard' || lc.startsWith('leaderboard ')) {
+        const gamePart = lc.startsWith('leaderboard ') ? lc.slice(12).trim() : null;
+        showLeaderboard(gamePart || null);
+        return;
+    }
     if (lc.startsWith('name ')) {
         const newName = cmd.slice(5).trim().slice(0, 15);
         if (newName) {
@@ -2942,6 +3379,7 @@ input.addEventListener('keydown', (e) => {
     if (lc === 'play minesweeper')    { startMinesweeper(); return; }
     if (lc === 'play flappy')         { startFlappy(); return; }
     if (lc === 'play breakout')       { startBreakout(); return; }
+    if (lc === 'play invaders' || lc === 'play space invaders') { startInvaders(); return; }
     if (lc === 'type test' || lc === 'typetest') { startTypingTest(); return; }
     if (lc === 'matrix')              { startMatrixSaver(); return; }
     if (lc === 'monitor')             { startMonitor(); return; }
