@@ -2,6 +2,8 @@ fastapi
 uvicorn[standard]
 psutil
 google-genai
+google-auth
+PyJWT
 python-dotenv
 requests
 speedtest-cli

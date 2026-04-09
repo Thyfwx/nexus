@@ -821,3 +821,163 @@ body.mode-void .terminal-output p {
 .leaderboard-table tr:nth-child(1) td { color: #fff; text-shadow: 0 0 10px #fff; }
 .leaderboard-table tr:nth-child(2) td { color: #ffd700; }
 .leaderboard-table tr:nth-child(3) td { color: #c0c0c0; }
+
+/* ============================================================
+   AUTH SECTION (Sidebar)
+   ============================================================ */
+#auth-section { margin-bottom: 2px; }
+
+.auth-user-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 2px 10px;
+    border-bottom: 1px solid #0d0d1a;
+    margin-bottom: 10px;
+}
+.auth-avatar {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,255,255,0.5);
+    flex-shrink: 0;
+}
+.auth-avatar-initials {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: #0a1a1a;
+    border: 1px solid rgba(0,255,255,0.3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.6rem; color: #0ff; font-weight: 700;
+    flex-shrink: 0;
+}
+.auth-info { flex: 1; min-width: 0; }
+.auth-name  { color: #ccc; font-size: 0.66rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.auth-email { color: #333; font-size: 0.55rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.auth-logout-btn {
+    background: transparent; border: none; color: #333; cursor: pointer;
+    font-size: 1rem; padding: 2px; line-height: 1; flex-shrink: 0; transition: color 0.15s;
+}
+.auth-logout-btn:hover { color: #f55; }
+
+.auth-signin-wrapper {
+    padding: 6px 2px 12px;
+    border-bottom: 1px solid #0d0d1a;
+    margin-bottom: 10px;
+    text-align: center;
+}
+.auth-signin-label {
+    color: #333; font-size: 0.56rem; letter-spacing: 1px; margin-bottom: 8px;
+}
+
+/* ============================================================
+   FULLSCREEN OVERLAYS  (position:fixed at body level)
+   ============================================================ */
+.fullscreen-overlay {
+    position: fixed;
+    inset: 0;
+    background: #020208;
+    z-index: 600;
+    display: flex;
+    flex-direction: column;
+    font-family: 'Fira Code', monospace;
+    overflow: hidden;
+}
+.fullscreen-overlay.hidden { display: none; }
+
+.overlay-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    background: rgba(0,0,0,0.7);
+    border-bottom: 2px solid var(--accent);
+    flex-shrink: 0;
+    gap: 12px;
+}
+.overlay-hud { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+.overlay-title {
+    color: var(--txt-color); font-size: 0.82rem; font-weight: 700;
+    letter-spacing: 4px; text-shadow: 0 0 10px var(--txt-color);
+}
+.overlay-close {
+    background: transparent; border: 1px solid #2a2a3a; color: #555;
+    font-family: inherit; font-size: 0.7rem; padding: 5px 14px; cursor: pointer;
+    border-radius: 3px; letter-spacing: 1px; transition: all 0.15s; white-space: nowrap; flex-shrink: 0;
+}
+.overlay-close:hover { border-color: #f55; color: #f55; }
+
+/* Invaders */
+.inv-stats { display: flex; gap: 20px; align-items: center; font-size: 0.78rem; }
+.inv-stat-label { color: #444; font-size: 0.58rem; letter-spacing: 1px; margin-right: 5px; }
+.inv-game-area {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 16px; gap: 12px; overflow: hidden;
+}
+#invaders-canvas {
+    width: min(600px, calc(100vw - 32px));
+    aspect-ratio: 600 / 420;
+    border: 1px solid rgba(0,255,255,0.12);
+    box-shadow: 0 0 50px rgba(0,255,255,0.07), 0 0 100px rgba(0,255,255,0.03);
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    display: block;
+}
+.inv-controls-hint { color: #1a1a2e; font-size: 0.6rem; letter-spacing: 2px; margin: 0; }
+
+/* Rankings */
+.rankings-body {
+    flex: 1; overflow-y: auto; padding: 24px 20px;
+    max-width: 700px; width: 100%; margin: 0 auto;
+}
+.rankings-auth-cta {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; background: rgba(0,255,255,0.03);
+    border: 1px solid rgba(0,255,255,0.1); border-radius: 4px;
+    margin-bottom: 20px; font-size: 0.72rem; color: #555;
+}
+.rankings-auth-cta.hidden { display: none; }
+.rankings-auth-cta .cta-highlight { color: #0ff; }
+.rankings-game-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+.rankings-tab {
+    background: transparent; border: 1px solid #1a1a2e; color: #444;
+    font-family: 'Fira Code', monospace; font-size: 0.68rem; padding: 7px 14px;
+    cursor: pointer; border-radius: 3px; letter-spacing: 1px; transition: all 0.15s;
+}
+.rankings-tab:hover { border-color: rgba(0,255,255,0.4); color: #0ff; }
+.rankings-tab.active {
+    border-color: #0ff; color: #0ff;
+    background: rgba(0,255,255,0.06);
+    box-shadow: 0 0 8px rgba(0,255,255,0.15);
+}
+.rankings-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+.rankings-table thead th {
+    text-align: left; padding: 6px 12px; color: #2a2a3a;
+    font-size: 0.6rem; letter-spacing: 2px; font-weight: 400;
+    border-bottom: 1px solid #0d0d1a;
+}
+.rankings-table thead th:nth-child(3),
+.rankings-table td:nth-child(3) { text-align: right; }
+.rankings-table thead th:nth-child(4),
+.rankings-table td:nth-child(4) { text-align: right; }
+.rankings-table tbody tr { border-bottom: 1px solid #080812; transition: background 0.1s; }
+.rankings-table tbody tr:hover { background: rgba(0,255,255,0.025); }
+.rankings-table td { padding: 11px 12px; }
+.r-medal { font-size: 1.05rem; }
+.r-num   { color: #2a2a3a; }
+.r-name  { color: #ccc; }
+.r-score { color: #0ff; font-weight: 700; font-size: 0.88rem; }
+.r-date  { color: #1e1e2e; font-size: 0.62rem; }
+.rankings-empty {
+    text-align: center; color: #2a2a3a; padding: 48px 20px;
+    font-size: 0.75rem; letter-spacing: 1px; line-height: 2.2;
+}
+
+@media (max-width: 700px) {
+    .overlay-header { padding: 8px 12px; gap: 8px; }
+    .overlay-title  { font-size: 0.68rem; letter-spacing: 2px; }
+    .inv-stats      { gap: 12px; font-size: 0.68rem; }
+    .rankings-body  { padding: 14px 12px; }
+    .rankings-tab   { padding: 5px 10px; font-size: 0.62rem; }
+    .rankings-table { font-size: 0.7rem; }
+    .rankings-table td, .rankings-table thead th { padding: 8px 8px; }
+}

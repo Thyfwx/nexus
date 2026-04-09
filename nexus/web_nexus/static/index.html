@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Nexus Web Terminal</title>
-    <link rel="stylesheet" href="style.css?v=8">
+    <link rel="stylesheet" href="style.css?v=9">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
     <div class="monitor">
@@ -31,6 +32,9 @@
             </main>
 
             <aside class="quick-actions">
+                <!-- Auth section — populated by JS -->
+                <div id="auth-section"></div>
+
                 <div class="aside-header">GAMES</div>
                 <button class="action-btn" data-cmd="play wordle">Wordle</button>
                 <button class="action-btn" data-cmd="play snake">Snake</button>
@@ -38,7 +42,7 @@
                 <button class="action-btn" data-cmd="play minesweeper">Mines</button>
                 <button class="action-btn" data-cmd="play flappy">Flappy</button>
                 <button class="action-btn" data-cmd="play breakout">Breakout</button>
-                <button class="action-btn" data-cmd="play invaders">Invaders</button>
+                <button class="action-btn" onclick="startInvaders()">Invaders</button>
 
                 <div class="aside-header" style="margin-top:10px;">AI MODE</div>
                 <div class="mode-picker">
@@ -49,9 +53,8 @@
                     <button class="mode-btn" data-mode="void" title="Abyss/Cryptic Mode" style="grid-column: span 2; border-color:#f0f; color:#f0f;">VOID</button>
                 </div>
 
-
                 <div class="aside-header" style="margin-top:10px;">TOOLS</div>
-                <button class="action-btn" data-cmd="leaderboard">Rankings</button>
+                <button class="action-btn" onclick="showRankingsOverlay()">Rankings</button>
                 <button class="action-btn" data-cmd="type test">Type Test</button>
                 <button class="action-btn" data-cmd="matrix">Matrix</button>
                 <button class="action-btn" data-cmd="monitor">Monitor</button>
@@ -81,7 +84,48 @@
             </div>
         </div>
     </div>
-    <script src="secrets.js?v=8"></script>
-    <script src="terminal.js?v=8"></script>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         SPACE INVADERS — Fullscreen Overlay
+         Lives outside .glass-panel so position:fixed works correctly
+    ════════════════════════════════════════════════════════════════ -->
+    <div id="invaders-overlay" class="fullscreen-overlay hidden">
+        <div class="overlay-header">
+            <div class="overlay-hud">
+                <span class="overlay-title">SPACE INVADERS</span>
+                <div class="inv-stats">
+                    <span><span class="inv-stat-label">SCORE</span><b id="inv-score-display">0</b></span>
+                    <span><span class="inv-stat-label">WAVE</span><b id="inv-wave-display" style="color:#ff0;">1</b></span>
+                    <span id="inv-lives-display" style="color:#f55;font-size:0.9rem;">♥♥♥</span>
+                </div>
+            </div>
+            <button class="overlay-close" onclick="closeInvadersOverlay()">✕ CLOSE</button>
+        </div>
+        <div class="inv-game-area">
+            <canvas id="invaders-canvas" style="display:none;"></canvas>
+            <p class="inv-controls-hint" style="display:none;">← → MOVE &nbsp;·&nbsp; SPACE TO FIRE &nbsp;·&nbsp; SPACE TO RETRY</p>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         RANKINGS — Fullscreen Overlay
+    ════════════════════════════════════════════════════════════════ -->
+    <div id="rankings-overlay" class="fullscreen-overlay hidden">
+        <div class="overlay-header">
+            <span class="overlay-title">RANKINGS</span>
+            <div style="display:flex;align-items:center;gap:14px;">
+                <div id="rankings-user-badge"></div>
+                <button class="overlay-close" onclick="closeRankingsOverlay()">✕ CLOSE</button>
+            </div>
+        </div>
+        <div class="rankings-body">
+            <div id="rankings-auth-cta" class="rankings-auth-cta hidden"></div>
+            <div id="rankings-tabs" class="rankings-game-tabs"></div>
+            <div id="rankings-content"></div>
+        </div>
+    </div>
+
+    <script src="secrets.js?v=9"></script>
+    <script src="terminal.js?v=9"></script>
 </body>
 </html>
