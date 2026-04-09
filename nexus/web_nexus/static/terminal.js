@@ -20,6 +20,7 @@ let messageHistory = [];
 let cmdHistory = JSON.parse(localStorage.getItem('nexus_cmd_history') || '[]');
 let historyIndex = -1;
 let currentMode = localStorage.getItem('nexus_mode') || 'nexus';
+let currentUser = null; // set by initAuth() on page load
 
 // =============================================================
 //  SOUND DESIGN (WEB AUDIO API)
@@ -409,82 +410,114 @@ function doConnect() {
 }
 
 async function submitScore(game, score) {
-    const name = localStorage.getItem('nexus_user_name') || 'Anonymous';
+    if (!currentUser) return; // must be signed in
     try {
-        await fetch(`${location.protocol}//${location.host}/api/leaderboard`, {
+        await fetch('/api/leaderboard', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ game, name, score })
+            body: JSON.stringify({ game, score })
+            // name is taken server-side from the session cookie
         });
     } catch (_) {}
 }
 
-async function showLeaderboard(game = null) {
-    if (!game) {
-        stopAllGames();
-        guiContainer.classList.remove('gui-hidden');
-        guiTitle.textContent = 'RANKINGS';
-        nexusCanvas.style.display = 'none';
-        const GAME_LIST = [
-            { id: 'pong',        label: 'Pong',     color: '#0ff' },
-            { id: 'snake',       label: 'Snake',    color: '#0f0' },
-            { id: 'breakout',    label: 'Breakout', color: '#f0f' },
-            { id: 'wordle',      label: 'Wordle',   color: '#ff0' },
-            { id: 'flappy',      label: 'Flappy',   color: '#f0f' },
-            { id: 'invaders',    label: 'Invaders', color: '#f55' },
-            { id: 'typing',      label: 'Typing',   color: '#0ff' },
-            { id: 'minesweeper', label: 'Mines',    color: '#0f0' },
-        ];
-        const btns = GAME_LIST.map(g =>
-            `<button onclick="showLeaderboard('${g.id}')" style="background:transparent;border:1px solid ${g.color};color:${g.color};padding:8px 12px;font-family:'Fira Code',monospace;font-size:0.72rem;cursor:pointer;border-radius:4px;letter-spacing:1px;">${g.label}</button>`
-        ).join('');
-        guiContent.innerHTML = `
-            <div style="text-align:center;padding:6px 0 14px;color:#0ff;letter-spacing:3px;font-size:0.78rem;">SELECT GAME</div>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding:0 8px;">${btns}</div>
-            <p style="text-align:center;color:#333;font-size:0.65rem;margin-top:16px;">type "name YourName" to set your identity</p>`;
-        return;
+// Legacy alias — terminal command still works
+function showLeaderboard(game = null) { showRankingsOverlay(game); }
+
+// ── Rankings fullscreen overlay ───────────────────────────────────────────────
+const _RANK_GAMES = [
+    { id: 'pong',        label: 'PONG'     },
+    { id: 'snake',       label: 'SNAKE'    },
+    { id: 'breakout',    label: 'BREAKOUT' },
+    { id: 'wordle',      label: 'WORDLE'   },
+    { id: 'flappy',      label: 'FLAPPY'   },
+    { id: 'invaders',    label: 'INVADERS' },
+    { id: 'typing',      label: 'TYPING'   },
+    { id: 'minesweeper', label: 'MINES'    },
+];
+
+function showRankingsOverlay(game = null) {
+    document.getElementById('rankings-overlay').classList.remove('hidden');
+
+    // User badge
+    const badge = document.getElementById('rankings-user-badge');
+    if (currentUser) {
+        const initials = (currentUser.name || 'U').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+        badge.innerHTML = currentUser.picture
+            ? `<img src="${currentUser.picture}" style="width:26px;height:26px;border-radius:50%;border:1px solid #0ff;vertical-align:middle;" referrerpolicy="no-referrer"> <span style="color:#0ff;font-size:0.72rem;">${escHtml(currentUser.name)}</span>`
+            : `<span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:#0a1a1a;border:1px solid rgba(0,255,255,0.4);font-size:0.6rem;color:#0ff;font-weight:700;">${initials}</span> <span style="color:#0ff;font-size:0.72rem;">${escHtml(currentUser.name)}</span>`;
+    } else {
+        badge.innerHTML = `<span style="color:#333;font-size:0.65rem;letter-spacing:1px;">GUEST</span>`;
     }
 
-    stopAllGames();
-    guiContainer.classList.remove('gui-hidden');
-    guiTitle.textContent = `${game.toUpperCase()} RANKINGS`;
-    nexusCanvas.style.display = 'none';
-    guiContent.innerHTML = `<p style="color:#444;text-align:center;font-size:0.8rem;padding:20px 0;">Loading...</p>`;
+    // Auth CTA
+    const cta = document.getElementById('rankings-auth-cta');
+    if (!currentUser) {
+        cta.classList.remove('hidden');
+        cta.innerHTML = `<span style="font-size:1rem;">🔒</span> <span><span class="cta-highlight">Sign in with Google</span> to save scores and appear on the leaderboard.</span>`;
+    } else {
+        cta.classList.add('hidden');
+    }
 
-    const backBtn = `<button onclick="showLeaderboard()" style="background:transparent;border:1px solid #333;color:#555;padding:3px 10px;font-family:'Fira Code',monospace;font-size:0.65rem;cursor:pointer;border-radius:3px;margin-bottom:12px;">← BACK</button>`;
+    // Tabs
+    const active = game || 'pong';
+    document.getElementById('rankings-tabs').innerHTML = _RANK_GAMES.map(g =>
+        `<button class="rankings-tab${g.id === active ? ' active' : ''}" onclick="loadRankingsGame('${g.id}')">${g.label}</button>`
+    ).join('');
+
+    loadRankingsGame(active);
+}
+
+async function loadRankingsGame(game) {
+    // Update active tab
+    document.querySelectorAll('.rankings-tab').forEach(t => {
+        t.classList.toggle('active', t.getAttribute('onclick') === `loadRankingsGame('${game}')`);
+    });
+
+    const content = document.getElementById('rankings-content');
+    content.innerHTML = `<div style="color:#1a1a2e;text-align:center;padding:40px;letter-spacing:2px;font-size:0.72rem;">LOADING...</div>`;
 
     try {
-        const resp = await fetch(`${location.protocol}//${location.host}/api/leaderboard?game=${game}`);
+        const resp = await fetch(`/api/leaderboard?game=${game}`);
         const scores = await resp.json();
+
         if (!scores.length) {
-            guiContent.innerHTML = `${backBtn}<p style="color:#444;text-align:center;font-size:0.8rem;margin-top:14px;">No scores yet — be the first!</p>`;
+            content.innerHTML = `<div class="rankings-empty">No scores yet for <span style="color:#0ff;">${game.toUpperCase()}</span>.<br>Sign in and play to be the first.</div>`;
             return;
         }
-        const MEDALS = ['🥇','🥈','🥉'];
-        let rows = '';
-        scores.forEach((s, i) => {
-            const rankCol = i === 0 ? '#ffd700' : i === 1 ? '#aaa' : i === 2 ? '#c84' : '#444';
-            const rowBg = i % 2 === 0 ? '#0a0a14' : '#070712';
-            rows += `<tr style="background:${rowBg};">
-                <td style="padding:5px 8px;color:${rankCol};font-weight:bold;">${MEDALS[i] || (i+1)}</td>
-                <td style="padding:5px 8px;color:#ddd;">${s.name}</td>
-                <td style="padding:5px 8px;color:#0ff;text-align:right;font-weight:bold;">${Number(s.score).toLocaleString()}</td>
-                <td style="padding:5px 8px;color:#333;text-align:right;font-size:0.65rem;">${s.date ? s.date.slice(0,10) : ''}</td>
-            </tr>`;
-        });
-        guiContent.innerHTML = `${backBtn}
-            <table style="width:100%;border-collapse:collapse;font-size:0.72rem;">
-                <thead><tr style="color:#444;border-bottom:1px solid #1a1a2e;">
-                    <th style="text-align:left;padding:4px 8px;">#</th>
-                    <th style="text-align:left;padding:4px 8px;">NAME</th>
-                    <th style="text-align:right;padding:4px 8px;">SCORE</th>
-                    <th style="text-align:right;padding:4px 8px;">DATE</th>
+
+        const MEDALS = ['🥇', '🥈', '🥉'];
+        const rows = scores.map((s, i) => `
+            <tr>
+                <td class="r-medal-cell" style="padding:11px 12px;">
+                    ${i < 3 ? `<span class="r-medal">${MEDALS[i]}</span>` : `<span class="r-num">${i + 1}</span>`}
+                </td>
+                <td style="padding:11px 12px;"><span class="r-name">${escHtml(s.name)}</span></td>
+                <td style="padding:11px 12px;text-align:right;"><span class="r-score">${Number(s.score).toLocaleString()}</span></td>
+                <td style="padding:11px 12px;text-align:right;"><span class="r-date">${s.date || ''}</span></td>
+            </tr>`).join('');
+
+        content.innerHTML = `
+            <table class="rankings-table">
+                <thead><tr>
+                    <th>#</th><th>PLAYER</th>
+                    <th style="text-align:right;">SCORE</th>
+                    <th style="text-align:right;">DATE</th>
                 </tr></thead>
                 <tbody>${rows}</tbody>
             </table>`;
     } catch (_) {
-        guiContent.innerHTML = `${backBtn}<p style="color:#f55;text-align:center;font-size:0.8rem;margin-top:14px;">Leaderboard offline.</p>`;
+        content.innerHTML = `<div class="rankings-empty" style="color:#f55;">Leaderboard offline.</div>`;
     }
+}
+
+function closeRankingsOverlay() {
+    document.getElementById('rankings-overlay').classList.add('hidden');
+    input.focus();
+}
+
+function escHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 // =============================================================
@@ -2251,7 +2284,7 @@ function checkTypingTest(typed) {
 }
 
 // =============================================================
-//  SPACE INVADERS
+//  SPACE INVADERS  (fullscreen overlay)
 // =============================================================
 let invadersFrame, invadersActive = false;
 let _invadersKeys = {}, _invadersKeyDown = null, _invadersKeyUp = null;
@@ -2259,72 +2292,92 @@ let _invadersKeys = {}, _invadersKeyDown = null, _invadersKeyUp = null;
 function startInvaders() {
     stopAllGames();
     invadersActive = true;
-    guiContainer.classList.remove('gui-hidden');
-    guiTitle.textContent = 'SPACE INVADERS';
-    nexusCanvas.style.display = 'none';
 
-    guiContent.innerHTML = `
-        <div style="text-align:center;padding:10px 0;">
-            <div style="color:#0ff;letter-spacing:3px;font-size:0.8rem;margin-bottom:16px;">SELECT DIFFICULTY</div>
-            <div style="display:flex;flex-direction:column;gap:10px;align-items:center;">
-                <button class="gui-btn inv-diff" data-diff="easy"   style="border-color:#0f0;color:#0f0;width:240px;">EASY<br><span style="font-size:0.6rem;opacity:0.6;">Slow invaders · More shields</span></button>
-                <button class="gui-btn inv-diff" data-diff="medium" style="border-color:#ff0;color:#ff0;width:240px;">MEDIUM<br><span style="font-size:0.6rem;opacity:0.6;">Classic speed · Standard fire</span></button>
-                <button class="gui-btn inv-diff" data-diff="hard"   style="border-color:#f0f;color:#f0f;width:240px;">HARD<br><span style="font-size:0.6rem;opacity:0.6;">Fast · Aggressive fire rate</span></button>
-            </div>
-            <p style="color:#555;font-size:0.68rem;margin-top:14px;">← → to move &nbsp;·&nbsp; Space to fire</p>
+    const overlay  = document.getElementById('invaders-overlay');
+    const invCanvas = document.getElementById('invaders-canvas');
+    const hint     = overlay.querySelector('.inv-controls-hint');
+
+    overlay.classList.remove('hidden');
+    invCanvas.style.display = 'none';
+    if (hint) hint.style.display = 'none';
+
+    // Remove stale menu
+    const old = document.getElementById('inv-diff-menu');
+    if (old) old.remove();
+
+    const menu = document.createElement('div');
+    menu.id = 'inv-diff-menu';
+    menu.style.cssText = 'text-align:center;padding:30px 20px;';
+    menu.innerHTML = `
+        <div style="color:#0ff;letter-spacing:4px;font-size:0.85rem;margin-bottom:28px;">SELECT DIFFICULTY</div>
+        <div style="display:flex;flex-direction:column;gap:14px;align-items:center;">
+            <button class="gui-btn inv-diff" data-diff="easy"   style="border-color:#0f0;color:#0f0;width:280px;font-size:0.88rem;padding:14px;">EASY<br><span style="font-size:0.62rem;opacity:0.5;font-weight:400;">Slow invaders · More shields</span></button>
+            <button class="gui-btn inv-diff" data-diff="medium" style="border-color:#ff0;color:#ff0;width:280px;font-size:0.88rem;padding:14px;">MEDIUM<br><span style="font-size:0.62rem;opacity:0.5;font-weight:400;">Classic Space Invaders speed</span></button>
+            <button class="gui-btn inv-diff" data-diff="hard"   style="border-color:#f0f;color:#f0f;width:280px;font-size:0.88rem;padding:14px;">HARD<br><span style="font-size:0.62rem;opacity:0.5;font-weight:400;">Fast · Aggressive fire rate</span></button>
         </div>`;
 
-    guiContent.querySelectorAll('.inv-diff').forEach(btn => {
-        btn.addEventListener('click', () => launchInvaders(btn.dataset.diff));
+    overlay.querySelector('.inv-game-area').appendChild(menu);
+
+    menu.querySelectorAll('.inv-diff').forEach(btn => {
+        btn.addEventListener('click', () => {
+            menu.remove();
+            invCanvas.style.display = 'block';
+            if (hint) hint.style.display = '';
+            launchInvaders(btn.dataset.diff);
+        });
     });
 }
 
 function launchInvaders(difficulty) {
     const DIFFS = {
-        easy:   { speed: 0.7,  fireRate: 0.003, bulletSpeed: 3,   playerSpeed: 4 },
-        medium: { speed: 1.1,  fireRate: 0.006, bulletSpeed: 4.5, playerSpeed: 4 },
-        hard:   { speed: 1.6,  fireRate: 0.011, bulletSpeed: 6,   playerSpeed: 5 },
+        easy:   { speed: 0.7,  fireRate: 0.003, bulletSpeed: 3,   playerSpeed: 5 },
+        medium: { speed: 1.1,  fireRate: 0.006, bulletSpeed: 4.5, playerSpeed: 5 },
+        hard:   { speed: 1.6,  fireRate: 0.011, bulletSpeed: 6.5, playerSpeed: 6 },
     };
     const d = DIFFS[difficulty] || DIFFS.medium;
 
-    nexusCanvas.style.display = 'block';
-    nexusCanvas.width = 400; nexusCanvas.height = 300;
-    const ctx = nexusCanvas.getContext('2d');
+    const invCanvas = document.getElementById('invaders-canvas');
+    invCanvas.width = 600; invCanvas.height = 420;
+    const ctx = invCanvas.getContext('2d');
 
-    guiContent.innerHTML = `
-        <div style="display:flex;justify-content:space-between;padding:0 8px 4px;font-size:0.7rem;">
-            <span style="color:#0ff;">Score: <b id="inv-score">0</b></span>
-            <span style="color:#444;font-size:0.65rem;letter-spacing:1px;">${difficulty.toUpperCase()}</span>
-            <span id="inv-lives" style="color:#f55;">♥♥♥</span>
-        </div>`;
+    // HUD is in the overlay header — update directly
+    function updateHUD() {
+        const scoreEl = document.getElementById('inv-score-display');
+        const waveEl  = document.getElementById('inv-wave-display');
+        const livesEl = document.getElementById('inv-lives-display');
+        if (scoreEl) scoreEl.textContent = score;
+        if (waveEl)  waveEl.textContent  = wave;
+        if (livesEl) livesEl.textContent = '♥'.repeat(Math.max(0, lives));
+    }
 
-    // Grid constants
-    const COLS = 10, ROWS = 4;
-    const EW = 22, EH = 14, HGAP = 14, VGAP = 10;
+    // Grid constants — 11×5 grid for fullscreen 600×420 canvas
+    const COLS = 11, ROWS = 5;
+    const EW = 24, EH = 15, HGAP = 14, VGAP = 13;
     const GRID_W = COLS * (EW + HGAP) - HGAP;
-    const PLAYER_W = 28, PLAYER_H = 12;
+    const PLAYER_W = 34, PLAYER_H = 14;
 
     // Game state
     let score = 0, lives = 3, wave = 1;
     let gameOver = false;
     let lastTs = 0, stepTimer = 0, stepInterval = 750;
-    let px = 186, playerBullet = null, shootCooldown = 0;
+    let px = Math.floor((600 - PLAYER_W) / 2), playerBullet = null, shootCooldown = 0;
     let eBullets = [];
     let ufo = null, ufoTimer = 0;
     let enemies = [], shields = [];
-    let gridX = 0, gridY = 30, gridDX = d.speed;
+    let gridX = 0, gridY = 42, gridDX = d.speed;
     let invScoreSubmitted = false;
+
+    updateHUD();
 
     function buildEnemies() {
         enemies = [];
-        gridX = (400 - GRID_W) / 2;
-        gridY = 30;
+        gridX = (600 - GRID_W) / 2;
+        gridY = 42;
         gridDX = d.speed + (wave - 1) * 0.25;
         stepInterval = Math.max(180, 750 - (wave - 1) * 75);
         for (let r = 0; r < ROWS; r++) {
             enemies.push([]);
             for (let c = 0; c < COLS; c++) {
-                // type: 0=top row(30pts), 1=middle rows(20pts), 2=bottom row(10pts)
                 const type = r === 0 ? 0 : r <= 2 ? 1 : 2;
                 enemies[r].push({ alive: true, type, anim: 0 });
             }
@@ -2333,13 +2386,12 @@ function launchInvaders(difficulty) {
 
     function buildShields() {
         shields = [];
-        const BLK = 5;
-        [52, 136, 220, 304].forEach(sx => {
+        const BLK = 6;
+        [72, 195, 318, 441].forEach(sx => {
             for (let r = 0; r < 4; r++) for (let c = 0; c < 6; c++) {
-                // Arch cutout: skip bottom-inner corners
                 if (r === 3 && (c === 1 || c === 2 || c === 3 || c === 4)) continue;
                 if (r === 2 && (c === 2 || c === 3)) continue;
-                shields.push({ x: sx + c * BLK, y: 230 + r * BLK, w: BLK, h: BLK, hp: 4 });
+                shields.push({ x: sx + c * BLK, y: 330 + r * BLK, w: BLK, h: BLK, hp: 4 });
             }
         });
     }
@@ -2355,7 +2407,7 @@ function launchInvaders(difficulty) {
             e.preventDefault();
             if (gameOver) { launchInvaders(difficulty); return; }
             if (!playerBullet && shootCooldown <= 0) {
-                playerBullet = { x: px + PLAYER_W / 2, y: 262, vy: -8 };
+                playerBullet = { x: px + PLAYER_W / 2, y: 379, vy: -10 };
                 shootCooldown = 220;
                 SoundManager.playBloop(660, 0.05);
             }
@@ -2375,19 +2427,16 @@ function launchInvaders(difficulty) {
         ctx.fillStyle = col;
         ctx.shadowBlur = 5; ctx.shadowColor = col;
         if (type === 0) {
-            // Squid — 2 animation frames
             ctx.fillRect(x+7,y,8,2); ctx.fillRect(x+5,y+2,12,2); ctx.fillRect(x+3,y+4,16,2);
             ctx.fillRect(x+3,y+6,4,4); ctx.fillRect(x+15,y+6,4,4);
             if (anim === 0) { ctx.fillRect(x+1,y+10,5,2); ctx.fillRect(x+16,y+10,5,2); }
             else            { ctx.fillRect(x+3,y+10,5,2); ctx.fillRect(x+14,y+10,5,2); }
         } else if (type === 1) {
-            // Crab
             ctx.fillRect(x+4,y,14,2); ctx.fillRect(x+2,y+2,18,4); ctx.fillRect(x,y+6,22,4);
             ctx.fillRect(x+2,y+10,4,2); ctx.fillRect(x+16,y+10,4,2);
             if (anim === 0) { ctx.fillRect(x,y+2,2,2); ctx.fillRect(x+20,y+2,2,2); }
             else            { ctx.fillRect(x,y+4,2,2); ctx.fillRect(x+20,y+4,2,2); }
         } else {
-            // Octopus
             ctx.fillRect(x+5,y,12,2); ctx.fillRect(x+2,y+2,18,4); ctx.fillRect(x,y+6,22,4);
             ctx.fillRect(x+2,y+10,5,2); ctx.fillRect(x+9,y+10,4,2); ctx.fillRect(x+15,y+10,5,2);
             if (anim === 0) { ctx.fillRect(x,y+12,3,2); ctx.fillRect(x+19,y+12,3,2); }
@@ -2406,7 +2455,7 @@ function launchInvaders(difficulty) {
             // Player movement
             if ((_invadersKeys['ArrowLeft']  || _invadersKeys['a'] || _invadersKeys['A']) && px > 2)
                 px -= d.playerSpeed * dt;
-            if ((_invadersKeys['ArrowRight'] || _invadersKeys['d'] || _invadersKeys['D']) && px < 370)
+            if ((_invadersKeys['ArrowRight'] || _invadersKeys['d'] || _invadersKeys['D']) && px < 566)
                 px += d.playerSpeed * dt;
             if (shootCooldown > 0) shootCooldown -= raw;
 
@@ -2420,19 +2469,17 @@ function launchInvaders(difficulty) {
             stepTimer += raw;
             if (stepTimer >= stepInterval) {
                 stepTimer = 0;
-                // Speed scales as enemies die
                 const alive = countAlive();
                 const speedMult = 1 + (1 - alive / (COLS * ROWS)) * 1.8;
 
-                // Check grid bounds for direction flip
-                let minX = 400, maxX = 0;
+                let minX = 600, maxX = 0;
                 for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
                     if (!enemies[r][c].alive) continue;
                     const ex = gridX + c * (EW + HGAP);
                     if (ex < minX) minX = ex;
                     if (ex + EW > maxX) maxX = ex + EW;
                 }
-                if ((gridDX > 0 && maxX >= 396) || (gridDX < 0 && minX <= 4)) {
+                if ((gridDX > 0 && maxX >= 596) || (gridDX < 0 && minX <= 4)) {
                     gridDX = -gridDX;
                     gridY += 14;
                 }
@@ -2459,7 +2506,7 @@ function launchInvaders(difficulty) {
 
             // Enemy bullets update
             eBullets.forEach(b => { b.y += b.vy * dt; });
-            eBullets = eBullets.filter(b => b.y < 305);
+            eBullets = eBullets.filter(b => b.y < 420);
 
             // UFO
             ufoTimer += raw;
@@ -2468,7 +2515,7 @@ function launchInvaders(difficulty) {
             }
             if (ufo) {
                 ufo.x += 1.6 * dt;
-                if (ufo.x > 422) ufo = null;
+                if (ufo.x > 622) ufo = null;
             }
 
             // --- Collisions ---
@@ -2482,8 +2529,7 @@ function launchInvaders(difficulty) {
                         enemies[r][c].alive = false;
                         const pts = enemies[r][c].type === 0 ? 30 : enemies[r][c].type === 1 ? 20 : 10;
                         score += pts;
-                        const el = document.getElementById('inv-score');
-                        if (el) el.textContent = score;
+                        updateHUD();
                         SoundManager.playBloop(pts === 30 ? 900 : pts === 20 ? 700 : 500, 0.06);
                         playerBullet = null;
                         break outer;
@@ -2492,10 +2538,9 @@ function launchInvaders(difficulty) {
             }
 
             // Player bullet vs UFO
-            if (playerBullet && ufo && playerBullet.y < 24 && Math.abs(playerBullet.x - ufo.x) < 20) {
+            if (playerBullet && ufo && playerBullet.y < 32 && Math.abs(playerBullet.x - ufo.x) < 20) {
                 score += 300;
-                const el = document.getElementById('inv-score');
-                if (el) el.textContent = score;
+                updateHUD();
                 ufo = null; playerBullet = null;
                 SoundManager.playBloop(1200, 0.1);
             }
@@ -2515,11 +2560,10 @@ function launchInvaders(difficulty) {
             // Enemy bullets vs player
             for (let i = eBullets.length - 1; i >= 0; i--) {
                 const b = eBullets[i];
-                if (b.x > px + 2 && b.x < px + PLAYER_W - 2 && b.y > 268 && b.y < 286) {
+                if (b.x > px + 2 && b.x < px + PLAYER_W - 2 && b.y > 382 && b.y < 400) {
                     eBullets.splice(i, 1);
                     lives--;
-                    const lEl = document.getElementById('inv-lives');
-                    if (lEl) lEl.textContent = '♥'.repeat(Math.max(0, lives));
+                    updateHUD();
                     SoundManager.playBloop(110, 0.18);
                     if (lives <= 0) gameOver = true;
                     break;
@@ -2541,7 +2585,7 @@ function launchInvaders(difficulty) {
 
             // Enemies reach player zone
             for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
-                if (enemies[r][c].alive && gridY + r * (EH + VGAP) + EH >= 262) gameOver = true;
+                if (enemies[r][c].alive && gridY + r * (EH + VGAP) + EH >= 379) gameOver = true;
             }
 
             // All enemies dead → next wave
@@ -2551,6 +2595,7 @@ function launchInvaders(difficulty) {
                 buildShields();
                 eBullets = [];
                 playerBullet = null;
+                updateHUD();
                 SoundManager.playBloop(800, 0.25);
             }
 
@@ -2562,17 +2607,17 @@ function launchInvaders(difficulty) {
         }
 
         // --- RENDER ---
-        ctx.fillStyle = '#020208'; ctx.fillRect(0, 0, 400, 300);
+        ctx.fillStyle = '#020208'; ctx.fillRect(0, 0, 600, 420);
 
         // Stars (deterministic per wave)
         ctx.fillStyle = 'rgba(255,255,255,0.35)';
-        for (let i = 0; i < 32; i++) {
-            ctx.fillRect((i * 131 + wave * 19) % 398, (i * 89 + 7) % 282, 1, 1);
+        for (let i = 0; i < 40; i++) {
+            ctx.fillRect((i * 131 + wave * 19) % 598, (i * 89 + 7) % 400, 1, 1);
         }
 
         // Ground line
         ctx.fillStyle = '#0ff'; ctx.shadowBlur = 3; ctx.shadowColor = '#0ff';
-        ctx.fillRect(0, 288, 400, 1);
+        ctx.fillRect(0, 408, 600, 1);
         ctx.shadowBlur = 0;
 
         // Shields
@@ -2585,10 +2630,10 @@ function launchInvaders(difficulty) {
         // UFO
         if (ufo) {
             ctx.fillStyle = '#f00'; ctx.shadowBlur = 10; ctx.shadowColor = '#f00';
-            ctx.beginPath(); ctx.ellipse(ufo.x, 14, 18, 7, 0, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.ellipse(ufo.x, 11, 9, 4, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(ufo.x, 18, 18, 7, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(ufo.x, 15, 9, 4, 0, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = '#f88'; ctx.font = '8px monospace'; ctx.textAlign = 'center';
-            ctx.fillText('300', ufo.x, 10);
+            ctx.fillText('300', ufo.x, 14);
             ctx.shadowBlur = 0; ctx.textAlign = 'left';
         }
 
@@ -2618,25 +2663,20 @@ function launchInvaders(difficulty) {
 
         // Player ship
         ctx.fillStyle = '#0ff'; ctx.shadowBlur = 8; ctx.shadowColor = '#0ff';
-        ctx.fillRect(px + 2, 273, 24, 8);   // body
-        ctx.fillRect(px + 12, 268, 4, 5);   // cannon
-        ctx.fillRect(px, 276, 28, 4);        // base
+        ctx.fillRect(px + 2, 385, 30, 9);   // body
+        ctx.fillRect(px + 15, 379, 4, 6);   // cannon
+        ctx.fillRect(px, 389, 34, 5);        // base
         ctx.shadowBlur = 0;
-
-        // Wave label (bottom right)
-        ctx.fillStyle = '#333'; ctx.font = '10px monospace'; ctx.textAlign = 'right';
-        ctx.fillText(`WAVE ${wave}`, 397, 299);
-        ctx.textAlign = 'left';
 
         // Game Over overlay
         if (gameOver) {
-            ctx.fillStyle = 'rgba(2,2,8,0.9)'; ctx.fillRect(0, 0, 400, 300);
-            ctx.strokeStyle = '#f55'; ctx.lineWidth = 2; ctx.strokeRect(20, 70, 360, 160);
+            ctx.fillStyle = 'rgba(2,2,8,0.9)'; ctx.fillRect(0, 0, 600, 420);
+            ctx.strokeStyle = '#f55'; ctx.lineWidth = 2; ctx.strokeRect(40, 110, 520, 200);
             ctx.textAlign = 'center';
-            ctx.fillStyle = '#f55'; ctx.font = 'bold 28px monospace'; ctx.fillText('GAME OVER', 200, 116);
-            ctx.fillStyle = '#fff'; ctx.font = '16px monospace'; ctx.fillText(`Score: ${score}`, 200, 152);
-            ctx.fillStyle = '#0ff'; ctx.font = '12px monospace';
-            ctx.fillText(`Wave ${wave}  ·  SPACE to retry`, 200, 190);
+            ctx.fillStyle = '#f55'; ctx.font = 'bold 32px monospace'; ctx.fillText('GAME OVER', 300, 165);
+            ctx.fillStyle = '#fff'; ctx.font = '18px monospace'; ctx.fillText(`Score: ${score}`, 300, 205);
+            ctx.fillStyle = '#0ff'; ctx.font = '14px monospace';
+            ctx.fillText(`Wave ${wave}  ·  SPACE to retry`, 300, 245);
             ctx.textAlign = 'left';
         }
 
@@ -2652,6 +2692,20 @@ function stopInvaders() {
     if (_invadersKeyDown) { document.removeEventListener('keydown', _invadersKeyDown); _invadersKeyDown = null; }
     if (_invadersKeyUp)   { document.removeEventListener('keyup',   _invadersKeyUp);   _invadersKeyUp = null; }
     _invadersKeys = {};
+}
+
+function closeInvadersOverlay() {
+    stopInvaders();
+    const overlay = document.getElementById('invaders-overlay');
+    if (overlay) overlay.classList.add('hidden');
+    // Reset HUD for next game
+    const scoreEl = document.getElementById('inv-score-display');
+    const waveEl  = document.getElementById('inv-wave-display');
+    const livesEl = document.getElementById('inv-lives-display');
+    if (scoreEl) scoreEl.textContent = '0';
+    if (waveEl)  waveEl.textContent  = '1';
+    if (livesEl) livesEl.textContent = '♥♥♥';
+    document.getElementById('terminal-input')?.focus();
 }
 
 // =============================================================
@@ -3336,14 +3390,7 @@ input.addEventListener('keydown', (e) => {
         showLeaderboard(gamePart || null);
         return;
     }
-    if (lc.startsWith('name ')) {
-        const newName = cmd.slice(5).trim().slice(0, 15);
-        if (newName) {
-            localStorage.setItem('nexus_user_name', newName);
-            printToTerminal(`[SYS] Identity updated: ${newName}`, 'conn-ok');
-        }
-        return;
-    }
+
     if (lc === 'scan image' || lc === 'scan') {
         if (!pendingImageB64) { printToTerminal('[ERR] No image loaded. Use 📎 to attach an image first.', 'sys-msg'); return; }
         printToTerminal(`${pl} scan image`, 'user-cmd');
@@ -3697,6 +3744,121 @@ connectWS();
 connectStats();
 updateClientStats();
 setInterval(updateClientStats, 5000);
+
+// =============================================================
+//  GOOGLE AUTH
+// =============================================================
+async function initAuth() {
+    try {
+        const resp = await fetch('/api/me', { credentials: 'include' });
+        if (resp.ok) {
+            const data = await resp.json();
+            if (data.name) { currentUser = data; }
+        }
+    } catch (_) {}
+    updateAuthUI();
+}
+
+async function initGoogleAuth() {
+    try {
+        const cfg = await fetch('/api/config').then(r => r.json());
+        if (!cfg.google_client_id) return;
+        if (!window.google) {
+            // GSI not loaded yet — retry once after delay
+            setTimeout(initGoogleAuth, 1500);
+            return;
+        }
+        window.google.accounts.id.initialize({
+            client_id: cfg.google_client_id,
+            callback: handleGoogleCredential,
+            auto_select: false,
+        });
+        renderGoogleButton();
+    } catch (_) {}
+}
+
+async function handleGoogleCredential(response) {
+    try {
+        const res = await fetch('/auth/google', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ credential: response.credential }),
+        });
+        if (!res.ok) throw new Error('Auth failed');
+        currentUser = await res.json();
+        updateAuthUI();
+        printToTerminal(`[SYS] Signed in as ${currentUser.name} — scores will appear on the leaderboard.`, 'conn-ok');
+    } catch (err) {
+        printToTerminal(`[AUTH] Sign-in failed: ${err.message}`, 'sys-msg');
+    }
+}
+
+async function doLogout() {
+    await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
+    currentUser = null;
+    updateAuthUI();
+    printToTerminal('[SYS] Signed out. Scores will not be saved.', 'sys-msg');
+}
+
+function renderGoogleButton() {
+    const section = document.getElementById('auth-section');
+    if (!section) return;
+    if (currentUser) return; // already showing user card
+
+    section.innerHTML = '<div id="g-signin-btn" style="margin:8px 0 4px;display:flex;justify-content:center;"></div>';
+    if (window.google) {
+        window.google.accounts.id.renderButton(
+            document.getElementById('g-signin-btn'),
+            { theme: 'filled_black', size: 'medium', shape: 'rectangular', text: 'signin_with', width: 180 }
+        );
+    }
+}
+
+function updateAuthUI() {
+    const section = document.getElementById('auth-section');
+    if (!section) return;
+
+    if (currentUser) {
+        const initials = currentUser.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+        const avatarHtml = currentUser.picture
+            ? `<img src="${currentUser.picture}" class="auth-avatar" referrerpolicy="no-referrer">`
+            : `<div class="auth-avatar auth-avatar-initials">${initials}</div>`;
+        section.innerHTML = `
+            <div class="auth-user-card">
+                ${avatarHtml}
+                <div class="auth-info">
+                    <div class="auth-name">${escHtml(currentUser.name)}</div>
+                    <div class="auth-email">${escHtml(currentUser.email || '')}</div>
+                </div>
+            </div>
+            <button class="auth-logout-btn" onclick="doLogout()">Sign Out</button>`;
+
+        // Update prompt to show real name
+        const slug = currentUser.name.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+        const promptEl = document.getElementById('prompt-label');
+        if (promptEl && promptEl.textContent.startsWith('guest@')) {
+            promptEl.textContent = `${slug}@nexus:~$`;
+        }
+    } else {
+        section.innerHTML = '<div class="auth-signin-wrapper" style="margin:8px 0 4px;font-size:0.7rem;color:#444;text-align:center;letter-spacing:1px;">SIGN IN TO SAVE SCORES</div>';
+        renderGoogleButton();
+    }
+
+    // Also update rankings overlay user badge if it's open
+    const badge = document.getElementById('rankings-user-badge');
+    if (badge) {
+        if (currentUser) {
+            const initials = currentUser.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+            badge.innerHTML = `<span style="font-size:0.75rem;color:#0ff;letter-spacing:1px;">${escHtml(currentUser.name)}</span>`;
+        } else {
+            badge.innerHTML = '';
+        }
+    }
+}
+
+initAuth();
+setTimeout(initGoogleAuth, 500);
 
 // =============================================================
 //  ACCESSIBILITY

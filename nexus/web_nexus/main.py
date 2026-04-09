@@ -4,6 +4,7 @@ import os
 import json
 import requests as req_lib
 import psutil
+from datetime import datetime, timedelta
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import HTMLResponse, JSONResponse as _JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -11,14 +12,28 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+import jwt as pyjwt
 
 _ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
 load_dotenv(_ENV_PATH)
+
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+SECRET_KEY       = os.getenv("SECRET_KEY", "nexus-dev-please-change-in-prod")
 
 def _key(name: str) -> str:
     """Always re-reads .env so key changes take effect without a server restart."""
     load_dotenv(_ENV_PATH, override=True)
     return os.getenv(name, '')
+
+def _get_session(request: Request):
+    """Decode and return the session JWT payload, or None if missing/invalid."""
+    token = request.cookies.get("nexus_session")
+    if not token:
+        return None
+    try:
+        return pyjwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+    except Exception:
+        return None
 
 app = FastAPI()
 app.add_middleware(
@@ -43,7 +58,68 @@ async def get():
 async def ping():
     return _JSONResponse({"ok": True})
 
-# ── Leaderboard Logic ─────────────────────────────────────────────────────────
+# ── Auth ──────────────────────────────────────────────────────────────────────
+@app.get("/api/config")
+async def get_config():
+    return {"google_client_id": GOOGLE_CLIENT_ID}
+
+@app.post("/auth/google")
+async def auth_google(request: Request):
+    from google.oauth2 import id_token
+    from google.auth.transport import requests as g_req
+
+    if not GOOGLE_CLIENT_ID:
+        return _JSONResponse({"error": "Google auth not configured on server"}, status_code=503)
+
+    data = await request.json()
+    credential = data.get("credential", "")
+    if not credential:
+        return _JSONResponse({"error": "No credential"}, status_code=400)
+
+    try:
+        idinfo = id_token.verify_oauth2_token(credential, g_req.Request(), GOOGLE_CLIENT_ID)
+    except Exception as e:
+        return _JSONResponse({"error": f"Token invalid: {str(e)[:80]}"}, status_code=401)
+
+    payload = {
+        "sub":     idinfo["sub"],
+        "name":    idinfo.get("name", "Player"),
+        "email":   idinfo.get("email", ""),
+        "picture": idinfo.get("picture", ""),
+        "exp":     datetime.utcnow() + timedelta(days=30),
+    }
+    token = pyjwt.encode(payload, SECRET_KEY, algorithm="HS256")
+    is_prod = os.getenv("PRODUCTION", "") == "1"
+
+    resp = _JSONResponse({
+        "ok":      True,
+        "name":    payload["name"],
+        "email":   payload["email"],
+        "picture": payload["picture"],
+    })
+    resp.set_cookie("nexus_session", token, httponly=True, samesite="lax",
+                    max_age=30 * 24 * 3600, secure=is_prod)
+    return resp
+
+@app.get("/api/me")
+async def get_me(request: Request):
+    user = _get_session(request)
+    if not user:
+        return {"authenticated": False}
+    return {
+        "authenticated": True,
+        "name":    user.get("name", ""),
+        "email":   user.get("email", ""),
+        "picture": user.get("picture", ""),
+    }
+
+@app.post("/auth/logout")
+async def logout():
+    resp = _JSONResponse({"ok": True})
+    resp.delete_cookie("nexus_session", samesite="lax")
+    return resp
+
+# ── Leaderboard ───────────────────────────────────────────────────────────────
 SCORES_FILE = os.path.join(base_dir, "scores.json")
 
 def load_scores():
@@ -60,19 +136,40 @@ def save_scores(scores):
 @app.get("/api/leaderboard")
 async def get_leaderboard(game: str = "pong"):
     scores = load_scores().get(game, [])
-    # Return top 10
-    return sorted(scores, key=lambda x: x["score"], reverse=True)[:10]
+    top = sorted(scores, key=lambda x: x["score"], reverse=True)[:10]
+    # Strip internal sub field before returning to client
+    return [{"name": s["name"], "score": s["score"], "date": s.get("date", "")} for s in top]
 
 @app.post("/api/leaderboard")
 async def post_score(request: Request):
-    data = await request.json()
-    game = data.get("game", "unknown")
-    name = data.get("name", "Anonymous")[:15]
-    score = data.get("score", 0)
-    
+    user = _get_session(request)
+    if not user:
+        return _JSONResponse({"error": "Sign in to save scores"}, status_code=401)
+
+    data      = await request.json()
+    game      = data.get("game", "unknown")
+    score     = int(data.get("score", 0))
+    user_sub  = user["sub"]
+    user_name = user["name"]
+
     all_scores = load_scores()
-    if game not in all_scores: all_scores[game] = []
-    all_scores[game].append({"name": name, "score": score, "date": os.popen("date").read().strip()})
+    if game not in all_scores:
+        all_scores[game] = []
+
+    # One entry per user per game — keep personal best only
+    existing = next((s for s in all_scores[game] if s.get("sub") == user_sub), None)
+    if existing:
+        if score > existing["score"]:
+            existing["score"] = score
+            existing["date"]  = datetime.utcnow().strftime("%Y-%m-%d")
+    else:
+        all_scores[game].append({
+            "sub":   user_sub,
+            "name":  user_name,
+            "score": score,
+            "date":  datetime.utcnow().strftime("%Y-%m-%d"),
+        })
+
     save_scores(all_scores)
     return {"ok": True}
 
