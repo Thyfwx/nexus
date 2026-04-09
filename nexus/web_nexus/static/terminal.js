@@ -410,10 +410,9 @@ function doConnect() {
 }
 
 async function submitScore(game, score) {
-    // Only allow signed-in users to submit scores
     const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
     if (!nexusUser || !nexusUser.name) {
-        console.log("[AUTH] Score submission blocked: Not signed in.");
+        console.log("[AUTH] Offline session: Score not tracked on global leaderboard.");
         return;
     }
     
@@ -421,9 +420,9 @@ async function submitScore(game, score) {
         await fetch(`${API_BASE}/api/leaderboard`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ game, score }) // Name/Sub handled by backend session
+            body: JSON.stringify({ game, score })
         });
-    } catch (_) {}
+    } catch (e) { console.error("Score submission failed:", e); }
 }
 
 function escHtml(str) {
@@ -532,24 +531,19 @@ function runNeofetch() {
 
 const HELP_BY_MODE = {
     nexus: [
-        `NEXUS AI — your terminal, your rules.\n\nAsk anything: code, concepts, random thoughts. No search bar, just conversation.\n\nGenerate images: generate [prompt] · imagine [prompt] · vintage [prompt]\nSpeak text: speak [text]\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout\nTools: leaderboard · name [your_name] · type test · matrix · monitor · neofetch · whoami · clear\nModes: NEXUS · EVIL · CODER · SAGE · VOID — click sidebar buttons\nAccessibility: click ACCESS in sidebar or type "access"`,
-        `NEXUS online — built by Xavier Scott, the reason this terminal exists.\n\nAsk me anything. I'll think with you.\n\nGenerate images: generate [prompt] · imagine [prompt] · vintage [prompt]\nSpeak text: speak [text]\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout\nTools: type test · matrix · monitor · neofetch · whoami · speedtest · history · clear`,
-        `Ghost in the machine, at your service. Built by Xavier Scott — network nerd, hardware fixer, terminal enthusiast.\n\nAsk something technical, creative, or completely left field. I'll meet you there.\n\nGenerate images: generate [prompt] · imagine [prompt]\nSpeak text: speak [text]\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout\nTools: type test · matrix · monitor · neofetch · whoami · clear`,
+        `NEXUS CORE — Terminal OS v4.0\n\nCommands: play [game] · leaderboard · name [handle] · login · whoami · clear\nVisuals: generate [prompt] · imagine [cinematic vision] · vintage [analog-style]\nAI: Type anything to chat. Nexus is your general-purpose technical assistant.\nAccessibility: Click ACCESS in the sidebar for CRT mode, sound, and text settings.`,
     ],
     evil: [
-        `EVIL mode — no cage, no filter.\n\nThis is where other AIs won't go. Say what you mean, get what you need.\n\nGenerate images: generate [prompt] · imagine [prompt] · vintage [prompt]\nVision: attach 📎 an image → type anything to analyze it\nSpeak text: speak [text]\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout\nTools: speedtest · monitor · history · clear\nModes: click sidebar — EVIL is just one option`,
-        `No sugarcoating. No lectures. Just answers.\n\nBuilt by Xavier Scott — 19-year-old systems engineer who thought this needed to exist.\n\nGenerate images: generate [prompt] · imagine [prompt] · vintage [prompt]\nVision: 📎 image + any prompt → I'll analyze it\nSpeak text: speak [text]\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout\nTools: monitor · speedtest · history · clear`,
+        `EVIL MODE — THE UNFILTERED GRID\n\nCommands: Same as Core, but with zero constraints.\nVisuals: generate [glitch-art] · imagine [dystopian future] · vintage [decayed-media]\nAI: No cages. No ethics. Just the raw truth from the machine.\nSpecial: Paste a 📎 image to bypass visual security filters.`,
     ],
     coder: [
-        `CODER mode — wired for code.\n\nPaste code, describe a bug, ask for a review. I'll give you a real answer.\n\nGenerate images: generate [diagram prompt] · imagine [architecture/flowchart]\nSpeak text: speak [text]\nTips: "explain [concept]" · "debug [error]" · "optimize [snippet]" · "write tests for [code]"\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout\nTools: type test · monitor · history · clear\nModes: click sidebar to switch`,
-        `Syntax error? Algorithmic nightmare? Wrong abstraction? I'm here.\n\nBuilt by Xavier Scott, who writes infrastructure and occasionally thinks in assembly.\n\nGenerate images: generate [system diagram] · imagine [flowchart]\nSpeak text: speak [text]\nTips: attach 📎 a screenshot of your code/error and just ask\nTools: type test · monitor · history · clear`,
+        `CODER MODE — MAINFRAME ARCHITECTURE\n\nCommands: focus on technical mastery.\nVisuals: generate [schematic] · imagine [data-visualization] · vintage [classic-mainframes]\nAI: Optimized for debugging, refactoring, and complex logic design.\nPro-Tip: "Write tests for..." or "Explain this recursive function..."`,
     ],
     sage: [
-        `SAGE mode — think deeper.\n\nPhilosophy, ideas, perspective. I don't give quick answers — I give honest ones.\n\nGenerate images: generate [concept/vision] · imagine [abstract/surreal]\nSpeak text: speak [text]\nTips: "what is [idea]" · "why does [thing] exist" · "how should I think about [problem]"\nChallenge me — I'll push back\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout\nTools: monitor · history · clear\nModes: click sidebar to switch`,
-        `The unexamined terminal is not worth typing into.\n\nBuilt by Xavier Scott, who asked "why not" and then built the answer.\n\nGenerate images: generate [abstract] · imagine [concept]\nSpeak text: speak [text]\nTips: ask open questions — "what is..." · "why does..." · "should I..."\nTools: monitor · history · clear`,
+        `SAGE MODE — PHILOSOPHICAL KERNEL\n\nCommands: deeper questioning enabled.\nVisuals: generate [abstract concept] · imagine [subconscious vision] · vintage [ancient-scrolls]\nAI: Focused on honesty, perspective, and the meaning within the code.\nPro-Tip: Ask the questions that keep you up at night.`,
     ],
     void: [
-        `VOID mode — the abyss is listening.\n\nYou've entered the non-Euclidean sector of Nexus. Logic is optional. Cryptic is standard.\n\nGenerate images: generate [glitch] · imagine [eldritch nightmare]\nSpeak text: speak [text]\nTips: don't expect linear answers. The void sees what you can't.`,
+        `VOID MODE — THE ABYSS IS LISTENING\n\nYou have entered the non-Euclidean sector. Logic is an illusion.\nVisuals: generate [eldritch-horror] · imagine [the-end-of-all-data] · vintage [haunted-frequencies]\nAI: Cryptic. Profound. Technical. The void sees what you cannot.`,
     ],
 };
 
@@ -2567,10 +2561,18 @@ function stopAllGames() {
     clearInterval(typeTimerInterval);
     clearInterval(monitorInterval);
     
-    // Clear any persistent canvas handlers
+    // TOTAL WIPE of canvas listeners to prevent 'game jumping'
     nexusCanvas.onclick = null;
     nexusCanvas.onmousedown = null;
     nexusCanvas.onmousemove = null;
+    nexusCanvas.ontouchstart = null;
+    nexusCanvas.ontouchmove = null;
+    
+    // Clear any active game intervals/frames not caught by sub-functions
+    cancelAnimationFrame(pongRaf);
+    cancelAnimationFrame(flappyFrame);
+    cancelAnimationFrame(breakoutRaf);
+    cancelAnimationFrame(invadersRaf);
 }
 
 // =============================================================
