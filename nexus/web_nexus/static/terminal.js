@@ -2601,8 +2601,10 @@ async function handleCredentialResponse(response) {
     }
 }
 
-// Expose callback globally for GSI library
+// Expose globally for HTML onclick handlers
 window.handleCredentialResponse = handleCredentialResponse;
+window.revealTerminal = revealTerminal;
+window.logout = logout;
 
 function logout() {
     if (!confirm("Terminate secure uplink and sign out?")) return;
