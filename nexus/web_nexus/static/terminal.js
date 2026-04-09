@@ -295,7 +295,7 @@ function runBootSequence(callback) {
     function step() {
         if (i >= BOOT_WORDS.length) { callback(); return; }
         const w = BOOT_WORDS[i++];
-        printToTerminal(`[${w.label}] ${w.text}`, 'sys-msg');
+        printToTerminal(w.text, 'sys-msg');
         setTimeout(step, 200);
     }
     step();
