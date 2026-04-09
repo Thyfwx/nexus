@@ -3504,39 +3504,40 @@ function toggleA11yPanel() {
 //  RESTORE & BOOT
 // =============================================================
 
-// Restore saved mode (UI only)
-if (currentMode !== 'nexus') {
-    const m = MODES[currentMode];
-    if (m) {
-        const promptEl  = document.getElementById('prompt-label');
-        const titleEl   = document.getElementById('status-title');
-        const modeIndEl = document.getElementById('mode-indicator');
-        if (promptEl)  promptEl.textContent  = m.prompt;
-        if (titleEl)   titleEl.textContent   = m.title;
-        if (modeIndEl) modeIndEl.textContent = m.label;
-        if (m.color) {
-            document.documentElement.style.setProperty('--accent', m.color);
-            document.documentElement.style.setProperty('--txt-color', m.color);
-        }
-        document.querySelectorAll('.mode-btn').forEach(b => {
-            b.classList.toggle('active', b.dataset.mode === currentMode);
-        });
-    }
-}
-
-// Restore current mode's history
-const _savedHistory = loadHistory(currentMode);
-if (_savedHistory.length) {
-    messageHistory = _savedHistory;
-    setTimeout(() => {
-        const col = MODE_COLORS[currentMode] || '#0ff';
-        printToTerminal(`[SYS] ${_savedHistory.length} ${currentMode.toUpperCase()} messages restored from last session.`, 'sys-msg');
-    }, 2000);
-}
-
 // Global Boot
 window.onload = async () => {
     console.log("[NEXUS] System Booting...");
+
+    // Restore saved mode (UI only)
+    if (currentMode !== 'nexus') {
+        const m = MODES[currentMode];
+        if (m) {
+            const promptEl  = document.getElementById('prompt-label');
+            const titleEl   = document.getElementById('status-title');
+            const modeIndEl = document.getElementById('mode-indicator');
+            if (promptEl)  promptEl.textContent  = m.prompt;
+            if (titleEl)   titleEl.textContent   = m.title;
+            if (modeIndEl) modeIndEl.textContent = m.label;
+            if (m.color) {
+                document.documentElement.style.setProperty('--accent', m.color);
+                document.documentElement.style.setProperty('--txt-color', m.color);
+            }
+            document.querySelectorAll('.mode-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.mode === currentMode);
+            });
+        }
+    }
+
+    // Restore current mode's history
+    const _savedHistory = loadHistory(currentMode);
+    if (_savedHistory.length) {
+        messageHistory = _savedHistory;
+        setTimeout(() => {
+            const col = MODE_COLORS[currentMode] || '#0ff';
+            printToTerminal(`[SYS] ${_savedHistory.length} ${currentMode.toUpperCase()} messages restored from last session.`, 'sys-msg');
+        }, 2000);
+    }
+
     _a11yRestore();
     connectWS();
     connectStats();
