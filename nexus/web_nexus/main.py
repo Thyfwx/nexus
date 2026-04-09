@@ -332,6 +332,10 @@ async def websocket_stats(websocket: WebSocket):
     await websocket.accept()
     try:
         while True:
-            await websocket.send_text(json.dumps({"cpu": psutil.cpu_percent(), "mem": psutil.virtual_memory().percent}))
+            # interval=None is non-blocking
+            cpu = psutil.cpu_percent(interval=None)
+            mem = psutil.virtual_memory().percent
+            await websocket.send_text(json.dumps({"cpu": cpu, "mem": mem}))
             await asyncio.sleep(2)
-    except: pass
+    except Exception as e:
+        print(f"[STATS WS] Closed: {e}")
