@@ -2,139 +2,86 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Nexus Web Terminal</title>
-    <!-- Version guard: forces a hard reload exactly once when the JS version changes.
-         This kills any stale cached terminal.js without needing a server restart. -->
-    <script>
-        (function () {
-            var V = '3.9';
-            if (localStorage.getItem('nx-js') !== V) {
-                localStorage.setItem('nx-js', V);
-                location.reload(true);
-            }
-        })();
-    </script>
-    <link rel="stylesheet" href="/static/style.css?v=3.9">
-    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Open+Sans:wght@400;600&family=Inconsolata:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=8">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
 </head>
-<body class="theme-cyber font-mono size-s space-n">
-
-    <!-- Accessibility Toggle Button -->
-    <button id="a11y-btn" title="Accessibility Options" aria-label="Open accessibility options">A</button>
-
-    <!-- Accessibility Panel -->
-    <aside id="a11y-panel" class="a11y-panel hidden" aria-label="Accessibility Options">
-        <div class="a11y-header">
-            <span>Accessibility</span>
-            <button id="a11y-close" aria-label="Close">✕</button>
-        </div>
-
-        <div class="a11y-section">
-            <span class="a11y-label">Text Size</span>
-            <div class="a11y-row" role="group">
-                <button class="a11y-opt" data-group="size" data-value="size-s">S</button>
-                <button class="a11y-opt" data-group="size" data-value="size-m">M</button>
-                <button class="a11y-opt" data-group="size" data-value="size-l">L</button>
-                <button class="a11y-opt" data-group="size" data-value="size-xl">XL</button>
-            </div>
-        </div>
-
-        <div class="a11y-section">
-            <span class="a11y-label">Font Style</span>
-            <div class="a11y-row" role="group">
-                <button class="a11y-opt" data-group="font" data-value="font-mono">Mono</button>
-                <button class="a11y-opt" data-group="font" data-value="font-incn">Wide</button>
-                <button class="a11y-opt" data-group="font" data-value="font-sans">Sans</button>
-                <button class="a11y-opt" data-group="font" data-value="font-serif">Serif</button>
-            </div>
-        </div>
-
-        <div class="a11y-section">
-            <span class="a11y-label">Color Theme</span>
-            <div class="a11y-row" role="group">
-                <button class="a11y-opt" data-group="theme" data-value="theme-cyber">Cyber</button>
-                <button class="a11y-opt" data-group="theme" data-value="theme-hicon">Hi-Con</button>
-                <button class="a11y-opt" data-group="theme" data-value="theme-soft">Soft</button>
-                <button class="a11y-opt" data-group="theme" data-value="theme-light">Light</button>
-            </div>
-        </div>
-
-        <div class="a11y-section">
-            <span class="a11y-label">Line Spacing</span>
-            <div class="a11y-row" role="group">
-                <button class="a11y-opt" data-group="spacing" data-value="space-n">Norm</button>
-                <button class="a11y-opt" data-group="spacing" data-value="space-r">Relax</button>
-                <button class="a11y-opt" data-group="spacing" data-value="space-d">2×</button>
-            </div>
-        </div>
-
-        <div class="a11y-section">
-            <label class="a11y-toggle-label">
-                <input type="checkbox" id="reduce-motion">
-                <span>Reduce Motion</span>
-            </label>
-        </div>
-    </aside>
-
-    <!-- Game Overlay -->
-    <div id="game-overlay" class="game-overlay hidden" role="dialog" aria-modal="true">
-        <div class="game-window">
-            <div class="game-header">
-                <span id="game-title">GAME</span>
-                <div class="game-controls">
-                    <button id="game-restart" title="Restart">↺</button>
-                    <button id="game-close" title="Close [Esc]">✕</button>
-                </div>
-            </div>
-            <div id="game-content"></div>
-        </div>
-    </div>
-
-    <!-- Main Terminal -->
+<body>
     <div class="monitor">
         <div class="screen-glare"></div>
         <div class="glass-panel">
             <header class="status-bar">
-                <div class="status-item">CPU: <span id="cpu-stat">--</span>%</div>
-                <div class="status-item">MEM: <span id="mem-stat">--</span>%</div>
-                <div class="status-item">BAT: <span id="bat-stat">--</span>%</div>
-                <div class="status-item geo-stat">LOC: Locating...</div>
-                <div class="status-item"><span id="conn-dot" class="conn-dot disconnected"></span> LINK</div>
-                <div class="status-item model-badge" id="model-badge" title="Click to switch model">
-                    AI: <span id="model-stat">—</span>
-                </div>
+                <div class="status-item"><span class="stat-label">CPU</span> <span id="cpu-stat">--</span></div>
+                <div class="status-item"><span class="stat-label">MEM</span> <span id="mem-stat">--</span></div>
+                <div class="status-item status-title" id="status-title">NEXUS OS</div>
+                <div class="status-item"><span class="stat-label">MODE</span> <span id="mode-indicator">NEXUS</span></div>
             </header>
 
-            <main class="terminal-container">
+            <main class="terminal-container" id="terminal-container">
                 <div class="terminal-output" id="terminal-output"></div>
-                <div id="suggestions" class="suggestions"></div>
                 <div class="terminal-input-wrapper">
-                    <span class="prompt">root@nexus:~#</span>
-                    <input type="text" id="terminal-input" autocomplete="off" autofocus aria-label="Terminal command input">
+                    <span class="prompt" id="prompt-label">guest@nexus:~$</span>
+                    <input type="text" id="terminal-input" autocomplete="off" autofocus spellcheck="false">
+                    <label class="attach-btn" title="Attach image for AI scan">
+                        📎
+                        <input type="file" id="img-input" accept="image/*" style="display:none;">
+                    </label>
                 </div>
             </main>
 
             <aside class="quick-actions">
-                <button class="action-btn a11y-action-btn" id="a11y-sidebar-btn" title="Accessibility Options">&#9681; Access</button>
-                <hr class="sidebar-divider">
-                <button class="action-btn image-action-btn" id="image-prompt-btn" title="Generate an image with AI">&#9998; Image</button>
-                <hr class="sidebar-divider">
-                <button class="action-btn" data-cmd="play pong">Pong</button>
-                <button class="action-btn" data-cmd="play breach">Breach</button>
+                <div class="aside-header">GAMES</div>
                 <button class="action-btn" data-cmd="play wordle">Wordle</button>
+                <button class="action-btn" data-cmd="play snake">Snake</button>
+                <button class="action-btn" data-cmd="play pong">Pong</button>
+                <button class="action-btn" data-cmd="play minesweeper">Mines</button>
+                <button class="action-btn" data-cmd="play flappy">Flappy</button>
+                <button class="action-btn" data-cmd="play breakout">Breakout</button>
+                <button class="action-btn" data-cmd="play invaders">Invaders</button>
+
+                <div class="aside-header" style="margin-top:10px;">AI MODE</div>
+                <div class="mode-picker">
+                    <button class="mode-btn active" data-mode="nexus" title="Standard Nexus AI">NEXUS</button>
+                    <button class="mode-btn" data-mode="evil" title="Unfiltered/Raw Mode">EVIL</button>
+                    <button class="mode-btn" data-mode="coder" title="Technical/Code Focus">CODER</button>
+                    <button class="mode-btn" data-mode="sage" title="Philosophical Mode">SAGE</button>
+                    <button class="mode-btn" data-mode="void" title="Abyss/Cryptic Mode" style="grid-column: span 2; border-color:#f0f; color:#f0f;">VOID</button>
+                </div>
+
+
+                <div class="aside-header" style="margin-top:10px;">TOOLS</div>
+                <button class="action-btn" data-cmd="leaderboard">Rankings</button>
+                <button class="action-btn" data-cmd="type test">Type Test</button>
+                <button class="action-btn" data-cmd="matrix">Matrix</button>
                 <button class="action-btn" data-cmd="monitor">Monitor</button>
-                <button class="action-btn" data-cmd="speedtest">Speedtest</button>
-                <button class="action-btn" data-cmd="models">Models</button>
                 <button class="action-btn" data-cmd="help">Help</button>
                 <button class="action-btn" data-cmd="clear">Clear</button>
+
+                <button class="a11y-open-btn" onclick="toggleA11yPanel()" title="Accessibility settings">
+                    <span class="a11y-badge">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="5" r="1"/>
+                            <path d="m9 20 3-6 3 6M6 8l6 2 6-2M12 10v4"/>
+                        </svg>
+                    </span>
+                    <span class="a11y-label">ACCESSIBILITY</span>
+                </button>
             </aside>
+
+            <div id="game-gui-container" class="gui-hidden">
+                <div id="gui-header">
+                    <span id="gui-title">8-BIT SYSTEM</span>
+                    <button id="gui-close">X</button>
+                </div>
+                <div id="gui-content-wrapper">
+                    <div id="gui-content"></div>
+                    <canvas id="nexus-canvas" width="400" height="400" style="display:none;"></canvas>
+                </div>
+            </div>
         </div>
     </div>
-
-    <script src="/static/terminal.js?v=3.9"></script>
+    <script src="secrets.js?v=8"></script>
+    <script src="terminal.js?v=8"></script>
 </body>
 </html>
