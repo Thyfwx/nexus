@@ -5,6 +5,7 @@
 // --- Config ---
 const WS_URL = `wss://nexus-terminalnexus.onrender.com/ws/terminal`;
 const STATS_URL = `wss://nexus-terminalnexus.onrender.com/ws/stats`;
+const API_BASE = `https://nexus-terminalnexus.onrender.com`;
 
 // Discord webhook
 // Discord logging routes through the CF Worker — webhook URL stored as CF secret,
@@ -417,7 +418,7 @@ async function submitScore(game, score) {
     }
     
     try {
-        await fetch(`${location.protocol}//${location.host}/api/leaderboard`, {
+        await fetch(`${API_BASE}/api/leaderboard`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ game, score }) // Name/Sub handled by backend session
@@ -434,7 +435,7 @@ async function showLeaderboard(game = 'pong') {
     printToTerminal(`[SYS] Fetching ${game.toUpperCase()} rankings...`, 'sys-msg');
     const MEDALS = ['🥇', '🥈', '🥉'];
     try {
-        const resp = await fetch(`${location.protocol}//${location.host}/api/leaderboard?game=${game}`);
+        const resp = await fetch(`${API_BASE}/api/leaderboard?game=${game}`);
         const scores = await resp.json();
         if (!scores || !scores.length) {
             printToTerminal(`No data for ${game}. Be the first to set a score!`, 'sys-msg');
@@ -2581,9 +2582,9 @@ function initGoogleAuth() {
 }
 
 async function handleCredentialResponse(response) {
-    console.log("[AUTH] Processing Google Credential...");
+    printToTerminal("[AUTH] Validating credentials...", "sys-msg");
     try {
-        const res = await fetch(`${location.protocol}//${location.host}/auth/google`, {
+        const res = await fetch(`${API_BASE}/auth/google`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ credential: response.credential })
