@@ -56,8 +56,7 @@ const SoundManager = {
     }
 };
 
-// Global think timeout
- — shared between showThinking() and _clearThinking() closure
+// Global think timeout — shared between showThinking() and _clearThinking() closure
 let _thinkTimeout = null;
 let _thinkFallbackCmd = null; // cmd to retry via CF Worker if WS times out
 
