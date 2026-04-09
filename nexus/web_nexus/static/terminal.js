@@ -502,15 +502,18 @@ function printTypewriter(text, className = 'ai-msg') {
 //  UTILITIES
 // =============================================================
 function runWhoami() {
-    const m = MODES[currentMode] || MODES.nexus;
-    printToTerminal(`[ IDENTITY ]\nUSER:     guest\nSESSION:  ${currentMode.toUpperCase()} kernel\nHOST:     nexus.thyfwxit.com\nPLATFORM: ${navigator.platform}\nUPTIME:   ${Math.floor(performance.now()/1000)}s\nOWNER:    Xavier Scott`, 'sys-msg');
+    const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+    const name = nexusUser?.name || 'guest';
+    printToTerminal(`[ IDENTITY ]\nUSER:     ${name}\nSESSION:  ${currentMode.toUpperCase()} kernel\nHOST:     nexus.thyfwxit.com\nPLATFORM: ${navigator.platform}\nUPTIME:   ${Math.floor(performance.now()/1000)}s\nOWNER:    Xavier Scott`, 'sys-msg');
 }
 
 function runNeofetch() {
+    const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+    const name = nexusUser?.name || 'guest';
     const art = `   _   __                      \n  / | / /__ _  ____  _______\n /  |/ / _ \\ |/_/ / / / ___/\n/ /|  /  __/>  </ /_/ (__  ) \n/_/ |_/\\___/_/|_|\\__,_/____/`;
     const tz  = Intl.DateTimeFormat().resolvedOptions().timeZone || '?';
     const up  = Math.floor(performance.now() / 1000);
-    printToTerminal(`${art}\nOS:     NexusOS v4.0\nHOST:   thyfwxit.com\nKERNEL: Nexus AI v3.0\nBUILDER: Xavier Scott\nUPTIME: ${up}s\nTZ:     ${tz}\nUSER:   guest@nexus\n`, "user-cmd");
+    printToTerminal(`${art}\nOS:     NexusOS v4.0\nHOST:   thyfwxit.com\nKERNEL: Nexus AI v3.0\nBUILDER: Xavier Scott\nUPTIME: ${up}s\nTZ:     ${tz}\nUSER:   ${name}@nexus\n`, "user-cmd");
 }
 
 const HELP_BY_MODE = {
@@ -3207,7 +3210,8 @@ input.addEventListener('keydown', (e) => {
     input.value = '';
 
     const lc = cmd.toLowerCase();
-    const pl = document.getElementById('prompt-label')?.textContent || 'guest@nexus:~$';
+    const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+    const pl = document.getElementById('prompt-label')?.textContent || (nexusUser?.name ? `${nexusUser.name.toLowerCase()}@nexus:~$` : 'guest@nexus:~$');
 
     // Typing test intercept
     if (typeTestActive) {
@@ -3349,7 +3353,8 @@ input.addEventListener('keydown', (e) => {
 document.querySelectorAll('.action-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         const cmd = btn.getAttribute('data-cmd');
-        const promptLabel = document.getElementById('prompt-label')?.textContent || 'guest@nexus:~$';
+        const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+        const promptLabel = document.getElementById('prompt-label')?.textContent || (nexusUser?.name ? `${nexusUser.name.toLowerCase()}@nexus:~$` : 'guest@nexus:~$');
         if (cmd === 'clear history') { 
             printToTerminal(`${promptLabel} clear history`, 'user-cmd');
             localStorage.removeItem(HISTORY_KEYS[currentMode]); 
