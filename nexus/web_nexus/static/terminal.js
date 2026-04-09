@@ -409,12 +409,18 @@ function doConnect() {
 }
 
 async function submitScore(game, score) {
-    const name = localStorage.getItem('nexus_user_name') || 'Anonymous';
+    // Only allow signed-in users to submit scores
+    const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+    if (!nexusUser || !nexusUser.name) {
+        console.log("[AUTH] Score submission blocked: Not signed in.");
+        return;
+    }
+    
     try {
         await fetch(`${location.protocol}//${location.host}/api/leaderboard`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ game, name, score })
+            body: JSON.stringify({ game, score }) // Name/Sub handled by backend session
         });
     } catch (_) {}
 }
@@ -1342,7 +1348,7 @@ function stopSnake() {
 }
 
 // =============================================================
-//  CYBER INVADERS (Hacker Edition)
+//  CYBER INVADERS (Classic Edition)
 // =============================================================
 let invadersRaf;
 let invadersActive = false;
@@ -1357,8 +1363,21 @@ function startInvaders() {
     const ctx = nexusCanvas.getContext('2d');
 
     let playerX = 180, bullets = [], enemies = [], particles = [], boss = null;
+    let shields = []; // Data Firewalls
     let score = 0, wave = 1, gameOver = false, shake = 0;
     let moveDir = 1;
+
+    function initShields() {
+        shields = [];
+        for (let i = 0; i < 4; i++) {
+            const sx = 50 + i * 100;
+            for (let r = 0; r < 3; r++) {
+                for (let c = 0; c < 4; c++) {
+                    shields.push({ x: sx + c * 10, y: 280 + r * 10, hp: 3 });
+                }
+            }
+        }
+    }
 
     function initEnemies() {
         enemies = [];
@@ -1388,6 +1407,7 @@ function startInvaders() {
     }
 
     if (wave % 5 === 0) spawnBoss(); else initEnemies();
+    initShields();
 
     const movePlayer = (x) => {
         const rect = nexusCanvas.getBoundingClientRect();
@@ -1429,9 +1449,25 @@ function startInvaders() {
 
             // Bullets
             bullets.forEach((b, i) => {
-                b.y -= 7;
+                b.y -= 6; // SLOWER bullets for classic feel
                 ctx.fillStyle = '#fff'; ctx.fillRect(b.x, b.y, 3, 12);
+                
+                // Shield collision
+                shields.forEach((s, si) => {
+                    if (s.hp > 0 && b.x > s.x && b.x < s.x + 10 && b.y > s.y && b.y < s.y + 10) {
+                        s.hp--; bullets.splice(i, 1);
+                        SoundManager.playBloop(100, 0.02);
+                    }
+                });
+
                 if (b.y < 0) bullets.splice(i, 1);
+            });
+
+            // Shields
+            shields.forEach(s => {
+                if (s.hp <= 0) return;
+                ctx.fillStyle = `rgba(0, 255, 255, ${s.hp / 3})`;
+                ctx.fillRect(s.x, s.y, 9, 9);
             });
 
             // Particles
@@ -1505,11 +1541,12 @@ function startInvaders() {
                 moveDir *= -1;
                 enemies.forEach(e => e.y += 12);
             }
-            enemies.forEach(e => e.x += moveDir * (1.2 + wave * 0.15));
+            enemies.forEach(e => e.x += moveDir * (0.8 + wave * 0.12)); // SLOWER movement
 
             if (!boss && enemies.length > 0 && enemies.every(e => !e.alive)) {
                 wave++;
                 initEnemies();
+                initShields(); // Restore shields each wave
                 if (wave % 5 === 0) spawnBoss();
                 SoundManager.playBloop(800, 0.1);
             }
@@ -2501,16 +2538,82 @@ function stopAllGames() {
     typeTestActive = false;
     clearInterval(typeTimerInterval);
     clearInterval(monitorInterval);
-    nexusCanvas.onmousemove = null;
-    nexusCanvas.ontouchmove = null;
-    nexusCanvas.onclick = null;
-    cpuData = []; cpuHistory = []; memHistory = []; netHistory = [];
-    clearInterval(pongRaf);
-    // Reset draggable position back to centered
-    guiContainer.style.left = '';
-    guiContainer.style.top  = '';
-    guiContainer.style.position  = '';
-    guiContainer.style.transform = '';
+}
+
+// =============================================================
+//  GOOGLE AUTHENTICATION
+// =============================================================
+function initGoogleAuth() {
+    if (typeof google === 'undefined') {
+        console.warn("[AUTH] Google Identity Services not loaded yet. Retrying...");
+        setTimeout(initGoogleAuth, 1000);
+        return;
+    }
+    console.log("[AUTH] Initializing Google Auth...");
+    google.accounts.id.initialize({
+        client_id: "616205887439-s1l0out61vlu0l81307q9g64oai3gnur.apps.googleusercontent.com", 
+        callback: handleCredentialResponse,
+        auto_select: true,
+        cancel_on_tap_outside: false
+    });
+    
+    // 1. Render the explicit button
+    const btn = document.getElementById('google-signin-btn');
+    if (btn) {
+        google.accounts.id.renderButton(btn, { 
+            theme: 'outline', 
+            size: 'medium', 
+            text: 'signin_with',
+            shape: 'rectangular',
+            logo_alignment: 'left'
+        });
+    }
+
+    // 2. Trigger the "One Tap" prompt automatically
+    google.accounts.id.prompt((notification) => {
+        if (notification.isNotDisplayed()) {
+            console.log("[AUTH] One Tap not displayed:", notification.getNotDisplayedReason());
+        }
+    });
+}
+
+async function handleCredentialResponse(response) {
+    console.log("[AUTH] Processing Google Credential...");
+    try {
+        const res = await fetch(`${location.protocol}//${location.host}/auth/google`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ credential: response.credential })
+        });
+        const data = await res.json();
+        if (data.ok) {
+            localStorage.setItem('nexus_user_data', JSON.stringify(data));
+            printToTerminal(`[OK] Uplink synchronized: Welcome, ${data.name}.`, 'conn-ok');
+            
+            // REMOVE GUEST: Update UI instantly
+            updateUserIdentity(data.name);
+            initGoogleAuth(); 
+        }
+    } catch(e) { console.error("Auth failed:", e); }
+}
+
+function updateUserIdentity(name) {
+    if (!name) return;
+    // Update prompts
+    MODES.nexus.prompt = `${name.toLowerCase()}@nexus:~$`;
+    MODES.evil.prompt  = `${name.toLowerCase()}@evil:~$`;
+    MODES.coder.prompt = `${name.toLowerCase()}@dev:~$`;
+    MODES.sage.prompt  = `${name.toLowerCase()}@sage:~$`;
+    MODES.void.prompt  = `${name.toLowerCase()}@void:~$`;
+    
+    const pl = document.getElementById('prompt-label');
+    if (pl) pl.textContent = MODES[currentMode].prompt;
+    
+    // Update status bar if it said Guest
+    const titleEl = document.getElementById('status-title');
+    if (titleEl && titleEl.textContent.includes('GUEST')) {
+        titleEl.textContent = `NEXUS OS // ${name.toUpperCase()}`;
+    }
 }
 
 // =============================================================
@@ -3159,8 +3262,11 @@ input.addEventListener('keydown', (e) => {
     if (lc === 'play snake')          { startSnake(); return; }
     if (lc === 'play wordle')         { startWordle(); return; }
     if (lc === 'play minesweeper')    { startMinesweeper(); return; }
-    if (lc === 'play flappy')         { startFlappy(); return; }
-    if (lc === 'play breakout')       { startBreakout(); return; }
+    if (lc === 'play flappy')      { startFlappy(); return; }
+    if (lc === 'play breakout')    { startBreakout(); return; }
+    if (lc === 'play invaders')    { startInvaders(); return; }
+
+    if (lc === 'play invaders')       { startInvaders(); return; }
     if (lc === 'type test' || lc === 'typetest') { startTypingTest(); return; }
     if (lc === 'matrix')              { startMatrixSaver(); return; }
     if (lc === 'monitor')             { startMonitor(); return; }
@@ -3262,6 +3368,8 @@ document.querySelectorAll('.action-btn').forEach(btn => {
         if (cmd === 'play minesweeper') { startMinesweeper(); return; }
         if (cmd === 'play flappy')      { startFlappy(); return; }
         if (cmd === 'play breakout')    { startBreakout(); return; }
+        if (cmd === 'play invaders')    { startInvaders(); return; }
+        if (cmd === 'leaderboard')      { printToTerminal(`${promptLabel} leaderboard`, 'user-cmd'); showLeaderboard(); input.focus(); return; }
         if (cmd === 'type test')        { startTypingTest(); return; }
         if (cmd === 'matrix')           { startMatrixSaver(); return; }
         if (cmd === 'monitor')          { startMonitor(); return; }
@@ -3669,5 +3777,68 @@ function toggleA11yPanel() {
     });
 }
 
-// Restore on load
-_a11yRestore();
+// =============================================================
+//  RESTORE & BOOT
+// =============================================================
+
+// Global Boot
+window.onload = async () => {
+    console.log("[NEXUS] System Booting...");
+
+    // Initialize DOM references
+    cpuStat      = document.getElementById('cpu-stat');
+    memStat      = document.getElementById('mem-stat');
+    output       = document.getElementById('terminal-output');
+    input        = document.getElementById('terminal-input');
+    guiContainer = document.getElementById('game-gui-container');
+    guiContent   = document.getElementById('gui-content');
+    guiTitle     = document.getElementById('gui-title');
+    nexusCanvas  = document.getElementById('nexus-canvas');
+
+    if (!input || !output) {
+        console.error("[NEXUS] Critical UI elements missing. Check index.html.");
+        return;
+    }
+
+    // Restore saved mode (UI only)
+    if (currentMode !== 'nexus') {
+        const m = MODES[currentMode];
+        if (m) {
+            const promptLabelEl = document.getElementById('prompt-label');
+            const statusTitleEl = document.getElementById('status-title');
+            const modeIndEl     = document.getElementById('mode-indicator');
+            if (promptLabelEl) promptLabelEl.textContent = m.prompt;
+            if (statusTitleEl) statusTitleEl.textContent = m.title;
+            if (modeIndEl)     modeIndEl.textContent     = m.label;
+            if (m.color) {
+                document.documentElement.style.setProperty('--accent', m.color);
+                document.documentElement.style.setProperty('--txt-color', m.color);
+            }
+            document.querySelectorAll('.mode-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.mode === currentMode);
+            });
+        }
+    }
+
+    // Restore current mode's history
+    const _savedHistory = loadHistory(currentMode);
+    if (_savedHistory.length) {
+        messageHistory = _savedHistory;
+        setTimeout(() => {
+            const col = MODE_COLORS[currentMode] || '#0ff';
+            printToTerminal(`[SYS] ${_savedHistory.length} ${currentMode.toUpperCase()} messages restored from last session.`, 'sys-msg');
+        }, 2000);
+    }
+
+    // Restore Identity
+    const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+    if (nexusUser && nexusUser.name) updateUserIdentity(nexusUser.name);
+
+    _a11yRestore();
+    initGoogleAuth(); 
+    connectWS();
+    connectStats();
+    updateClientStats();
+    setInterval(updateClientStats, 5000);
+    console.log("[NEXUS] Core services established.");
+};
