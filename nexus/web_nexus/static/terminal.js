@@ -17,7 +17,8 @@ const EVIL_PROXY = 'https://nexus-evil-proxy.xavierscott300.workers.dev';
 // --- State ---
 let termWs;
 let messageHistory = [];
-let cmdHistory = JSON.parse(localStorage.getItem('nexus_cmd_history') || '[]');
+let cmdHistory = [];
+try { cmdHistory = JSON.parse(localStorage.getItem('nexus_cmd_history') || '[]'); } catch(_) { cmdHistory = []; }
 let historyIndex = -1;
 let currentMode = localStorage.getItem('nexus_mode') || 'nexus';
 
@@ -175,15 +176,6 @@ setTimeout(async () => {
 }, 5000);
 
 // ... (stats variables) ...
-
-const cpuStat      = document.getElementById('cpu-stat');
-const memStat      = document.getElementById('mem-stat');
-const output       = document.getElementById('terminal-output');
-const input        = document.getElementById('terminal-input');
-const guiContainer = document.getElementById('game-gui-container');
-const guiContent   = document.getElementById('gui-content');
-const guiTitle     = document.getElementById('gui-title');
-const nexusCanvas  = document.getElementById('nexus-canvas');
 
 let monitorInterval;
 let cpuData = [];
@@ -3504,20 +3496,38 @@ function toggleA11yPanel() {
 //  RESTORE & BOOT
 // =============================================================
 
+// Global variables initialized on load
+let cpuStat, memStat, output, input, guiContainer, guiContent, guiTitle, nexusCanvas;
+
 // Global Boot
 window.onload = async () => {
     console.log("[NEXUS] System Booting...");
+
+    // Initialize DOM references
+    cpuStat      = document.getElementById('cpu-stat');
+    memStat      = document.getElementById('mem-stat');
+    output       = document.getElementById('terminal-output');
+    input        = document.getElementById('terminal-input');
+    guiContainer = document.getElementById('game-gui-container');
+    guiContent   = document.getElementById('gui-content');
+    guiTitle     = document.getElementById('gui-title');
+    nexusCanvas  = document.getElementById('nexus-canvas');
+
+    if (!input || !output) {
+        console.error("[NEXUS] Critical UI elements missing. Check index.html.");
+        return;
+    }
 
     // Restore saved mode (UI only)
     if (currentMode !== 'nexus') {
         const m = MODES[currentMode];
         if (m) {
-            const promptEl  = document.getElementById('prompt-label');
-            const titleEl   = document.getElementById('status-title');
-            const modeIndEl = document.getElementById('mode-indicator');
-            if (promptEl)  promptEl.textContent  = m.prompt;
-            if (titleEl)   titleEl.textContent   = m.title;
-            if (modeIndEl) modeIndEl.textContent = m.label;
+            const promptLabelEl = document.getElementById('prompt-label');
+            const statusTitleEl = document.getElementById('status-title');
+            const modeIndEl     = document.getElementById('mode-indicator');
+            if (promptLabelEl) promptLabelEl.textContent = m.prompt;
+            if (statusTitleEl) statusTitleEl.textContent = m.title;
+            if (modeIndEl)     modeIndEl.textContent     = m.label;
             if (m.color) {
                 document.documentElement.style.setProperty('--accent', m.color);
                 document.documentElement.style.setProperty('--txt-color', m.color);
