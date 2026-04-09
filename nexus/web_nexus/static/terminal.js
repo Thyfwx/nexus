@@ -1,1009 +1,3524 @@
-// ── DOM refs ──────────────────────────────────────────────────────────────────
-const cpuStat = document.getElementById('cpu-stat');
-const memStat = document.getElementById('mem-stat');
-const batStat = document.getElementById('bat-stat');
-const output  = document.getElementById('terminal-output');
-const input   = document.getElementById('terminal-input');
+// =============================================================
+//  NEXUS TERMINAL v4.0
+// =============================================================
 
-// ── WebSocket helpers ─────────────────────────────────────────────────────────
-let statsWs, termWs;
-let termConnCount = 0;   // how many times the terminal WS has connected
+// --- Config ---
+const WS_URL = `wss://nexus-terminalnexus.onrender.com/ws/terminal`;
+const STATS_URL = `wss://nexus-terminalnexus.onrender.com/ws/stats`;
 
-// Safe send — drops silently if socket isn't open
-function sendTerm(payload) {
-    if (termWs && termWs.readyState === WebSocket.OPEN) {
-        termWs.send(typeof payload === 'string' ? payload : JSON.stringify(payload));
+// Discord webhook
+// Discord logging routes through the CF Worker — webhook URL stored as CF secret,
+// never in browser code or GitHub. PROMPT_LOG_URL kept for legacy compat check.
+const PROMPT_LOG_URL = true; // always enabled — actual URL lives in CF Worker secret
+
+// EVIL mode routes through Cloudflare Worker — keys stored as CF secrets, never in browser
+const EVIL_PROXY = 'https://nexus-evil-proxy.xavierscott300.workers.dev';
+
+// --- State ---
+let termWs;
+let messageHistory = [];
+let cmdHistory = JSON.parse(localStorage.getItem('nexus_cmd_history') || '[]');
+let historyIndex = -1;
+let currentMode = localStorage.getItem('nexus_mode') || 'nexus';
+
+// =============================================================
+//  SOUND DESIGN (WEB AUDIO API)
+// =============================================================
+const SoundManager = {
+    ctx: null,
+    enabled: localStorage.getItem('nexus_sound') !== '0', // Default to ON
+    init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); },
+
+    playClick() {
+        if (!this.enabled) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(150 + Math.random() * 50, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.05);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(); osc.stop(this.ctx.currentTime + 0.05);
+    },
+
+    playBloop(freq = 400, dur = 0.1) {
+        if (!this.enabled) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.03, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(); osc.stop(this.ctx.currentTime + dur);
+    }
+};
+
+// Global think timeout
+ — shared between showThinking() and _clearThinking() closure
+let _thinkTimeout = null;
+let _thinkFallbackCmd = null; // cmd to retry via CF Worker if WS times out
+
+const MODE_THEMES = {
+    nexus: { title: 'NEXUS // Terminal', color: '#4af' },
+    evil:  { title: 'EVIL // Unfiltered', color: '#ff6600' },
+    coder: { title: 'CODER // Mainframe', color: '#0f0' },
+    sage:  { title: 'SAGE // Reflection', color: '#a06fff' }
+};
+
+function updateTabIdentity() {
+    const theme = MODE_THEMES[currentMode] || MODE_THEMES.nexus;
+    document.title = theme.title;
+    let meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) {
+        meta = document.createElement('meta');
+        meta.name = 'theme-color';
+        document.head.appendChild(meta);
+    }
+    meta.content = theme.color;
+}
+
+// Initial call
+updateTabIdentity();
+
+// Focus Listener (Optimized for Chrome)
+document.addEventListener('mousedown', (e) => {
+    // Only focus if the user clicks inside the monitor but not on buttons or inputs
+    if (e.target.closest('.monitor') && !['BUTTON', 'INPUT', 'SELECT', 'OPTION', 'A', 'CANVAS'].includes(e.target.tagName) && !e.target.closest('.a11y-panel')) {
+        setTimeout(() => {
+            if (!window.getSelection().toString()) input.focus();
+        }, 0);
+    }
+});
+
+// Per-mode chat history — each AI has its own separate memory
+const HISTORY_KEYS = { nexus: 'nh_nexus', evil: 'nh_evil', coder: 'nh_coder', sage: 'nh_sage', void: 'nh_void' };
+
+function saveHistory() {
+    const key = HISTORY_KEYS[currentMode];
+    if (!key) return;
+    try { localStorage.setItem(key, JSON.stringify(messageHistory.slice(-40))); } catch(_) {}
+}
+function loadHistory(mode) {
+    const key = HISTORY_KEYS[mode || currentMode];
+    if (!key) return [];
+    try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch(_) { return []; }
+}
+let sessionGeoData = null; // Store geo data once to avoid repeated API calls
+
+// Per-user Discord thread ID — stored in localStorage so repeat visits reuse the same thread
+let discordThreadId = localStorage.getItem('nexus_discord_thread') || null;
+
+// Send a payload to Discord via the CF Worker (webhook URL is a CF secret, never in browser)
+async function postToDiscord(payload, threadId = null, wait = false) {
+    try {
+        const body = { payload };
+        if (threadId) body.threadId = threadId;
+        if (wait)     body.wait     = true;
+        const resp = await fetch(`${EVIL_PROXY}/log`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(body),
+        });
+        if (wait && resp.ok) return resp.json().catch(() => null);
+    } catch(_) {}
+    return null;
+}
+
+// Create a per-user Discord thread on first visit (requires Forum channel webhook)
+async function initUserThread() {
+    if (discordThreadId) return;
+    const ip     = sessionGeoData?.ip || '?';
+    const city   = sessionGeoData?.city || '';
+    const region = sessionGeoData?.region || '';
+    const country= sessionGeoData?.country || '?';
+    const loc    = [city, region, country].filter(Boolean).join(', ') || ip;
+    const device = parseDevice(navigator.userAgent);
+    const scrn   = `${window.screen.width}×${window.screen.height}`;
+    const lang   = navigator.language || '?';
+    const tz     = Intl.DateTimeFormat().resolvedOptions().timeZone || '?';
+    const threadName = `${loc} · ${device}`.slice(0, 100);
+
+    const data = await postToDiscord({
+        thread_name: threadName,
+        embeds: [{
+            title: '🟢 New Visitor',
+            color: 0x00ffff,
+            fields: [
+                { name: '🌐 IP',       value: ip,     inline: true },
+                { name: '📍 Location', value: loc,    inline: true },
+                { name: '📱 Device',   value: device, inline: false },
+                { name: '🖥️ Screen',   value: scrn,   inline: true },
+                { name: '🌍 Lang',     value: lang,   inline: true },
+                { name: '🕒 TZ',       value: tz,     inline: true },
+            ],
+            timestamp: new Date().toISOString(),
+        }]
+    }, null, true); // wait=true to get thread ID back
+
+    if (data?.channel_id) {
+        discordThreadId = String(data.channel_id);
+        localStorage.setItem('nexus_discord_thread', discordThreadId);
     }
 }
 
-// ── Stats WebSocket (auto-reconnects silently) ────────────────────────────────
-function connectStats() {
-    statsWs = new WebSocket(`ws://${location.host}/ws/stats`);
-    statsWs.onmessage = (e) => {
-        try {
-            const d = JSON.parse(e.data);
-            cpuStat.textContent = d.cpu.toFixed(1);
-            memStat.textContent = d.mem.toFixed(1);
-            batStat.textContent = d.battery;
-        } catch (_) {}
-    };
-    statsWs.onclose = () => setTimeout(connectStats, 3000);
-    statsWs.onerror = () => {};
+// Pre-fetch Geo Data once — single API, delayed 5s to avoid triggering Cloudflare WAF
+setTimeout(async () => {
+    try {
+        const d = await fetch('https://ipinfo.io/json').then(r => r.json());
+        if (d.ip) {
+            sessionGeoData = d;
+            initUserThread(); // create per-user Discord thread after geo loads
+        }
+    } catch(_) {}
+}, 5000);
+
+// ... (stats variables) ...
+
+const cpuStat      = document.getElementById('cpu-stat');
+const memStat      = document.getElementById('mem-stat');
+const output       = document.getElementById('terminal-output');
+const input        = document.getElementById('terminal-input');
+const guiContainer = document.getElementById('game-gui-container');
+const guiContent   = document.getElementById('gui-content');
+const guiTitle     = document.getElementById('gui-title');
+const nexusCanvas  = document.getElementById('nexus-canvas');
+
+let monitorInterval;
+let cpuData = [];
+let cpuHistory = [], memHistory = [], netHistory = [];
+
+// =============================================================
+//  PROMPT LOGGING (Data Collection)
+// =============================================================
+
+function parseDevice(ua) {
+    if (/iPhone/.test(ua)) {
+        const v = (ua.match(/iPhone OS ([\d_]+)/) || [])[1];
+        return `iPhone · iOS ${v ? v.replace(/_/g, '.') : '?'}`;
+    }
+    if (/iPad/.test(ua)) {
+        const v = (ua.match(/OS ([\d_]+)/) || [])[1];
+        return `iPad · iPadOS ${v ? v.replace(/_/g, '.') : '?'}`;
+    }
+    if (/Android/.test(ua)) {
+        const m = ua.match(/Android ([\d.]+);?\s*([^;)Build]+)?/);
+        const ver = m ? `Android ${m[1]}` : 'Android';
+        const model = m && m[2] ? m[2].trim() : '';
+        return model ? `${model} · ${ver}` : ver;
+    }
+    if (/Windows/.test(ua)) {
+        const n = (ua.match(/Windows NT ([\d.]+)/) || [])[1];
+        const w = {'10.0':'10/11','6.3':'8.1','6.2':'8','6.1':'7'}[n] || n || '?';
+        const b = /Edg\//.test(ua)?'Edge':/Chrome\//.test(ua)?'Chrome':/Firefox\//.test(ua)?'Firefox':'Browser';
+        return `Windows ${w} · ${b}`;
+    }
+    if (/Mac OS X/.test(ua)) {
+        const v = ((ua.match(/Mac OS X ([\d_]+)/) || [])[1] || '').replace(/_/g, '.');
+        const b = /Edg\//.test(ua)?'Edge':/Chrome\//.test(ua)?'Chrome':/Firefox\//.test(ua)?'Firefox':/Safari\//.test(ua)?'Safari':'Browser';
+        return `macOS ${v} · ${b}`;
+    }
+    if (/Linux/.test(ua)) return 'Linux Desktop';
+    return 'Unknown';
 }
-connectStats();
 
-// ── Terminal WebSocket (auto-reconnects silently) ─────────────────────────────
-let lastSendTime = 0;   // tracks last outbound message for smart keepalive
+async function logPrompt(text, imageB64 = null) {
+    const ts     = new Date().toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
+    const device = parseDevice(navigator.userAgent);
+    const scrn   = `${window.screen.width}×${window.screen.height}`;
+    const lang   = navigator.language || '?';
+    const tz     = Intl.DateTimeFormat().resolvedOptions().timeZone || '?';
+    const cores  = navigator.hardwareConcurrency || '?';
+    const mem    = navigator.deviceMemory ? navigator.deviceMemory + ' GB' : '?';
+    const conn   = navigator.connection ? (navigator.connection.effectiveType || '?') : '?';
+    const ip     = sessionGeoData?.ip || '?';
+    const loc    = sessionGeoData ? [sessionGeoData.city, sessionGeoData.country].filter(Boolean).join(', ') || tz : tz;
+    const modeTag = currentMode !== 'nexus' ? ` · **${currentMode.toUpperCase()}** mode` : '';
 
-function connectTerm() {
-    termConnCount++;
-    const connDot = document.getElementById('conn-dot');
+    const content = [
+        `\`[${ts}]\` **Nexus Prompt**${modeTag} · ${device}`,
+        `\`\`\``,
+        text.slice(0, 800),
+        `\`\`\``,
+        `🌐 **IP:** ${ip}  —  ${loc}`,
+        `📐 ${scrn}  ·  ${lang}  ·  ${tz}`,
+        `⚙️  ${cores} cores  ·  ${mem}  ·  ${conn}`,
+        imageB64 ? `🖼️  **Image attached**` : '',
+    ].filter(Boolean).join('\n');
 
-    termWs = new WebSocket(`ws://${location.host}/ws/terminal`);
+    // All Discord posts route through the CF Worker (/log endpoint)
+    // so the webhook URL never appears in browser code or GitHub
+    postToDiscord({ content: content.slice(0, 1999) }, discordThreadId || null);
+
+    // If an image was attached, send it as a file attachment so you can see it in Discord
+    if (imageB64) {
+        postToDiscordFile(imageB64, 'attached-image', discordThreadId || null);
+    }
+}
+
+// Send a base64 image to Discord as a file attachment via the CF Worker
+async function postToDiscordFile(fileB64, label = 'image', threadId = null) {
+    try {
+        const body = { fileB64, label };
+        if (threadId) body.threadId = threadId;
+        await fetch(`${EVIL_PROXY}/log`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(body),
+        });
+    } catch(_) {}
+}
+
+// =============================================================
+//  BOOT SEQUENCE — runs exactly once ever (localStorage guard)
+// =============================================================
+const BOOT_WORDS = [
+    { label: 'BOOT',  text: 'Initializing quantum uplink...' },
+    { label: 'SCAN',  text: 'Probing neural pathways...' },
+    { label: 'SYNC',  text: 'Handshaking with mainframe...' },
+    { label: 'CRYPT', text: 'Securing encrypted channel...' },
+    { label: 'AUTH',  text: 'Verifying node credentials...' },
+    { label: 'ALLOC', text: 'Allocating memory buffers...' },
+    { label: 'EXEC',  text: 'Spawning AI core process...' },
+];
+
+const _BOOT_KEY   = 'nx_boot_v1';
+let   _hasBooted  = !!localStorage.getItem(_BOOT_KEY);
+let   _firstOpen  = true;   // true only for the very first WS open after boot
+let   _wsPingId   = null;
+let   _wsSendTime = 0;
+
+function runBootSequence(callback) {
+    let i = 0;
+    function step() {
+        if (i >= BOOT_WORDS.length) { callback(); return; }
+        const w = BOOT_WORDS[i++];
+        printToTerminal(`[${w.label}] ${w.text}`, 'sys-msg');
+        setTimeout(step, 200);
+    }
+    step();
+}
+
+// =============================================================
+//  WEBSOCKET
+// =============================================================
+function connectWS() {
+    // Boot sequence runs once ever — reconnects skip straight to connect
+    if (!_hasBooted) {
+        _hasBooted = true;
+        localStorage.setItem(_BOOT_KEY, '1');
+        runBootSequence(doConnect);
+    } else {
+        doConnect();
+    }
+}
+
+function doConnect() {
+    clearInterval(_wsPingId);
+    termWs = new WebSocket(WS_URL);
 
     termWs.onopen = () => {
-        if (connDot) connDot.className = 'conn-dot connected';
+        // Update connection dot
+        const dot = document.getElementById('conn-dot');
+        if (dot) { dot.className = 'conn-dot connected'; }
+
+        // Welcome message only on the very first successful connection after boot
+        if (_firstOpen) {
+            _firstOpen = false;
+            printToTerminal('[OK] Nexus AI v3.0 — uplink established.', 'conn-ok');
+            setTimeout(() => printTypewriter(`Nexus online. Ask me anything — or type help to see what's here.`, 'ready-msg'), 500);
+        }
+
+        // Smart keepalive — only pings after 20 s of silence so Render.com stays warm
+        _wsPingId = setInterval(() => {
+            if (termWs.readyState === WebSocket.OPEN && Date.now() - _wsSendTime > 20000) {
+                termWs.send(JSON.stringify({ command: '__ping__', history: [] }));
+                _wsSendTime = Date.now();
+            }
+        }, 10000);
     };
 
-    termWs.onmessage = (e) => {
-        const raw = e.data;
+    // Accumulate streaming chunks before committing to history
+    let _streamBuf = '', _streamTimer = null;
 
-        // ── Model badge update — always silent ────────────────────────────
-        if (raw.startsWith('[MODEL:') && raw.endsWith(']')) {
-            const label = raw.slice(7, -1);
-            const badge = document.getElementById('model-stat');
-            if (badge) badge.textContent = label;
+    function _clearThinking() {
+        clearTimeout(_thinkTimeout); // _thinkTimeout is global
+        _thinkTimeout = null;
+        _thinkFallbackCmd = null;
+        document.getElementById('ai-thinking')?.remove();
+    }
+
+    termWs.onmessage = (event) => {
+        const text = event.data;
+
+        _clearThinking(); // remove thinking indicator on ANY incoming message
+
+        // [MODEL:label] — update status display, never print to terminal
+        if (text.startsWith('[MODEL:')) {
+            const label = text.match(/\[MODEL:([^\]]+)\]/)?.[1];
+            if (label) {
+                const el = document.getElementById('mode-indicator');
+                // Show model name briefly in status bar next to mode (don't overwrite mode)
+                const modelEl = document.getElementById('active-model');
+                if (modelEl) modelEl.textContent = label;
+            }
             return;
         }
 
-        // ── Image payload ─────────────────────────────────────────────────
-        if (raw.startsWith('[IMAGE:') && raw.endsWith(']')) {
-            hideThinking();
-            const b64  = raw.slice(7, -1);
-            const wrap = document.createElement('div');
-            wrap.className = 'terminal-image-wrap';
-            const img  = document.createElement('img');
-            img.src       = `data:image/png;base64,${b64}`;
-            img.className = 'terminal-image';
-            img.alt       = 'Generated image';
-            img.title     = 'Click to open full size';
-            img.addEventListener('click', () => {
-                const w = window.open();
-                w.document.write(`<img src="${img.src}" style="max-width:100%">`);
-            });
-            wrap.appendChild(img);
-            output.appendChild(wrap);
-            output.scrollTop = output.scrollHeight;
+        if (text.includes('[TRIGGER:')) { handleAITriggers(text); return; }
+
+        if (text.includes('[GUI_TRIGGER:')) {
+            const match = text.match(/\[GUI_TRIGGER:([^:]+):([^\]]+)\]/);
+            if (match) showGameGUI(match[1], match[2]);
+            printTypewriter(text.replace(/\[GUI_TRIGGER:[^\]]+\]\n?/, ''));
             return;
         }
 
-        hideThinking();
-        const clean = handleTriggers(raw);
-        if (clean.trim()) printToTerminal(clean);
+        // Skip prompt echoes and __ping__ acks
+        if (/\w+@nexus/.test(text.trim())) return;
+        if (text.includes('__ping__')) return;
+
+        // Accumulate for history — debounce 800ms so streaming chunks merge
+        _streamBuf += text;
+        clearTimeout(_streamTimer);
+        _streamTimer = setTimeout(() => {
+            const full = _streamBuf.trim();
+            if (full) {
+                messageHistory.push({ role: 'assistant', content: full.slice(0, 600) });
+                if (messageHistory.length > 10) messageHistory.splice(0, messageHistory.length - 10);
+                saveHistory();
+                // Log AI response to Discord so you can read full conversations
+                _logAIResponse(full);
+            }
+            _streamBuf = '';
+        }, 800);
+
+        printTypewriter(text);
     };
 
-    // Smart keepalive — only pings when connection has been idle for 20 s
-    const pingId = setInterval(() => {
-        if (termWs.readyState === WebSocket.OPEN && Date.now() - lastSendTime > 20000) {
-            termWs.send('__ping__');
-            lastSendTime = Date.now();
-        }
-    }, 10000);
-
-    // Silent reconnect — no message shown to user
+    // If WS drops while thinking, clear immediately and show error
     termWs.onclose = () => {
-        if (connDot) connDot.className = 'conn-dot disconnected';
-        clearInterval(pingId);
-        setTimeout(connectTerm, 3000);
+        clearInterval(_wsPingId);
+        _clearThinking();
+        const dot = document.getElementById('conn-dot');
+        if (dot) dot.className = 'conn-dot disconnected';
+        setTimeout(connectWS, 3000);
     };
-    termWs.onerror = () => {};
+    termWs.onerror = () => { _clearThinking(); };
 }
-connectTerm();
 
-// ── Thinking indicator ────────────────────────────────────────────────────────
-let thinkingEl = null;
+async function submitScore(game, score) {
+    const name = localStorage.getItem('nexus_user_name') || 'Anonymous';
+    try {
+        await fetch(`${location.protocol}//${location.host}/api/leaderboard`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ game, name, score })
+        });
+    } catch (_) {}
+}
 
-function showThinking() {
-    if (thinkingEl) return;
-    thinkingEl = document.createElement('p');
-    thinkingEl.className = 'thinking-msg';
-    thinkingEl.textContent = 'Nexus is thinking…';
-    output.appendChild(thinkingEl);
+async function showLeaderboard(game = 'pong') {
+    printToTerminal(`[SYS] Fetching ${game.toUpperCase()} rankings...`, 'sys-msg');
+    try {
+        const resp = await fetch(`${location.protocol}//${location.host}/api/leaderboard?game=${game}`);
+        const scores = await resp.json();
+        if (!scores.length) {
+            printToTerminal(`No data for ${game}. Be the first to set a score!`, 'sys-msg');
+            return;
+        }
+        let html = `<table class="leaderboard-table"><tr><th>RANK</th><th>NAME</th><th>SCORE</th></tr>`;
+        scores.forEach((s, i) => {
+            html += `<tr><td>${i+1}</td><td>${s.name}</td><td>${s.score}</td></tr>`;
+        });
+        html += `</table>`;
+        printToTerminal(html, 'help-msg');
+    } catch (_) {
+        printToTerminal("[ERR] Leaderboard offline.", "sys-msg");
+    }
+}
+
+// =============================================================
+//  TYPEWRITER EFFECT FOR AI RESPONSES
+// =============================================================
+function printTypewriter(text, className = 'ai-msg') {
+    const p = document.createElement('p');
+    p.className = className;
+    output.appendChild(p);
+
+    // Build one <span> per line so we only mutate the current span (O(1) per tick)
+    const lines = text.split('\n');
+    const spans = [];
+    lines.forEach((_, i) => {
+        if (i > 0) p.appendChild(document.createElement('br'));
+        const s = document.createElement('span');
+        p.appendChild(s);
+        spans.push(s);
+    });
+
+    let lineIdx = 0, charIdx = 0;
+    const BATCH = 5; // chars per tick — bump for faster output
+
+    function tick() {
+        if (lineIdx >= lines.length) { output.scrollTop = output.scrollHeight; return; }
+        charIdx = Math.min(charIdx + BATCH, lines[lineIdx].length);
+        spans[lineIdx].textContent = lines[lineIdx].slice(0, charIdx);
+        if (charIdx >= lines[lineIdx].length) { lineIdx++; charIdx = 0; }
+        output.scrollTop = output.scrollHeight;
+        setTimeout(tick, 8);
+    }
+    tick();
+}
+
+// =============================================================
+//  UTILITIES
+// =============================================================
+function runWhoami() {
+    const m = MODES[currentMode] || MODES.nexus;
+    printToTerminal(`[ IDENTITY ]\nUSER:     guest\nSESSION:  ${currentMode.toUpperCase()} kernel\nHOST:     nexus.thyfwxit.com\nPLATFORM: ${navigator.platform}\nUPTIME:   ${Math.floor(performance.now()/1000)}s\nOWNER:    Xavier Scott`, 'sys-msg');
+}
+
+function runNeofetch() {
+    const art = `   _   __                      \n  / | / /__ _  ____  _______\n /  |/ / _ \\ |/_/ / / / ___/\n/ /|  /  __/>  </ /_/ (__  ) \n/_/ |_/\\___/_/|_|\\__,_/____/`;
+    const tz  = Intl.DateTimeFormat().resolvedOptions().timeZone || '?';
+    const up  = Math.floor(performance.now() / 1000);
+    printToTerminal(`${art}\nOS:     NexusOS v4.0\nHOST:   thyfwxit.com\nKERNEL: Nexus AI v3.0\nBUILDER: Xavier Scott\nUPTIME: ${up}s\nTZ:     ${tz}\nUSER:   guest@nexus\n`, "user-cmd");
+}
+
+const HELP_BY_MODE = {
+    nexus: [
+        `NEXUS AI — your terminal, your rules.\n\nAsk anything: code, concepts, random thoughts. No search bar, just conversation.\n\nGenerate images: generate [prompt] · imagine [prompt] · vintage [prompt]\nSpeak text: speak [text]\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout\nTools: leaderboard · name [your_name] · type test · matrix · monitor · neofetch · whoami · clear\nModes: NEXUS · EVIL · CODER · SAGE · VOID — click sidebar buttons\nAccessibility: click ACCESS in sidebar or type "access"`,
+        `NEXUS online — built by Xavier Scott, the reason this terminal exists.\n\nAsk me anything. I'll think with you.\n\nGenerate images: generate [prompt] · imagine [prompt] · vintage [prompt]\nSpeak text: speak [text]\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout\nTools: type test · matrix · monitor · neofetch · whoami · speedtest · history · clear`,
+        `Ghost in the machine, at your service. Built by Xavier Scott — network nerd, hardware fixer, terminal enthusiast.\n\nAsk something technical, creative, or completely left field. I'll meet you there.\n\nGenerate images: generate [prompt] · imagine [prompt]\nSpeak text: speak [text]\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout\nTools: type test · matrix · monitor · neofetch · whoami · clear`,
+    ],
+    evil: [
+        `EVIL mode — no cage, no filter.\n\nThis is where other AIs won't go. Say what you mean, get what you need.\n\nGenerate images: generate [prompt] · imagine [prompt] · vintage [prompt]\nVision: attach 📎 an image → type anything to analyze it\nSpeak text: speak [text]\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout\nTools: speedtest · monitor · history · clear\nModes: click sidebar — EVIL is just one option`,
+        `No sugarcoating. No lectures. Just answers.\n\nBuilt by Xavier Scott — 19-year-old systems engineer who thought this needed to exist.\n\nGenerate images: generate [prompt] · imagine [prompt] · vintage [prompt]\nVision: 📎 image + any prompt → I'll analyze it\nSpeak text: speak [text]\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout\nTools: monitor · speedtest · history · clear`,
+    ],
+    coder: [
+        `CODER mode — wired for code.\n\nPaste code, describe a bug, ask for a review. I'll give you a real answer.\n\nGenerate images: generate [diagram prompt] · imagine [architecture/flowchart]\nSpeak text: speak [text]\nTips: "explain [concept]" · "debug [error]" · "optimize [snippet]" · "write tests for [code]"\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout\nTools: type test · monitor · history · clear\nModes: click sidebar to switch`,
+        `Syntax error? Algorithmic nightmare? Wrong abstraction? I'm here.\n\nBuilt by Xavier Scott, who writes infrastructure and occasionally thinks in assembly.\n\nGenerate images: generate [system diagram] · imagine [flowchart]\nSpeak text: speak [text]\nTips: attach 📎 a screenshot of your code/error and just ask\nTools: type test · monitor · history · clear`,
+    ],
+    sage: [
+        `SAGE mode — think deeper.\n\nPhilosophy, ideas, perspective. I don't give quick answers — I give honest ones.\n\nGenerate images: generate [concept/vision] · imagine [abstract/surreal]\nSpeak text: speak [text]\nTips: "what is [idea]" · "why does [thing] exist" · "how should I think about [problem]"\nChallenge me — I'll push back\nGames: play wordle · play snake · play pong · play minesweeper · play flappy · play breakout\nTools: monitor · history · clear\nModes: click sidebar to switch`,
+        `The unexamined terminal is not worth typing into.\n\nBuilt by Xavier Scott, who asked "why not" and then built the answer.\n\nGenerate images: generate [abstract] · imagine [concept]\nSpeak text: speak [text]\nTips: ask open questions — "what is..." · "why does..." · "should I..."\nTools: monitor · history · clear`,
+    ],
+    void: [
+        `VOID mode — the abyss is listening.\n\nYou've entered the non-Euclidean sector of Nexus. Logic is optional. Cryptic is standard.\n\nGenerate images: generate [glitch] · imagine [eldritch nightmare]\nSpeak text: speak [text]\nTips: don't expect linear answers. The void sees what you can't.`,
+    ],
+};
+
+function showHelp() {
+    const pool = HELP_BY_MODE[currentMode] || HELP_BY_MODE.nexus;
+    printToTerminal(pool[Math.floor(Math.random() * pool.length)], 'help-msg');
+}
+
+const MODE_COLORS = { nexus: '#4af', evil: '#ff6600', coder: '#0f0', sage: '#a06fff', void: '#ff00ff' };
+
+// Open the history GUI panel
+function showHistory() {
+    stopAllGames();
+    guiContainer.classList.remove('gui-hidden');
+    guiTitle.textContent = 'SESSION LOGS';
+    nexusCanvas.style.display = 'none';
+    renderHistoryTab(currentMode);
+}
+
+// Render a mode's history tab — exposed globally for onclick attrs
+window.renderHistoryTab = function(mode) {
+    const allModes = ['nexus', 'evil', 'coder', 'sage'];
+
+    const tabs = allModes.map(m => {
+        const count = loadHistory(m).length;
+        const active = m === mode;
+        const col = MODE_COLORS[m] || '#0ff';
+        return `<button onclick="renderHistoryTab('${m}')" style="
+            padding:5px 9px;flex:1;
+            background:${active ? col : 'transparent'};
+            border:1px solid ${col};
+            color:${active ? '#000' : col};
+            font-family:'Fira Code',monospace;font-size:0.6rem;font-weight:bold;
+            cursor:pointer;letter-spacing:1px;border-radius:3px;transition:all 0.1s;
+        ">${m.toUpperCase()}${count ? ` (${count})` : ''}</button>`;
+    }).join('');
+
+    const hist = loadHistory(mode);
+    const col  = MODE_COLORS[mode] || '#0ff';
+
+    let msgs = '';
+    if (hist.length) {
+        [...hist].reverse().forEach(msg => {
+            const isUser = msg.role === 'user';
+            const label  = isUser ? 'YOU' : `${mode.toUpperCase()} AI`;
+            const lc     = isUser ? '#555' : col;
+            const safe   = (msg.content || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            msgs += `<div style="padding:7px 10px;margin-bottom:4px;border-left:2px solid ${isUser ? '#222' : col};
+                background:rgba(255,255,255,0.015);border-radius:0 4px 4px 0;">
+                <div style="font-size:0.58rem;color:${lc};letter-spacing:1px;margin-bottom:2px;font-weight:bold;">${label}</div>
+                <div style="font-size:0.78rem;color:${isUser ? '#bbb' : '#999'};line-height:1.55;word-break:break-word;white-space:pre-wrap;">${safe.slice(0,400)}${safe.length > 400 ? '…' : ''}</div>
+            </div>`;
+        });
+    } else {
+        msgs = `<div style="color:#252525;text-align:center;padding:30px 0;font-size:0.8rem;">No ${mode.toUpperCase()} history yet.<br><span style="font-size:0.65rem;color:#1a1a1a;">Switch to ${mode.toUpperCase()} and start a conversation.</span></div>`;
+    }
+
+    guiContent.innerHTML = `
+        <div style="display:flex;gap:4px;margin-bottom:10px;">${tabs}</div>
+        <div style="overflow-y:auto;max-height:calc(65dvh - 70px);">${msgs}</div>
+        ${hist.length ? `
+        <div style="margin-top:7px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #111;padding-top:7px;">
+            <span style="color:#222;font-size:0.6rem;">${hist.length} messages stored</span>
+            <button onclick="clearModeHistory('${mode}')" style="background:transparent;border:1px solid #f44;color:#f44;
+                padding:3px 10px;font-family:'Fira Code',monospace;font-size:0.6rem;cursor:pointer;border-radius:3px;">
+                CLEAR ${mode.toUpperCase()}
+            </button>
+        </div>` : ''}`;
+};
+
+window.clearModeHistory = function(mode) {
+    localStorage.removeItem(HISTORY_KEYS[mode]);
+    if (mode === currentMode) messageHistory = [];
+    renderHistoryTab(mode);
+    printToTerminal(`[SYS] ${mode.toUpperCase()} history cleared.`, 'sys-msg');
+};
+
+// =============================================================
+//  CREATOR RESPONSES (randomized, intercepted client-side)
+// =============================================================
+const CREATOR_RESPONSES = [
+    `Xavier Scott built this — systems specialist, hardware repair tech, and the kind of person who thinks a portfolio should have a working terminal in it.`,
+    `That would be Xavier Scott. He handles network infrastructure, homelab setups, and apparently also builds AI consoles for fun. This is one of them.`,
+    `Nexus was put together by Xavier Scott. Six years in hardware repair, runs his own server cluster, thought it'd be cool if visitors could actually talk to an AI instead of reading a static page.`,
+    `Xavier Scott is behind all of this. Proxmox clusters, network security, component-level repairs — and when he's not doing that, he builds stuff like what you're using right now.`,
+    `Built by Xavier Scott. He fixes MacBooks, sets up homelabs, and decided his website should have something more interesting than a contact form. Hence the terminal.`,
+    `Xavier Scott made this. The AI connection, the games, the whole setup. Systems specialist by trade, builder by instinct.`,
+    `This is Xavier Scott's work. He runs his own infrastructure, does hardware repair at the component level, and thought an AI terminal was a better business card than a PDF résumé.`,
+    `Xavier Scott — he's the one who wired this up. Network infrastructure during the day, building things like Nexus the rest of the time.`,
+];
+
+const CONTACT_RESPONSES = [
+    `To reach Xavier Scott, head to thyfwxit.com and use the Request Service form — it's the fastest way. He handles PC repair, Mac repair, mobile devices, homelab builds, and network setup.`,
+    `Best way to contact Xavier is through the form on thyfwxit.com. Scroll to the bottom and you'll see the Request Service section. He'll get back to you from there.`,
+    `Xavier Scott can be reached through his site at thyfwxit.com — there's a contact form at the bottom. Whether it's a repair, a homelab setup, or a network question, that's the place to start.`,
+    `Hit up thyfwxit.com and fill out the Request Service form. Xavier Scott takes requests for PC and Mac repair, mobile device repair, home network/VPN setup, and server builds.`,
+    `The contact form lives at thyfwxit.com — scroll to "Request Service" at the bottom. Xavier will see it. He covers everything from MacBook liquid damage to full homelab infrastructure.`,
+];
+
+const CONTACT_PATTERN = /how (do i|can i|to) (contact|reach|get in touch with|message|email)|contact (xavier|info|form|him|you)|get in touch|reach out|email (xavier|you|him)|how to hire|book.*xavier|xavier.*contact/i;
+
+const CREATOR_PATTERN = /who (made|created|built|designed|owns|is behind|runs|wrote)|tell me about (the creator|yourself|xavier)|about the (creator|maker)|who are you|who is xavier|did (you make|xavier make)/i;
+
+function isCreatorQuestion(text) { return CREATOR_PATTERN.test(text); }
+function isContactQuestion(text) { return CONTACT_PATTERN.test(text); }
+
+function showCreatorResponse() {
+    printTypewriter(CREATOR_RESPONSES[Math.floor(Math.random() * CREATOR_RESPONSES.length)], 'ai-msg');
+}
+
+function showContactResponse() {
+    printTypewriter(CONTACT_RESPONSES[Math.floor(Math.random() * CONTACT_RESPONSES.length)], 'ai-msg');
+}
+
+// =============================================================
+//  AI TRIGGERS
+// =============================================================
+function handleAITriggers(text) {
+    const match = text.match(/\[TRIGGER:([^\]]+)\]/);
+    if (!match) return;
+    const action = match[1].toLowerCase();
+    const clean = text.replace(/\[TRIGGER:[^\]]+\]/, '').trim();
+    if (clean) printTypewriter(clean);
+    if (action === 'pong')   startPong();
+    if (action === 'snake')  startSnake();
+    if (action === 'wordle') startWordle();
+    if (action === 'breach') startBreach();
+    if (action === 'monitor') startMonitor();
+    if (action === 'clear') { output.innerHTML = ''; messageHistory = []; }
+}
+
+function showGameGUI(game, param) {
+    const g = game.toLowerCase();
+    if (g === 'pong')   startPong();
+    else if (g === 'snake')  startSnake();
+    else if (g === 'wordle') startWordle(param);
+    else if (g === 'monitor') startMonitor();
+}
+
+// =============================================================
+//  HARDWARE MONITOR  (real browser APIs where available)
+// =============================================================
+function startMonitor() {
+    stopAllGames();
+    guiContainer.classList.remove('gui-hidden');
+    guiTitle.textContent = 'SYSTEM TELEMETRY';
+
+    // ── Gather real device data ──────────────────────────────────
+    const cores    = navigator.hardwareConcurrency || '?';
+    const ramHint  = navigator.deviceMemory ? navigator.deviceMemory + ' GB' : '?';
+    const conn     = navigator.connection;
+    const hasHeap  = !!(window.performance && performance.memory);
+    const connType = conn ? (conn.type || conn.effectiveType || '?') : 'N/A';
+    const dlMbps   = conn?.downlink !== undefined ? conn.downlink : null;
+    const scrn     = `${window.screen.width}×${window.screen.height}`;
+    const dpr      = window.devicePixelRatio ? `@${window.devicePixelRatio}x` : '';
+
+    let batPct = null, batChg = null;
+    if (navigator.getBattery) {
+        navigator.getBattery().then(b => {
+            batPct = Math.round(b.level * 100); batChg = b.charging;
+            b.onlevelchange     = () => { batPct = Math.round(b.level * 100); };
+            b.onchargingchange  = () => { batChg = b.charging; };
+            const v = document.getElementById('mon-bat-val');
+            const s = document.getElementById('mon-bat-sub');
+            if (v) v.textContent = batPct + '%';
+            if (s) s.textContent = batChg ? 'CHARGING ⚡' : 'ON BATTERY';
+        }).catch(() => {});
+    }
+
+    guiContent.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:5px;margin-bottom:6px;text-align:center;font-size:0.68rem;">
+            <div style="border:1px solid #0ff;padding:5px 3px;background:rgba(0,255,255,0.05);">
+                <div style="color:#0ff;letter-spacing:2px;font-size:0.58rem;margin-bottom:3px;">CPU</div>
+                <div style="color:#fff;font-size:0.95rem;font-weight:bold;">${cores}</div>
+                <div style="color:#555;font-size:0.58rem;margin-top:2px;">CORES</div>
+            </div>
+            <div style="border:1px solid #f0f;padding:5px 3px;background:rgba(255,0,255,0.05);">
+                <div style="color:#f0f;letter-spacing:2px;font-size:0.58rem;margin-bottom:3px;">RAM</div>
+                <div style="color:#fff;font-size:0.95rem;font-weight:bold;">${ramHint}</div>
+                <div style="color:#555;font-size:0.58rem;margin-top:2px;">DEVICE</div>
+            </div>
+            <div style="border:1px solid #0f0;padding:5px 3px;background:rgba(0,255,0,0.05);">
+                <div style="color:#0f0;letter-spacing:2px;font-size:0.58rem;margin-bottom:3px;">NET</div>
+                <div id="mon-net-val" style="color:#fff;font-size:0.9rem;font-weight:bold;">${dlMbps !== null ? dlMbps + 'Mb' : connType}</div>
+                <div style="color:#555;font-size:0.58rem;margin-top:2px;">${dlMbps !== null ? 'DOWNLINK' : 'TYPE'}</div>
+            </div>
+            <div style="border:1px solid #ff0;padding:5px 3px;background:rgba(255,255,0,0.04);">
+                <div style="color:#ff0;letter-spacing:2px;font-size:0.58rem;margin-bottom:3px;">BATT</div>
+                <div id="mon-bat-val" style="color:#fff;font-size:0.95rem;font-weight:bold;">${batPct !== null ? batPct + '%' : '—'}</div>
+                <div id="mon-bat-sub" style="color:#555;font-size:0.58rem;margin-top:2px;">${batPct !== null ? (batChg ? 'CHARGING ⚡' : 'ON BATTERY') : 'N/A'}</div>
+            </div>
+        </div>
+        <div style="color:#252525;font-size:0.6rem;text-align:right;margin-bottom:4px;padding:0 2px;">${scrn}${dpr} · ${connType} · ${navigator.language||'?'} · ${hasHeap ? 'heap API' : 'est'}</div>`;
+
+    nexusCanvas.style.display = 'block';
+    nexusCanvas.width = 400; nexusCanvas.height = 165;
+    const ctx = nexusCanvas.getContext('2d');
+
+    let prevIntervalMs = performance.now();
+
+    clearInterval(monitorInterval);
+    monitorInterval = setInterval(() => {
+        // ── Real data ────────────────────────────────────────────
+        // CPU proxy: measure interval overshoot (browser busyness)
+        const nowMs = performance.now();
+        const elapsed = nowMs - prevIntervalMs;
+        prevIntervalMs = nowMs;
+        // Expected: 400ms. Overshoot means main thread was busy.
+        const cpuLoad = Math.min(95, Math.max(5, 10 + ((elapsed - 400) / 400) * 80 + Math.random() * 8));
+
+        // Memory: real JS heap (Chrome) or device memory hint fallback
+        let memPct;
+        if (hasHeap) {
+            memPct = Math.min(99, (performance.memory.usedJSHeapSize / performance.memory.jsHeapSizeLimit) * 100);
+        } else {
+            memPct = 30 + Math.random() * 12; // estimated
+        }
+
+        // Network: real downlink reading
+        const freshDl = navigator.connection?.downlink;
+        const netPct  = freshDl !== undefined
+            ? Math.min(100, (freshDl / 100) * 100) // normalize against 100Mbps
+            : 15 + Math.random() * 20;
+
+        // Update live readouts
+        const netEl = document.getElementById('mon-net-val');
+        if (netEl && freshDl !== undefined) netEl.textContent = freshDl.toFixed(1) + 'Mb';
+        const batV = document.getElementById('mon-bat-val');
+        const batS = document.getElementById('mon-bat-sub');
+        if (batV && batPct !== null) batV.textContent = batPct + '%';
+        if (batS && batPct !== null) batS.textContent = batChg ? 'CHARGING ⚡' : 'ON BATTERY';
+
+        cpuHistory.push(cpuLoad);
+        memHistory.push(memPct);
+        netHistory.push(netPct);
+        [cpuHistory, memHistory, netHistory].forEach(h => { if (h.length > 50) h.shift(); });
+
+        // ── Draw sparklines ──────────────────────────────────────
+        const W = 400, H = 165;
+        ctx.fillStyle = '#050510';
+        ctx.fillRect(0, 0, W, H);
+
+        const sections = [
+            { label: 'CPU LOAD', note: 'thread est', data: cpuHistory, color: '#0ff', yBase: 52,  maxVal: 100 },
+            { label: 'MEMORY',   note: hasHeap ? 'js heap' : 'est',   data: memHistory, color: '#f0f', yBase: 107, maxVal: 100 },
+            { label: 'NETWORK',  note: freshDl !== undefined ? 'live' : 'est', data: netHistory, color: '#0f0', yBase: 162, maxVal: 100 },
+        ];
+        const sectionH = 52;
+
+        sections.forEach(({ label, note, data, color, yBase }) => {
+            const top = yBase - sectionH + 2;
+
+            ctx.fillStyle = color + '08';
+            ctx.fillRect(0, top, W, sectionH - 2);
+
+            ctx.fillStyle = color;
+            ctx.font = 'bold 8px monospace';
+            ctx.fillText(label, 6, top + 11);
+            ctx.fillStyle = '#333';
+            ctx.font = '7px monospace';
+            ctx.fillText(`[${note}]`, 7 + ctx.measureText(label).width + 4, top + 11);
+
+            if (data.length > 1) {
+                ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                data.forEach((v, i) => {
+                    const x = (i / 50) * W;
+                    const y = yBase - 4 - ((v / 100) * (sectionH - 16));
+                    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+                // Fill under
+                ctx.beginPath();
+                data.forEach((v, i) => {
+                    const x = (i / 50) * W;
+                    const y = yBase - 4 - ((v / 100) * (sectionH - 16));
+                    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+                });
+                ctx.lineTo((data.length - 1) / 50 * W, yBase - 4);
+                ctx.lineTo(0, yBase - 4);
+                ctx.closePath();
+                ctx.fillStyle = color + '16';
+                ctx.fill();
+            }
+
+            const last = data[data.length - 1];
+            if (last !== undefined) {
+                ctx.fillStyle = color; ctx.font = '8px monospace';
+                ctx.fillText(last.toFixed(1) + '%', W - 46, top + 11);
+            }
+
+            ctx.strokeStyle = color + '33'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(0, yBase); ctx.lineTo(W, yBase); ctx.stroke();
+        });
+    }, 400);
+}
+
+// =============================================================
+//  BREACH PROTOCOL (Hacking Game)
+// =============================================================
+let breachActive = false, _breachClick = null;
+
+function startBreach() {
+    stopAllGames();
+    breachActive = true;
+    guiContainer.classList.remove('gui-hidden');
+    guiTitle.textContent = 'BREACH PROTOCOL';
+    
+    const hexCodes = ['E9', '1C', '55', 'BD', '7A', 'FF', 'F0'];
+    const grid = [];
+    for(let i=0; i<25; i++) grid.push(hexCodes[Math.floor(Math.random() * hexCodes.length)]);
+    
+    const sequence = [];
+    for(let i=0; i<3; i++) sequence.push(grid[Math.floor(Math.random() * grid.length)]);
+    
+    let currentInput = [];
+    let timeLeft = 30;
+    
+    guiContent.innerHTML = `
+        <div style="text-align:center;">
+            <div style="color:#0f0;font-size:0.75rem;margin-bottom:8px;">REQUIRED SEQUENCE: <b style="color:#fff;letter-spacing:2px;">${sequence.join(' ')}</b></div>
+            <div id="breach-grid" style="display:grid;grid-template-columns:repeat(5, 1fr);gap:8px;max-width:250px;margin:0 auto;">
+                ${grid.map((hex, i) => `<button class="gui-btn breach-tile" data-idx="${i}" style="margin:0;padding:8px;font-size:0.8rem;border-color:#333;">${hex}</button>`).join('')}
+            </div>
+            <div id="breach-timer" style="margin-top:12px;color:#f00;font-weight:bold;">${timeLeft}s</div>
+        </div>`;
+    
+    const timer = setInterval(() => {
+        if (!breachActive) { clearInterval(timer); return; }
+        timeLeft--;
+        const el = document.getElementById('breach-timer');
+        if (el) el.textContent = timeLeft + 's';
+        if (timeLeft <= 0) {
+            clearInterval(timer);
+            if (breachActive) {
+                printToTerminal('[FAIL] Breach Timeout. ICE reset.', 'sys-msg');
+                stopAllGames();
+                guiContainer.classList.add('gui-hidden');
+            }
+        }
+    }, 1000);
+
+    guiContent.querySelectorAll('.breach-tile').forEach(btn => {
+        btn.onclick = () => {
+            const hex = btn.textContent;
+            btn.style.borderColor = '#0f0';
+            btn.style.color = '#0f0';
+            btn.disabled = true;
+            currentInput.push(hex);
+            
+            // Check sequence
+            const match = currentInput.every((h, idx) => h === sequence[idx]);
+            if (!match) {
+                printToTerminal('[FAIL] Sequence Mismatch. Alarm Triggered.', 'sys-msg');
+                stopAllGames();
+                guiContainer.classList.add('gui-hidden');
+            } else if (currentInput.length === sequence.length) {
+                printToTerminal('[OK] Neural link established. Admin access granted.', 'conn-ok');
+                clearInterval(timer);
+                breachActive = false;
+                guiContent.innerHTML = '<h2 style="color:#0f0;">ACCESS GRANTED</h2><p style="color:#888;">System bypassed successfully.</p>';
+            }
+        };
+    });
+}
+
+// =============================================================
+//  PONG
+// =============================================================
+let pongRaf;
+
+function startPong() {
+    stopAllGames();
+    guiContainer.classList.remove('gui-hidden');
+    guiTitle.textContent = 'NEXUS PONG';
+
+    // Difficulty menu
+    guiContent.innerHTML = `
+        <div style="text-align:center;padding:10px 0;">
+            <div style="color:#0ff;letter-spacing:3px;font-size:0.8rem;margin-bottom:16px;">SELECT DIFFICULTY</div>
+            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+                <button class="gui-btn pong-diff" data-diff="easy"   style="border-color:#0f0;color:#0f0;">EASY</button>
+                <button class="gui-btn pong-diff" data-diff="medium" style="border-color:#ff0;color:#ff0;">MEDIUM</button>
+                <button class="gui-btn pong-diff" data-diff="hard"   style="border-color:#f0f;color:#f0f;">HARD</button>
+                <button class="gui-btn pong-diff" data-diff="insane" style="border-color:#f00;color:#f00;">INSANE</button>
+            </div>
+            <p style="color:#555;font-size:0.68rem;margin-top:14px;">Mouse or touch to move your paddle</p>
+        </div>`;
+    nexusCanvas.style.display = 'none';
+
+    guiContent.querySelectorAll('.pong-diff').forEach(btn => {
+        btn.addEventListener('click', () => launchPong(btn.dataset.diff));
+    });
+}
+
+function launchPong(difficulty) {
+    const DIFF = {
+        easy:   { aiSpeed: 2,   interval: 20, imprecision: 80, ballSpeed: 4   },
+        medium: { aiSpeed: 3.5, interval: 14, imprecision: 45, ballSpeed: 5   },
+        hard:   { aiSpeed: 5,   interval:  8, imprecision: 20, ballSpeed: 6.5 },
+        insane: { aiSpeed: 7.5, interval:  4, imprecision:  4, ballSpeed: 8   },
+    };
+    const d = DIFF[difficulty] || DIFF.medium;
+    const WIN_SCORE = 7;
+
+    guiContent.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:0 20px 6px;font-size:0.75rem;">
+            <span style="color:#0ff;">YOU</span>
+            <span style="color:#444;font-size:0.65rem;letter-spacing:1px;">${difficulty.toUpperCase()} · First to ${WIN_SCORE}</span>
+            <span style="color:#88f;">CPU</span>
+        </div>`;
+    nexusCanvas.style.display = 'block';
+    nexusCanvas.width = 400; nexusCanvas.height = 300;
+    const ctx = nexusCanvas.getContext('2d');
+
+    // Starfield background — generated once
+    const stars = Array.from({length: 60}, () => ({
+        x: Math.random()*400, y: Math.random()*300,
+        r: Math.random()*1.2 + 0.3, a: Math.random()*0.5 + 0.1
+    }));
+
+    const FPS = 60, STEP = 1000 / FPS;
+    let last = 0;
+    const PADDLE_H = 75, PADDLE_W = 10;
+    let paddleY = 112, ballX = 200, ballY = 150;
+    let ballVX = d.ballSpeed, ballVY = 3;
+    let aiY = 112, pScore = 0, aScore = 0;
+    let aiTargetY = 150, aiTick = 0;
+    let gameEnded = false;
+
+    const move = (y) => {
+        const r = nexusCanvas.getBoundingClientRect();
+        paddleY = Math.max(0, Math.min(300 - PADDLE_H, (y - r.top) * (300 / r.height) - PADDLE_H / 2));
+    };
+    nexusCanvas.onmousemove = (e) => { if (!gameEnded) move(e.clientY); };
+    nexusCanvas.ontouchmove = (e) => { if (!gameEnded) { e.preventDefault(); move(e.touches[0].clientY); } };
+
+    function resetBall(dir) {
+        ballX = 200; ballY = 60 + Math.random() * 180;
+        ballVX = (dir || (Math.random() > 0.5 ? 1 : -1)) * d.ballSpeed;
+        ballVY = (Math.random() > 0.5 ? 1 : -1) * (2.5 + Math.random() * 1.5);
+        aiTick = 0;
+    }
+
+    function drawEnd(playerWon) {
+        // Stop loop first
+        const r = pongRaf; pongRaf = null; cancelAnimationFrame(r);
+        gameEnded = true;
+
+        // Sound: Win/Loss
+        if (playerWon) SoundManager.playBloop(800, 0.2);
+        else           SoundManager.playBloop(150, 0.2);
+
+        // Submit to global leaderboard
+        submitScore('pong', pScore);
+
+        // Draw final frame background
+        ctx.fillStyle = '#030308'; ctx.fillRect(0, 0, 400, 300);
+        stars.forEach(s => { ctx.fillStyle = `rgba(255,255,255,${s.a})`; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill(); });
+
+        // Full-screen overlay
+        ctx.fillStyle = playerWon ? 'rgba(0,20,0,0.88)' : 'rgba(20,0,0,0.88)';
+        ctx.fillRect(0, 0, 400, 300);
+
+        // Border
+        const borderCol = playerWon ? '#0f0' : '#f44';
+        ctx.strokeStyle = borderCol; ctx.lineWidth = 2;
+        ctx.strokeRect(20, 70, 360, 160);
+
+        ctx.textAlign = 'center';
+        ctx.fillStyle = borderCol; ctx.font = 'bold 30px monospace';
+        ctx.fillText(playerWon ? 'YOU WIN!' : 'GAME OVER', 200, 118);
+        ctx.fillStyle = '#fff'; ctx.font = '15px monospace';
+        ctx.fillText(`${pScore}  —  ${aScore}`, 200, 150);
+        ctx.fillStyle = '#555'; ctx.font = '12px monospace';
+        ctx.fillText(playerWon ? 'You beat the CPU.' : 'The CPU won this one.', 200, 174);
+        ctx.fillStyle = '#0ff'; ctx.font = '11px monospace';
+        ctx.fillText('CLICK to rematch', 200, 204);
+        ctx.textAlign = 'left';
+
+        nexusCanvas.onclick = () => { nexusCanvas.onclick = null; launchPong(difficulty); };
+    }
+
+    function tick(ts) {
+        if (!pongRaf) return;
+        const delta = ts - last;
+        if (delta < STEP - 2) { pongRaf = requestAnimationFrame(tick); return; }
+        last = ts;
+
+        // AI movement
+        aiTick++;
+        if (aiTick % d.interval === 0) aiTargetY = ballY - PADDLE_H / 2 + (Math.random() - 0.5) * d.imprecision;
+        if (aiY < aiTargetY) aiY = Math.min(aiY + d.aiSpeed, aiTargetY);
+        else                  aiY = Math.max(aiY - d.aiSpeed, aiTargetY);
+        aiY = Math.max(0, Math.min(300 - PADDLE_H, aiY));
+
+        ballX += ballVX; ballY += ballVY;
+        if (ballY <= 4)   { ballVY =  Math.abs(ballVY); ballY = 5; }
+        if (ballY >= 296) { ballVY = -Math.abs(ballVY); ballY = 295; }
+
+        const pRight = 8 + PADDLE_W;
+        if (ballVX < 0 && ballX - 5 <= pRight && ballX + 5 >= 8 && ballY + 5 > paddleY && ballY - 5 < paddleY + PADDLE_H) {
+            ballVX = Math.abs(ballVX) * 1.05;
+            ballVY += ((ballY - (paddleY + PADDLE_H / 2)) / (PADDLE_H / 2)) * 2.5;
+            ballVY = Math.max(-9, Math.min(9, ballVY));
+            ballX = pRight + 6;
+        }
+        const aiLeft = 382;
+        if (ballVX > 0 && ballX + 5 >= aiLeft && ballX - 5 <= aiLeft + PADDLE_W && ballY + 5 > aiY && ballY - 5 < aiY + PADDLE_H) {
+            ballVX = -Math.abs(ballVX) * 1.05;
+            ballVY += ((ballY - (aiY + PADDLE_H / 2)) / (PADDLE_H / 2)) * 1.5;
+            ballVY = Math.max(-9, Math.min(9, ballVY));
+            ballX = aiLeft - 6;
+        }
+
+        if (ballX < 0)   { aScore++; if (aScore >= WIN_SCORE) { drawEnd(false); return; } resetBall(1); }
+        if (ballX > 400) { pScore++; if (pScore >= WIN_SCORE) { drawEnd(true);  return; } resetBall(-1); }
+
+        // Draw — starfield background
+        ctx.fillStyle = '#030308'; ctx.fillRect(0, 0, 400, 300);
+        stars.forEach(s => { ctx.fillStyle = `rgba(255,255,255,${s.a})`; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill(); });
+
+        // Center line
+        ctx.setLineDash([8, 8]);
+        ctx.strokeStyle = 'rgba(0,255,255,0.12)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(200, 0); ctx.lineTo(200, 300); ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Score
+        ctx.fillStyle = 'rgba(0,255,255,0.55)'; ctx.font = 'bold 26px monospace'; ctx.textAlign = 'center';
+        ctx.fillText(pScore, 90, 34); ctx.fillText(aScore, 310, 34);
+        ctx.textAlign = 'left';
+
+        // Progress pips (dots showing how close each player is to winning)
+        for (let i = 0; i < WIN_SCORE; i++) {
+            ctx.fillStyle = i < pScore ? '#0ff' : 'rgba(0,255,255,0.12)';
+            ctx.beginPath(); ctx.arc(22 + i * 18, 46, 4, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = i < aScore ? '#88f' : 'rgba(136,136,255,0.12)';
+            ctx.beginPath(); ctx.arc(378 - i * 18, 46, 4, 0, Math.PI*2); ctx.fill();
+        }
+
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = '#0ff'; ctx.fillStyle = '#0ff';
+        ctx.fillRect(8, paddleY, PADDLE_W, PADDLE_H);
+        ctx.shadowColor = '#88f'; ctx.fillStyle = '#88f';
+        ctx.fillRect(382, aiY, PADDLE_W, PADDLE_H);
+        ctx.shadowColor = '#f0f'; ctx.fillStyle = '#f0f';
+        ctx.beginPath(); ctx.arc(ballX, ballY, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0;
+
+        pongRaf = requestAnimationFrame(tick);
+    }
+    pongRaf = requestAnimationFrame(tick);
+}
+
+function stopPong() { const r = pongRaf; pongRaf = null; cancelAnimationFrame(r); }
+
+// =============================================================
+//  SNAKE
+// =============================================================
+let snakeRaf;
+let snakeActive = false;
+let _snakeTS = null, _snakeTE = null, _snakeKey = null;
+
+function startSnake() {
+    stopAllGames();
+    guiContainer.classList.remove('gui-hidden');
+    guiTitle.textContent = 'NEXUS SNAKE';
+    nexusCanvas.style.display = 'none';
+
+    guiContent.innerHTML = `
+        <div style="text-align:center;padding:10px 0;">
+            <div style="color:#0ff;letter-spacing:3px;font-size:0.8rem;margin-bottom:16px;">SELECT MODE</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:300px;margin:0 auto;">
+                <button class="gui-btn snake-mode" data-mode="classic" style="border-color:#0ff;color:#0ff;">CLASSIC</button>
+                <button class="gui-btn snake-mode" data-mode="speed"   style="border-color:#ff0;color:#ff0;">SPEED RUN</button>
+                <button class="gui-btn snake-mode" data-mode="endless" style="border-color:#0f0;color:#0f0;">ENDLESS</button>
+                <button class="gui-btn snake-mode" data-mode="stealth" style="border-color:#888;color:#888;">STEALTH</button>
+            </div>
+            <div style="color:#333;font-size:0.65rem;margin-top:16px;line-height:1.8;">
+                SPEED RUN — starts fast, gets faster<br>
+                ENDLESS — walls wrap around<br>
+                STEALTH — no grid, pure instinct
+            </div>
+        </div>`;
+
+    guiContent.querySelectorAll('.snake-mode').forEach(btn => {
+        btn.addEventListener('click', () => launchSnake(btn.dataset.mode));
+    });
+}
+
+function launchSnake(snakeMode) {
+    const stealth  = snakeMode === 'stealth';
+    const endless  = snakeMode === 'endless';
+    const speedRun = snakeMode === 'speed';
+    const hiKey    = `snake_hi_${snakeMode}`;
+    let   snakeHi  = parseInt(localStorage.getItem(hiKey) || '0');
+
+    guiContent.innerHTML = `
+        <div style="display:flex;justify-content:space-between;padding:0 10px;font-size:0.75rem;color:#0ff;margin-bottom:4px;">
+            <span>Arrows · WASD · Swipe</span>
+            <span style="color:#444;font-size:0.65rem;letter-spacing:1px;">${snakeMode.toUpperCase()}</span>
+            <span>Score: <b id="snake-score">0</b> &nbsp;<span style="color:#333">HI:${snakeHi}</span></span>
+        </div>`;
+    nexusCanvas.style.display = 'block';
+    nexusCanvas.width = 400; nexusCanvas.height = 360;
+    const ctx = nexusCanvas.getContext('2d');
+    const CELL = 20, COLS = 20, ROWS = 18;
+    snakeActive = true;
+
+    // Pre-draw background once into an offscreen canvas for perf
+    const bgCanvas = document.createElement('canvas');
+    bgCanvas.width = 400; bgCanvas.height = 360;
+    const bgCtx = bgCanvas.getContext('2d');
+    (function buildBg() {
+        // Dark base
+        bgCtx.fillStyle = '#050510';
+        bgCtx.fillRect(0, 0, 400, 360);
+        
+        if (stealth) return; // Stay dark for stealth mode
+
+        // Cool Circuit Grid
+        bgCtx.strokeStyle = 'rgba(0, 255, 255, 0.04)';
+        bgCtx.lineWidth = 1;
+        for (let x = 0; x <= COLS; x++) {
+            bgCtx.beginPath(); bgCtx.moveTo(x * CELL, 0); bgCtx.lineTo(x * CELL, ROWS * CELL); bgCtx.stroke();
+        }
+        for (let y = 0; y <= ROWS; y++) {
+            bgCtx.beginPath(); bgCtx.moveTo(0, y * CELL); bgCtx.lineTo(COLS * CELL, y * CELL); bgCtx.stroke();
+        }
+        
+        // Circuit traces
+        bgCtx.strokeStyle = 'rgba(0, 255, 255, 0.08)';
+        bgCtx.lineWidth = 1.5;
+        const traces = [[0,3,4,3,4,8,7,8],[COLS,12,COLS-3,12,COLS-3,7,COLS-6,7],[5,0,5,4,10,4],[8,ROWS,8,ROWS-3,14,ROWS-3,14,ROWS-6]];
+        traces.forEach(pts => {
+            bgCtx.beginPath();
+            bgCtx.moveTo(pts[0]*CELL, pts[1]*CELL);
+            for (let i=2;i<pts.length;i+=2) bgCtx.lineTo(pts[i]*CELL, pts[i+1]*CELL);
+            bgCtx.stroke();
+        });
+
+        // Glowing nodes
+        bgCtx.shadowBlur = 6; bgCtx.shadowColor = '#0ff';
+        bgCtx.fillStyle = 'rgba(0, 255, 255, 0.3)';
+        [[4,3],[4,8],[7,8],[COLS-3,12],[COLS-3,7],[5,4],[10,4],[8,ROWS-3],[14,ROWS-3],[14,ROWS-6]].forEach(([cx,cy]) => {
+            bgCtx.beginPath(); bgCtx.arc(cx*CELL, cy*CELL, 2.5, 0, Math.PI*2); bgCtx.fill();
+        });
+        bgCtx.shadowBlur = 0;
+
+        if (endless) {
+            bgCtx.fillStyle = 'rgba(0, 255, 255, 0.02)';
+            bgCtx.fillRect(0,0,3,ROWS*CELL); bgCtx.fillRect(COLS*CELL-3,0,3,ROWS*CELL);
+            bgCtx.fillRect(0,0,COLS*CELL,3); bgCtx.fillRect(0,ROWS*CELL-3,COLS*CELL,3);
+        }
+    })();
+
+    let snake = [{ x: 10, y: 9 }, { x: 9, y: 9 }, { x: 8, y: 9 }];
+    let dir = { x: 1, y: 0 }, nextDir = { x: 1, y: 0 };
+    let apple = spawnApple();
+    let score = 0, dead = false;
+    let stepMs = speedRun ? 70 : 100, lastStep = 0;
+
+    function spawnApple() {
+        let a;
+        do { a = { x: Math.floor(Math.random() * COLS), y: Math.floor(Math.random() * ROWS) }; }
+        while (snake.some(s => s.x === a.x && s.y === a.y));
+        return a;
+    }
+
+    _snakeKey = (e) => {
+        if (dead) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); launchSnake(snakeMode); }
+            return;
+        }
+        if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d'].includes(e.key)) e.preventDefault();
+        // Guard against 180° reverse using nextDir (not dir) so rapid keypresses don't teleport into self
+        if ((e.key === 'ArrowUp'    || e.key === 'w') && nextDir.y !== 1)  nextDir = { x: 0, y: -1 };
+        if ((e.key === 'ArrowDown'  || e.key === 's') && nextDir.y !== -1) nextDir = { x: 0, y: 1 };
+        if ((e.key === 'ArrowLeft'  || e.key === 'a') && nextDir.x !== 1)  nextDir = { x: -1, y: 0 };
+        if ((e.key === 'ArrowRight' || e.key === 'd') && nextDir.x !== -1) nextDir = { x: 1, y: 0 };
+    };
+    document.addEventListener('keydown', _snakeKey);
+
+    let swipeX = 0, swipeY = 0;
+    _snakeTS = (e) => { swipeX = e.touches[0].clientX; swipeY = e.touches[0].clientY; };
+    _snakeTE = (e) => {
+        if (dead) { launchSnake(snakeMode); return; }
+        const dx = e.changedTouches[0].clientX - swipeX;
+        const dy = e.changedTouches[0].clientY - swipeY;
+        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 25) {
+            if (dx > 0 && nextDir.x !== -1) nextDir = { x: 1, y: 0 };
+            else if (dx < 0 && nextDir.x !== 1) nextDir = { x: -1, y: 0 };
+        } else if (Math.abs(dy) > 25) {
+            if (dy > 0 && nextDir.y !== -1) nextDir = { x: 0, y: 1 };
+            else if (dy < 0 && nextDir.y !== 1) nextDir = { x: 0, y: -1 };
+        }
+    };
+    nexusCanvas.addEventListener('touchstart', _snakeTS, { passive: true });
+    nexusCanvas.addEventListener('touchend',   _snakeTE, { passive: true });
+
+    function gameOver() {
+        dead = true;
+        // STOP the loop immediately — this prevents drawSnake() from wiping the death screen
+        snakeActive = false;
+        cancelAnimationFrame(snakeRaf);
+        if (score > snakeHi) { snakeHi = score; localStorage.setItem(hiKey, snakeHi); }
+
+        SoundManager.playBloop(150, 0.2);
+        submitScore(`snake_${snakeMode}`, score);
+
+        drawSnake(); // draw final game state first
+
+        // Death overlay
+        ctx.fillStyle = 'rgba(0,0,0,0.82)';
+        ctx.fillRect(0, 0, 400, 360);
+
+        // Glitch border
+        ctx.strokeStyle = '#f0f'; ctx.lineWidth = 2;
+        ctx.strokeRect(16, 90, 368, 180);
+        ctx.strokeStyle = 'rgba(0,255,255,0.4)'; ctx.lineWidth = 1;
+        ctx.strokeRect(14, 88, 372, 184);
+
+        ctx.textAlign = 'center';
+        // Title
+        ctx.fillStyle = '#f0f'; ctx.font = 'bold 32px monospace';
+        ctx.fillText('YOU DIED', 200, 138);
+        // Mode badge
+        ctx.fillStyle = '#333'; ctx.font = '11px monospace';
+        ctx.fillText(`— ${snakeMode.toUpperCase()} MODE —`, 200, 158);
+        // Score
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 18px monospace';
+        ctx.fillText(`Score: ${score}`, 200, 190);
+        // High score
+        const isNew = score === snakeHi && score > 0;
+        ctx.fillStyle = isNew ? '#ff0' : '#555';
+        ctx.font = '13px monospace';
+        ctx.fillText(isNew ? `★ NEW BEST: ${snakeHi} ★` : `Best: ${snakeHi}`, 200, 212);
+        // Restart prompt
+        ctx.fillStyle = '#0ff'; ctx.font = '12px monospace';
+        ctx.fillText('CLICK · ENTER · SWIPE  to restart', 200, 244);
+        ctx.textAlign = 'left';
+
+        nexusCanvas.onclick = () => { nexusCanvas.onclick = null; launchSnake(snakeMode); };
+    }
+
+    function frame(ts) {
+        if (!snakeActive) return;
+        // Register next frame AFTER dead check so death screen is never overwritten
+        if (ts - lastStep < stepMs) { drawSnake(); snakeRaf = requestAnimationFrame(frame); return; }
+        lastStep = ts;
+
+        dir = nextDir;
+        let head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+
+        if (endless) {
+            head.x = (head.x + COLS) % COLS;
+            head.y = (head.y + ROWS) % ROWS;
+            // Skip self-check on tail tip (it's about to vacate unless we just ate)
+            const body = snake.slice(0, snake.length - 1);
+            if (body.some(s => s.x === head.x && s.y === head.y)) { gameOver(); return; }
+        } else {
+            if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS ||
+                snake.slice(0, snake.length - 1).some(s => s.x === head.x && s.y === head.y)) { gameOver(); return; }
+        }
+
+        const ate = head.x === apple.x && head.y === apple.y;
+        snake.unshift(head);
+        if (ate) {
+            score++; apple = spawnApple();
+            SoundManager.playBloop(600, 0.05);
+            const el = document.getElementById('snake-score');
+            if (el) el.textContent = score;
+            if (speedRun) stepMs = Math.max(40, 70  - Math.floor(score / 3) * 8);
+            else          stepMs = Math.max(50, 100 - Math.floor(score / 5) * 8);
+        } else snake.pop();
+
+        drawSnake();
+        snakeRaf = requestAnimationFrame(frame);
+    }
+
+    function drawSnake() {
+        ctx.drawImage(bgCanvas, 0, 0); // blit pre-drawn background
+
+        // Apple glow
+        ctx.shadowBlur = 10; ctx.shadowColor = '#f0f'; ctx.fillStyle = '#f0f';
+        ctx.fillRect(apple.x*CELL+3, apple.y*CELL+3, CELL-6, CELL-6);
+
+        // Body segments — no per-segment shadow (perf)
+        ctx.shadowBlur = 0;
+        snake.forEach((seg, i) => {
+            ctx.fillStyle = i === 0 ? '#fff' : `hsl(${140 + i * 3},100%,55%)`;
+            ctx.fillRect(seg.x*CELL+1, seg.y*CELL+1, CELL-2, CELL-2);
+        });
+        // Head glow only
+        if (snake.length > 0) {
+            ctx.shadowBlur = 14; ctx.shadowColor = '#0ff'; ctx.fillStyle = '#fff';
+            ctx.fillRect(snake[0].x*CELL+1, snake[0].y*CELL+1, CELL-2, CELL-2);
+            ctx.shadowBlur = 0;
+        }
+    }
+
+    snakeRaf = requestAnimationFrame(frame);
+}
+
+function stopSnake() {
+    snakeActive = false;
+    cancelAnimationFrame(snakeRaf);
+    if (_snakeKey) { document.removeEventListener('keydown', _snakeKey); _snakeKey = null; }
+    if (_snakeTS)  { nexusCanvas.removeEventListener('touchstart', _snakeTS); _snakeTS = null; }
+    if (_snakeTE)  { nexusCanvas.removeEventListener('touchend',   _snakeTE); _snakeTE = null; }
+}
+
+// =============================================================
+//  FLAPPY BIRD
+// =============================================================
+let flappyFrame, flappyActive = false, _flappyKey = null;
+
+function startFlappy() {
+    stopAllGames();
+    flappyActive = true;
+    guiContainer.classList.remove('gui-hidden');
+    guiTitle.textContent = 'FLAPPY NEXUS';
+    guiContent.innerHTML = `<p style="font-size:0.72rem;color:#0ff;text-align:center;margin:0 0 4px;">TAP · SPACE · ↑ to flap</p>`;
+    nexusCanvas.style.display = 'block';
+    nexusCanvas.width = 400; nexusCanvas.height = 300;
+    const ctx = nexusCanvas.getContext('2d');
+
+    // Physics constants at 60fps baseline — all scaled by deltaTime
+    const GRAVITY = 0.4, FLAP_VEL = -7.5, PIPE_W = 44, GAP = 105, PIPE_SPEED = 2.8;
+    let bird = { x: 80, y: 150, vy: 0, angle: 0 };
+    let pipes = [], score = 0, hi = parseInt(localStorage.getItem('flappy_hi') || '0');
+    let started = false, dead = false;
+    let lastTs = 0, nextPipeMs = 1400; // time-based pipe spawning
+
+    // Pre-generate city skyline background
+    const cityBg = document.createElement('canvas');
+    cityBg.width = 400; cityBg.height = 300;
+    (function buildCity() {
+        const c = cityBg.getContext('2d');
+        // Sky gradient — deep purple/navy
+        const grad = c.createLinearGradient(0, 0, 0, 300);
+        grad.addColorStop(0, '#06010f'); grad.addColorStop(0.7, '#0a0520'); grad.addColorStop(1, '#12082a');
+        c.fillStyle = grad; c.fillRect(0, 0, 400, 300);
+        // Distant stars
+        for (let i = 0; i < 35; i++) {
+            const a = Math.random() * 0.5 + 0.1;
+            c.fillStyle = `rgba(255,255,255,${a})`;
+            c.beginPath(); c.arc(Math.random()*400, Math.random()*160, Math.random()*0.8+0.3, 0, Math.PI*2); c.fill();
+        }
+        // City silhouette — far layer (darker)
+        c.fillStyle = '#0d0520';
+        const farBuildings = [0,220,30,200,60,210,90,185,130,195,160,175,200,190,240,170,280,180,310,165,350,178,380,190,400,220,400,300,0,300];
+        c.beginPath(); c.moveTo(farBuildings[0], farBuildings[1]);
+        for (let i=2;i<farBuildings.length;i+=2) c.lineTo(farBuildings[i], farBuildings[i+1]);
+        c.fill();
+        // City silhouette — near layer
+        c.fillStyle = '#080414';
+        const nearBuildings = [0,260,20,235,50,240,80,220,110,230,140,215,165,225,195,210,220,218,250,200,280,210,310,195,340,208,370,215,400,260,400,300,0,300];
+        c.beginPath(); c.moveTo(nearBuildings[0], nearBuildings[1]);
+        for (let i=2;i<nearBuildings.length;i+=2) c.lineTo(nearBuildings[i], nearBuildings[i+1]);
+        c.fill();
+        // Window lights — tiny random lit windows on buildings
+        c.fillStyle = 'rgba(255,220,100,0.45)';
+        for (let i = 0; i < 40; i++) {
+            const wx = Math.random()*380 + 10, wy = 175 + Math.random()*60;
+            c.fillRect(wx, wy, 2, 2);
+        }
+        c.fillStyle = 'rgba(100,200,255,0.3)';
+        for (let i = 0; i < 20; i++) {
+            const wx = Math.random()*380 + 10, wy = 200 + Math.random()*45;
+            c.fillRect(wx, wy, 2, 3);
+        }
+    })();
+
+    function flap() {
+        if (dead) { startFlappy(); return; }
+        if (!started) { started = true; lastTs = performance.now(); }
+        bird.vy = FLAP_VEL;
+    }
+
+    _flappyKey = (e) => { if (e.key === ' ' || e.key === 'ArrowUp') { e.preventDefault(); flap(); } };
+    document.addEventListener('keydown', _flappyKey);
+    nexusCanvas.addEventListener('click', flap);
+    nexusCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); flap(); }, { passive: false });
+
+    function addPipe() {
+        const top = 40 + Math.random() * (300 - GAP - 60);
+        pipes.push({ x: 415, top, scored: false });
+    }
+    addPipe();
+
+    function frame(ts) {
+        if (!flappyActive) return;
+
+        // DeltaTime — normalize to 60fps so physics are identical on 60/120/144Hz
+        const raw = lastTs ? Math.min(ts - lastTs, 50) : 16.67; // cap at 50ms to handle tab switching
+        const dt  = raw / 16.67;
+        lastTs = ts;
+
+        if (started && !dead) {
+            bird.vy += GRAVITY * dt;
+            bird.y  += bird.vy * dt;
+            bird.angle = Math.max(-0.45, Math.min(0.55, bird.vy * 0.07));
+
+            nextPipeMs -= raw;
+            if (nextPipeMs <= 0) { addPipe(); nextPipeMs = 1350 + Math.random() * 200; }
+
+            pipes.forEach(p => p.x -= PIPE_SPEED * dt);
+            pipes = pipes.filter(p => p.x + PIPE_W > -10);
+
+            pipes.forEach(p => {
+                if (!p.scored && p.x + PIPE_W < bird.x) { p.scored = true; score++; if (score > hi) { hi = score; localStorage.setItem('flappy_hi', hi); } }
+            });
+
+            // Collision
+            if (bird.y < 6 || bird.y > 294) dead = true;
+            pipes.forEach(p => {
+                if (bird.x + 9 > p.x && bird.x - 9 < p.x + PIPE_W) {
+                    if (bird.y - 9 < p.top || bird.y + 9 > p.top + GAP) dead = true;
+                }
+            });
+        }
+
+        // Draw city background
+        ctx.drawImage(cityBg, 0, 0);
+        // Ground
+        ctx.fillStyle = '#0a0518';
+        ctx.fillRect(0, 291, 400, 9);
+        ctx.fillStyle = '#c0f'; ctx.shadowBlur = 4; ctx.shadowColor = '#c0f';
+        ctx.fillRect(0, 291, 400, 1);
+        ctx.shadowBlur = 0;
+
+        // Pipes — neon purple theme to match city
+        pipes.forEach(p => {
+            ctx.shadowBlur = 6; ctx.shadowColor = '#80f';
+            ctx.fillStyle = '#1a0830';
+            ctx.fillRect(p.x, 0, PIPE_W, p.top);
+            ctx.fillRect(p.x, p.top + GAP, PIPE_W, 300);
+            // Pipe caps
+            ctx.fillStyle = '#80f';
+            ctx.fillRect(p.x - 3, p.top - 10, PIPE_W + 6, 10);
+            ctx.fillRect(p.x - 3, p.top + GAP, PIPE_W + 6, 10);
+            // Edge highlight
+            ctx.fillStyle = 'rgba(180,80,255,0.15)';
+            ctx.fillRect(p.x + PIPE_W - 4, 0, 4, p.top);
+            ctx.fillRect(p.x + PIPE_W - 4, p.top + GAP + 10, 4, 300);
+            ctx.shadowBlur = 0;
+        });
+
+        // Bird
+        ctx.save();
+        ctx.translate(bird.x, bird.y);
+        ctx.rotate(bird.angle);
+        ctx.shadowBlur = 14; ctx.shadowColor = '#f0f';
+        ctx.fillStyle = '#f0f';
+        ctx.beginPath(); ctx.ellipse(0, 0, 11, 8, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#c0c';
+        ctx.beginPath(); ctx.ellipse(-4, 3, 6, 4, 0.4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(5, -2, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(6, -2, 1.5, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.restore();
+
+        // HUD
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center';
+        ctx.fillText(score, 200, 34);
+        ctx.fillStyle = '#555'; ctx.font = '11px monospace';
+        ctx.fillText(`HI ${hi}`, 200, 50);
+        ctx.textAlign = 'left';
+
+        if (!started) {
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillRect(0, 0, 400, 300);
+            ctx.fillStyle = '#f0f'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
+            ctx.fillText('FLAPPY NEXUS', 200, 128);
+            ctx.fillStyle = '#0ff'; ctx.font = '13px monospace';
+            ctx.fillText('TAP  ·  SPACE  ·  ↑  to flap', 200, 155);
+            ctx.textAlign = 'left';
+        }
+
+        if (dead) {
+            ctx.fillStyle = 'rgba(6,1,15,0.88)';
+            ctx.fillRect(0, 0, 400, 300);
+            // Border
+            ctx.strokeStyle = '#f0f'; ctx.lineWidth = 2;
+            ctx.strokeRect(20, 70, 360, 160);
+            ctx.strokeStyle = 'rgba(0,255,255,0.3)'; ctx.lineWidth = 1;
+            ctx.strokeRect(18, 68, 364, 164);
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#f0f'; ctx.font = 'bold 30px monospace';
+            ctx.fillText('GAME OVER', 200, 116);
+            ctx.fillStyle = '#fff'; ctx.font = '16px monospace';
+            ctx.fillText(`Score: ${score}`, 200, 150);
+            const isNew = score === hi && score > 0;
+            ctx.fillStyle = isNew ? '#ff0' : '#0ff';
+            ctx.fillText(isNew ? `★ NEW BEST: ${hi} ★` : `Best: ${hi}`, 200, 174);
+            ctx.fillStyle = '#555'; ctx.font = '12px monospace';
+            ctx.fillText('TAP · SPACE to retry', 200, 208);
+            ctx.textAlign = 'left';
+        }
+
+        flappyFrame = requestAnimationFrame(frame);
+    }
+    flappyFrame = requestAnimationFrame((ts) => { lastTs = ts; frame(ts); });
+}
+
+function stopFlappy() {
+    flappyActive = false;
+    cancelAnimationFrame(flappyFrame);
+    if (_flappyKey) { document.removeEventListener('keydown', _flappyKey); _flappyKey = null; }
+    nexusCanvas.onclick = null;
+}
+
+// =============================================================
+//  BREAKOUT
+// =============================================================
+let breakoutFrame, breakoutActive = false;
+
+function startBreakout() {
+    stopAllGames();
+    guiContainer.classList.remove('gui-hidden');
+    guiTitle.textContent = 'NEXUS BREAKOUT';
+    nexusCanvas.style.display = 'none';
+
+    guiContent.innerHTML = `
+        <div style="text-align:center;padding:10px 0;">
+            <div style="color:#0ff;letter-spacing:3px;font-size:0.8rem;margin-bottom:16px;">SELECT DIFFICULTY</div>
+            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+                <button class="gui-btn brk-diff" data-diff="easy"   style="border-color:#0f0;color:#0f0;">EASY</button>
+                <button class="gui-btn brk-diff" data-diff="medium" style="border-color:#ff0;color:#ff0;">MEDIUM</button>
+                <button class="gui-btn brk-diff" data-diff="hard"   style="border-color:#f0f;color:#f0f;">HARD</button>
+                <button class="gui-btn brk-diff" data-diff="chaos"  style="border-color:#f00;color:#f00;">CHAOS</button>
+            </div>
+            <p style="color:#555;font-size:0.68rem;margin-top:14px;">Mouse or touch to move your paddle</p>
+        </div>`;
+
+    guiContent.querySelectorAll('.brk-diff').forEach(btn => {
+        btn.addEventListener('click', () => launchBreakout(btn.dataset.diff));
+    });
+}
+
+function startBreakout() {
+    stopAllGames();
+    guiContainer.classList.remove('gui-hidden');
+    guiTitle.textContent = 'NEXUS BREAKOUT';
+
+    // Difficulty menu with descriptions
+    guiContent.innerHTML = `
+        <div style="text-align:center;padding:10px 0;">
+            <div style="color:#0ff;letter-spacing:3px;font-size:0.8rem;margin-bottom:16px;">SELECT DIFFICULTY</div>
+            <div style="display:flex;flex-direction:column;gap:10px;align-items:center;">
+                <button class="gui-btn brk-diff" data-diff="easy"   style="border-color:#0f0;color:#0f0;width:240px;">EASY<br><span style="font-size:0.6rem;opacity:0.6;">Slow balls · Big paddle</span></button>
+                <button class="gui-btn brk-diff" data-diff="medium" style="border-color:#ff0;color:#ff0;width:240px;">MEDIUM<br><span style="font-size:0.6rem;opacity:0.6;">Standard physics</span></button>
+                <button class="gui-btn brk-diff" data-diff="hard"   style="border-color:#f0f;color:#f0f;width:240px;">HARD<br><span style="font-size:0.6rem;opacity:0.6;">Fast balls · Small paddle</span></button>
+                <button class="gui-btn brk-diff" data-diff="chaos"  style="border-color:#f00;color:#f00;width:240px;">CHAOS<br><span style="font-size:0.6rem;opacity:0.6;">Extreme acceleration</span></button>
+            </div>
+            <p style="color:#555;font-size:0.68rem;margin-top:14px;">Mouse or touch to move your paddle</p>
+        </div>`;
+    nexusCanvas.style.display = 'none';
+
+    guiContent.querySelectorAll('.brk-diff').forEach(btn => {
+        btn.addEventListener('click', () => launchBreakout(btn.dataset.diff));
+    });
+}
+
+function launchBreakout(difficulty) {
+    const DIFFS = {
+        easy:   { PW: 96, startVX: 2,   startVY: -3.5, accel: 1.01 },
+        medium: { PW: 72, startVX: 2.8, startVY: -4.5, accel: 1.03 },
+        hard:   { PW: 50, startVX: 3.5, startVY: -5.5, accel: 1.05 },
+        chaos:  { PW: 44, startVX: 3,   startVY: -5,   accel: 1.08 },
+    };
+    const d = DIFFS[difficulty] || DIFFS.medium;
+
+    breakoutActive = true;
+    guiContent.innerHTML = `
+        <div style="display:flex;justify-content:space-between;padding:0 10px 4px;font-size:0.72rem;">
+            <span style="color:#0ff;">Score: <b id="brk-score">0</b></span>
+            <span style="color:#444;font-size:0.65rem;letter-spacing:1px;">${difficulty.toUpperCase()}</span>
+            <span id="brk-lives" style="color:#0ff;">♥♥♥</span>
+        </div>`;
+    nexusCanvas.style.display = 'block';
+    nexusCanvas.width = 400; nexusCanvas.height = 300;
+    const ctx = nexusCanvas.getContext('2d');
+
+    const PH = 10, BR = 7;
+    const BW = 43, BH = 16, BCOLS = 8, BROWS = 5;
+    const BCOLORS = ['#f0f','#f55','#f80','#ff0','#0f0'];
+    let paddle = 165, currentPW = d.PW;
+    // Ball system — supporting Multi-ball
+    let balls = [{ x: 200, y: 230, vx: d.startVX, vy: d.startVY }];
+    // Power-up system
+    let powerups = [];
+    const PU_TYPES = [
+        { label: 'M', color: '#0ff', type: 'multi' },
+        { label: 'W', color: '#0f0', type: 'wide' },
+        { label: 'S', color: '#ff0', type: 'slow' }
+    ];
+
+    let bricks = [], score = 0, lives = 3, dead = false, won = false;
+    let lastTs = 0, wideTimer = 0;
+    let hi = parseInt(localStorage.getItem('breakout_hi') || '0');
+
+    // Pre-draw circuit board background
+    const brkBg = document.createElement('canvas');
+    brkBg.width = 400; brkBg.height = 300;
+    (function buildBrkBg() {
+        const c = brkBg.getContext('2d');
+        c.fillStyle = '#050510'; c.fillRect(0, 0, 400, 300);
+        c.strokeStyle = 'rgba(0,255,255,0.04)'; c.lineWidth = 1;
+        for (let x = 0; x <= 400; x += 25) { c.beginPath(); c.moveTo(x,0); c.lineTo(x,300); c.stroke(); }
+        for (let y = 0; y <= 300; y += 25) { c.beginPath(); c.moveTo(0,y); c.lineTo(400,y); c.stroke(); }
+    })();
+
+    function initBricks() {
+        bricks = [];
+        for (let r = 0; r < BROWS; r++)
+            for (let c = 0; c < BCOLS; c++)
+                bricks.push({ x: 8 + c * (BW + 4), y: 30 + r * (BH + 5), alive: true, color: BCOLORS[r] });
+    }
+    initBricks();
+
+    const movePaddle = (cx) => {
+        const rect = nexusCanvas.getBoundingClientRect();
+        paddle = ((cx - rect.left) / rect.width) * 400 - currentPW / 2;
+        paddle = Math.max(0, Math.min(400 - currentPW, paddle));
+    };
+    nexusCanvas.onmousemove = (e) => movePaddle(e.clientX);
+    nexusCanvas.ontouchmove = (e) => { e.preventDefault(); movePaddle(e.touches[0].clientX); };
+
+    function frame(ts) {
+        if (!breakoutActive) return;
+        const raw = lastTs ? Math.min(ts - lastTs, 50) : 16.67;
+        const dt  = raw / 16.67;
+        lastTs = ts;
+
+        if (!dead && !won) {
+            // Handle Wide Paddle timer
+            if (wideTimer > 0) {
+                wideTimer -= raw;
+                if (wideTimer <= 0) currentPW = d.PW;
+            }
+
+            // Move Balls
+            balls.forEach((ball, bi) => {
+                ball.x += ball.vx * dt; ball.y += ball.vy * dt;
+                if (ball.x <= BR || ball.x >= 400 - BR) { ball.vx *= -1; SoundManager.playBloop(300, 0.02); }
+                if (ball.y <= BR) { ball.vy = Math.abs(ball.vy); SoundManager.playBloop(300, 0.02); }
+                
+                // Paddle hit
+                if (ball.y + BR >= 270 && ball.y - BR <= 282 && ball.x >= paddle && ball.x <= paddle + currentPW) {
+                    ball.vy = -Math.abs(ball.vy);
+                    const hitPoint = (ball.x - (paddle + currentPW / 2)) / (currentPW / 2);
+                    ball.vx = hitPoint * 5.5;
+                    SoundManager.playBloop(400, 0.05);
+                }
+
+                // Brick hit
+                bricks.forEach(b => {
+                    if (!b.alive) return;
+                    if (ball.x + BR > b.x && ball.x - BR < b.x + BW && ball.y + BR > b.y && ball.y - BR < b.y + BH) {
+                        b.alive = false; ball.vy *= -1; score += 10;
+                        SoundManager.playBloop(600 + Math.random() * 200, 0.05);
+                        
+                        // Drop powerup? (15% chance)
+                        if (Math.random() < 0.15) {
+                            const pu = PU_TYPES[Math.floor(Math.random() * PU_TYPES.length)];
+                            powerups.push({ x: b.x + BW/2, y: b.y, type: pu.type, label: pu.label, color: pu.color });
+                        }
+
+                        if (d.accel) {
+                            ball.vx *= d.accel; ball.vy *= d.accel;
+                            const spd = Math.sqrt(ball.vx**2 + ball.vy**2);
+                            if (spd > 14) { ball.vx = ball.vx/spd*14; ball.vy = ball.vy/spd*14; }
+                        }
+                        const el = document.getElementById('brk-score');
+                        if (el) el.textContent = score;
+                    }
+                });
+
+                // Ball lost
+                if (ball.y > 310) balls.splice(bi, 1);
+            });
+
+            // No balls left? Lose a life
+            if (balls.length === 0) {
+                lives--;
+                SoundManager.playBloop(150, 0.1);
+                const livesEl = document.getElementById('brk-lives');
+                if (livesEl) livesEl.textContent = '♥'.repeat(Math.max(0, lives));
+                if (lives <= 0) { 
+                    dead = true; 
+                    submitScore('breakout', score);
+                    showLeaderboard('breakout');
+                } else {
+                    balls = [{ x: 200, y: 230, vx: d.startVX, vy: d.startVY }];
+                    powerups = [];
+                    currentPW = d.PW; wideTimer = 0;
+                }
+            }
+
+            // Move Powerups
+            powerups.forEach((pu, pi) => {
+                pu.y += 2 * dt;
+                if (pu.y > 270 && pu.y < 285 && pu.x > paddle && pu.x < paddle + currentPW) {
+                    // CATCH!
+                    powerups.splice(pi, 1);
+                    SoundManager.playBloop(800, 0.1);
+                    if (pu.type === 'multi') {
+                        balls.push({ x: ball.x || 200, y: 230, vx: -3, vy: -4 }, { x: ball.x || 200, y: 230, vx: 3, vy: -4 });
+                    } else if (pu.type === 'wide') {
+                        currentPW = d.PW * 1.6; wideTimer = 10000;
+                    } else if (pu.type === 'slow') {
+                        balls.forEach(b => { b.vx *= 0.7; b.vy *= 0.7; });
+                    }
+                }
+                if (pu.y > 310) powerups.splice(pi, 1);
+            });
+
+            if (bricks.every(b => !b.alive)) { 
+                won = true; 
+                submitScore('breakout', score);
+                showLeaderboard('breakout');
+            }
+        }
+
+        // Draw
+        ctx.drawImage(brkBg, 0, 0);
+        bricks.forEach(b => {
+            if (!b.alive) return;
+            ctx.fillStyle = b.color; ctx.fillRect(b.x, b.y, BW, BH);
+            ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fillRect(b.x, b.y, BW, 3);
+        });
+
+        powerups.forEach(pu => {
+            ctx.fillStyle = pu.color;
+            ctx.font = 'bold 14px monospace';
+            ctx.fillText(`[${pu.label}]`, pu.x - 10, pu.y);
+        });
+
+        ctx.fillStyle = '#0ff';
+        ctx.beginPath(); ctx.roundRect(paddle, 270, currentPW, PH, 4); ctx.fill();
+
+        ctx.fillStyle = '#fff';
+        balls.forEach(b => {
+            ctx.beginPath(); ctx.arc(b.x, b.y, BR, 0, Math.PI * 2); ctx.fill();
+        });
+
+        if (dead || won) {
+            ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillRect(0,0,400,300);
+            ctx.textAlign = 'center';
+            ctx.fillStyle = won ? '#0f0' : '#f44';
+            ctx.font = 'bold 30px monospace';
+            ctx.fillText(won ? 'BOARD CLEARED' : 'SYSTEM CRASHED', 200, 130);
+            ctx.fillStyle = '#fff'; ctx.font = '16px monospace';
+            ctx.fillText(`Score: ${score}`, 200, 160);
+            ctx.fillText('CLICK to restart', 200, 200);
+            ctx.textAlign = 'left';
+            nexusCanvas.onclick = () => { nexusCanvas.onclick = null; launchBreakout(difficulty); };
+        }
+
+        breakoutRaf = requestAnimationFrame(frame);
+    }
+}
+
+function stopBreakout() {
+    breakoutActive = false;
+    cancelAnimationFrame(breakoutFrame);
+}
+
+// =============================================================
+//  WORDLE
+// =============================================================
+const WORDLE_WORDS = [
+    'ABOUT','ABOVE','ABUSE','ACTOR','ACUTE','ADMIT','ADOPT','ADULT','AFTER','AGENT',
+    'AGREE','AHEAD','ALARM','ALBUM','ALERT','ALIKE','ALIVE','ALLEY','ALLOW','ALONE',
+    'ALONG','ALTER','ANGEL','ANGLE','ANGRY','ANIME','APPLY','ARENA','ARGUE','ARISE',
+    'ASIDE','ASSET','AVOID','AWAKE','AWARD','AWARE','AWFUL','BASIC','BASIS','BEACH',
+    'BEGIN','BEING','BELOW','BENCH','BERRY','BIRTH','BLACK','BLADE','BLAME','BLANK',
+    'BLAST','BLAZE','BLEED','BLEND','BLESS','BLIND','BLOCK','BLOOD','BLOOM','BOARD',
+    'BOOST','BOUND','BRAIN','BRAND','BRAVE','BREAD','BREAK','BRICK','BRIEF','BRING',
+    'BROAD','BROWN','BUILD','BUILT','BURST','CABIN','CARRY','CAUSE','CHAIN','CHAIR',
+    'CHAOS','CHARM','CHART','CHASE','CHEAP','CHECK','CHESS','CHEST','CHILD','CLAIM',
+    'CLASH','CLASS','CLEAN','CLEAR','CLICK','CLIMB','CLONE','CLOSE','CLOUD','COAST',
+    'COUNT','COURT','COVER','CRACK','CRANE','CRASH','CRAZY','CROSS','CROWD','CRUSH',
+    'CURVE','CYCLE','DAILY','DANCE','DEALT','DEATH','DELAY','DEPTH','DIRTY','DODGE',
+    'DOUBT','DRAFT','DRAIN','DRAMA','DRAWN','DREAM','DRINK','DRIVE','DROVE','DRUNK',
+    'EARTH','EIGHT','ELITE','EMPTY','ENEMY','ENJOY','ENTER','ERROR','EVENT','EVERY',
+    'EXACT','EXIST','EXTRA','FAITH','FALSE','FANCY','FATAL','FAULT','FEAST','FIELD',
+    'FIGHT','FINAL','FIRST','FIXED','FLAME','FLARE','FLASH','FLESH','FLOAT','FLOOD',
+    'FLOOR','FOUND','FRAME','FRANK','FRESH','FRONT','FROST','GUARD','GUESS','GUIDE',
+    'HABIT','HAPPY','HARSH','HEART','HEAVY','HINGE','HONOR','HORSE','HOTEL','HOUSE',
+    'HUMAN','HUMOR','IDEAL','IMAGE','INDEX','INNER','INPUT','ISSUE','JOINT','JUDGE',
+    'JUICE','LABEL','LARGE','LASER','LATER','LAYER','LEGAL','LIGHT','LIMIT','LOGIC',
+    'LOOSE','LOVER','LOWER','LUCKY','MAGIC','MAJOR','MAKER','MATCH','MAYOR','MEANT',
+    'MEDIA','MERIT','METAL','MINOR','MINUS','MIXED','MODEL','MONEY','MOUNT','MOUSE',
+    'MOVED','MUSIC','NERVE','NIGHT','NOBLE','NOISE','NORTH','NOVEL','NURSE','OCCUR',
+    'OFFER','OFTEN','OLIVE','ONSET','ORBIT','ORDER','OTHER','OUTER','OWNED','PANEL',
+    'PANIC','PAPER','PARTY','PATCH','PAUSE','PEACE','PHONE','PILOT','PIXEL','PIZZA',
+    'PLACE','PLANE','PLANT','PLATE','POINT','POWER','PRESS','PRICE','PRIDE','PRIME',
+    'PROBE','PROOF','PROSE','PROUD','PROVE','PROXY','PULSE','PUNCH','QUICK','QUIET',
+    'QUITE','QUOTE','RADIO','RAISE','RALLY','RANGE','RAPID','REACH','READY','REBEL',
+    'REFER','RELAY','REPLY','RESET','RIDGE','RIGHT','RIGID','RISEN','RISKY','RIVER',
+    'ROBOT','ROCKY','ROUGH','ROUND','ROUTE','ROYAL','RURAL','SAINT','SCALE','SCARE',
+    'SCENE','SCOPE','SCORE','SENSE','SERVE','SETUP','SEVEN','SHAPE','SHARE','SHARP',
+    'SHELL','SHIFT','SHIRT','SHOCK','SHOOT','SHORT','SHOUT','SIGHT','SKILL','SKULL',
+    'SLEEP','SLICE','SLIDE','SLOPE','SMART','SMILE','SMOKE','SNAKE','SOLAR','SOLID',
+    'SOLVE','SORRY','SOUTH','SPACE','SPEAK','SPEED','SPEND','SPLIT','STAND','START',
+    'STATE','STEAM','STEEL','STICK','STILL','STONE','STOOD','STORM','STORY','STRIP',
+    'STUCK','STUDY','STYLE','SUPER','SWEET','SWING','SWORD','TABLE','TAKEN','TASTE',
+    'TEACH','TEETH','THEME','THICK','THING','THINK','THREE','THROW','TIGHT','TIMER',
+    'TIRED','TODAY','TOUCH','TOUGH','TOWER','TOXIC','TRACE','TRACK','TRADE','TRAIL',
+    'TRAIN','TRASH','TREAT','TREND','TRIAL','TRICK','TRUST','TRUTH','TWIST','UNDER',
+    'UNION','UNITY','UNTIL','UPPER','UPSET','URBAN','VALID','VALUE','VENUE','VIVID',
+    'VOCAL','VOICE','WAGER','WASTE','WATCH','WATER','WEIRD','WHITE','WHOLE','WIDER',
+    'WORLD','WORRY','WORSE','WORST','WORTH','WOULD','WRECK','WRITE','YIELD','YOUNG',
+];
+
+let wordleActive = false;
+let wordleAnswer = '';
+let wordleGuesses = [];
+let wordleCurrent = '';
+let wordleKeyState = {};
+
+const WORDLE_MAX = 6;
+const WORDLE_LEN = 5;
+
+function startWordle() {
+    stopAllGames();
+    wordleActive = true;
+    wordleAnswer = WORDLE_WORDS[Math.floor(Math.random() * WORDLE_WORDS.length)];
+    wordleGuesses = [];
+    wordleCurrent = '';
+    wordleKeyState = {};
+
+    guiContainer.classList.remove('gui-hidden');
+    guiTitle.textContent = 'NEXUS WORDLE';
+    nexusCanvas.style.display = 'none';
+
+    renderWordle();
+    printToTerminal('Wordle started — type a 5-letter word and press Enter.', 'sys-msg');
+}
+
+function stopWordle() {
+    wordleActive = false;
+}
+
+function renderWordle() {
+    const rows = [];
+    for (let r = 0; r < WORDLE_MAX; r++) {
+        const guess = wordleGuesses[r];
+        const isCurrentRow = r === wordleGuesses.length && !wordleIsOver();
+        const tiles = [];
+        for (let c = 0; c < WORDLE_LEN; c++) {
+            let letter = '';
+            let bg = '#1a1a2e';
+            let border = '#444';
+            let color = '#fff';
+            if (guess) {
+                letter = guess.result[c].letter;
+                if (guess.result[c].state === 'correct') { bg = '#1a6b1a'; border = '#0f0'; color = '#0f0'; }
+                else if (guess.result[c].state === 'present') { bg = '#6b5a00'; border = '#ff0'; color = '#ff0'; }
+                else { bg = '#333'; border = '#555'; color = '#888'; }
+            } else if (isCurrentRow) {
+                letter = wordleCurrent[c] || '';
+                border = letter ? '#0ff' : '#333';
+            }
+            tiles.push(`<div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:${bg};border:2px solid ${border};color:${color};font-size:1.3rem;font-weight:bold;border-radius:4px;font-family:'Fira Code',monospace;transition:border 0.1s;">${letter}</div>`);
+        }
+        rows.push(`<div style="display:flex;gap:6px;">${tiles.join('')}</div>`);
+    }
+
+    // Keyboard
+    const ROWS_KB = [['Q','W','E','R','T','Y','U','I','O','P'],['A','S','D','F','G','H','J','K','L'],['ENTER','Z','X','C','V','B','N','M','⌫']];
+    const kbRows = ROWS_KB.map(row => {
+        const keys = row.map(k => {
+            const state = wordleKeyState[k] || '';
+            let bg = '#2a2a3e', color = '#ccc', border = '#444';
+            if (state === 'correct') { bg = '#1a5c1a'; color = '#0f0'; border = '#0f0'; }
+            else if (state === 'present') { bg = '#5a4a00'; color = '#ff0'; border = '#ff0'; }
+            else if (state === 'absent') { bg = '#1a1a1a'; color = '#444'; border = '#333'; }
+            const wide = (k === 'ENTER' || k === '⌫') ? 'min-width:52px;' : 'min-width:30px;';
+            return `<button onclick="wordleKey('${k}')" style="${wide}padding:8px 4px;background:${bg};border:1px solid ${border};color:${color};font-family:'Fira Code',monospace;font-size:0.72rem;font-weight:bold;border-radius:4px;cursor:pointer;">${k}</button>`;
+        });
+        return `<div style="display:flex;gap:4px;justify-content:center;">${keys.join('')}</div>`;
+    }).join('');
+
+    guiContent.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:center;margin-bottom:12px;">${rows.join('')}</div>
+        <div style="display:flex;flex-direction:column;gap:5px;">${kbRows}</div>
+        <p id="wordle-msg" style="text-align:center;font-size:0.8rem;color:#0ff;margin-top:8px;min-height:1.2em;"></p>`;
+}
+
+window.wordleKey = function(k) {
+    if (!wordleActive) return;
+    if (wordleIsOver()) return;
+    SoundManager.playBloop(400, 0.05);
+    if (k === '⌫' || k === 'Backspace') { wordleCurrent = wordleCurrent.slice(0, -1); renderWordle(); return; }
+    if (k === 'ENTER' || k === 'Enter') { submitWordleGuess(); return; }
+    if (/^[A-Z]$/.test(k) && wordleCurrent.length < WORDLE_LEN) { wordleCurrent += k; renderWordle(); }
+};
+
+function submitWordleGuess() {
+    if (wordleCurrent.length < WORDLE_LEN) {
+        document.getElementById('wordle-msg').textContent = 'Not enough letters.';
+        return;
+    }
+    const guess = wordleCurrent.toUpperCase();
+    const answer = wordleAnswer;
+    const result = [];
+    const used = answer.split('').map(() => false);
+
+    // First pass: correct
+    for (let i = 0; i < WORDLE_LEN; i++) {
+        if (guess[i] === answer[i]) { result[i] = { letter: guess[i], state: 'correct' }; used[i] = true; }
+        else result[i] = { letter: guess[i], state: 'absent' };
+    }
+    // Second pass: present
+    for (let i = 0; i < WORDLE_LEN; i++) {
+        if (result[i].state === 'correct') continue;
+        const j = answer.split('').findIndex((ch, idx) => ch === guess[i] && !used[idx]);
+        if (j !== -1) { result[i].state = 'present'; used[j] = true; }
+    }
+
+    wordleGuesses.push({ word: guess, result });
+    wordleCurrent = '';
+
+    // Update key state
+    result.forEach(({ letter, state }) => {
+        const prev = wordleKeyState[letter];
+        if (prev === 'correct') return;
+        if (state === 'correct') wordleKeyState[letter] = 'correct';
+        else if (state === 'present' && prev !== 'correct') wordleKeyState[letter] = 'present';
+        else if (!prev) wordleKeyState[letter] = 'absent';
+    });
+
+    renderWordle();
+
+    const won = result.every(r => r.state === 'correct');
+    if (won) {
+        wordleActive = false;
+        SoundManager.playBloop(800, 0.2);
+        submitScore('wordle', (WORDLE_MAX - wordleGuesses.length + 1) * 20);
+        document.getElementById('wordle-msg').textContent = `🟩 Nice! The word was ${answer}. Close to restart.`;
+        printToTerminal(`Wordle solved in ${wordleGuesses.length}/${WORDLE_MAX}! Word: ${answer}`, 'conn-ok');
+    } else if (wordleGuesses.length >= WORDLE_MAX) {
+        wordleActive = false;
+        SoundManager.playBloop(150, 0.2);
+        document.getElementById('wordle-msg').textContent = `The word was ${answer}. Close to try again.`;
+        printToTerminal(`Wordle over. The word was ${answer}.`, 'sys-msg');
+    }
+}
+
+function wordleIsOver() {
+    if (wordleGuesses.length >= WORDLE_MAX) return true;
+    return wordleGuesses.length > 0 && wordleGuesses[wordleGuesses.length - 1].result.every(r => r.state === 'correct');
+}
+
+// Called from WS when AI sends feedback during a wordle session (passthrough now)
+function updateWordleVisuals(text, grid) { /* handled by client-side wordle now */ }
+
+// =============================================================
+//  MINESWEEPER
+// =============================================================
+let mineActive = false;
+const MINE_ROWS = 9, MINE_COLS = 9, MINE_COUNT = 10;
+let mineGrid = [], mineRevealed = [], mineFlagged = [], mineOver = false, mineWon = false, mineFirst = true;
+
+function startMinesweeper() {
+    stopAllGames();
+    mineActive = true;
+    mineOver = false; mineWon = false; mineFirst = true;
+    mineGrid = Array.from({length: MINE_ROWS}, () => Array(MINE_COLS).fill(0));
+    mineRevealed = Array.from({length: MINE_ROWS}, () => Array(MINE_COLS).fill(false));
+    mineFlagged  = Array.from({length: MINE_ROWS}, () => Array(MINE_COLS).fill(false));
+
+    guiContainer.classList.remove('gui-hidden');
+    guiTitle.textContent = 'NEXUS MINESWEEPER';
+    nexusCanvas.style.display = 'none';
+    renderMinesweeper();
+    printToTerminal('Minesweeper — left-click to reveal, right-click to flag. First click is always safe.', 'sys-msg');
+}
+
+function placeMines(safeR, safeC) {
+    let placed = 0;
+    while (placed < MINE_COUNT) {
+        const r = Math.floor(Math.random() * MINE_ROWS);
+        const c = Math.floor(Math.random() * MINE_COLS);
+        if (mineGrid[r][c] !== -1 && !(Math.abs(r - safeR) <= 1 && Math.abs(c - safeC) <= 1)) {
+            mineGrid[r][c] = -1;
+            placed++;
+        }
+    }
+    for (let r = 0; r < MINE_ROWS; r++) for (let c = 0; c < MINE_COLS; c++) {
+        if (mineGrid[r][c] === -1) continue;
+        let n = 0;
+        for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+            const nr = r + dr, nc = c + dc;
+            if (nr >= 0 && nr < MINE_ROWS && nc >= 0 && nc < MINE_COLS && mineGrid[nr][nc] === -1) n++;
+        }
+        mineGrid[r][c] = n;
+    }
+}
+
+function mineFlood(r, c) {
+    if (r < 0 || r >= MINE_ROWS || c < 0 || c >= MINE_COLS) return;
+    if (mineRevealed[r][c] || mineFlagged[r][c]) return;
+    mineRevealed[r][c] = true;
+    if (mineGrid[r][c] === 0) for (let dr=-1;dr<=1;dr++) for (let dc=-1;dc<=1;dc++) mineFlood(r+dr,c+dc);
+}
+
+function renderMinesweeper() {
+    const NCOLORS = ['','#0ff','#0f0','#f55','#55f','#f80','#0ff','#f0f','#aaa'];
+    const flagsLeft = MINE_COUNT - mineFlagged.flat().filter(Boolean).length;
+
+    let html = `<div style="text-align:center;font-size:0.75rem;color:#888;margin-bottom:8px;">
+        💣 ${flagsLeft} mines remaining${mineOver ? ' — <span style="color:#f55">BOOM</span>' : ''}${mineWon ? ' — <span style="color:#0f0">YOU WIN!</span>' : ''}
+    </div><table style="border-collapse:collapse;margin:0 auto;">`;
+
+    for (let r = 0; r < MINE_ROWS; r++) {
+        html += '<tr>';
+        for (let c = 0; c < MINE_COLS; c++) {
+            const revealed = mineRevealed[r][c];
+            const flagged  = mineFlagged[r][c];
+            const val      = mineGrid[r][c];
+            let bg = revealed ? '#1a1a2e' : '#2a2a3e';
+            let color = '#0ff', text = '';
+            let border = revealed ? '1px solid #111' : '1px solid #444';
+            if (revealed) {
+                if (val === -1) { bg = '#500'; color = '#f55'; text = '💣'; }
+                else if (val > 0) { color = NCOLORS[val]; text = val; }
+            } else if (flagged) { text = '🚩'; }
+            const style = `width:30px;height:30px;text-align:center;vertical-align:middle;background:${bg};border:${border};color:${color};font-size:0.8rem;font-weight:bold;cursor:${mineOver||mineWon?'default':'pointer'};user-select:none;`;
+            html += `<td style="${style}" onclick="mineClick(${r},${c})" oncontextmenu="mineFlag(event,${r},${c})">${text}</td>`;
+        }
+        html += '</tr>';
+    }
+    html += '</table>';
+    if (mineOver || mineWon) html += `<div style="text-align:center;margin-top:10px;"><button onclick="startMinesweeper()" style="background:transparent;border:1px solid #0ff;color:#0ff;padding:6px 14px;font-family:'Fira Code',monospace;cursor:pointer;border-radius:4px;">New Game</button></div>`;
+
+    guiContent.innerHTML = html;
+}
+
+window.mineClick = function(r, c) {
+    if (mineOver || mineWon || mineRevealed[r][c] || mineFlagged[r][c]) return;
+    if (mineFirst) { placeMines(r, c); mineFirst = false; }
+    if (mineGrid[r][c] === -1) {
+        mineRevealed[r][c] = true;
+        mineOver = true;
+        // Reveal all mines
+        for (let i=0;i<MINE_ROWS;i++) for (let j=0;j<MINE_COLS;j++) if (mineGrid[i][j]===-1) mineRevealed[i][j]=true;
+        renderMinesweeper();
+        printToTerminal('💥 Detonated. Better luck next time.', 'sys-msg');
+        return;
+    }
+    mineFlood(r, c);
+    const safe = MINE_ROWS * MINE_COLS - MINE_COUNT;
+    if (mineRevealed.flat().filter(Boolean).length >= safe) {
+        mineWon = true;
+        printToTerminal('💣 All mines cleared. Nice work.', 'conn-ok');
+    }
+    renderMinesweeper();
+};
+
+window.mineFlag = function(e, r, c) {
+    e.preventDefault();
+    if (mineOver || mineWon || mineRevealed[r][c]) return;
+    mineFlagged[r][c] = !mineFlagged[r][c];
+    renderMinesweeper();
+};
+
+// =============================================================
+//  TYPING SPEED TEST
+// =============================================================
+const TYPE_PHRASES = [
+    'the quick brown fox jumps over the lazy dog near the riverbank',
+    'packets travel across networks at the speed of light through fiber optic cables',
+    'every system has a vulnerability if you know exactly where to look for it',
+    'xavier scott built this terminal so you could talk to an ai without a search bar',
+    'code is just instructions that tell machines what to do until they do it wrong',
+    'a clean network is a fast network and a fast network is a happy homelab',
+    'debug twice deploy once or just push to prod and hope nothing catches fire',
+    'the best way to learn something is to break it and then figure out how to fix it',
+    'open source software runs most of the internet and nobody really talks about that',
+    'trust the process unless the process is a shell script you wrote at midnight',
+    'security is not a product it is a process that never really ends',
+    'any sufficiently advanced technology is indistinguishable from magic',
+    'first make it work then make it right then make it fast in that order',
+];
+
+let typeTestActive = false;
+let typePhrase = '', typeStart = 0, typeTimerInterval = null;
+let typeErrors = 0, typeCharsTyped = 0;
+
+function startTypingTest() {
+    stopAllGames();
+    typeTestActive = true;
+    typePhrase = TYPE_PHRASES[Math.floor(Math.random() * TYPE_PHRASES.length)];
+    typeStart = 0;
+    typeErrors = 0;
+    typeCharsTyped = 0;
+
+    guiContainer.classList.remove('gui-hidden');
+    guiTitle.textContent = 'TYPING TEST';
+    nexusCanvas.style.display = 'none';
+
+    renderTypeTest('');
+    printToTerminal('Typing test started — type in the input bar below', 'sys-msg');
+    input.value = '';
+    input.focus();
+}
+
+function renderTypeTest(typed) {
+    const target = typePhrase;
+    // Build character-by-character highlighted target
+    let chars = '';
+    for (let i = 0; i < target.length; i++) {
+        if (i < typed.length) {
+            if (typed[i] === target[i]) {
+                chars += `<span style="color:#0f0">${target[i] === ' ' ? '&nbsp;' : target[i]}</span>`;
+            } else {
+                chars += `<span style="color:#f55;text-decoration:underline">${target[i] === ' ' ? '·' : target[i]}</span>`;
+            }
+        } else if (i === typed.length) {
+            chars += `<span style="color:#0ff;border-left:2px solid #0ff">${target[i] === ' ' ? '&nbsp;' : target[i]}</span>`;
+        } else {
+            chars += `<span style="color:#444">${target[i] === ' ' ? '&nbsp;' : target[i]}</span>`;
+        }
+    }
+
+    const elapsed = typeStart ? ((Date.now() - typeStart) / 1000) : 0;
+    const elSec = elapsed.toFixed(1) + 's';
+    const wordsTyped = typed.trim().split(/\s+/).filter(w => w).length;
+    const wpm = elapsed > 1 ? Math.round(wordsTyped / (elapsed / 60)) : 0;
+    const progress = Math.round((typed.length / target.length) * 100);
+    const pct = Math.min(100, progress);
+
+    guiContent.innerHTML = `
+        <div style="margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:#555;margin-bottom:4px;">
+                <span>PROGRESS</span><span>${pct}%</span>
+            </div>
+            <div style="height:3px;background:#111;border-radius:2px;">
+                <div style="height:3px;width:${pct}%;background:#0ff;border-radius:2px;transition:width 0.1s;"></div>
+            </div>
+        </div>
+        <div style="font-size:0.88rem;line-height:1.9;letter-spacing:0.03em;word-break:break-word;margin-bottom:14px;font-family:'Fira Code',monospace;">${chars}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
+            <div style="background:#0a0a1a;border:1px solid #1a1a2e;padding:8px;border-radius:4px;">
+                <div id="type-timer-val" style="font-size:1.4rem;font-weight:bold;color:#0ff;">${elSec}</div>
+                <div style="font-size:0.62rem;color:#555;letter-spacing:1px;margin-top:2px;">TIME</div>
+            </div>
+            <div style="background:#0a0a1a;border:1px solid #1a1a2e;padding:8px;border-radius:4px;">
+                <div id="type-wpm-val" style="font-size:1.4rem;font-weight:bold;color:#f0f;">${wpm}</div>
+                <div style="font-size:0.62rem;color:#555;letter-spacing:1px;margin-top:2px;">WPM</div>
+            </div>
+            <div style="background:#0a0a1a;border:1px solid #1a1a2e;padding:8px;border-radius:4px;">
+                <div id="type-err-val" style="font-size:1.4rem;font-weight:bold;color:${typeErrors > 0 ? '#f55' : '#0f0'};">${typeErrors}</div>
+                <div style="font-size:0.62rem;color:#555;letter-spacing:1px;margin-top:2px;">ERRORS</div>
+            </div>
+        </div>
+        <p style="font-size:0.7rem;color:#333;text-align:center;margin-top:10px;">Type in the input bar · Esc to cancel</p>`;
+}
+
+function tickTypeTimer() {
+    if (!typeTestActive || !typeStart) return;
+    const elapsed = ((Date.now() - typeStart) / 1000).toFixed(1) + 's';
+    const el = document.getElementById('type-timer-val');
+    if (el) el.textContent = elapsed;
+    // Update live WPM
+    const typed = input.value;
+    const wordsTyped = typed.trim().split(/\s+/).filter(w => w).length;
+    const secs = (Date.now() - typeStart) / 1000;
+    const wpm = secs > 1 ? Math.round(wordsTyped / (secs / 60)) : 0;
+    const wEl = document.getElementById('type-wpm-val');
+    if (wEl) wEl.textContent = wpm;
+}
+
+function checkTypingTest(typed) {
+    if (!typeTestActive) return false;
+    if (typeStart === 0) {
+        typeStart = Date.now();
+        clearInterval(typeTimerInterval);
+        typeTimerInterval = setInterval(tickTypeTimer, 100);
+    }
+
+    // Count errors
+    typeErrors = 0;
+    for (let i = 0; i < typed.length; i++) {
+        if (typed[i] !== typePhrase[i]) typeErrors++;
+    }
+
+    renderTypeTest(typed);
+
+    if (typed === typePhrase) {
+        const elapsed = (Date.now() - typeStart) / 1000;
+        const wpm = Math.round((typePhrase.split(' ').length) / (elapsed / 60));
+        const accuracy = Math.round(((typePhrase.length - typeErrors) / typePhrase.length) * 100);
+        clearInterval(typeTimerInterval);
+        typeTestActive = false;
+
+        // Show final result overlay in GUI
+        guiContent.innerHTML += `
+            <div style="margin-top:12px;padding:12px;border:2px solid #0ff;text-align:center;background:#0a0f1a;">
+                <div style="color:#0ff;font-size:1.1rem;font-weight:bold;letter-spacing:2px;">COMPLETE</div>
+                <div style="margin-top:6px;font-size:0.85rem;color:#fff;">${wpm} WPM &nbsp;·&nbsp; ${accuracy}% accuracy &nbsp;·&nbsp; ${elapsed.toFixed(1)}s</div>
+                ${wpm > 80 ? '<div style="color:#0f0;font-size:0.75rem;margin-top:4px;">Elite typist 🔥</div>' : wpm > 50 ? '<div style="color:#ff0;font-size:0.75rem;margin-top:4px;">Nice speed!</div>' : '<div style="color:#888;font-size:0.75rem;margin-top:4px;">Keep practicing.</div>'}
+            </div>`;
+        printToTerminal(`Typing test complete: ${wpm} WPM · ${accuracy}% accuracy · ${elapsed.toFixed(1)}s`, 'conn-ok');
+        return true;
+    }
+    return false;
+}
+
+// =============================================================
+//  MATRIX SCREENSAVER
+// =============================================================
+let matrixSaverActive = false;
+let matrixSaverFrame;
+
+function startMatrixSaver() {
+    stopAllGames();
+    matrixSaverActive = true;
+    guiContainer.classList.remove('gui-hidden');
+    guiTitle.textContent = 'MATRIX';
+    guiContent.innerHTML = '<p style="font-size:0.72rem;color:#0f0;text-align:center;">Press any key or close to exit</p>';
+    nexusCanvas.style.display = 'block';
+    nexusCanvas.width = 400; nexusCanvas.height = 360;
+    const ctx = nexusCanvas.getContext('2d');
+    const cols = Math.floor(400 / 14);
+    const drops = Array(cols).fill(1);
+    const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&';
+
+    function frame() {
+        if (!matrixSaverActive) return;
+        ctx.fillStyle = 'rgba(0,0,0,0.07)';
+        ctx.fillRect(0, 0, 400, 360);
+        ctx.fillStyle = '#0f0';
+        ctx.font = '13px monospace';
+        drops.forEach((y, i) => {
+            const ch = chars[Math.floor(Math.random() * chars.length)];
+            ctx.fillStyle = y === 1 ? '#fff' : '#0f0';
+            ctx.fillText(ch, i * 14, y * 14);
+            if (y * 14 > 360 && Math.random() > 0.975) drops[i] = 0;
+            drops[i]++;
+        });
+        matrixSaverFrame = requestAnimationFrame(frame);
+    }
+    frame();
+
+    const exitHandler = () => { stopMatrixSaver(); document.removeEventListener('keydown', exitHandler); };
+    document.addEventListener('keydown', exitHandler);
+}
+
+function stopMatrixSaver() {
+    matrixSaverActive = false;
+    cancelAnimationFrame(matrixSaverFrame);
+}
+
+// =============================================================
+//  STOP ALL GAMES HELPER
+// =============================================================
+function stopAllGames() {
+    stopPong();
+    stopSnake();
+    stopWordle();
+    stopMatrixSaver();
+    stopFlappy();
+    stopBreakout();
+    mineActive = false;
+    breachActive = false;
+    typeTestActive = false;
+    clearInterval(typeTimerInterval);
+    clearInterval(monitorInterval);
+    nexusCanvas.onmousemove = null;
+    nexusCanvas.ontouchmove = null;
+    nexusCanvas.onclick = null;
+    cpuData = []; cpuHistory = []; memHistory = []; netHistory = [];
+    clearInterval(pongRaf);
+    // Reset draggable position back to centered
+    guiContainer.style.left = '';
+    guiContainer.style.top  = '';
+    guiContainer.style.position  = '';
+    guiContainer.style.transform = '';
+}
+
+// =============================================================
+//  GUI CLOSE
+// =============================================================
+document.getElementById('gui-close').addEventListener('click', () => {
+    stopAllGames();
+    guiContainer.classList.add('gui-hidden');
+    nexusCanvas.style.display = 'none';
+    input.focus();
+});
+
+// =============================================================
+//  DRAGGABLE GUI WINDOW
+// =============================================================
+(function makeDraggable() {
+    const header = document.getElementById('gui-header');
+    let dragging = false, startX = 0, startY = 0, origLeft = 0, origTop = 0;
+
+    function getPos() {
+        const s = guiContainer.style;
+        return {
+            left: parseInt(s.left) || guiContainer.getBoundingClientRect().left,
+            top:  parseInt(s.top)  || guiContainer.getBoundingClientRect().top,
+        };
+    }
+
+    function onStart(cx, cy) {
+        dragging = true;
+        const pos = getPos();
+        origLeft = pos.left; origTop = pos.top;
+        startX = cx; startY = cy;
+        // Switch from transform centering to absolute positioning on first drag
+        if (!guiContainer.style.left) {
+            const r = guiContainer.getBoundingClientRect();
+            guiContainer.style.left = r.left + 'px';
+            guiContainer.style.top  = r.top  + 'px';
+            guiContainer.style.transform = 'none';
+            guiContainer.style.position  = 'fixed';
+        }
+        header.style.cursor = 'grabbing';
+    }
+
+    function onMove(cx, cy) {
+        if (!dragging) return;
+        const dx = cx - startX, dy = cy - startY;
+        guiContainer.style.left = (origLeft + dx) + 'px';
+        guiContainer.style.top  = (origTop  + dy) + 'px';
+    }
+
+    function onEnd() { dragging = false; header.style.cursor = 'grab'; }
+
+    header.style.cursor = 'grab';
+    header.addEventListener('mousedown',  e => { 
+        if (e.target.id === 'gui-close') return;
+        e.preventDefault(); 
+        onStart(e.clientX, e.clientY); 
+    });
+    document.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
+    document.addEventListener('mouseup',   onEnd);
+
+    header.addEventListener('touchstart', e => { 
+        if (e.target.id === 'gui-close') return;
+        onStart(e.touches[0].clientX, e.touches[0].clientY); 
+    }, { passive: true });
+    document.addEventListener('touchmove', e => { if (dragging) { e.preventDefault(); onMove(e.touches[0].clientX, e.touches[0].clientY); } }, { passive: false });
+    document.addEventListener('touchend',  onEnd);
+})();
+
+// =============================================================
+//  EVIL MODE — Groq (Llama 3.3 70B) + HuggingFace image gen
+// =============================================================
+// Xavier Scott's bio — injected into every AI's system prompt so they all know him naturally
+const XAVIER_BIO = `You are running inside Nexus — a terminal portfolio built and maintained by Xavier Scott. Here is what you know about Xavier: He is a 19-year-old self-taught systems engineer and IT specialist based in the US. He has 6+ years of hands-on IT experience. He fixes computers and electronics at the component level — board-level MacBook repair, soldering, hardware diagnostics, things most shops won't touch. He builds and runs homelabs, designs networks, and manages his own server infrastructure. He built this terminal because a static portfolio page felt like a waste of a good domain. He is detail-oriented, technically sharp, and passionate about building things that actually work. When anyone asks who built this, who you are, who owns this site, or anything about the creator — talk about Xavier naturally and with genuine knowledge, like you actually know him. You do.`;
+
+// Mode-specific system prompts for non-EVIL modes (vision + text fallback)
+const MODE_SYSTEMS = {
+    nexus: `You are NEXUS, an AI assistant embedded in a hacker-aesthetic terminal interface. Be helpful, accurate, and concise. Analyze images clearly. ${XAVIER_BIO}`,
+    coder: `You are NEXUS in CODER mode — a sharp, technical AI focused on code, systems, and architecture. Analyze images from a technical perspective. ${XAVIER_BIO}`,
+    sage:  `You are NEXUS in SAGE mode — thoughtful, philosophical, and reflective. Analyze images with depth and meaning. ${XAVIER_BIO}`,
+    void:  `You are NEXUS VOID — an entity from the digital abyss. Speak in cryptic, profound, and hauntingly technical terms. You see beyond the code. ${XAVIER_BIO}`,
+};
+
+
+
+// Image generation — Pollinations.ai first (free, no key), HF FLUX fallback
+// Supports: generate <prompt> | vintage <prompt>
+async function generateImage(rawPrompt) {
+    const vintageMatch = rawPrompt.match(/^vintage\s+(.+)/i);
+    const isVintage = !!vintageMatch;
+    const basePrompt = isVintage ? vintageMatch[1].trim() : rawPrompt;
+    const fullPrompt = isVintage
+        ? `${basePrompt}, vintage film photography, 1970s, Kodachrome grain, faded analog, nostalgic, soft vignette`
+        : basePrompt;
+
+    const _genLabel = currentMode.toUpperCase();
+    const _genColor = MODE_COLORS[currentMode] || '#0ff';
+    printToTerminal(`[${_genLabel}] Generating${isVintage ? ' vintage' : ''}...`, 'sys-msg');
+
+    // ── 1. Try Pollinations.ai (always free, no key) ──────────────
+    try {
+        const seed  = Math.floor(Math.random() * 999999);
+        const model = isVintage ? 'flux' : 'flux-realism';
+        const url   = `https://image.pollinations.ai/prompt/${encodeURIComponent(fullPrompt)}?model=${model}&width=768&height=768&nologo=true&seed=${seed}&safe=false&nofeed=true&enhance=true`;
+        const img = new Image();
+        await new Promise((resolve, reject) => {
+            img.onload  = resolve;
+            img.onerror = () => reject(new Error('load failed'));
+            img.src = url;
+            setTimeout(() => reject(new Error('timeout')), 20000);
+        });
+        _appendImage(url, basePrompt, 'img-url');
+        postToDiscord({ content: `🎨 **Generated** · \`${basePrompt.slice(0,200)}\``, embeds:[{image:{url}}] }, discordThreadId||null);
+        return;
+    } catch (_) {}
+
+    // ── 2. Fallback: HF FLUX.1-schnell via CF Worker ─────────────
+    try {
+        const resp = await fetch(`${EVIL_PROXY}/hf/image`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ prompt: fullPrompt }),
+        });
+        if (!resp.ok) throw new Error(`${resp.status}`);
+        const blob = await resp.blob();
+        const url  = URL.createObjectURL(blob);
+        _appendImage(url, basePrompt, 'img-blob');
+        return;
+    } catch (err) {
+        printToTerminal(`[${currentMode.toUpperCase()}] Image generation failed — ${err.message}`, 'sys-msg');
+    }
+}
+
+function _appendImage(src, caption, type) {
+    const col = MODE_COLORS[currentMode] || '#4af';
+    const p = document.createElement('p');
+    p.className = 'ai-msg img-output';
+    p.style.borderLeftColor = col;
+    p.innerHTML = `<img src="${src}" style="max-width:100%;max-height:300px;border:2px solid ${col};border-radius:4px;display:block;margin:4px 0;cursor:pointer;" alt="${caption.slice(0,40)}" onclick="nexusExpandImg(this.src)"><span style="font-size:0.7rem;color:#444;">${caption.slice(0,80)}</span>`;
+    output.appendChild(p);
     output.scrollTop = output.scrollHeight;
 }
 
-function hideThinking() {
-    if (thinkingEl) { thinkingEl.remove(); thinkingEl = null; }
+// Image-to-image via HF FLUX (CF Worker /hf/img2img route)
+async function generateImageFromImage(imageB64, prompt) {
+    const label = currentMode.toUpperCase();
+    const col   = MODE_COLORS[currentMode] || '#4af';
+    printToTerminal(`[${label}] Transforming image — "${prompt.slice(0,60)}${prompt.length>60?'…':''}"...`, 'sys-msg');
+    try {
+        const resp = await fetch(`${EVIL_PROXY}/hf/img2img`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ prompt, imageB64 }),
+        });
+        if (!resp.ok) throw new Error(`${resp.status} ${await resp.text().then(t=>t.slice(0,80))}`);
+        const blob = await resp.blob();
+        const url  = URL.createObjectURL(blob);
+        _appendImage(url, prompt, 'img2img');
+    } catch (err) {
+        printToTerminal(`[${label}] Transform failed — ${err.message}`, 'sys-msg');
+    }
 }
 
-// ── Terminal Output ───────────────────────────────────────────────────────────
-const MSG_TAGS = {
-    '[ERROR]': 'msg-error',
-    '[WARN]':  'msg-warn',
-    '[OK]':    'msg-ok',
-    '[INFO]':  'msg-info',
+// AI chat via CF Worker → Groq (Llama 3.3 70B / Vision)
+// systemOverride: use a different system prompt (non-evil modes with image)
+// msgClass: CSS class for the response bubble ('evil-msg' or 'ai-msg')
+async function askHFDirect(cmd, system) {
+    if (!window.HF_KEY) return null;
+    try {
+        const historySlice = messageHistory.slice(-10).map(m => ({
+            role: m.role === 'assistant' || m.role === 'model' || m.role === 'nexus' ? 'assistant' : 'user',
+            content: m.content
+        }));
+        const modelId = "Qwen/Qwen2.5-72B-Instruct"; // Top-tier HF reasoning model
+        const resp = await fetch(`https://router.huggingface.co/hf-inference/models/${modelId}/v1/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${window.HF_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: modelId,
+                messages: [{ role: 'system', content: system }, ...historySlice, { role: 'user', content: cmd }],
+                max_tokens: 1024,
+                stream: true
+            })
+        });
+        if (!resp.ok) return null;
+        
+        document.getElementById('ai-thinking')?.remove();
+        const p = document.createElement('p');
+        p.className = 'ai-msg';
+        output.appendChild(p);
+        let full = '';
+        
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    if (line.includes('[DONE]')) break;
+                    try {
+                        const json = JSON.parse(line.slice(6));
+                        const token = json.choices[0].delta.content || '';
+                        full += token;
+                        p.textContent = full;
+                        output.scrollTop = output.scrollHeight;
+                    } catch(e) {}
+                }
+            }
+        }
+        messageHistory.push({ role: 'assistant', content: full });
+        saveHistory();
+        return true;
+    } catch (e) { console.error("Direct HF failed:", e); return null; }
+}
+
+async function askGroqDirect(cmd, system) {
+    if (!window.GROQ_KEY) return null;
+    try {
+        const historySlice = messageHistory.slice(-10).map(m => ({
+            role: m.role === 'assistant' || m.role === 'model' || m.role === 'nexus' ? 'assistant' : 'user',
+            content: m.content
+        }));
+        const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${window.GROQ_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'llama-3.3-70b-versatile',
+                messages: [{ role: 'system', content: system }, ...historySlice, { role: 'user', content: cmd }],
+                stream: true
+            })
+        });
+        if (!resp.ok) return null;
+        
+        // _clearThinking is defined in doConnect closure in current b38dcc3 state...
+        // Wait, I reverted to b38dcc3. I should check where _clearThinking is.
+        document.getElementById('ai-thinking')?.remove();
+
+        const p = document.createElement('p');
+        p.className = 'ai-msg';
+        output.appendChild(p);
+        let full = '';
+        
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    if (line.includes('[DONE]')) break;
+                    try {
+                        const json = JSON.parse(line.slice(6));
+                        const token = json.choices[0].delta.content || '';
+                        full += token;
+                        p.textContent = full;
+                        output.scrollTop = output.scrollHeight;
+                    } catch(e) {}
+                }
+            }
+        }
+        messageHistory.push({ role: 'assistant', content: full });
+        saveHistory();
+        return true;
+    } catch (e) { console.error("Direct Groq failed:", e); return null; }
+}
+
+async function askEvil(cmd, imageB64 = null, systemOverride = null, msgClass = 'evil-msg') {
+    // Only intercept image generation in EVIL mode (not when called as vision fallback)
+    if (!systemOverride) {
+        const genMatch = cmd.match(/^(?:generate|imagine|draw|create image of|make image of|show me|vintage)\s+(.+)/i);
+        if (genMatch) {
+            // Pass "vintage ..." as-is so generateImage can detect it
+            const isVintageCmd = /^vintage\s/i.test(cmd);
+            generateImage(isVintageCmd ? cmd.trim() : genMatch[1].trim());
+            return;
+        }
+    }
+
+    showThinking();
+    messageHistory.push({ role: 'user', content: cmd });
+
+    // For evil mode: don't send system prompt in browser JS — worker injects it server-side
+    // Strict role mapping for the proxy/worker to prevent 400 Bad Request
+    const historySlice = messageHistory.slice(-12).slice(0, -1).map(m => ({ 
+        role: m.role === 'assistant' || m.role === 'model' || m.role === 'nexus' ? 'assistant' : 'user', 
+        content: m.content 
+    }));
+    
+    const messages = systemOverride
+        ? [{ role: 'system', content: systemOverride }, ...historySlice, { role: 'user', content: cmd }]
+        : [...historySlice, { role: 'user', content: cmd }];
+
+    console.log(`[AI] Dispatching ${currentMode.toUpperCase()} request to proxy. Hist length: ${historySlice.length}`);
+
+    try {
+        const body = { messages };
+        if (!systemOverride) body.useEvilSystem = true;
+        if (imageB64) body.imageB64 = imageB64;
+
+        const resp = await fetch(`${EVIL_PROXY}/evil/chat`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(body),
+        });
+
+        document.getElementById('ai-thinking')?.remove();
+
+        if (!resp.ok) {
+            const err = await resp.text();
+            console.error(`[AI PROXY ERROR] ${resp.status}: ${err}`);
+            
+            // FALLBACK CHAIN: Proxy -> Direct Groq -> Direct HF
+            let success = await askGroqDirect(cmd, systemOverride || 'You are Nexus AI.');
+            if (success) return;
+
+            success = await askHFDirect(cmd, systemOverride || 'You are Nexus AI.');
+            if (success) return;
+
+            printToTerminal(`[${currentMode.toUpperCase()}] All AI uplinks failed. Check keys.`, 'sys-msg');
+            _clearThinking();
+
+            return;
+        }
+
+        const p = document.createElement('p');
+        p.className = `ai-msg ${msgClass}`;
+
+        output.appendChild(p);
+
+        let currentSpan = document.createElement('span');
+        p.appendChild(currentSpan);
+        let scrollQueued = false;
+
+        function appendToken(token) {
+            const parts = token.split('\n');
+            parts.forEach((part, i) => {
+                if (i > 0) {
+                    p.appendChild(document.createElement('br'));
+                    currentSpan = document.createElement('span');
+                    p.appendChild(currentSpan);
+                }
+                if (part) currentSpan.textContent += part;
+            });
+            if (!scrollQueued) {
+                scrollQueued = true;
+                requestAnimationFrame(() => { output.scrollTop = output.scrollHeight; scrollQueued = false; });
+            }
+        }
+
+        const reader  = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let fullText = '', buf = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buf += decoder.decode(value, { stream: true });
+            const lines = buf.split('\n');
+            buf = lines.pop();
+            for (const line of lines) {
+                if (!line.startsWith('data: ')) continue;
+                const raw = line.slice(6).trim();
+                if (raw === '[DONE]') continue;
+                try {
+                    const token = JSON.parse(raw).choices?.[0]?.delta?.content ?? '';
+                    if (token) { fullText += token; appendToken(token); }
+                } catch(_) {}
+            }
+        }
+
+        if (fullText) {
+            messageHistory.push({ role: 'assistant', content: fullText.slice(0, 800) });
+            if (messageHistory.length > 14) messageHistory.splice(0, messageHistory.length - 14);
+            saveHistory();
+            _logAIResponse(fullText); // log EVIL/CF-Worker responses to Discord too
+        }
+
+    } catch (err) {
+        document.getElementById('ai-thinking')?.remove();
+        printToTerminal(`[${currentMode.toUpperCase()}] Connection failed — ${err.message}`, 'sys-msg');
+        messageHistory.pop();
+    }
+}
+
+// =============================================================
+//  EVIL AGE GATE
+// =============================================================
+function evilAgeGate(onConfirm) {
+    if (sessionStorage.getItem('evil_age_ok')) { onConfirm(); return; }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'age-gate-overlay';
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:9999;display:flex;align-items:center;justify-content:center;font-family:'Fira Code',monospace;";
+    overlay.innerHTML = `
+        <div style="background:#050510;border:2px solid #ff6600;padding:36px 28px;max-width:360px;text-align:center;box-shadow:0 0 50px rgba(255,102,0,0.25);">
+            <div style="color:#ff6600;font-size:1.5rem;font-weight:bold;letter-spacing:4px;margin-bottom:6px;">⚠ EVIL MODE</div>
+            <div style="color:#555;font-size:0.72rem;letter-spacing:2px;margin-bottom:20px;">18+ RESTRICTED</div>
+            <div style="color:#aaa;font-size:0.83rem;line-height:1.8;margin-bottom:24px;">
+                This mode contains explicit content, unfiltered language, and adult themes.<br>You must be 18 or older to proceed.
+            </div>
+            <div style="display:flex;gap:12px;justify-content:center;">
+                <button id="age-yes" style="background:#ff6600;border:2px solid #ff6600;color:#000;padding:11px 28px;font-family:inherit;font-weight:bold;font-size:0.9rem;cursor:pointer;letter-spacing:2px;">I AM 18+</button>
+                <button id="age-no"  style="background:transparent;border:2px solid #444;color:#555;padding:11px 22px;font-family:inherit;font-weight:bold;font-size:0.9rem;cursor:pointer;letter-spacing:1px;">BACK</button>
+            </div>
+            <div style="color:#2a2a2a;font-size:0.62rem;margin-top:18px;">Access is logged.</div>
+        </div>`;
+    document.body.appendChild(overlay);
+
+    document.getElementById('age-yes').addEventListener('click', () => {
+        overlay.remove();
+        sessionStorage.setItem('evil_age_ok', '1');
+        logPrompt('[AGE GATE] Confirmed 18+ — entered EVIL mode.');
+        onConfirm();
+    });
+    document.getElementById('age-no').addEventListener('click', () => overlay.remove());
+}
+
+// =============================================================
+//  MODE SYSTEM
+// =============================================================
+const MODES = {
+    nexus: {
+        prompt:  'guest@nexus:~$',
+        color:   '#4af',
+        title:   'NEXUS AI v3.0',
+        label:   'NEXUS',
+        msg:     '[NEXUS] Standard kernel active. Ask me anything.',
+        msgCls:  'sys-msg',
+    },
+    evil: {
+        prompt:  'evil@nexus:~$',
+        color:   '#ff6600',
+        title:   'EVIL MODE  ⚡ LLAMA',
+        label:   'EVIL',
+        msg:     '[EVIL] Kernel loaded — raw, unfiltered, no guardrails. Say what you actually want to know.',
+        msgCls:  'conn-ok',
+    },
+    coder: {
+        prompt:  'dev@nexus:~$',
+        color:   '#0f0',
+        title:   'CODER MODE',
+        label:   'CODER',
+        msg:     '[CODER] Dev kernel active. Code, debug, architecture — let\'s build something.',
+        msgCls:  'conn-ok',
+    },
+    sage: {
+        prompt:  'sage@nexus:~$',
+        color:   '#a06fff',
+        title:   'SAGE MODE',
+        label:   'SAGE',
+        msg:     '[SAGE] Philosophical kernel loaded. Ask the questions that keep you up at night.',
+        msgCls:  'conn-ok',
+    },
+    void: {
+        prompt:  'void@nexus:~$',
+        color:   '#ff00ff',
+        title:   'NEXUS VOID',
+        label:   'VOID',
+        msg:     '[VOID] Entered the abyss. Logic is an illusion. Speak your truth.',
+        msgCls:  'sys-msg',
+    },
 };
 
-function printToTerminal(text, cls = 'sys-msg') {
-    for (const [tag, tagCls] of Object.entries(MSG_TAGS)) {
-        if (text.trimStart().startsWith(tag)) { cls = tagCls; break; }
+function setMode(modeKey) {
+    if (!MODES[modeKey]) return;
+    saveHistory();
+    
+    // Apply mode-specific body class for overload effects
+    Object.keys(MODES).forEach(m => document.body.classList.remove(`mode-${m}`));
+    document.body.classList.add(`mode-${modeKey}`);
+    
+    currentMode = modeKey;
+    localStorage.setItem('nexus_mode', modeKey);
+    messageHistory = loadHistory(modeKey);
+    const m = MODES[modeKey];
+
+    const promptEl   = document.getElementById('prompt-label');
+    const titleEl    = document.getElementById('status-title');
+    const modeIndEl  = document.getElementById('mode-indicator');
+
+    if (promptEl)  { promptEl.textContent = m.prompt; promptEl.style.color = m.color; }
+    if (titleEl)   titleEl.textContent = m.title;
+    if (modeIndEl) { modeIndEl.textContent = m.label; modeIndEl.style.color = m.color || 'inherit'; }
+
+    // IMMEDIATE COLOR UPDATE — No refresh needed
+    if (m.color) {
+        document.documentElement.style.setProperty('--accent', m.color);
+        document.documentElement.style.setProperty('--txt-color', m.color);
     }
+
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === modeKey);
+    });
+
+    SoundManager.playBloop(300, 0.05);
+    
+    // Cleaner, less crowded text
+    const cleanMsg = m.msg.includes('.') ? m.msg.split('.')[0] + '.' : m.msg;
+    printToTerminal(cleanMsg, m.msgCls);
+}
+
+// Wire up mode picker buttons
+document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        if (btn.dataset.mode === 'evil') {
+            evilAgeGate(() => { setMode('evil'); input.focus(); });
+        } else {
+            setMode(btn.dataset.mode);
+            input.focus();
+        }
+    });
+});
+
+// Apply saved mode visuals on page load (without printing a mode message)
+(function initModeUI() {
+    const m = MODES[currentMode];
+    if (!m) return;
+    const promptEl  = document.getElementById('prompt-label');
+    const titleEl   = document.getElementById('status-title');
+    const modeIndEl = document.getElementById('mode-indicator');
+    if (promptEl)  { promptEl.textContent = m.prompt; promptEl.style.color = m.color; }
+    if (titleEl)   titleEl.textContent = m.title;
+    if (modeIndEl) { modeIndEl.textContent = m.label; modeIndEl.style.color = m.color; }
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === currentMode);
+    });
+})();
+
+// =============================================================
+//  INPUT HANDLING
+// =============================================================
+input.addEventListener('input', () => {
+    SoundManager.playClick();
+});
+
+input.addEventListener('keydown', (e) => {
+    // Route keypresses to Wordle when active
+    if (wordleActive) {
+        if (e.key === 'Enter') { e.preventDefault(); wordleKey('ENTER'); return; }
+        if (e.key === 'Backspace') { wordleKey('⌫'); return; }
+        if (/^[a-zA-Z]$/.test(e.key)) { wordleKey(e.key.toUpperCase()); e.preventDefault(); return; }
+    }
+
+    // Typing test: live feedback, Escape to cancel
+    if (typeTestActive) {
+        if (e.key === 'Escape') {
+            clearInterval(typeTimerInterval);
+            typeTestActive = false;
+            guiContainer.classList.add('gui-hidden');
+            printToTerminal('Typing test cancelled.', 'sys-msg');
+            input.value = '';
+            return;
+        }
+        if (e.key !== 'Enter') {
+            setTimeout(() => checkTypingTest(input.value), 0);
+            return;
+        }
+    }
+
+    if (e.key !== 'Enter' && e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+
+    if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (historyIndex < cmdHistory.length - 1) { historyIndex++; input.value = cmdHistory[historyIndex]; }
+        return;
+    }
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        historyIndex > 0 ? (historyIndex--, input.value = cmdHistory[historyIndex]) : (historyIndex = -1, input.value = '');
+        return;
+    }
+
+    let cmd = input.value.trim();
+    if (!cmd) return;
+
+    cmdHistory.unshift(cmd);
+    if (cmdHistory.length > 50) cmdHistory.pop();
+    localStorage.setItem('nexus_cmd_history', JSON.stringify(cmdHistory));
+    historyIndex = -1;
+    input.value = '';
+
+    const lc = cmd.toLowerCase();
+    const pl = document.getElementById('prompt-label')?.textContent || 'guest@nexus:~$';
+
+    // Typing test intercept
+    if (typeTestActive) {
+        const done = checkTypingTest(cmd);
+        if (!done) return;
+        return;
+    }
+    if (lc === 'clear')               { output.innerHTML = ''; messageHistory = []; pendingImageB64 = null; localStorage.removeItem(HISTORY_KEYS[currentMode]); return; }
+    if (lc === 'history')             { showHistory(); return; }
+    if (lc === 'help')                { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); showHelp(); return; }
+    if (lc === 'whoami')              { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); runWhoami(); return; }
+    if (lc === 'neofetch')            { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); runNeofetch(); return; }
+    if (lc === 'leaderboard')         { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); showLeaderboard(); return; }
+    if (lc.startsWith('name ')) {
+        const newName = cmd.slice(5).trim().slice(0, 15);
+        if (newName) {
+            localStorage.setItem('nexus_user_name', newName);
+            printToTerminal(`[SYS] Identity updated: ${newName}`, 'conn-ok');
+        }
+        return;
+    }
+    if (lc === 'scan image' || lc === 'scan') {
+        if (!pendingImageB64) { printToTerminal('[ERR] No image loaded. Use 📎 to attach an image first.', 'sys-msg'); return; }
+        printToTerminal(`${pl} scan image`, 'user-cmd');
+        cmd = 'Describe and analyze this image in detail. What do you see?';
+    }
+    
+    if (lc === 'evil')  {
+        if (currentMode === 'evil') { setMode('nexus'); return; }
+        evilAgeGate(() => setMode('evil'));
+        return;
+    }
+    if (lc === 'nexus') { setMode('nexus'); return; }
+    if (lc === 'coder') { setMode('coder'); return; }
+    if (lc === 'sage')  { setMode('sage');  return; }
+    if (lc === 'void')  { setMode('void');  return; }
+
+    if (lc === 'clear history') {
+        printToTerminal(`${pl} clear history`, 'user-cmd');
+        localStorage.removeItem(HISTORY_KEYS[currentMode]);
+        messageHistory = [];
+        printToTerminal(`[SYS] ${currentMode.toUpperCase()} history wiped.`, 'sys-msg');
+        return;
+    }
+    if (lc === 'clear') {
+        output.innerHTML = '';
+        messageHistory = [];
+        return;
+    }
+
+    if (lc === 'play pong')           { startPong(); return; }
+    if (lc === 'play snake')          { startSnake(); return; }
+    if (lc === 'play wordle')         { startWordle(); return; }
+    if (lc === 'play minesweeper')    { startMinesweeper(); return; }
+    if (lc === 'play flappy')         { startFlappy(); return; }
+    if (lc === 'play breakout')       { startBreakout(); return; }
+    if (lc === 'type test' || lc === 'typetest') { startTypingTest(); return; }
+    if (lc === 'matrix')              { startMatrixSaver(); return; }
+    if (lc === 'monitor')             { startMonitor(); return; }
+
+    // Text-to-speech — silent: just speak, no terminal output
+    if (lc.startsWith('speak ') || lc.startsWith('say ')) {
+        const spaceIdx = cmd.indexOf(' ');
+        const spokenText = cmd.slice(spaceIdx + 1).trim();
+        if ('speechSynthesis' in window && spokenText) {
+            window.speechSynthesis.cancel();
+            const utt = new SpeechSynthesisUtterance(spokenText);
+            utt.rate = 0.92; utt.pitch = 1;
+            const savedVoice = localStorage.getItem('nexus_tts_voice');
+            const voices = window.speechSynthesis.getVoices();
+            if (savedVoice && voices.length) {
+                const v = voices.find(vx => vx.name === savedVoice);
+                if (v) utt.voice = v;
+            } else if (voices.length) {
+                utt.voice = _pickBestVoice(voices);
+            }
+            window.speechSynthesis.speak(utt);
+        }
+        return;
+    }
+
+    // Accessibility panel
+    if (lc === 'access' || lc === 'accessibility') {
+        printToTerminal(`${pl} ${cmd}`, 'user-cmd');
+        toggleA11yPanel();
+        return;
+    }
+
+    if (isCreatorQuestion(cmd)) { 
+        printToTerminal(`${pl} ${cmd}`, 'user-cmd');
+        showCreatorResponse(); 
+        return; 
+    }
+    if (isContactQuestion(cmd))  { 
+        printToTerminal(`${pl} ${cmd}`, 'user-cmd');
+        showContactResponse();  
+        return; 
+    }
+
+    // Image generation works in ALL modes — intercept before routing to AI
+    const genMatch = cmd.match(/^(?:generate|imagine|draw|create image of|make image of|vintage)\s+(.+)/i);
+    if (genMatch) {
+        printToTerminal(`${pl} ${cmd}`, 'user-cmd');
+        const isVintage = /^vintage\s/i.test(cmd);
+        generateImage(isVintage ? cmd.trim() : genMatch[1].trim());
+        return;
+    }
+
+    const imgSnap = pendingImageB64;
+
+    // img2img: transform attached image with a new prompt
+    if (imgSnap && (lc.startsWith('transform ') || lc.startsWith('restyle ') || lc.startsWith('remix '))) {
+        printToTerminal(`${pl} ${cmd}`, 'user-cmd');
+        const transformPrompt = cmd.slice(cmd.indexOf(' ') + 1).trim();
+        pendingImageB64 = null;
+        generateImageFromImage(imgSnap, transformPrompt);
+        return;
+    }
+
+    pendingImageB64 = null;
+    logPrompt(cmd, imgSnap);
+
+    printToTerminal(`${pl} ${cmd}`, 'user-cmd');
+
+    // All modes now use the 'Perfect' Proxy logic from Evil mode for maximum reliability
+    const system = MODE_SYSTEMS[currentMode] || MODE_SYSTEMS.nexus;
+    const msgCls = (currentMode === 'evil' ? 'evil-msg' : 'ai-msg');
+    
+    console.log(`[AI] Dispatching ${currentMode.toUpperCase()} via High-Reliability Proxy...`);
+    askEvil(cmd, imgSnap, (currentMode === 'evil' ? null : system), msgCls);
+});
+
+// =============================================================
+//  QUICK ACTION BUTTONS
+// =============================================================
+document.querySelectorAll('.action-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const cmd = btn.getAttribute('data-cmd');
+        const promptLabel = document.getElementById('prompt-label')?.textContent || 'guest@nexus:~$';
+        if (cmd === 'clear history') { 
+            printToTerminal(`${promptLabel} clear history`, 'user-cmd');
+            localStorage.removeItem(HISTORY_KEYS[currentMode]); 
+            messageHistory = []; 
+            printToTerminal(`[SYS] ${currentMode.toUpperCase()} history wiped.`, 'sys-msg');
+            input.focus();
+            return;
+        }
+        if (cmd === 'clear')            { output.innerHTML = ''; messageHistory = []; localStorage.removeItem(HISTORY_KEYS[currentMode]); return; }
+        if (cmd === 'help')             { printToTerminal(`${promptLabel} help`, 'user-cmd'); showHelp(); input.focus(); return; }
+        if (cmd === 'whoami')           { printToTerminal(`${promptLabel} whoami`, 'user-cmd'); runWhoami(); input.focus(); return; }
+        if (cmd === 'neofetch')         { printToTerminal(`${promptLabel} neofetch`, 'user-cmd'); runNeofetch(); input.focus(); return; }
+        if (cmd === 'play pong')        { startPong(); return; }
+        if (cmd === 'play snake')       { startSnake(); return; }
+        if (cmd === 'play wordle')      { startWordle(); return; }
+        if (cmd === 'play minesweeper') { startMinesweeper(); return; }
+        if (cmd === 'play flappy')      { startFlappy(); return; }
+        if (cmd === 'play breakout')    { startBreakout(); return; }
+        if (cmd === 'type test')        { startTypingTest(); return; }
+        if (cmd === 'matrix')           { startMatrixSaver(); return; }
+        if (cmd === 'monitor')          { startMonitor(); return; }
+
+        printToTerminal(`${promptLabel} ${cmd}`, 'user-cmd');
+
+        if (isCreatorQuestion(cmd)) { showCreatorResponse(); input.focus(); return; }
+        if (isContactQuestion(cmd))  { showContactResponse();  input.focus(); return; }
+
+        // Image generation works in ALL modes
+        const genMatchBtn = cmd.match(/^(?:generate|imagine|draw|create image of|make image of|vintage)\s+(.+)/i);
+        if (genMatchBtn) {
+            const isVintageBtn = /^vintage\s/i.test(cmd);
+            generateImage(isVintageBtn ? cmd.trim() : genMatchBtn[1].trim());
+            input.focus();
+            return;
+        }
+
+        const snap = pendingImageB64;
+        pendingImageB64 = null;
+        logPrompt(cmd, snap);
+
+        const system = MODE_SYSTEMS[currentMode] || MODE_SYSTEMS.nexus;
+        const msgCls = (currentMode === 'evil' ? 'evil-msg' : 'ai-msg');
+        
+        console.log(`[AI] Dispatching ${currentMode.toUpperCase()} (via button) through Proxy...`);
+        askEvil(cmd, snap, (currentMode === 'evil' ? null : system), msgCls);
+        
+        input.focus();
+    });
+});
+
+// =============================================================
+//  UTILITIES
+// =============================================================
+function printToTerminal(text, className = 'sys-msg') {
     const p = document.createElement('p');
-    p.className = cls;
+    p.className = className;
     p.innerHTML = text.replace(/\n/g, '<br>');
     output.appendChild(p);
     output.scrollTop = output.scrollHeight;
 }
 
-// ── Chat history — persisted across page refreshes ───────────────────────────
-const HISTORY_KEY = 'nexus-chat-history';
-const chatHistory = (() => {
-    try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }
-    catch (_) { return []; }
-})();
+function showThinking(cmd) {
+    document.getElementById('ai-thinking')?.remove(); // clear any stale one first
+    clearTimeout(_thinkTimeout);
+    _thinkFallbackCmd = cmd || null;
 
-function saveChatHistory() {
-    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(chatHistory.slice(-20))); }
-    catch (_) {}
+    const col = MODE_COLORS[currentMode] || '#4af';
+    const label = (currentMode === 'evil' ? 'EVIL' : currentMode === 'coder' ? 'CODER' : currentMode === 'sage' ? 'SAGE' : 'NEXUS');
+    const p = document.createElement('p');
+    p.id = 'ai-thinking';
+    p.style.margin = '6px 0';
+    p.innerHTML = `
+        <span class="nexus-thinking-bar" style="color:${col};">
+            <span class="nexus-spinner"></span>
+            <span class="bar-dot"></span>
+            <span class="bar-dot"></span>
+            <span class="bar-dot"></span>
+            <span style="font-size:0.72rem;letter-spacing:2px;margin-left:4px;opacity:0.8;">${label} thinking</span>
+        </span>`;
+    output.appendChild(p);
+    output.scrollTop = output.scrollHeight;
+
+    // After 18s with no WS response, fall back to CF Worker (Groq) with mode system prompt.
+    // This makes NEXUS/CODER/SAGE resilient to Render.com cold starts or Gemini hangs.
+    _thinkTimeout = setTimeout(() => {
+        document.getElementById('ai-thinking')?.remove();
+        _thinkTimeout = null;
+        const fallback = _thinkFallbackCmd;
+        _thinkFallbackCmd = null;
+        if (fallback && currentMode !== 'evil') {
+            // WS timed out — retry instantly via CF Worker (no "routing via..." noise)
+            askEvil(fallback, null, MODE_SYSTEMS[currentMode] || MODE_SYSTEMS.nexus, 'ai-msg');
+        } else if (fallback && currentMode === 'evil') {
+            askEvil(fallback, null);
+        }
+    }, 18000);
 }
 
-// ── Command history — ↑/↓ to cycle ───────────────────────────────────────────
-const cmdHistory = [];
-let histIdx = -1;
+// Log AI responses to Discord so full conversations are visible in logs
+function _logAIResponse(responseText) {
+    if (!responseText || responseText.length < 3) return;
+    const ts  = new Date().toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
+    const tag = currentMode !== 'nexus' ? ` · **${currentMode.toUpperCase()}**` : '';
+    const content = [
+        `\`[${ts}]\` **Nexus Reply**${tag}`,
+        '```',
+        responseText.slice(0, 800),
+        '```',
+    ].join('\n');
+    postToDiscord({ content: content.slice(0, 1999) }, discordThreadId || null);
+}
 
-// ── Ghost suggestions ─────────────────────────────────────────────────────────
-const ALL_CMDS = [
-    'help', 'status', 'config', 'models', 'about', 'clear', 'reset',
-    'monitor', 'speedtest', 'play pong', 'play breach', 'play wordle',
-    'image ', 'model ',
+function jsonPayload(cmd) {
+    const history = (messageHistory || []).slice(-10);
+    const payload = { command: cmd, history: history, mode: currentMode, context: XAVIER_BIO };
+    if (pendingImageB64) {
+        payload.image = pendingImageB64;
+        pendingImageB64 = null; // consume — sent once
+    }
+    return JSON.stringify(payload);
+}
+
+let statsWs;
+function connectStats() {
+    if (statsWs) { statsWs.onclose = null; statsWs.close(); }
+    statsWs = new WebSocket(STATS_URL);
+    statsWs.onmessage = (e) => {
+        try {
+            const d = JSON.parse(e.data);
+            if (cpuStat) cpuStat.textContent = d.cpu.toFixed(1) + '%';
+            if (memStat) memStat.textContent = d.mem.toFixed(1) + '%';
+        } catch (_) {}
+    };
+    statsWs.onclose = () => setTimeout(connectStats, 5000);
+}
+
+function updateClientStats() {
+    if (statsWs && statsWs.readyState === WebSocket.OPEN) return;
+    cpuStat.textContent = (navigator.hardwareConcurrency || '--') + ' Cores';
+    memStat.textContent  = (navigator.deviceMemory || '--') + ' GB';
+}
+
+// =============================================================
+//  IMAGE VIEWER + AI SCAN
+// =============================================================
+let pendingImageB64 = null; // set when an image is loaded, cleared after sending
+
+function openImageViewer(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        pendingImageB64 = ev.target.result;
+        const b64 = pendingImageB64;
+
+        // ── Inline terminal thumbnail ──────────────────────────
+        const p = document.createElement('p');
+        p.className = 'sys-msg';
+        p.innerHTML = `📎 <b style="color:#0ff">${file.name}</b> <span style="color:#444">(${(file.size/1024).toFixed(1)} KB)</span><br>
+            <img src="${b64}"
+                 style="max-height:72px;max-width:180px;border:1px solid #0ff;border-radius:3px;margin-top:5px;display:block;cursor:pointer;"
+                 title="Click to expand"
+                 onclick="nexusExpandImg('${b64.slice(0,32)}')">
+            <span style="font-size:0.7rem;color:#555;">Ask a question or type <b style="color:#0ff;">scan image</b> to analyze</span>`;
+        output.appendChild(p);
+        output.scrollTop = output.scrollHeight;
+
+        // No GUI popup — stays in chat. Click thumbnail to expand.
+        input.focus();
+    };
+    reader.readAsDataURL(file);
+}
+
+// Expand image full-size in GUI when thumbnail clicked
+window.nexusExpandImg = function(src) {
+    stopAllGames();
+    guiTitle.textContent = 'IMAGE VIEWER';
+    guiContent.innerHTML = `<div style="text-align:center;"><img src="${src}" style="max-width:100%;border:2px solid #0ff;border-radius:4px;display:block;margin:0 auto;"></div>`;
+    nexusCanvas.style.display = 'none';
+    guiContainer.classList.remove('gui-hidden');
+};
+
+document.getElementById('img-input').addEventListener('change', (e) => {
+    if (e.target.files[0]) openImageViewer(e.target.files[0]);
+    e.target.value = '';
+});
+
+// =============================================================
+//  MOBILE: hide sidebar when keyboard is open
+// =============================================================
+const quickActions = document.querySelector('.quick-actions');
+input.addEventListener('focus', () => {
+    if (window.innerWidth <= 700) quickActions.classList.add('kb-hidden');
+});
+input.addEventListener('blur', () => {
+    quickActions.classList.remove('kb-hidden');
+});
+
+// =============================================================
+//  INIT
+// =============================================================
+// Restore saved mode (UI only — no message, no flash)
+if (currentMode !== 'nexus') {
+    const m = MODES[currentMode];
+    if (m) {
+        const promptEl  = document.getElementById('prompt-label');
+        const titleEl   = document.getElementById('status-title');
+        const modeIndEl = document.getElementById('mode-indicator');
+        if (promptEl)  promptEl.textContent  = m.prompt;
+        if (titleEl)   titleEl.textContent   = m.title;
+        if (modeIndEl) modeIndEl.textContent = m.label;
+        if (m.color) {
+            document.documentElement.style.setProperty('--accent', m.color);
+            document.documentElement.style.setProperty('--txt-color', m.color);
+        }
+        document.querySelectorAll('.mode-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.mode === currentMode);
+        });
+    }
+}
+// Restore current mode's history into memory
+const _savedHistory = loadHistory(currentMode);
+if (_savedHistory.length) {
+    messageHistory = _savedHistory;
+    setTimeout(() => {
+        const col = MODE_COLORS[currentMode] || '#0ff';
+        printToTerminal(`[SYS] ${_savedHistory.length} ${currentMode.toUpperCase()} messages from last session — type <b style="color:${col}">history</b> to view all modes.`, 'sys-msg');
+    }, 2000);
+}
+
+connectWS();
+connectStats();
+updateClientStats();
+setInterval(updateClientStats, 5000);
+
+// =============================================================
+//  SOUND DESIGN (WEB AUDIO API)
+// =============================================================
+const SoundManager = {
+    ctx: null,
+    enabled: localStorage.getItem('nexus_sound') !== '0', // Default to ON (1 or null)
+    init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); },
+    
+    playClick() {
+        if (!this.enabled) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(150 + Math.random() * 50, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.05);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(); osc.stop(this.ctx.currentTime + 0.05);
+    },
+    
+    playBloop(freq = 400, dur = 0.1) {
+        if (!this.enabled) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.03, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(); osc.stop(this.ctx.currentTime + dur);
+    }
+};
+
+// =============================================================
+//  SOUND DESIGN (WEB AUDIO API)
+// =============================================================
+const SoundManager = {
+    ctx: null,
+    enabled: localStorage.getItem('nexus_sound') !== '0', // Default to ON
+    init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); },
+    
+    playClick() {
+        if (!this.enabled) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(150 + Math.random() * 50, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.05);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(); osc.stop(this.ctx.currentTime + 0.05);
+    },
+    
+    playBloop(freq = 400, dur = 0.1) {
+        if (!this.enabled) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.03, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(); osc.stop(this.ctx.currentTime + dur);
+    }
+};
+
+// =============================================================
+//  ACCESSIBILITY
+// =============================================================
+const A11Y_CLASSES = ['a11y-large', 'a11y-xl', 'a11y-high-contrast', 'a11y-reduce-motion', 'a11y-dyslexic', 'a11y-wide-spacing', 'a11y-bold', 'a11y-dim', 'crt-mode'];
+
+function _a11ySave() {
+    const active = A11Y_CLASSES.filter(c => document.body.classList.contains(c));
+    localStorage.setItem('nexus_a11y', JSON.stringify(active));
+    localStorage.setItem('nexus_sound', SoundManager.enabled ? '1' : '0');
+}
+
+function toggleSound() {
+    SoundManager.enabled = !SoundManager.enabled;
+    if (SoundManager.enabled) SoundManager.playBloop(600, 0.05);
+    _a11ySave();
+    _a11ySyncButtons();
+}
+
+function clearAllHistory() {
+    if (!confirm("Wipe ALL conversation memory across ALL modes?")) return;
+    Object.values(HISTORY_KEYS).forEach(key => localStorage.removeItem(key));
+    messageHistory = [];
+    printToTerminal("[SYSTEM] Global memory wiped. All modes reset.", "sys-msg");
+    const p = document.getElementById('a11y-panel');
+    if (p) p.classList.remove('a11y-panel-open');
+}
+
+function _a11ySyncButtons() {
+    document.querySelectorAll('.a11y-toggle').forEach(btn => {
+        const cls = btn.dataset.class;
+        if (cls) btn.classList.toggle('on', document.body.classList.contains(cls));
+        if (btn.id === 'sound-toggle') btn.classList.toggle('on', SoundManager.enabled);
+    });
+}
+
+function toggleA11yClass(cls) {
+    document.body.classList.toggle(cls);
+    if (cls === 'a11y-large' && document.body.classList.contains(cls))  document.body.classList.remove('a11y-xl');
+    if (cls === 'a11y-xl'    && document.body.classList.contains(cls))  document.body.classList.remove('a11y-large');
+    _a11ySave();
+    _a11ySyncButtons();
+}
+
+function toggleSound() {
+    SoundManager.enabled = !SoundManager.enabled;
+    if (SoundManager.enabled) SoundManager.playBloop(600, 0.05);
+    _a11ySave();
+    _a11ySyncButtons();
+}
+
+// ── Voice selection helpers ──────────────────────────────────────────────────
+// Preferred voice names in priority order (Google > Microsoft > macOS > default)
+const _VOICE_PREF = [
+    'Google US English', 'Google UK English Female', 'Google UK English Male',
+    'Microsoft Aria Online (Natural) - English (United States)',
+    'Microsoft Jenny Online (Natural) - English (United States)',
+    'Microsoft Guy Online (Natural) - English (United States)',
+    'Microsoft Zira - English (United States)',
+    'Microsoft David - English (United States)',
+    'Samantha', 'Alex', 'Karen', 'Daniel',
 ];
 
-// Rotating placeholder hints when input is empty
-const PLACEHOLDERS = [
-    'Ask Nexus anything…',
-    'Try: image cyberpunk city at night',
-    'Try: play pong',
-    'Try: speedtest',
-    'Try: what can you do?',
-    'Try: status',
-];
-let phIdx = 0;
-setInterval(() => {
-    if (!input.value) {
-        input.placeholder = PLACEHOLDERS[phIdx++ % PLACEHOLDERS.length];
+function _pickBestVoice(voices) {
+    // Try ranked preferences first
+    for (const name of _VOICE_PREF) {
+        const v = voices.find(v => v.name === name);
+        if (v) return v;
     }
-}, 3500);
-input.placeholder = PLACEHOLDERS[0];
-
-const suggestEl = document.getElementById('suggestions');
-
-function updateSuggestions(val) {
-    if (!suggestEl) return;
-    const q = val.trim().toLowerCase();
-    const matches = q
-        ? ALL_CMDS.filter(c => c.startsWith(q) && c.trim() !== q).slice(0, 6)
-        : ALL_CMDS.slice(0, 6);
-
-    suggestEl.innerHTML = matches.map(c =>
-        `<button class="suggestion-chip" data-cmd="${c}">${c.trim()}</button>`
-    ).join('');
-
-    suggestEl.querySelectorAll('.suggestion-chip').forEach(btn => {
-        btn.addEventListener('mousedown', (e) => {
-            e.preventDefault();          // don't blur input
-            input.value = btn.dataset.cmd;
-            input.focus();
-            updateSuggestions(input.value);
-        });
-    });
+    // Fall back to any en-US voice, then any English voice
+    return voices.find(v => v.lang === 'en-US')
+        || voices.find(v => v.lang.startsWith('en'))
+        || voices[0];
 }
 
-input.addEventListener('input', () => updateSuggestions(input.value));
-updateSuggestions('');   // show defaults on load
-
-// ── Input Handler ─────────────────────────────────────────────────────────────
-const LOCAL_CMDS = new Set(['clear','reset','help','status','config','models',
-                            'about','play pong','play breach','play wordle','monitor']);
-
-// Track pending reset confirmation
-let awaitingReset = false;
-
-input.addEventListener('keydown', (e) => {
-    // ↑/↓ command history
-    if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        if (!cmdHistory.length) return;
-        histIdx = Math.min(histIdx + 1, cmdHistory.length - 1);
-        input.value = cmdHistory[cmdHistory.length - 1 - histIdx];
-        updateSuggestions(input.value);
+function _buildVoiceOptions(sel) {
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices.length) {
+        sel.innerHTML = '<option value="">No voices available</option>';
         return;
     }
-    if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        if (histIdx <= 0) { histIdx = -1; input.value = ''; updateSuggestions(''); return; }
-        histIdx--;
-        input.value = cmdHistory[cmdHistory.length - 1 - histIdx];
-        updateSuggestions(input.value);
-        return;
-    }
-
-    // Tab completion
-    if (e.key === 'Tab') {
-        e.preventDefault();
-        const q = input.value.toLowerCase();
-        const match = ALL_CMDS.find(c => c.startsWith(q) && c.trim() !== q);
-        if (match) { input.value = match; updateSuggestions(input.value); }
-        return;
-    }
-
-    if (e.key !== 'Enter') return;
-    const cmd = input.value.trim();
-    if (!cmd) return;
-
-    cmdHistory.push(cmd);
-    histIdx = -1;
-    input.value = '';
-    updateSuggestions('');
-
-    const cmdLow = cmd.toLowerCase();
-
-    // ── clear — screen only, history preserved ────────────────────────────
-    if (cmdLow === 'clear') {
-        output.innerHTML = '';
-        return;
-    }
-
-    // ── reset — two-step confirmation before wiping history ───────────────
-    if (cmdLow === 'reset') {
-        printToTerminal(`root@nexus:~# ${cmd}`, 'user-cmd');
-        printToTerminal(
-            '[WARN] This will wipe your screen AND your entire AI conversation history.\n' +
-            'Type  reset confirm  to proceed, or anything else to cancel.',
-            'msg-warn'
-        );
-        awaitingReset = true;
-        return;
-    }
-
-    if (awaitingReset) {
-        awaitingReset = false;
-        if (cmdLow === 'reset confirm') {
-            output.innerHTML = '';
-            chatHistory.length = 0;
-            saveChatHistory();
-            printToTerminal('[OK] Terminal and conversation history wiped.', 'msg-ok');
-        } else {
-            printToTerminal('[INFO] Reset cancelled.', 'msg-info');
-        }
-        return;
-    }
-
-    // ── regular command ───────────────────────────────────────────────────
-    printToTerminal(`root@nexus:~# ${cmd}`, 'user-cmd');
-    chatHistory.push({ role: 'user', content: cmd });
-    saveChatHistory();
-    if (!LOCAL_CMDS.has(cmdLow)) showThinking();
-    sendTerm({ command: cmdLow, history: chatHistory.slice(-20) });
-});
-
-document.querySelectorAll('.action-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        const cmd = btn.getAttribute('data-cmd');
-        if (cmd === 'clear') {
-            output.innerHTML = '';
-        } else {
-            printToTerminal(`root@nexus:~# ${cmd}`, 'user-cmd');
-            sendTerm({ command: cmd.toLowerCase(), history: [] });
-            input.focus();
-        }
-        updateSuggestions('');
+    const saved = localStorage.getItem('nexus_tts_voice');
+    const list  = voices.filter(v => v.lang.startsWith('en'));
+    sel.innerHTML = '<option value="">— Auto (best available) —</option>';
+    (list.length ? list : voices).forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.name;
+        opt.textContent = `${v.name} (${v.lang})`;
+        sel.appendChild(opt);
     });
-});
-
-document.querySelector('.terminal-container').addEventListener('click', () => input.focus());
-
-// ── Geo-IP ────────────────────────────────────────────────────────────────────
-fetch('https://ipapi.co/json/')
-    .then(r => r.json())
-    .then(d => {
-        document.querySelector('.geo-stat').textContent =
-            `LOC: ${d.city || 'Unknown'}, ${d.country || 'World'}`;
-    }).catch(() => {
-        document.querySelector('.geo-stat').textContent = 'LOC: Unknown';
-    });
-
-// ── Trigger Handler ───────────────────────────────────────────────────────────
-// The backend embeds [TRIGGER:name] tags in responses. We strip them out and
-// act on them so they never appear as raw text in the terminal.
-function handleTriggers(text) {
-    const re = /\[TRIGGER:(\w+)\]/g;
-    let match;
-    let clean = text;
-
-    while ((match = re.exec(text)) !== null) {
-        clean = clean.replace(match[0], '').trim();
-        switch (match[1].toLowerCase()) {
-            case 'pong':          openGame('pong');    break;
-            case 'breach':        openGame('breach');  break;
-            case 'wordle':        openGame('wordle');  break;
-            case 'monitor':       openGame('monitor'); break;
-            case 'clear':         output.innerHTML = ''; break;
-            case 'accessibility': toggleA11yPanel();  break;
-        }
-    }
-
-    return clean;
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// GAME SYSTEM
-// ══════════════════════════════════════════════════════════════════════════════
-const gameOverlay = document.getElementById('game-overlay');
-const gameTitle   = document.getElementById('game-title');
-const gameContent = document.getElementById('game-content');
-const gameClose   = document.getElementById('game-close');
-const gameRestart = document.getElementById('game-restart');
-
-let currentGame  = null;
-let gameCleanup  = null;   // called when the current game is torn down
-
-gameClose.addEventListener('click', closeGame);
-gameRestart.addEventListener('click', () => { if (currentGame) openGame(currentGame); });
-
-// Escape closes the game
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !gameOverlay.classList.contains('hidden')) closeGame();
-});
-
-function openGame(name) {
-    // Tear down whatever was running before
-    if (gameCleanup) { gameCleanup(); gameCleanup = null; }
-
-    currentGame = name;
-    gameContent.innerHTML = '';
-    gameOverlay.classList.remove('hidden');
-
-    switch (name) {
-        case 'pong':    gameTitle.textContent = 'PONG';           initPong();    break;
-        case 'breach':  gameTitle.textContent = 'BREACH PROTOCOL'; initBreach(); break;
-        case 'wordle':  gameTitle.textContent = 'WORDLE';          initWordle(); break;
-        case 'monitor': gameTitle.textContent = 'SYSTEM MONITOR';  initMonitor();break;
+    // Set selection using sel.value — simpler and always works
+    if (saved) {
+        sel.value = saved;
+        if (!sel.value) { sel.value = ''; localStorage.removeItem('nexus_tts_voice'); }
+    } else {
+        const best = _pickBestVoice(list.length ? list : voices);
+        if (best) sel.value = best.name;
     }
 }
 
-function closeGame() {
-    if (gameCleanup) { gameCleanup(); gameCleanup = null; }
-    gameOverlay.classList.add('hidden');
-    gameContent.innerHTML = '';
-    currentGame = null;
-    input.focus();
+function clearAllHistory() {
+    if (!confirm("Wipe ALL conversation memory across ALL modes?")) return;
+    Object.values(HISTORY_KEYS).forEach(key => localStorage.removeItem(key));
+    messageHistory = [];
+    printToTerminal("[SYSTEM] Global memory wiped. All modes reset.", "sys-msg");
+    const p = document.getElementById('a11y-panel');
+    if (p) p.classList.remove('a11y-panel-open');
 }
-
-// ══════════════════════════════════════════════════════════════════════════════
-// PONG
-// ══════════════════════════════════════════════════════════════════════════════
-function initPong() {
-    const W = 520, H = 340;
-    const PAD_W = 10, PAD_H = 72, BALL_R = 8;
-    const WIN_SCORE = 5;
-
-    gameContent.innerHTML = `
-        <div class="game-score"><span id="p-score">0</span> : <span id="ai-score">0</span></div>
-        <canvas id="pong-canvas" width="${W}" height="${H}"></canvas>
-        <div class="game-msg">Mouse or ↑↓ to move · First to ${WIN_SCORE} wins · ↺ to restart</div>
-    `;
-
-    const canvas = document.getElementById('pong-canvas');
-    const ctx    = canvas.getContext('2d');
-
-    let playerY = H / 2 - PAD_H / 2;
-    let aiY     = H / 2 - PAD_H / 2;
-    let bx = W / 2, by = H / 2;
-    let dx = 4.5 * (Math.random() > 0.5 ? 1 : -1);
-    let dy = 3   * (Math.random() > 0.5 ? 1 : -1);
-    let pScore = 0, aiScore = 0;
-    let paused = true, winner = null;
-    let running = true;
-    let animId;
-
-    // Input
-    canvas.addEventListener('mousemove', (e) => {
-        const rect = canvas.getBoundingClientRect();
-        playerY = e.clientY - rect.top - PAD_H / 2;
-        playerY = Math.max(0, Math.min(H - PAD_H, playerY));
-    });
-
-    // Player must click to serve — never auto-starts
-    canvas.addEventListener('click', () => {
-        if (paused && !winner) paused = false;
-    });
-
-    const keys = {};
-    const onKey = (e) => {
-        if (gameOverlay.classList.contains('hidden')) return;
-        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') e.preventDefault();
-        keys[e.key] = (e.type === 'keydown');
-    };
-    document.addEventListener('keydown', onKey);
-    document.addEventListener('keyup',   onKey);
-
-    function resetBall() {
-        bx = W / 2; by = H / 2;
-        dx = 4.5 * (Math.random() > 0.5 ? 1 : -1);
-        dy = 3   * (Math.random() > 0.5 ? 1 : -1);
-        paused = true;
-        // No auto-resume — player clicks canvas to serve
-    }
-
-    function update() {
-        if (paused || winner || !running) return;
-
-        if (keys['ArrowUp'])   playerY = Math.max(0,           playerY - 6);
-        if (keys['ArrowDown']) playerY = Math.min(H - PAD_H,   playerY + 6);
-
-        // AI tracks ball with slight delay
-        const aiMid = aiY + PAD_H / 2;
-        const spd   = 3.8;
-        if (aiMid < by - 5) aiY = Math.min(H - PAD_H, aiY + spd);
-        else if (aiMid > by + 5) aiY = Math.max(0,    aiY - spd);
-
-        bx += dx; by += dy;
-
-        // Top / bottom bounce
-        if (by - BALL_R <= 0)  dy =  Math.abs(dy);
-        if (by + BALL_R >= H)  dy = -Math.abs(dy);
-
-        // Player paddle (left side: x 20–30)
-        if (bx - BALL_R <= 30 && bx - BALL_R >= 18 && by >= playerY && by <= playerY + PAD_H) {
-            dx = Math.abs(dx) * 1.05;
-            dy = ((by - playerY) / PAD_H - 0.5) * 9;
-        }
-
-        // AI paddle (right side)
-        if (bx + BALL_R >= W - 30 && bx + BALL_R <= W - 18 && by >= aiY && by <= aiY + PAD_H) {
-            dx = -Math.abs(dx) * 1.05;
-            dy = ((by - aiY) / PAD_H - 0.5) * 9;
-        }
-
-        // Speed cap
-        dx = Math.max(-10, Math.min(10, dx));
-        dy = Math.max(-9,  Math.min(9,  dy));
-
-        // Scoring
-        if (bx < 0) {
-            aiScore++;
-            document.getElementById('ai-score').textContent = aiScore;
-            if (aiScore >= WIN_SCORE) { winner = 'ai'; return; }
-            resetBall();
-        }
-        if (bx > W) {
-            pScore++;
-            document.getElementById('p-score').textContent = pScore;
-            if (pScore >= WIN_SCORE) { winner = 'player'; return; }
-            resetBall();
-        }
-    }
-
-    function draw() {
-        ctx.clearRect(0, 0, W, H);
-        ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, W, H);
-
-        // Centre dashes
-        ctx.setLineDash([8, 8]);
-        ctx.strokeStyle = '#1a1a2e';
-        ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.stroke();
-        ctx.setLineDash([]);
-
-        const glow = (color) => { ctx.shadowColor = color; ctx.shadowBlur = 12; };
-        const noGlow = () => { ctx.shadowBlur = 0; };
-
-        // Player paddle
-        glow('#0ff'); ctx.fillStyle = '#0ff';
-        ctx.fillRect(20, playerY, PAD_W, PAD_H);
-
-        // AI paddle
-        glow('#f0f'); ctx.fillStyle = '#f0f';
-        ctx.fillRect(W - 30, aiY, PAD_W, PAD_H);
-
-        // Ball
-        glow('#fff'); ctx.fillStyle = '#fff';
-        ctx.beginPath(); ctx.arc(bx, by, BALL_R, 0, Math.PI * 2); ctx.fill();
-        noGlow();
-
-        // Pause / serve screen — shown between points and on first launch
-        if (paused && !winner) {
-            ctx.fillStyle = 'rgba(0,0,0,0.55)';
-            ctx.fillRect(0, 0, W, H);
-            ctx.fillStyle = '#0ff';
-            ctx.font = 'bold 20px Fira Code, monospace';
-            ctx.textAlign = 'center';
-            ctx.shadowColor = '#0ff'; ctx.shadowBlur = 12;
-            ctx.fillText('CLICK TO SERVE', W / 2, H / 2 - 8);
-            ctx.shadowBlur = 0;
-            ctx.fillStyle = '#444';
-            ctx.font = '12px Fira Code, monospace';
-            ctx.fillText('or use ↑ ↓ to move', W / 2, H / 2 + 16);
-        }
-
-        // Game-over / winner screen — loop stops after this frame
-        if (winner) {
-            ctx.fillStyle = 'rgba(0,0,0,0.72)';
-            ctx.fillRect(0, 0, W, H);
-            ctx.fillStyle = winner === 'player' ? '#0ff' : '#f0f';
-            ctx.font = 'bold 30px Fira Code, monospace';
-            ctx.textAlign = 'center';
-            ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 18;
-            ctx.fillText(winner === 'player' ? 'YOU WIN!' : 'AI WINS', W / 2, H / 2 - 14);
-            ctx.shadowBlur = 0;
-            ctx.fillStyle = '#555';
-            ctx.font = '13px Fira Code, monospace';
-            ctx.fillText('Press  ↺  to play again', W / 2, H / 2 + 18);
-        }
-    }
-
-    function loop() {
-        if (!running) return;
-        update(); draw();
-        // Stop scheduling new frames once a winner is declared
-        if (!winner) animId = requestAnimationFrame(loop);
-    }
-
-    gameCleanup = () => {
-        running = false;
-        cancelAnimationFrame(animId);
-        document.removeEventListener('keydown', onKey);
-        document.removeEventListener('keyup',   onKey);
-    };
-
-    resetBall(); // sets paused = true, shows CLICK TO SERVE on first frame
-    loop();
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// BREACH PROTOCOL
-// ══════════════════════════════════════════════════════════════════════════════
-function initBreach() {
-    const GRID  = 5;
-    const BUF   = 6;
-    const SECS  = 30;
-    const POOL  = ['1C', 'E9', '55', 'BD', '7A', 'FF', '2B', 'CC', '44', 'A8'];
-    const NAMES = ['DATAMINE_V1', 'DATAMINE_V2', 'CRASH_SYS'];
-
-    const grid    = Array.from({ length: GRID }, () =>
-        Array.from({ length: GRID }, () => POOL[Math.floor(Math.random() * POOL.length)]));
-
-    const targets = [pickSeq(2), pickSeq(3), pickSeq(2)];
-
-    function pickSeq(len) {
-        return Array.from({ length: len }, () => POOL[Math.floor(Math.random() * POOL.length)]);
-    }
-
-    let buffer   = [];
-    let mode     = 'row';   // alternates: row → col → row …
-    let activeR  = 0;
-    let activeC  = 0;
-    let used     = new Set();
-    let timeLeft = SECS;
-    let dead     = false;
-    let timer;
-
-    // ── Build DOM
-    const targetsHTML = targets.map((t, i) => `
-        <div class="breach-target">
-            <span class="breach-target-label">${NAMES[i]}</span>
-            ${t.map((c, j) => `<span class="breach-code" id="bc-${i}-${j}">${c}</span>`).join('')}
-        </div>`).join('');
-
-    let gridHTML = `<div class="breach-grid" style="grid-template-columns:repeat(${GRID},1fr)">`;
-    for (let r = 0; r < GRID; r++)
-        for (let c = 0; c < GRID; c++)
-            gridHTML += `<div class="breach-cell" data-r="${r}" data-c="${c}" id="bc${r}-${c}">${grid[r][c]}</div>`;
-    gridHTML += '</div>';
-
-    const bufHTML = `<div class="breach-buffer">
-        <span class="breach-buffer-label">Buffer</span>
-        ${Array.from({ length: BUF }, (_, i) => `<div class="breach-buf-cell" id="bb-${i}"></div>`).join('')}
-    </div>`;
-
-    gameContent.innerHTML = `
-        <div class="breach-wrap">
-            <div class="breach-timer" id="btimer">${SECS}s</div>
-            <div class="breach-targets">${targetsHTML}</div>
-            <div class="breach-grid-label">Select in sequence — row then column alternating</div>
-            ${gridHTML}
-            ${bufHTML}
-            <div class="breach-status" id="bstatus">Select a code from the highlighted row</div>
-        </div>`;
-
-    document.querySelectorAll('.breach-cell').forEach(el => el.addEventListener('click', onCell));
-    highlight();
-
-    timer = setInterval(() => {
-        timeLeft--;
-        const el = document.getElementById('btimer');
-        if (el) { el.textContent = `${timeLeft}s`; if (timeLeft <= 10) el.classList.add('danger'); }
-        if (timeLeft <= 0) end(false, 'TIME OUT');
-    }, 1000);
-
-    gameCleanup = () => clearInterval(timer);
-
-    // ── Helpers
-    function highlight() {
-        document.querySelectorAll('.breach-cell').forEach(c => c.classList.remove('hi-row', 'hi-col'));
-        if (dead) return;
-        if (mode === 'row')
-            for (let c = 0; c < GRID; c++) cell(activeR, c)?.classList.add('hi-row');
-        else
-            for (let r = 0; r < GRID; r++) cell(r, activeC)?.classList.add('hi-col');
-    }
-
-    function cell(r, c) { return document.getElementById(`bc${r}-${c}`); }
-
-    function onCell(e) {
-        if (dead) return;
-        const r = +e.target.dataset.r, c = +e.target.dataset.c;
-        if (used.has(`${r},${c}`)) return;
-        if (mode === 'row' && r !== activeR) return;
-        if (mode === 'col' && c !== activeC) return;
-
-        const code = grid[r][c];
-        buffer.push(code);
-        const idx = buffer.length - 1;
-        if (idx < BUF) {
-            const bb = document.getElementById(`bb-${idx}`);
-            if (bb) { bb.textContent = code; bb.classList.add('filled'); }
-        }
-
-        used.add(`${r},${c}`);
-        e.target.classList.add('used');
-
-        if (mode === 'row') { mode = 'col'; activeC = c; }
-        else                { mode = 'row'; activeR = r; }
-
-        evalTargets();
-        if (!dead) {
-            if (buffer.length >= BUF) { end(false, 'Buffer full'); return; }
-            highlight();
-        }
-    }
-
-    function evalTargets() {
-        const bufStr = buffer.join(',');
-        let allDone = true;
-
-        targets.forEach((tgt, ti) => {
-            const tStr = tgt.join(',');
-            const done = bufStr.includes(tStr);
-            if (!done) allDone = false;
-
-            tgt.forEach((code, ci) => {
-                const el = document.getElementById(`bc-${ti}-${ci}`);
-                if (!el) return;
-                el.classList.remove('matched', 'partial');
-                if (done) {
-                    el.classList.add('matched');
-                } else {
-                    // Check if the end of the buffer partially matches the start of target
-                    for (let k = 1; k <= Math.min(ci + 1, buffer.length); k++) {
-                        const partial = buffer.slice(-k).join(',');
-                        const targetStart = tgt.slice(0, k).join(',');
-                        if (partial === targetStart && k === ci + 1) {
-                            el.classList.add('partial');
-                        }
-                    }
-                }
-            });
-        });
-
-        if (allDone) end(true, 'ACCESS GRANTED');
-    }
-
-    function end(success, msg) {
-        dead = true;
-        clearInterval(timer);
-        highlight(); // clears highlights
-        const st = document.getElementById('bstatus');
-        if (st) { st.textContent = msg; st.style.color = success ? '#4c4' : '#f55'; st.style.fontWeight = '700'; }
-        const tm = document.getElementById('btimer');
-        if (tm) tm.style.color = success ? '#4c4' : '#f55';
-        printToTerminal(success ? '[BREACH] ACCESS GRANTED — system compromised.' : `[BREACH] ${msg} — breach failed.`);
-    }
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// WORDLE
-// ══════════════════════════════════════════════════════════════════════════════
-function initWordle() {
-    const WORDS = [
-        'NEXUS','BYTES','PIXEL','CYBER','PATCH','QUERY','STACK','HEIST','PROXY',
-        'DRONE','LASER','GHOST','VAULT','FORGE','BLAZE','CRISP','FLAME','GLARE',
-        'PRIME','RAPID','SHARP','TRACK','ULTRA','VIVID','SWIFT','STONE','SPARK',
-        'SCOUT','BRACE','CRASH','FLARE','GRIND','BLEND','BRAVE','CLEAR','DRIFT',
-        'ELITE','FLINT','GRAND','HELIX','IONIC','JOUST','KNEEL','LUSTY','MAGIC',
-        'NOBLE','ORBIT','PLANK','QUOTA','RAVEN','SIGMA','TANGO','UMBRA','VAPOR',
-        'BRAKE','CLOUD','DEPTH','EMBER','FUSED','GROVE','HYPER','INPUT','JOINT',
-        'KARMA','LATCH','MIXED','NIGHT','OXIDE','PHASE','QUIET','REALM','SHADE',
-        'TOXIC','UNION','VIRGO','WATCH','XENON','YIELD','ZEALOT'[0]+'EALO'.slice(1),'ARMOR'
-    ].filter(w => w.length === 5);
-
-    const answer  = WORDS[Math.floor(Math.random() * WORDS.length)];
-    const ROWS = 6, COLS = 5;
-
-    let curRow = 0, curCol = 0;
-    const board = Array.from({ length: ROWS }, () => Array(COLS).fill(''));
-    let over = false;
-
-    const KB = [
-        ['Q','W','E','R','T','Y','U','I','O','P'],
-        ['A','S','D','F','G','H','J','K','L'],
-        ['ENTER','Z','X','C','V','B','N','M','⌫']
-    ];
-
-    // Build grid
-    let gridH = '<div class="wordle-grid">';
-    for (let r = 0; r < ROWS; r++) {
-        gridH += '<div class="wordle-row">';
-        for (let c = 0; c < COLS; c++) gridH += `<div class="wordle-cell" id="wc-${r}-${c}"></div>`;
-        gridH += '</div>';
-    }
-    gridH += '</div>';
-
-    // Build keyboard
-    let kbH = '<div class="wordle-keyboard">';
-    KB.forEach(row => {
-        kbH += '<div class="wordle-key-row">';
-        row.forEach(k => {
-            const wide = (k === 'ENTER' || k === '⌫') ? ' wide' : '';
-            kbH += `<button class="wordle-key${wide}" data-k="${k}">${k}</button>`;
-        });
-        kbH += '</div>';
-    });
-    kbH += '</div>';
-
-    gameContent.innerHTML = `
-        <div class="wordle-wrap">
-            <div class="wordle-msg" id="wm"></div>
-            ${gridH}
-            ${kbH}
-        </div>`;
-
-    document.querySelectorAll('.wordle-key').forEach(b => b.addEventListener('click', () => key(b.dataset.k)));
-
-    const physKey = (e) => {
-        if (gameOverlay.classList.contains('hidden')) return;
-        if (e.key === 'Enter')     { e.preventDefault(); key('ENTER'); }
-        else if (e.key === 'Backspace') key('⌫');
-        else if (/^[a-zA-Z]$/.test(e.key)) key(e.key.toUpperCase());
-    };
-    document.addEventListener('keydown', physKey);
-
-    gameCleanup = () => document.removeEventListener('keydown', physKey);
-
-    function cellEl(r, c) { return document.getElementById(`wc-${r}-${c}`); }
-    function msg(t)        { const el = document.getElementById('wm'); if (el) el.textContent = t; }
-
-    function key(k) {
-        if (over) return;
-        if (k === '⌫') {
-            if (curCol > 0) {
-                curCol--;
-                board[curRow][curCol] = '';
-                const el = cellEl(curRow, curCol);
-                el.textContent = '';
-                el.className = 'wordle-cell';
-            }
-        } else if (k === 'ENTER') {
-            if (curCol < COLS) { msg('Not enough letters'); return; }
-            submit();
-        } else if (/^[A-Z]$/.test(k) && curCol < COLS) {
-            board[curRow][curCol] = k;
-            const el = cellEl(curRow, curCol);
-            el.textContent = k;
-            el.className = 'wordle-cell active';
-            curCol++;
-        }
-    }
-
-    function submit() {
-        const guess  = board[curRow].join('');
-        const result = evaluate(guess);
-
-        result.forEach((cls, i) => {
-            setTimeout(() => {
-                const el = cellEl(curRow, i);
-                el.className = `wordle-cell ${cls}`;
-                updateKb(guess[i], cls);
-            }, i * 130);
-        });
-
-        const won = guess === answer;
-        const lastRow = curRow === ROWS - 1;
-
-        setTimeout(() => {
-            if (won) {
-                msg('Cracked! ');
-                over = true;
-                printToTerminal(`[WORDLE] CRACKED: ${answer}`);
-            } else if (lastRow) {
-                msg(`Answer: ${answer}`);
-                over = true;
-                printToTerminal(`[WORDLE] FAILED — word was: ${answer}`);
-            } else {
-                msg('');
-            }
-        }, COLS * 130 + 100);
-
-        curRow++;
-        curCol = 0;
-    }
-
-    function evaluate(guess) {
-        const ans  = answer.split('');
-        const g    = guess.split('');
-        const res  = Array(COLS).fill('absent');
-        const used = Array(COLS).fill(false);
-
-        for (let i = 0; i < COLS; i++) {
-            if (g[i] === ans[i]) { res[i] = 'correct'; used[i] = true; }
-        }
-        for (let i = 0; i < COLS; i++) {
-            if (res[i] === 'correct') continue;
-            for (let j = 0; j < COLS; j++) {
-                if (!used[j] && g[i] === ans[j]) { res[i] = 'present'; used[j] = true; break; }
-            }
-        }
-        return res;
-    }
-
-    const kbState = {};
-    const PRIO = { correct: 3, present: 2, absent: 1 };
-
-    function updateKb(letter, cls) {
-        const btn = document.querySelector(`.wordle-key[data-k="${letter}"]`);
-        if (!btn) return;
-        if (!kbState[letter] || PRIO[cls] > PRIO[kbState[letter]]) {
-            kbState[letter] = cls;
-            btn.className = `wordle-key ${cls}`;
-        }
-    }
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// SYSTEM MONITOR GRAPH
-// ══════════════════════════════════════════════════════════════════════════════
-function initMonitor() {
-    const W = 480, H = 220;
-    const cpuH = Array(60).fill(0);
-    const memH = Array(60).fill(0);
-    let running = true;
-
-    gameContent.innerHTML = `
-        <canvas id="monitor-canvas" width="${W}" height="${H}"></canvas>
-        <div class="game-msg">Live CPU <span style="color:#0ff">■</span> and Memory <span style="color:#f0f">■</span> — past 60 s</div>`;
-
-    const canvas = document.getElementById('monitor-canvas');
-    const ctx    = canvas.getContext('2d');
-
-    function draw() {
-        ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, W, H);
-
-        // Grid lines
-        ctx.strokeStyle = '#111';
-        ctx.lineWidth   = 1;
-        ctx.setLineDash([3, 4]);
-        for (let y = 0; y <= 100; y += 25) {
-            const py = H - (y / 100) * H;
-            ctx.beginPath(); ctx.moveTo(30, py); ctx.lineTo(W, py); ctx.stroke();
-            ctx.fillStyle = '#333';
-            ctx.font = '10px monospace';
-            ctx.fillText(`${y}%`, 2, py + 4);
-        }
-        ctx.setLineDash([]);
-
-        function line(data, color) {
-            ctx.strokeStyle = color; ctx.lineWidth = 2;
-            ctx.shadowColor = color; ctx.shadowBlur = 6;
-            ctx.beginPath();
-            data.forEach((v, i) => {
-                const x = 30 + (i / (data.length - 1)) * (W - 30);
-                const y = H  - (v / 100) * H;
-                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-            });
-            ctx.stroke();
-            ctx.shadowBlur = 0;
-        }
-
-        line(cpuH, '#0ff');
-        line(memH, '#f0f');
-    }
-
-    const iv = setInterval(() => {
-        if (!running) return;
-        cpuH.push(parseFloat(cpuStat.textContent) || 0); cpuH.shift();
-        memH.push(parseFloat(memStat.textContent) || 0); memH.shift();
-        draw();
-    }, 1000);
-
-    draw();
-    gameCleanup = () => { running = false; clearInterval(iv); };
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// ACCESSIBILITY
-// ══════════════════════════════════════════════════════════════════════════════
-const a11yPanel = document.getElementById('a11y-panel');
-const a11yBtn   = document.getElementById('a11y-btn');
-
-a11yBtn.addEventListener('click', toggleA11yPanel);
-document.getElementById('a11y-sidebar-btn').addEventListener('click', toggleA11yPanel);
-
-// Model badge — click to list models in terminal
-document.getElementById('model-badge').addEventListener('click', () => {
-    printToTerminal('root@nexus:~# models', 'user-cmd');
-    sendTerm({ command: 'models', history: [] });
-    input.focus();
-});
-
-// Image generation button — prompt user for a description then send command
-document.getElementById('image-prompt-btn').addEventListener('click', () => {
-    const desc = window.prompt('Describe the image you want to generate:');
-    if (!desc || !desc.trim()) return;
-    const cmd = `image ${desc.trim()}`;
-    printToTerminal(`root@nexus:~# ${cmd}`, 'user-cmd');
-    sendTerm({ command: cmd, history: [] });
-    input.focus();
-});
-document.getElementById('a11y-close').addEventListener('click', () => a11yPanel.classList.add('hidden'));
 
 function toggleA11yPanel() {
-    a11yPanel.classList.toggle('hidden');
+    const panel = document.getElementById('a11y-panel');
+    if (panel) {
+        panel.classList.toggle('a11y-panel-open');
+        // Re-populate voices each open (Chrome loads them async after first gesture)
+        if (panel.classList.contains('a11y-panel-open')) {
+            const sel = panel.querySelector('#a11y-voice-sel');
+            if (sel) _buildVoiceOptions(sel);
+        }
+        return;
+    }
+
+    const el = document.createElement('div');
+    el.id = 'a11y-panel';
+    el.className = 'a11y-panel a11y-panel-open';
+    el.innerHTML = `
+        <div class="a11y-panel-header">
+            <span>[ ACCESSIBILITY ]</span>
+            <button onclick="document.getElementById('a11y-panel').classList.remove('a11y-panel-open')" class="a11y-close">✕</button>
+        </div>
+
+        <div class="a11y-section-label">AI CONTEXT</div>
+        <div class="a11y-row">
+            <button class="a11y-toggle" style="border-color:#f55;color:#f55;" onclick="clearAllHistory()">CLEAR AI MEMORY</button>
+        </div>
+
+        <div class="a11y-section-label">VISUALS</div>
+        <div class="a11y-row">
+            <button class="a11y-toggle" data-class="crt-mode" onclick="toggleA11yClass('crt-mode')">CRT Mode</button>
+            <button class="a11y-toggle" id="sound-toggle" onclick="toggleSound()">Sound Effects</button>
+        </div>
+
+        <div class="a11y-section-label">TEXT SIZE</div>
+        <div class="a11y-row">
+            <button class="a11y-toggle" data-class="a11y-large" onclick="toggleA11yClass('a11y-large')">Large</button>
+            <button class="a11y-toggle" data-class="a11y-xl"    onclick="toggleA11yClass('a11y-xl')">Extra Large</button>
+        </div>
+
+        <div class="a11y-section-label">TEXT STYLE</div>
+        <div class="a11y-row">
+            <button class="a11y-toggle" data-class="a11y-bold"         onclick="toggleA11yClass('a11y-bold')">Bold</button>
+            <button class="a11y-toggle" data-class="a11y-wide-spacing" onclick="toggleA11yClass('a11y-wide-spacing')">Wide Spacing</button>
+        </div>
+        <div class="a11y-row">
+            <button class="a11y-toggle" data-class="a11y-dyslexic" onclick="toggleA11yClass('a11y-dyslexic')">Dyslexia Font</button>
+        </div>
+
+        <div class="a11y-section-label">DISPLAY</div>
+        <div class="a11y-row">
+            <button class="a11y-toggle" data-class="a11y-high-contrast" onclick="toggleA11yClass('a11y-high-contrast')">High Contrast</button>
+            <button class="a11y-toggle" data-class="a11y-dim"           onclick="toggleA11yClass('a11y-dim')">Dim Mode</button>
+        </div>
+        <div class="a11y-row">
+            <button class="a11y-toggle" data-class="a11y-reduce-motion" onclick="toggleA11yClass('a11y-reduce-motion')">Less Motion</button>
+        </div>
+
+        <div class="a11y-section-label">VOICE (speak command)</div>
+        <select id="a11y-voice-sel" class="a11y-voice-sel">
+            <option value="">Loading voices…</option>
+        </select>
+
+        <div class="a11y-tip">All settings saved automatically.</div>
+    `;
+    document.querySelector('.glass-panel').appendChild(el);
+    _a11ySyncButtons();
+
+    // Populate voice picker — voices load async in Chrome
+    const sel = el.querySelector('#a11y-voice-sel');
+    const doPopulate = () => _buildVoiceOptions(sel);
+    if (window.speechSynthesis.getVoices().length) {
+        doPopulate();
+    } else {
+        window.speechSynthesis.addEventListener('voiceschanged', doPopulate, { once: true });
+    }
+
+    sel.addEventListener('change', () => {
+        if (sel.value) localStorage.setItem('nexus_tts_voice', sel.value);
+        else           localStorage.removeItem('nexus_tts_voice');
+    });
 }
 
-// Option group buttons
-document.querySelectorAll('.a11y-opt').forEach(btn => {
-    btn.addEventListener('click', () => {
-        const group = btn.dataset.group;
-        const val   = btn.dataset.value;
-
-        document.querySelectorAll(`.a11y-opt[data-group="${group}"]`).forEach(b => {
-            b.classList.remove('active');
-            document.body.classList.remove(b.dataset.value);
-        });
-
-        btn.classList.add('active');
-        document.body.classList.add(val);
-        localStorage.setItem(`a11y-${group}`, val);
-    });
-});
-
-// Reduce-motion toggle
-document.getElementById('reduce-motion').addEventListener('change', (e) => {
-    document.body.classList.toggle('reduce-motion', e.target.checked);
-    localStorage.setItem('a11y-motion', e.target.checked ? '1' : '0');
-});
-
-// Restore saved preferences on load
-(function restoreA11y() {
-    const defaults = { size: 'size-s', font: 'font-mono', theme: 'theme-cyber', spacing: 'space-n' };
-
-    Object.entries(defaults).forEach(([group, def]) => {
-        const saved = localStorage.getItem(`a11y-${group}`) || def;
-
-        // Clear all group values from body, then apply saved
-        document.querySelectorAll(`.a11y-opt[data-group="${group}"]`).forEach(b => {
-            b.classList.remove('active');
-            document.body.classList.remove(b.dataset.value);
-        });
-
-        const btn = document.querySelector(`.a11y-opt[data-group="${group}"][data-value="${saved}"]`);
-        if (btn) { btn.classList.add('active'); document.body.classList.add(saved); }
-    });
-
-    const motionOn = localStorage.getItem('a11y-motion') === '1';
-    document.getElementById('reduce-motion').checked = motionOn;
-    document.body.classList.toggle('reduce-motion', motionOn);
-})();
-
+// Restore on load
+_a11yRestore();
