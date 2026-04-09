@@ -17,8 +17,7 @@ const EVIL_PROXY = 'https://nexus-evil-proxy.xavierscott300.workers.dev';
 // --- State ---
 let termWs;
 let messageHistory = [];
-let cmdHistory = [];
-try { cmdHistory = JSON.parse(localStorage.getItem('nexus_cmd_history') || '[]'); } catch(_) { cmdHistory = []; }
+let cmdHistory = JSON.parse(localStorage.getItem('nexus_cmd_history') || '[]');
 let historyIndex = -1;
 let currentMode = localStorage.getItem('nexus_mode') || 'nexus';
 
@@ -177,6 +176,15 @@ setTimeout(async () => {
 
 // ... (stats variables) ...
 
+const cpuStat      = document.getElementById('cpu-stat');
+const memStat      = document.getElementById('mem-stat');
+const output       = document.getElementById('terminal-output');
+const input        = document.getElementById('terminal-input');
+const guiContainer = document.getElementById('game-gui-container');
+const guiContent   = document.getElementById('gui-content');
+const guiTitle     = document.getElementById('gui-title');
+const nexusCanvas  = document.getElementById('nexus-canvas');
+
 let monitorInterval;
 let cpuData = [];
 let cpuHistory = [], memHistory = [], netHistory = [];
@@ -286,7 +294,7 @@ function runBootSequence(callback) {
     function step() {
         if (i >= BOOT_WORDS.length) { callback(); return; }
         const w = BOOT_WORDS[i++];
-        printToTerminal(w.text, 'sys-msg');
+        printToTerminal(`[${w.label}] ${w.text}`, 'sys-msg');
         setTimeout(step, 200);
     }
     step();
@@ -2879,14 +2887,13 @@ input.addEventListener('keydown', (e) => {
     const lc = cmd.toLowerCase();
     const pl = document.getElementById('prompt-label')?.textContent || 'guest@nexus:~$';
 
-    // Core Commands
-    if (lc === 'clear') {
-        output.innerHTML = ''; 
-        messageHistory = []; 
-        pendingImageB64 = null; 
-        localStorage.removeItem(HISTORY_KEYS[currentMode]); 
-        return; 
+    // Typing test intercept
+    if (typeTestActive) {
+        const done = checkTypingTest(cmd);
+        if (!done) return;
+        return;
     }
+    if (lc === 'clear')               { output.innerHTML = ''; messageHistory = []; pendingImageB64 = null; localStorage.removeItem(HISTORY_KEYS[currentMode]); return; }
     if (lc === 'history')             { showHistory(); return; }
     if (lc === 'help')                { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); showHelp(); return; }
     if (lc === 'whoami')              { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); runWhoami(); return; }
@@ -2906,7 +2913,6 @@ input.addEventListener('keydown', (e) => {
         cmd = 'Describe and analyze this image in detail. What do you see?';
     }
     
-    // Modes
     if (lc === 'evil')  {
         if (currentMode === 'evil') { setMode('nexus'); return; }
         evilAgeGate(() => setMode('evil'));
@@ -2924,15 +2930,18 @@ input.addEventListener('keydown', (e) => {
         printToTerminal(`[SYS] ${currentMode.toUpperCase()} history wiped.`, 'sys-msg');
         return;
     }
+    if (lc === 'clear') {
+        output.innerHTML = '';
+        messageHistory = [];
+        return;
+    }
 
-    // Games & Tools
     if (lc === 'play pong')           { startPong(); return; }
     if (lc === 'play snake')          { startSnake(); return; }
     if (lc === 'play wordle')         { startWordle(); return; }
     if (lc === 'play minesweeper')    { startMinesweeper(); return; }
     if (lc === 'play flappy')         { startFlappy(); return; }
     if (lc === 'play breakout')       { startBreakout(); return; }
-    if (lc === 'play invaders')       { startInvaders(); return; }
     if (lc === 'type test' || lc === 'typetest') { startTypingTest(); return; }
     if (lc === 'matrix')              { startMatrixSaver(); return; }
     if (lc === 'monitor')             { startMonitor(); return; }
@@ -3015,33 +3024,42 @@ input.addEventListener('keydown', (e) => {
 document.querySelectorAll('.action-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         const cmd = btn.getAttribute('data-cmd');
-        const pl = document.getElementById('prompt-label')?.textContent || 'guest@nexus:~$';
-        const lc = cmd.toLowerCase();
-
-        // 1. NON-AI Commands (no thinking, no proxy)
-        if (lc === 'clear') {
-            output.innerHTML = ''; messageHistory = []; localStorage.removeItem(HISTORY_KEYS[currentMode]); return;
+        const promptLabel = document.getElementById('prompt-label')?.textContent || 'guest@nexus:~$';
+        if (cmd === 'clear history') { 
+            printToTerminal(`${promptLabel} clear history`, 'user-cmd');
+            localStorage.removeItem(HISTORY_KEYS[currentMode]); 
+            messageHistory = []; 
+            printToTerminal(`[SYS] ${currentMode.toUpperCase()} history wiped.`, 'sys-msg');
+            input.focus();
+            return;
         }
-        if (lc === 'help')             { printToTerminal(`${pl} help`, 'user-cmd'); showHelp(); input.focus(); return; }
-        if (lc === 'whoami')           { printToTerminal(`${pl} whoami`, 'user-cmd'); runWhoami(); input.focus(); return; }
-        if (lc === 'neofetch')         { printToTerminal(`${pl} neofetch`, 'user-cmd'); runNeofetch(); input.focus(); return; }
-        if (lc === 'leaderboard')      { printToTerminal(`${pl} leaderboard`, 'user-cmd'); showLeaderboard(); input.focus(); return; }
-        if (lc === 'play pong')        { startPong(); return; }
-        if (lc === 'play snake')       { startSnake(); return; }
-        if (lc === 'play wordle')      { startWordle(); return; }
-        if (lc === 'play minesweeper') { startMinesweeper(); return; }
-        if (lc === 'play flappy')      { startFlappy(); return; }
-        if (lc === 'play breakout')    { startBreakout(); return; }
-        if (lc === 'play invaders')    { startInvaders(); return; }
-        if (lc === 'type test')        { startTypingTest(); return; }
-        if (lc === 'matrix')           { startMatrixSaver(); return; }
-        if (lc === 'monitor')          { startMonitor(); return; }
+        if (cmd === 'clear')            { output.innerHTML = ''; messageHistory = []; localStorage.removeItem(HISTORY_KEYS[currentMode]); return; }
+        if (cmd === 'help')             { printToTerminal(`${promptLabel} help`, 'user-cmd'); showHelp(); input.focus(); return; }
+        if (cmd === 'whoami')           { printToTerminal(`${promptLabel} whoami`, 'user-cmd'); runWhoami(); input.focus(); return; }
+        if (cmd === 'neofetch')         { printToTerminal(`${promptLabel} neofetch`, 'user-cmd'); runNeofetch(); input.focus(); return; }
+        if (cmd === 'play pong')        { startPong(); return; }
+        if (cmd === 'play snake')       { startSnake(); return; }
+        if (cmd === 'play wordle')      { startWordle(); return; }
+        if (cmd === 'play minesweeper') { startMinesweeper(); return; }
+        if (cmd === 'play flappy')      { startFlappy(); return; }
+        if (cmd === 'play breakout')    { startBreakout(); return; }
+        if (cmd === 'type test')        { startTypingTest(); return; }
+        if (cmd === 'matrix')           { startMatrixSaver(); return; }
+        if (cmd === 'monitor')          { startMonitor(); return; }
 
-        // 2. AI Commands
-        printToTerminal(`${pl} ${cmd}`, 'user-cmd');
+        printToTerminal(`${promptLabel} ${cmd}`, 'user-cmd');
 
         if (isCreatorQuestion(cmd)) { showCreatorResponse(); input.focus(); return; }
         if (isContactQuestion(cmd))  { showContactResponse();  input.focus(); return; }
+
+        // Image generation works in ALL modes
+        const genMatchBtn = cmd.match(/^(?:generate|imagine|draw|create image of|make image of|vintage)\s+(.+)/i);
+        if (genMatchBtn) {
+            const isVintageBtn = /^vintage\s/i.test(cmd);
+            generateImage(isVintageBtn ? cmd.trim() : genMatchBtn[1].trim());
+            input.focus();
+            return;
+        }
 
         const snap = pendingImageB64;
         pendingImageB64 = null;
@@ -3245,6 +3263,7 @@ setInterval(updateClientStats, 5000);
 // =============================================================
 //  ACCESSIBILITY
 // =============================================================
+
 const A11Y_CLASSES = ['a11y-large', 'a11y-xl', 'a11y-high-contrast', 'a11y-reduce-motion', 'a11y-dyslexic', 'a11y-wide-spacing', 'a11y-bold', 'a11y-dim', 'crt-mode'];
 
 function _a11ySave() {
@@ -3341,6 +3360,15 @@ function _buildVoiceOptions(sel) {
     }
 }
 
+function clearAllHistory() {
+    if (!confirm("Wipe ALL conversation memory across ALL modes?")) return;
+    Object.values(HISTORY_KEYS).forEach(key => localStorage.removeItem(key));
+    messageHistory = [];
+    printToTerminal("[SYSTEM] Global memory wiped. All modes reset.", "sys-msg");
+    const p = document.getElementById('a11y-panel');
+    if (p) p.classList.remove('a11y-panel-open');
+}
+
 function toggleA11yPanel() {
     const panel = document.getElementById('a11y-panel');
     if (panel) {
@@ -3422,66 +3450,5 @@ function toggleA11yPanel() {
     });
 }
 
-// =============================================================
-//  RESTORE & BOOT
-// =============================================================
-
-// Global variables initialized on load
-let cpuStat, memStat, output, input, guiContainer, guiContent, guiTitle, nexusCanvas;
-
-// Global Boot
-window.onload = async () => {
-    console.log("[NEXUS] System Booting...");
-
-    // Initialize DOM references
-    cpuStat      = document.getElementById('cpu-stat');
-    memStat      = document.getElementById('mem-stat');
-    output       = document.getElementById('terminal-output');
-    input        = document.getElementById('terminal-input');
-    guiContainer = document.getElementById('game-gui-container');
-    guiContent   = document.getElementById('gui-content');
-    guiTitle     = document.getElementById('gui-title');
-    nexusCanvas  = document.getElementById('nexus-canvas');
-
-    if (!input || !output) {
-        console.error("[NEXUS] Critical UI elements missing. Check index.html.");
-        return;
-    }
-
-    // Restore saved mode (UI only)
-    if (currentMode !== 'nexus') {
-        const m = MODES[currentMode];
-        if (m) {
-            const promptLabelEl = document.getElementById('prompt-label');
-            const statusTitleEl = document.getElementById('status-title');
-            const modeIndEl     = document.getElementById('mode-indicator');
-            if (promptLabelEl) promptLabelEl.textContent = m.prompt;
-            if (statusTitleEl) statusTitleEl.textContent = m.title;
-            if (modeIndEl)     modeIndEl.textContent     = m.label;
-            if (m.color) {
-                document.documentElement.style.setProperty('--accent', m.color);
-                document.documentElement.style.setProperty('--txt-color', m.color);
-            }
-            document.querySelectorAll('.mode-btn').forEach(b => {
-                b.classList.toggle('active', b.dataset.mode === currentMode);
-            });
-        }
-    }
-
-    // Restore current mode's history
-    const _savedHistory = loadHistory(currentMode);
-    if (_savedHistory.length) {
-        messageHistory = _savedHistory;
-        setTimeout(() => {
-            const col = MODE_COLORS[currentMode] || '#0ff';
-            printToTerminal(`[SYS] ${_savedHistory.length} ${currentMode.toUpperCase()} messages restored from last session.`, 'sys-msg');
-        }, 2000);
-    }
-
-    _a11yRestore();
-    connectWS();
-    connectStats();
-    updateClientStats();
-    setInterval(updateClientStats, 5000);
-    console.log("[NEXUS] Core services established.");
-};
+// Restore on load
+_a11yRestore();
