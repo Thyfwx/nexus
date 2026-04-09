@@ -437,12 +437,23 @@ async function showLeaderboard(game = 'pong') {
     try {
         const resp = await fetch(`${API_BASE}/api/leaderboard?game=${game}`);
         const scores = await resp.json();
+        
+        const games = ['pong', 'snake_easy', 'snake_endless', 'snake_speed', 'wordle', 'breakout', 'invaders'];
+        let html = `<div style="margin-bottom:10px; display:flex; gap:6px; flex-wrap:wrap;">`;
+        games.forEach(g => {
+            const label = g.split('_')[0].toUpperCase();
+            const isActive = g === game;
+            html += `<button onclick="showLeaderboard('${g}')" style="background:${isActive?'rgba(0,255,255,0.1)':'transparent'}; border:1px solid ${isActive?'#0ff':'#333'}; color:${isActive?'#0ff':'#555'}; padding:3px 8px; font-size:10px; cursor:pointer; font-family:inherit;">${label}</button>`;
+        });
+        html += `</div>`;
+
         if (!scores || !scores.length) {
-            printToTerminal(`No data for ${game}. Be the first to set a score!`, 'sys-msg');
+            html += `<p style="color:#555; font-size:11px; letter-spacing:1px;">NO DATA LOGGED FOR ${game.toUpperCase()}.</p>`;
+            printToTerminal(html, 'help-msg');
             return;
         }
         
-        let html = `<table class="leaderboard-table"><tr><th>RANK</th><th>NAME</th><th>SCORE</th></tr>`;
+        html += `<table class="leaderboard-table"><tr><th>RANK</th><th>NAME</th><th>SCORE</th></tr>`;
         scores.forEach((s, i) => {
             const rankIcon = i < 3 ? `<span class="medal">${MEDALS[i]}</span>` : `<span class="rank-num">${i + 1}</span>`;
             const avatar = s.picture 
@@ -454,7 +465,7 @@ async function showLeaderboard(game = 'pong') {
                     <td>${rankIcon}</td>
                     <td class="rank-player">
                         ${avatar}
-                        ${escHtml(s.name)}
+                        <span style="font-weight:600;">${escHtml(s.name)}</span>
                     </td>
                     <td class="rank-score">${Number(s.score).toLocaleString()}</td>
                 </tr>`;
@@ -463,9 +474,11 @@ async function showLeaderboard(game = 'pong') {
         printToTerminal(html, 'help-msg');
     } catch (e) {
         console.error("Leaderboard error:", e);
-        printToTerminal("[ERR] Leaderboard offline or unavailable.", "sys-msg");
+        printToTerminal("[ERR] Leaderboard data-link severed. Backend offline.", "sys-msg");
     }
 }
+
+window.showLeaderboard = showLeaderboard;
 
 // =============================================================
 //  TYPEWRITER EFFECT FOR AI RESPONSES
@@ -3225,7 +3238,13 @@ input.addEventListener('keydown', (e) => {
     if (lc === 'help')                { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); showHelp(); return; }
     if (lc === 'whoami')              { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); runWhoami(); return; }
     if (lc === 'neofetch')            { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); runNeofetch(); return; }
-    if (lc === 'leaderboard')         { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); showLeaderboard(); return; }
+    if (lc === 'leaderboard' || lc === 'rankings') { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); showLeaderboard(); return; }
+    if (lc === 'login' || lc === 'signin') {
+        printToTerminal(`${pl} ${cmd}`, 'user-cmd');
+        printToTerminal("[AUTH] Triggering Google Identity prompt...", "sys-msg");
+        google.accounts.id.prompt();
+        return;
+    }
     if (lc.startsWith('name ')) {
         const newName = cmd.slice(5).trim().slice(0, 15);
         if (newName) {
