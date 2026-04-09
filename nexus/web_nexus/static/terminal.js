@@ -1879,7 +1879,7 @@ function launchBreakout(difficulty) {
     const PH = 10, BR = 7;
     const BW = 43, BH = 16, BCOLS = 8, BROWS = 5;
     const BCOLORS = ['#f0f','#f55','#f80','#ff0','#0f0'];
-    let paddle = 165, currentPW = d.PW;
+    let paddle = 165;
     // Ball system — supporting Multi-ball
     let balls = [{ x: 200, y: 230, vx: d.startVX, vy: d.startVY }];
     // Power-up system
