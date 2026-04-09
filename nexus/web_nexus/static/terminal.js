@@ -1022,7 +1022,7 @@ function launchPong(difficulty) {
 
         ctx.textAlign = 'center';
         ctx.fillStyle = borderCol; ctx.font = 'bold 30px monospace';
-        ctx.fillText(playerWon ? 'YOU WIN!' : 'GAME OVER', 200, 118);
+        ctx.fillText(playerWon ? 'VICTORY' : 'DEFEATED', 200, 118);
         ctx.fillStyle = '#fff'; ctx.font = '15px monospace';
         ctx.fillText(`${pScore}  —  ${aScore}`, 200, 150);
         ctx.fillStyle = '#555'; ctx.font = '12px monospace';
@@ -1573,15 +1573,25 @@ function startInvaders() {
             ctx.fillText(`THREAT LEVEL: ${wave}`, 320, 20);
             ctx.fillText(`DATA RECOVERED: ${score}`, 10, 350);
         } else {
-            ctx.fillStyle = 'rgba(255,0,0,0.3)'; ctx.fillRect(0,0,400,360);
-            ctx.fillStyle = '#f44'; ctx.font = 'bold 32px monospace';
-            ctx.textAlign = 'center'; ctx.fillText('SYSTEM BREACHED', 200, 160);
+            // SYSTEM BREACHED - PROPER END SCREEN
+            ctx.fillStyle = 'rgba(255,0,0,0.4)'; ctx.fillRect(0,0,400,360);
+            ctx.strokeStyle = '#f44'; ctx.lineWidth = 2; ctx.strokeRect(50, 100, 300, 120);
+            
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#f44'; ctx.font = 'bold 28px monospace';
+            ctx.fillText('SYSTEM BREACHED', 200, 145);
+            
             ctx.fillStyle = '#fff'; ctx.font = '14px monospace';
-            ctx.fillText(`Packets Leaked: ${score}`, 200, 190);
-            ctx.fillText('CLICK to restore backup', 200, 230);
+            ctx.fillText(`DATA RECOVERED: ${score}`, 200, 175);
+            
+            ctx.fillStyle = '#0ff'; ctx.font = '11px monospace';
+            ctx.fillText('CLICK TO RESTORE UPLINK', 200, 205);
             ctx.textAlign = 'left';
-            if (score > 0) submitScore('invaders', score);
-            showLeaderboard('invaders');
+            
+            if (score > 0 && !nexusCanvas.onclick) { 
+                submitScore('invaders', score);
+                nexusCanvas.onclick = () => { nexusCanvas.onclick = null; startInvaders(); };
+            }
         }
 
         ctx.restore();
@@ -1855,6 +1865,7 @@ function launchBreakout(difficulty) {
     const d = DIFFS[difficulty] || DIFFS.medium;
 
     breakoutActive = true;
+    let currentPW = d.PW;
     guiContent.innerHTML = `
         <div style="display:flex;justify-content:space-between;padding:0 10px 4px;font-size:0.72rem;">
             <span style="color:#0ff;">Score: <b id="brk-score">0</b></span>
@@ -2555,47 +2566,24 @@ function stopAllGames() {
     typeTestActive = false;
     clearInterval(typeTimerInterval);
     clearInterval(monitorInterval);
+    
+    // Clear any persistent canvas handlers
+    nexusCanvas.onclick = null;
+    nexusCanvas.onmousedown = null;
+    nexusCanvas.onmousemove = null;
 }
 
 // =============================================================
 //  GOOGLE AUTHENTICATION
 // =============================================================
 function initGoogleAuth() {
-    if (typeof google === 'undefined') {
-        console.warn("[AUTH] Google Identity Services not loaded yet. Retrying...");
-        setTimeout(initGoogleAuth, 1000);
-        return;
-    }
-    console.log("[AUTH] Initializing Google Auth...");
-    google.accounts.id.initialize({
-        client_id: "616205887439-s1l0out61vlu0l81307q9g64oai3gnur.apps.googleusercontent.com", 
-        callback: handleCredentialResponse,
-        auto_select: true,
-        cancel_on_tap_outside: false
-    });
-    
-    // 1. Render the explicit button
-    const btn = document.getElementById('google-signin-btn');
-    if (btn) {
-        google.accounts.id.renderButton(btn, { 
-            theme: 'outline', 
-            size: 'medium', 
-            text: 'signin_with',
-            shape: 'rectangular',
-            logo_alignment: 'left'
-        });
-    }
-
-    // 2. Trigger the "One Tap" prompt automatically
-    google.accounts.id.prompt((notification) => {
-        if (notification.isNotDisplayed()) {
-            console.log("[AUTH] One Tap not displayed:", notification.getNotDisplayedReason());
-        }
-    });
+    // The button is now rendered automatically via HTML data attributes in index.html
+    // We just need to make sure the callback is available.
+    console.log("[AUTH] System monitoring for Google Identity callbacks...");
 }
 
 async function handleCredentialResponse(response) {
-    printToTerminal("[AUTH] Validating credentials...", "sys-msg");
+    console.log("[AUTH] Received Google Credential. Validating with backend...");
     try {
         const res = await fetch(`${API_BASE}/auth/google`, {
             method: 'POST',
@@ -2605,14 +2593,48 @@ async function handleCredentialResponse(response) {
         const data = await res.json();
         if (data.ok) {
             localStorage.setItem('nexus_user_data', JSON.stringify(data));
-            printToTerminal(`[OK] Uplink synchronized: Welcome, ${data.name}.`, 'conn-ok');
-            
-            // REMOVE GUEST: Update UI instantly
-            updateUserIdentity(data.name);
-            initGoogleAuth(); 
+            revealTerminal(data.name);
         }
-    } catch(e) { console.error("Auth failed:", e); }
+    } catch(e) { 
+        console.error("Auth failed:", e);
+        printToTerminal("[ERR] Authentication uplink failed. Check connection.", "sys-msg");
+    }
 }
+
+// Expose callback globally for GSI library
+window.handleCredentialResponse = handleCredentialResponse;
+
+function logout() {
+    if (!confirm("Terminate secure uplink and sign out?")) return;
+    localStorage.removeItem('nexus_user_data');
+    location.reload(); 
+}
+
+function revealTerminal(name) {
+    const overlay = document.getElementById('auth-screen');
+    const monitor = document.getElementById('main-monitor');
+    const terms   = document.getElementById('terms-modal');
+    if (overlay) overlay.style.display = 'none';
+    if (monitor) monitor.style.display = 'flex';
+    if (terms)   terms.style.display   = 'none';
+    document.body.classList.remove('auth-locked');
+    
+    if (name) updateUserIdentity(name);
+    
+    // Log the successful entry / agreement to Discord
+    logPrompt(`[PROTOCOL] User '${name}' acknowledged Terms of Access and established uplink.`);
+    
+    // Start core loops
+    connectWS();
+    connectStats();
+    updateClientStats();
+    setInterval(updateClientStats, 5000);
+    
+    printToTerminal(`[AUTH] Identity Verified: ${name}. Uplink established.`, 'conn-ok');
+}
+
+window.showTerms = () => { document.getElementById('terms-modal').style.display = 'flex'; };
+window.hideTerms = () => { document.getElementById('terms-modal').style.display = 'none'; };
 
 function updateUserIdentity(name) {
     if (!name) return;
@@ -2626,9 +2648,9 @@ function updateUserIdentity(name) {
     const pl = document.getElementById('prompt-label');
     if (pl) pl.textContent = MODES[currentMode].prompt;
     
-    // Update status bar if it said Guest
+    // Update status bar
     const titleEl = document.getElementById('status-title');
-    if (titleEl && titleEl.textContent.includes('GUEST')) {
+    if (titleEl) {
         titleEl.textContent = `NEXUS OS // ${name.toUpperCase()}`;
     }
 }
@@ -3745,6 +3767,7 @@ function toggleA11yPanel() {
         <div class="a11y-section-label">AI CONTEXT</div>
         <div class="a11y-row">
             <button class="a11y-toggle" style="border-color:#f55;color:#f55;" onclick="clearAllHistory()">CLEAR AI MEMORY</button>
+            <button class="a11y-toggle" style="border-color:#ff6600;color:#ff6600;" onclick="logout()">SIGN OUT</button>
         </div>
 
         <div class="a11y-section-label">VISUALS</div>
@@ -3808,8 +3831,6 @@ function toggleA11yPanel() {
 
 // Global Boot
 window.onload = async () => {
-    console.log("[NEXUS] System Booting...");
-
     // Initialize DOM references
     cpuStat      = document.getElementById('cpu-stat');
     memStat      = document.getElementById('mem-stat');
@@ -3820,50 +3841,12 @@ window.onload = async () => {
     guiTitle     = document.getElementById('gui-title');
     nexusCanvas  = document.getElementById('nexus-canvas');
 
-    if (!input || !output) {
-        console.error("[NEXUS] Critical UI elements missing. Check index.html.");
-        return;
-    }
+    initGoogleAuth();
 
-    // Restore saved mode (UI only)
-    if (currentMode !== 'nexus') {
-        const m = MODES[currentMode];
-        if (m) {
-            const promptLabelEl = document.getElementById('prompt-label');
-            const statusTitleEl = document.getElementById('status-title');
-            const modeIndEl     = document.getElementById('mode-indicator');
-            if (promptLabelEl) promptLabelEl.textContent = m.prompt;
-            if (statusTitleEl) statusTitleEl.textContent = m.title;
-            if (modeIndEl)     modeIndEl.textContent     = m.label;
-            if (m.color) {
-                document.documentElement.style.setProperty('--accent', m.color);
-                document.documentElement.style.setProperty('--txt-color', m.color);
-            }
-            document.querySelectorAll('.mode-btn').forEach(b => {
-                b.classList.toggle('active', b.dataset.mode === currentMode);
-            });
-        }
-    }
-
-    // Restore current mode's history
-    const _savedHistory = loadHistory(currentMode);
-    if (_savedHistory.length) {
-        messageHistory = _savedHistory;
-        setTimeout(() => {
-            const col = MODE_COLORS[currentMode] || '#0ff';
-            printToTerminal(`[SYS] ${_savedHistory.length} ${currentMode.toUpperCase()} messages restored from last session.`, 'sys-msg');
-        }, 2000);
-    }
-
-    // Restore Identity
     const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
-    if (nexusUser && nexusUser.name) updateUserIdentity(nexusUser.name);
-
-    _a11yRestore();
-    initGoogleAuth(); 
-    connectWS();
-    connectStats();
-    updateClientStats();
-    setInterval(updateClientStats, 5000);
-    console.log("[NEXUS] Core services established.");
+    if (nexusUser && nexusUser.name) {
+        revealTerminal(nexusUser.name);
+    } else {
+        console.log("[NEXUS] Awaiting Authorization...");
+    }
 };
