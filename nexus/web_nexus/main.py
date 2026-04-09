@@ -138,7 +138,7 @@ async def get_leaderboard(game: str = "pong"):
     scores = load_scores().get(game, [])
     top = sorted(scores, key=lambda x: x["score"], reverse=True)[:10]
     # Strip internal sub field before returning to client
-    return [{"name": s["name"], "score": s["score"], "date": s.get("date", "")} for s in top]
+    return [{"name": s["name"], "score": s["score"], "date": s.get("date", ""), "picture": s.get("picture", "")} for s in top]
 
 @app.post("/api/leaderboard")
 async def post_score(request: Request):
@@ -162,10 +162,12 @@ async def post_score(request: Request):
         if score > existing["score"]:
             existing["score"] = score
             existing["date"]  = datetime.utcnow().strftime("%Y-%m-%d")
+            existing["picture"] = user.get("picture", "") # Keep picture current
     else:
         all_scores[game].append({
             "sub":   user_sub,
             "name":  user_name,
+            "picture": user.get("picture", ""), # Store picture
             "score": score,
             "date":  datetime.utcnow().strftime("%Y-%m-%d"),
         })
