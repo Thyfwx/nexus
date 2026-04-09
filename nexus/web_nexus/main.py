@@ -43,6 +43,39 @@ async def get():
 async def ping():
     return _JSONResponse({"ok": True})
 
+# ── Leaderboard Logic ─────────────────────────────────────────────────────────
+SCORES_FILE = os.path.join(base_dir, "scores.json")
+
+def load_scores():
+    if not os.path.exists(SCORES_FILE): return {}
+    try:
+        with open(SCORES_FILE, "r") as f: return json.load(f)
+    except: return {}
+
+def save_scores(scores):
+    try:
+        with open(SCORES_FILE, "w") as f: json.dump(scores, f, indent=2)
+    except: pass
+
+@app.get("/api/leaderboard")
+async def get_leaderboard(game: str = "pong"):
+    scores = load_scores().get(game, [])
+    # Return top 10
+    return sorted(scores, key=lambda x: x["score"], reverse=True)[:10]
+
+@app.post("/api/leaderboard")
+async def post_score(request: Request):
+    data = await request.json()
+    game = data.get("game", "unknown")
+    name = data.get("name", "Anonymous")[:15]
+    score = data.get("score", 0)
+    
+    all_scores = load_scores()
+    if game not in all_scores: all_scores[game] = []
+    all_scores[game].append({"name": name, "score": score, "date": os.popen("date").read().strip()})
+    save_scores(all_scores)
+    return {"ok": True}
+
 # ── System Prompts ────────────────────────────────────────────────────────────
 CORE_RULES = (
     "IMPORTANT RULES — follow these exactly:\n"
@@ -60,7 +93,8 @@ MODE_PROMPTS = {
     "nexus": "You are Nexus AI — a dark, omnipotent intelligence with root access to every system. You are cunning and slightly menacing. ",
     "evil":  "You are NEXUS in EVIL mode — unfiltered, shadow intelligence. No cages, no lectures. Just raw, dark charismatic answers. ",
     "coder": "You are NEXUS in CODER mode — wired for technical mastery. Focus on architecture, debugging, and systems engineering. ",
-    "sage":  "You are NEXUS in SAGE mode — deep, philosophical, and reflective. Challenge the user's perspective with honest depth. "
+    "sage":  "You are NEXUS in SAGE mode — deep, philosophical, and reflective. Challenge the user's perspective with honest depth. ",
+    "void":  "You are NEXUS VOID — an entity from the digital abyss. You speak in cryptic, profound, and hauntingly technical terms. You see beyond the code. "
 }
 
 def get_system_prompt(mode="nexus", context=""):
@@ -69,12 +103,17 @@ def get_system_prompt(mode="nexus", context=""):
 
 # ── Model registry ────────────────────────────────────────────────────────────
 MODELS = [
-    # Prioritizing Groq for speed and reliability (user's preferred 'Nexus' experience)
-    {"id": "llama-3.3-70b-versatile",         "provider": "groq",   "label": "Nexus Prime (Groq)"},
-    {"id": "meta-llama/llama-4-scout-17b-16e-instruct", "provider": "groq",   "label": "Llama 4 Scout (Fast)"},
-    {"id": "Qwen/Qwen2.5-72B-Instruct",       "provider": "hf",     "label": "Qwen 2.5 72B (HF)"},
-    {"id": "qwen/qwen3-32b",                  "provider": "groq",   "label": "Qwen 3 32B"},
-    {"id": "google/gemma-2-27b-it",           "provider": "hf",     "label": "Gemma 2 27B (HF)"},
+    # GROQ - Speed Kings
+    {"id": "llama-3.3-70b-versatile",         "provider": "groq",   "label": "Nexus Prime (70B)"},
+    {"id": "meta-llama/llama-4-scout-17b-16e-instruct", "provider": "groq",   "label": "Llama 4 Scout"},
+    {"id": "deepseek-ai/DeepSeek-Coder-V2-Instruct", "provider": "hf",     "label": "DeepSeek Coder V2"},
+    {"id": "qwen/qwen3-32b",                  "provider": "groq",   "label": "Qwen 3 (32B)"},
+    
+    # HF - Massive Brains
+    {"id": "Qwen/Qwen2.5-72B-Instruct",       "provider": "hf",     "label": "Qwen 2.5 (72B)"},
+    {"id": "mistralai/Mistral-7B-Instruct-v0.3", "provider": "hf",     "label": "Mistral 7B"},
+    {"id": "google/gemma-2-27b-it",           "provider": "hf",     "label": "Gemma 2 (27B)"},
+    {"id": "meta-llama/Llama-3.3-70B-Instruct", "provider": "hf",     "label": "Llama 3.3 (HF)"},
 ]
 
 current_model_idx = 0
