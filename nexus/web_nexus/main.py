@@ -118,7 +118,11 @@ import re
 import uuid
 
 # Basic profanity list (expandable)
-PROFANITY = ["fuck", "shit", "bitch", "cunt", "nigger", "nigga", "faggot", "asshole", "dick", "pussy", "cock", "slut", "whore"]
+PROFANITY = [
+    "fuck", "shit", "bitch", "cunt", "nigger", "nigga", "faggot", "asshole", 
+    "dick", "pussy", "cock", "slut", "whore", "retard", "rape", "porn", 
+    "bastard", "hitler", "nazi"
+]
 
 @app.post("/auth/guest")
 async def auth_guest(request: Request):
