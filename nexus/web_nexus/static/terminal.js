@@ -2573,88 +2573,38 @@ let _authInited     = false;
 
 async function initGoogleAuth() {
     if (_authInited) return;
-    
-    const statusMsg = document.getElementById('auth-status-msg');
-    const diagMsg   = document.getElementById('google-diag');
-    if (statusMsg) statusMsg.textContent = "[UPLINK] Synchronizing with Nexus mainframe...";
-
-    // Ensure sidebar placeholder exists
     renderAuthSection();
 
-    // 1. Force script presence (if not in HTML)
-    const hasScript = !!document.querySelector('script[src*="gsi/client"]');
-    if (!window.google || !window.google.accounts) {
-        if (diagMsg) diagMsg.textContent = "G-Script: Loading...";
-        if (!hasScript) {
-            const s = document.createElement('script');
-            s.src = 'https://accounts.google.com/gsi/client';
-            s.async = true; s.defer = true;
-            document.head.appendChild(s);
-        }
-    } else {
-        if (diagMsg) diagMsg.textContent = "G-Script: Ready";
-    }
-
     try {
-        // Try to get fresh ID from server
         const cfg = await fetch(`${API_BASE}/api/config`).then(r => r.json()).catch(() => ({}));
+        if (cfg.google_client_id) _googleClientID = cfg.google_client_id;
         
-        if (cfg.google_client_id) {
-            _googleClientID = cfg.google_client_id;
-        }
-
-        // Start aggressive polling for the library
         let attempts = 0;
         const poll = setInterval(() => {
             attempts++;
             const hasGoogle = !!(window.google && window.google.accounts);
-            const wallEl = document.getElementById('g_id_signin_wall');
             const sideEl = document.getElementById('sidebar-g_id_signin');
 
             if (hasGoogle) {
-                if (diagMsg) diagMsg.textContent = "G-Script: Active";
-                // Initialize ONCE
                 google.accounts.id.initialize({
                     client_id: _googleClientID,
                     callback: handleCredentialResponse,
                     ux_mode: 'popup',
                     context: 'signin',
                     itp_support: true,
-                    auto_select: false
+                    auto_select: true
                 });
                 
-                // Render buttons
-                if (wallEl && wallEl.children.length === 0 || wallEl.innerHTML.includes('SEARCHING')) {
-                    wallEl.innerHTML = ''; // Clear the searching text
-                    google.accounts.id.renderButton(wallEl, { type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'large' });
-                }
                 if (sideEl && sideEl.children.length === 0) {
                     google.accounts.id.renderButton(sideEl, { type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'medium' });
                 }
 
-                // Check for successful rendering
-                if ((wallEl && wallEl.children.length > 0) || attempts > 20) {
-                    _authInited = true;
-                    clearInterval(poll);
-                    if (statusMsg) statusMsg.textContent = "[PROTOCOL] Identity uplink ready.";
-                }
-            } else {
-                if (attempts > 10 && diagMsg) diagMsg.textContent = "G-Script: Blocked/Slow";
-                if (attempts === 15 && wallEl && wallEl.innerHTML.includes('SEARCHING')) {
-                    wallEl.innerHTML = `<div style="color:#666; font-size:0.6rem; text-align:center;">[ GOOGLE LINK BLOCKED BY BROWSER ]<br><span style="font-size:0.5rem; opacity:0.7;">Check 'Third-party cookies' or Adblock.</span></div>`;
-                }
+                _authInited = true;
+                clearInterval(poll);
             }
-            
-            if (attempts === 5 && !hasGoogle && statusMsg) {
-                statusMsg.textContent = "[WAKING UP] Nexus mainframe is spinning up...";
-            }
-
-            if (attempts > 60) clearInterval(poll); 
+            if (attempts > 30) clearInterval(poll); 
         }, 1000);
-
-    } catch (e) { 
-        console.error("[AUTH] Init failed:", e);
-    }
+    } catch (e) { console.error("[AUTH] Init failed:", e); }
 }
 
 function renderAuthSection() {
@@ -2669,9 +2619,6 @@ function renderAuthSection() {
             ? `<img src="${nexusUser.picture}" class="auth-avatar" alt="User">`
             : `<div class="auth-avatar-initials">${nexusUser.name[0].toUpperCase()}</div>`;
             
-        // Generate a 'Passkey' for local users (Base64 of their name + a small salt if we had one, but name is enough for this simple version)
-        const passkey = btoa(JSON.stringify({ n: nexusUser.name, s: nexusUser.sub }));
-
         authSection.innerHTML = `
             <div class="auth-user-card">
                 ${avatarHtml}
@@ -2681,81 +2628,6 @@ function renderAuthSection() {
                 </div>
                 <button class="auth-logout-btn" onclick="logout()" title="Sign out">✕</button>
             </div>
-            ${!isGoogle ? `
-                <div style="margin-top:5px; padding:5px; background:rgba(0,255,255,0.05); border:1px solid rgba(0,255,255,0.1); border-radius:3px;">
-                    <div style="font-size:0.5rem; color:#444; margin-bottom:2px;">SESSION PASSKEY:</div>
-                    <div style="display:flex; gap:5px; align-items:center;">
-                        <input type="password" value="${passkey}" id="passkey-box" readonly style="background:transparent; border:none; color:#0ff; font-size:0.5rem; width:100%; outline:none;">
-                        <button onclick="copyPasskey()" style="background:none; border:none; color:#0ff; font-size:0.6rem; cursor:pointer;">📋</button>
-                    </div>
-                </div>
-            ` : ''}
-        `;
-    } else {
-...
-    }
-}
-
-window.copyPasskey = () => {
-    const box = document.getElementById('passkey-box');
-    if (box) {
-        box.type = 'text';
-        box.select();
-        document.execCommand('copy');
-        box.type = 'password';
-        alert("Passkey copied to clipboard! Save this to recover your chat history later.");
-    }
-};
-
-window.showRecoverSession = () => {
-    const key = prompt("ENTER YOUR SESSION PASSKEY:");
-    if (!key) return;
-    try {
-        const data = JSON.parse(atob(key));
-        if (data.n && data.s) {
-            const userData = { ok: true, name: data.n, sub: data.s, email: 'guest@local', picture: '' };
-            localStorage.setItem('nexus_user_data', JSON.stringify(userData));
-            location.reload(); // Refresh to establish uplink with recovered identity
-        } else {
-            alert("Invalid passkey format.");
-        }
-    } catch(e) {
-        alert("Failed to decode passkey.");
-    }
-};
-
-function renderAuthSection() {
-    const authSection = document.getElementById('auth-section');
-    if (!authSection) return;
-    
-    const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
-    
-    if (nexusUser && nexusUser.name) {
-        const isGoogle = !!nexusUser.email && nexusUser.email !== 'guest@local';
-        const avatarHtml = nexusUser.picture 
-            ? `<img src="${nexusUser.picture}" class="auth-avatar" alt="User">`
-            : `<div class="auth-avatar-initials">${nexusUser.name[0].toUpperCase()}</div>`;
-            
-        const passkey = btoa(JSON.stringify({ n: nexusUser.name, s: nexusUser.sub }));
-
-        authSection.innerHTML = `
-            <div class="auth-user-card">
-                ${avatarHtml}
-                <div class="auth-info">
-                    <div class="auth-name">${nexusUser.name}</div>
-                    <div class="auth-email">${isGoogle ? nexusUser.email : 'LOCAL IDENTITY'}</div>
-                </div>
-                <button class="auth-logout-btn" onclick="logout()" title="Sign out">✕</button>
-            </div>
-            ${!isGoogle ? `
-                <div style="margin-top:5px; padding:5px; background:rgba(0,255,255,0.05); border:1px solid rgba(0,255,255,0.1); border-radius:3px;">
-                    <div style="font-size:0.5rem; color:#444; margin-bottom:2px;">SESSION PASSKEY:</div>
-                    <div style="display:flex; gap:5px; align-items:center;">
-                        <input type="password" value="${passkey}" id="passkey-box" readonly style="background:transparent; border:none; color:#0ff; font-size:0.5rem; width:100%; outline:none;">
-                        <button onclick="copyPasskey()" style="background:none; border:none; color:#0ff; font-size:0.6rem; cursor:pointer;">📋</button>
-                    </div>
-                </div>
-            ` : ''}
         `;
     } else {
         authSection.innerHTML = `
@@ -2764,20 +2636,13 @@ function renderAuthSection() {
                 <div id="sidebar-g_id_signin" style="display:flex; justify-content:center;"></div>
             </div>
         `;
-        
-        const sideBtn = document.getElementById('sidebar-g_id_signin');
-        if (sideBtn && window.google && window.google.accounts && _googleClientID) {
-            google.accounts.id.renderButton(sideBtn, { 
-                type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'medium', logo_alignment: 'left' 
-            });
-        }
     }
 }
 
 async function handleCredentialResponse(response) {
     console.log("[AUTH] Received Google Credential. Validating with backend...");
     const statusMsg = document.getElementById('auth-status-msg');
-    if (statusMsg) statusMsg.textContent = "[UPLINK] Credential received. Handshaking with backend...";
+    if (statusMsg) statusMsg.textContent = "[UPLINK] Synchronizing identity...";
 
     try {
         const res = await fetch(`${API_BASE}/auth/google`, {
@@ -2789,27 +2654,22 @@ async function handleCredentialResponse(response) {
         if (data.ok) {
             localStorage.setItem('nexus_user_data', JSON.stringify(data));
             revealTerminal(data.name);
-            renderAuthSection(); // Refresh sidebar UI
+            renderAuthSection();
         } else {
-            console.error("[AUTH] Backend validation failed:", data.error);
             if (statusMsg) statusMsg.textContent = `[ERROR] Identity mismatch: ${data.error}`;
         }
     } catch(e) { 
-        console.error("Auth failed:", e);
-        if (statusMsg) statusMsg.textContent = "[ERROR] Authentication uplink failed. Check connection.";
+        if (statusMsg) statusMsg.textContent = "[ERROR] Connection failure.";
     }
 }
 
-// Expose globally for HTML API
-window.handleCredentialResponse = handleCredentialResponse;
-
-// Expose globally for HTML onclick handlers
+// Expose globally
 window.handleCredentialResponse = handleCredentialResponse;
 window.revealTerminal = revealTerminal;
 window.logout = logout;
 
 function logout() {
-    if (!confirm("Terminate secure uplink and sign out?")) return;
+    if (!confirm("Terminate session and sign out?")) return;
     localStorage.removeItem('nexus_user_data');
     location.reload(); 
 }
@@ -2824,12 +2684,10 @@ function revealTerminal(name) {
     document.body.classList.remove('auth-locked');
     
     if (name) updateUserIdentity(name);
-    renderAuthSection(); // Ensure sidebar auth UI is current (show profile or login button)
+    renderAuthSection(); 
     
-    // Log the successful entry / agreement to Discord
     logPrompt(`[PROTOCOL] User '${name}' acknowledged Terms of Access and established uplink.`);
     
-    // Start core loops
     connectWS();
     connectStats();
     updateClientStats();
@@ -2839,7 +2697,6 @@ function revealTerminal(name) {
 }
 
 window.showTerms = () => { 
-    // Reset terms checkbox and button state
     const check = document.getElementById('terms-check');
     const btn   = document.getElementById('agree-btn');
     if (check) check.checked = false;
@@ -2858,7 +2715,6 @@ window.showTermsFromWall = () => {
     }
     if (wallErr) wallErr.textContent = "";
     
-    // Copy wall name to modal for submission
     const modalInput = document.getElementById('guest-name-input');
     if (modalInput) modalInput.value = name;
     
