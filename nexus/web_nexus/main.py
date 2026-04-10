@@ -31,15 +31,22 @@ def _get_session(request: Request):
     if not token:
         return None
     try:
-        return pyjwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        # Use the dynamic _key to match what was used in auth_google
+        key = _key("SECRET_KEY") or os.getenv("SECRET_KEY", "nexus-dev-please-change-in-prod")
+        return pyjwt.decode(token, key, algorithms=["HS256"])
     except Exception:
         return None
 
 app = FastAPI()
+
+# Better CORS for credentials (allow_origins="*" is not allowed with allow_credentials=True)
+from fastapi.middleware.cors import CORSMiddleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], allow_credentials=True,
-    allow_methods=["*"], allow_headers=["*"]
+    allow_origin_regex="https?://.*", # Allow any origin while maintaining credential support
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
 )
 
 base_dir   = os.path.dirname(os.path.abspath(__file__))
@@ -98,8 +105,13 @@ async def auth_google(request: Request):
         "email":   payload["email"],
         "picture": payload["picture"],
     })
-    resp.set_cookie("nexus_session", token, httponly=True, samesite="lax",
-                    max_age=30 * 24 * 3600, secure=is_prod)
+    
+    # Cross-site cookie support: samesite='none' requires secure=True
+    samesite = "none" if is_prod else "lax"
+    secure   = True if is_prod else False
+    
+    resp.set_cookie("nexus_session", token, httponly=True, samesite=samesite,
+                    max_age=30 * 24 * 3600, secure=secure)
     return resp
 
 @app.get("/api/me")
