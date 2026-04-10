@@ -232,7 +232,8 @@ class Nexus(App):
         # 1. VOICE COMMAND
         if query.startswith("say "):
             text = query.replace("say ", "")
-            os.system(f"say '{text}'")
+            import shlex
+            os.system(f"say {shlex.quote(text)}")
             self.chat_log.write(f"[magenta]Mac says:[/] {text}")
 
         # 2. MUSIC CONTROLLER (Universal for Mac)
