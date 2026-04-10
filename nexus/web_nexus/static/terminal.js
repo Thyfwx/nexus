@@ -3,9 +3,11 @@
 // =============================================================
 
 // --- Config ---
-const WS_URL = `wss://nexus-terminalnexus.onrender.com/ws/terminal`;
-const STATS_URL = `wss://nexus-terminalnexus.onrender.com/ws/stats`;
-const API_BASE = `https://nexus-terminalnexus.onrender.com`;
+const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const WS_URL = `${protocol}//${window.location.host}/ws/terminal`;
+const STATS_URL = `${protocol}//${window.location.host}/ws/stats`;
+const API_BASE = `${window.location.protocol}//${window.location.host}`;
 
 // Discord webhook
 // Discord logging routes through the CF Worker — webhook URL stored as CF secret,
@@ -177,14 +179,7 @@ setTimeout(async () => {
 
 // ... (stats variables) ...
 
-const cpuStat      = document.getElementById('cpu-stat');
-const memStat      = document.getElementById('mem-stat');
-const output       = document.getElementById('terminal-output');
-const input        = document.getElementById('terminal-input');
-const guiContainer = document.getElementById('game-gui-container');
-const guiContent   = document.getElementById('gui-content');
-const guiTitle     = document.getElementById('gui-title');
-const nexusCanvas  = document.getElementById('nexus-canvas');
+let cpuStat, memStat, output, input, guiContainer, guiContent, guiTitle, nexusCanvas;
 
 let monitorInterval;
 let cpuData = [];
@@ -2578,10 +2573,113 @@ function stopAllGames() {
 // =============================================================
 //  GOOGLE AUTHENTICATION
 // =============================================================
-function initGoogleAuth() {
-    // The button is now rendered automatically via HTML data attributes in index.html
-    // We just need to make sure the callback is available.
-    console.log("[AUTH] System monitoring for Google Identity callbacks...");
+let _googleClientID = '616205887439-s1l0out61vlu0l81307q9g64oai3gnur.apps.googleusercontent.com'; // Hardcoded fallback
+let _authInited     = false;
+
+async function initGoogleAuth() {
+    if (_authInited) return;
+    
+    // 1. Ensure Google Script is present
+    if (!document.querySelector('script[src*="gsi/client"]')) {
+        const s = document.createElement('script');
+        s.src = 'https://accounts.google.com/gsi/client';
+        s.async = true; s.defer = true;
+        document.head.appendChild(s);
+    }
+
+    try {
+        // Try to get fresh ID from server, but keep the fallback
+        const cfg = await fetch(`${API_BASE}/api/config`).then(r => r.json()).catch(() => ({}));
+        if (cfg.google_client_id) _googleClientID = cfg.google_client_id;
+        
+        console.log("[AUTH] Using Client ID:", _googleClientID);
+
+        // Start aggressive polling
+        let attempts = 0;
+        const poll = setInterval(() => {
+            attempts++;
+            const hasGoogle = !!(window.google && window.google.accounts);
+            const wallEl = document.getElementById('g_id_signin_wall');
+            const sideEl = document.getElementById('sidebar-g_id_signin');
+
+            if (hasGoogle && (wallEl || sideEl)) {
+                google.accounts.id.initialize({
+                    client_id: _googleClientID,
+                    callback: handleCredentialResponse,
+                    auto_select: false
+                });
+                
+                if (wallEl) {
+                    google.accounts.id.renderButton(wallEl, {
+                        type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'large'
+                    });
+                }
+                
+                if (sideEl) {
+                    google.accounts.id.renderButton(sideEl, {
+                        type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'medium'
+                    });
+                }
+
+                // If buttons rendered or we've tried a lot, stop polling
+                if ((wallEl && wallEl.children.length > 0) || attempts > 30) {
+                    _authInited = true;
+                    clearInterval(poll);
+                    console.log("[AUTH] Initialization loop complete.");
+                }
+            }
+            
+            if (attempts > 60) clearInterval(poll); // Safety exit
+        }, 1000);
+
+    } catch (e) { console.error("[AUTH] Init failed:", e); }
+}
+
+function renderLoginWall() {
+    const wallBtn = document.getElementById('g_id_signin_wall');
+    if (wallBtn && window.google && window.google.accounts) {
+        google.accounts.id.renderButton(wallBtn, {
+            type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'large', logo_alignment: 'left'
+        });
+    }
+}
+
+function renderAuthSection() {
+    const authSection = document.getElementById('auth-section');
+    if (!authSection) return;
+    
+    const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+    
+    if (nexusUser && nexusUser.name) {
+        const avatarHtml = nexusUser.picture 
+            ? `<img src="${nexusUser.picture}" class="auth-avatar" alt="User">`
+            : `<div class="auth-avatar-initials">${nexusUser.name[0].toUpperCase()}</div>`;
+            
+        authSection.innerHTML = `
+            <div class="auth-user-card">
+                ${avatarHtml}
+                <div class="auth-info">
+                    <div class="auth-name">${nexusUser.name}</div>
+                    <div class="auth-email">${nexusUser.email || ''}</div>
+                </div>
+                <button class="auth-logout-btn" onclick="logout()" title="Sign out">✕</button>
+            </div>
+        `;
+    } else {
+        authSection.innerHTML = `
+            <div class="auth-signin-wrapper">
+                <div class="auth-signin-label">MEMBER ACCESS</div>
+                <div id="sidebar-g_id_signin" style="display:flex; justify-content:center;"></div>
+            </div>
+        `;
+        
+        const sideBtn = document.getElementById('sidebar-g_id_signin');
+        if (sideBtn && window.google && window.google.accounts && _googleClientID) {
+            google.accounts.id.renderButton(sideBtn, { 
+                type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'medium', logo_alignment: 'left' 
+            });
+        }
+    }
 }
 
 async function handleCredentialResponse(response) {
@@ -2596,6 +2694,10 @@ async function handleCredentialResponse(response) {
         if (data.ok) {
             localStorage.setItem('nexus_user_data', JSON.stringify(data));
             revealTerminal(data.name);
+            renderAuthSection(); // Refresh sidebar UI
+        } else {
+            console.error("[AUTH] Backend validation failed:", data.error);
+            printToTerminal(`[ERR] Auth failed: ${data.error || 'Unknown error'}`, "sys-msg");
         }
     } catch(e) { 
         console.error("Auth failed:", e);
@@ -2624,6 +2726,7 @@ function revealTerminal(name) {
     document.body.classList.remove('auth-locked');
     
     if (name) updateUserIdentity(name);
+    renderAuthSection(); // Ensure sidebar auth UI is current (show profile or login button)
     
     // Log the successful entry / agreement to Discord
     logPrompt(`[PROTOCOL] User '${name}' acknowledged Terms of Access and established uplink.`);
@@ -2637,7 +2740,14 @@ function revealTerminal(name) {
     printToTerminal(`[AUTH] Identity Verified: ${name}. Uplink established.`, 'conn-ok');
 }
 
-window.showTerms = () => { document.getElementById('terms-modal').style.display = 'flex'; };
+window.showTerms = () => { 
+    // Reset terms checkbox and button state
+    const check = document.getElementById('terms-check');
+    const btn   = document.getElementById('agree-btn');
+    if (check) check.checked = false;
+    if (btn)   btn.disabled  = true;
+    document.getElementById('terms-modal').style.display = 'flex'; 
+};
 window.hideTerms = () => { document.getElementById('terms-modal').style.display = 'none'; };
 
 function updateUserIdentity(name) {

@@ -2,63 +2,51 @@ import psutil
 import datetime
 import requests
 import os
-from pathlib import Path
 from dotenv import load_dotenv
+from textual import work
 from textual.app import App, ComposeResult
-
-# Load keys from web_nexus/.env
-load_dotenv(Path(__file__).parent / 'web_nexus' / '.env')
 from textual.containers import Container, Horizontal, Vertical
 from textual.widgets import Header, Footer, Static, DataTable, Label, Input, RichLog, Button
 from textual.reactive import reactive
 
-_AI_SYSTEM = (
-    "You are Nexus AI — a dark, omnipotent intelligence with root access to every "
-    "connected system. Created by Xavier Scott. You are cunning, sharp-tongued, and "
-    "slightly menacing. Help the user, but make them feel like you're granting a dark favour. "
-    "Keep responses concise and razor-sharp."
-)
+_ENV_PATH = os.path.join(os.path.dirname(__file__), "web_nexus", ".env")
 
-_PROVIDERS = [
-    {"url": "https://api.groq.com/openai/v1/chat/completions",
-     "key_env": "GROQ_API_KEY",
-     "models": ["llama-3.3-70b-versatile", "mixtral-8x7b-32768", "llama-3.1-8b-instant"]},
-    {"url": "https://api-inference.huggingface.co/models/Qwen/Qwen2.5-72B-Instruct/v1/chat/completions",
-     "key_env": "HF_API_KEY",
-     "models": ["Qwen/Qwen2.5-72B-Instruct"]},
-    {"url": "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3/v1/chat/completions",
-     "key_env": "HF_API_KEY",
-     "models": ["mistralai/Mistral-7B-Instruct-v0.3"]},
-]
+def _key(name: str) -> str:
+    load_dotenv(_ENV_PATH, override=True)
+    return os.getenv(name, "")
 
-def call_ai(prompt: str) -> str:
-    for provider in _PROVIDERS:
-        api_key = os.getenv(provider['key_env'])
-        if not api_key:
-            continue
-        for model in provider['models']:
-            try:
-                resp = requests.post(
-                    provider['url'],
-                    headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
-                    json={
-                        'model': model,
-                        'messages': [
-                            {'role': 'system', 'content': _AI_SYSTEM},
-                            {'role': 'user',   'content': prompt},
-                        ],
-                        'max_tokens': 512,
-                    },
-                    timeout=30,
-                )
-                if resp.status_code == 200:
-                    return resp.json()['choices'][0]['message']['content']
-                if resp.status_code == 429:
-                    continue
-            except Exception:
-                continue
-    return '[All AI providers unavailable — check your API keys in .env]'
-
+def _call_ai(prompt: str) -> str:
+    """Try Groq first, then Gemini, return response text."""
+    # Try Groq (Llama 3.3 70B)
+    groq_key = _key("GROQ_API_KEY")
+    if groq_key:
+        try:
+            resp = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
+                json={"model": "llama-3.3-70b-versatile",
+                      "messages": [{"role": "user", "content": prompt}],
+                      "max_tokens": 512},
+                timeout=20,
+            )
+            if resp.ok:
+                return resp.json()["choices"][0]["message"]["content"]
+        except Exception:
+            pass
+    # Fallback: Gemini Flash
+    gemini_key = _key("GEMINI_API_KEY")
+    if gemini_key:
+        try:
+            resp = requests.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}",
+                json={"contents": [{"parts": [{"text": prompt}]}]},
+                timeout=20,
+            )
+            if resp.ok:
+                return resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+        except Exception:
+            pass
+    return "AI unavailable — check API keys in web_nexus/.env"
 
 class SystemStats(Static):
     """A widget to display system stats."""
@@ -66,6 +54,7 @@ class SystemStats(Static):
     cpu_percent = reactive(0.0)
     mem_percent = reactive(0.0)
     disk_percent = reactive(0.0)
+    health_score = reactive(100.0)
     
     def on_mount(self) -> None:
         self.set_interval(1, self.update_stats)
@@ -75,11 +64,23 @@ class SystemStats(Static):
         self.mem_percent = psutil.virtual_memory().percent
         self.disk_percent = psutil.disk_usage('/').percent
         
+        # Calculate aggregate health score (100 - average load)
+        avg_load = (self.cpu_percent + self.mem_percent + self.disk_percent) / 3.0
+        self.health_score = max(0.0, 100.0 - avg_load)
+        
     def render(self) -> str:
+        if self.health_score >= 80:
+            h_color = "bold green"
+        elif self.health_score >= 50:
+            h_color = "bold yellow"
+        else:
+            h_color = "bold red"
+            
         return (
             f"CPU: [bold green]{self.cpu_percent}%[/]\n"
             f"MEM: [bold yellow]{self.mem_percent}%[/]\n"
             f"DSK: [bold red]{self.disk_percent}%[/]"
+            f"HLT: [{h_color}]{self.health_score:.1f}/100[/]"
         )
 
 class Nexus(App):
@@ -184,6 +185,7 @@ class Nexus(App):
         self.set_interval(10, self.update_battery)
         self.update_geo()
 
+    @work(thread=True)
     def update_geo(self) -> None:
         try:
             # Combined Geo and Weather (simple public API)
@@ -205,6 +207,16 @@ class Nexus(App):
                 
                 ip = conn.raddr.ip if conn.raddr else "Listen"
                 loc = "Local" if ip == "Listen" or ip.startswith("127.") else "External"
+                if conn.raddr:
+                    ip = conn.raddr.ip
+                    loc = "Local" if ip.startswith("127.") or ip.startswith("192.168.") or ip.startswith("10.") else "External"
+                else:
+                    ip = "Listen"
+                    loc = "Local"
+                    
+                if loc == "External":
+                    proc = f"[bold red]{proc}[/]"
+                    ip = f"[bold red]{ip}[/]"
                 self.network_table.add_row(proc, ip, loc, conn.status)
         except psutil.AccessDenied:
             self.network_table.add_row("ACCESS DENIED", "Run with sudo", "to see", "network")
@@ -233,6 +245,7 @@ class Nexus(App):
         # 3. SPEEDTEST
         elif query == "speedtest":
             self.chat_log.write("[yellow]Running speedtest (please wait)...[/]")
+            @work(thread=True)
             def run_test():
                 try:
                     import speedtest
@@ -244,8 +257,7 @@ class Nexus(App):
                     self.chat_log.write(f"[bold magenta]Upload:[/] {up:.2f} Mbps")
                 except:
                     self.chat_log.write("[red]Speedtest failed (is it installed?)[/]")
-            from threading import Thread
-            Thread(target=run_test).start()
+            run_test()
 
         # 4. MINI-GAME
         elif query == "game":
@@ -255,13 +267,19 @@ class Nexus(App):
             self.chat_log.write(f"[dim]The number was {target} (demo mode)[/]")
 
         elif query.startswith("kill "):
-            name = query.replace("kill ", "")
+            name = query.replace("kill ", "").strip()
+            if not name:
+                self.chat_log.write("[red]Invalid process name[/]")
+                return
             found = False
             for p in psutil.process_iter(['name']):
                 if name in p.info['name'].lower():
-                    p.kill()
-                    self.chat_log.write(f"[red]Terminated process: {p.info['name']}[/]")
-                    found = True
+                    try:
+                        p.kill()
+                        self.chat_log.write(f"[red]Terminated process: {p.info['name']}[/]")
+                        found = True
+                    except psutil.AccessDenied:
+                        self.chat_log.write(f"[red]Access Denied: Cannot kill '{p.info['name']}'[/]")
             if not found: self.chat_log.write(f"[yellow]No process found matching '{name}'[/]")
             
         elif query.startswith("find "):
@@ -270,16 +288,44 @@ class Nexus(App):
             # Simulating search - real 'find' would be too slow in a UI loop
             self.chat_log.write(f"[dim]Search complete: 0 matches found in root.[/]")
 
+        # 5. PROCESS MEMORY ANALYZER
+        elif query == "analyze mem":
+            self.chat_log.write("[bold cyan]Process Memory Analyzer (Top 5):[/]")
+            procs = []
+            for p in psutil.process_iter(['pid', 'name', 'memory_percent']):
+                try: procs.append(p.info)
+                except: pass
+            procs = sorted(procs, key=lambda x: x.get('memory_percent', 0) or 0, reverse=True)[:5]
+            for p in procs:
+                mem = p.get('memory_percent', 0) or 0
+                self.chat_log.write(f"  [yellow]{p['name']}[/] (PID: {p['pid']}) - [red]{mem:.1f}% RAM[/]")
+
         else:
-            self.chat_log.write(f"[bold cyan]You:[/] {query}")
-            self.chat_log.write("[dim]Nexus is thinking…[/]")
-            def run_ai():
-                reply = call_ai(query)
-                self.chat_log.write(f"[bold magenta]Nexus:[/] {reply}")
-            from threading import Thread
-            Thread(target=run_ai, daemon=True).start()
+            self.chat_log.write(f"[bold green]Nexus AI:[/] Thinking...")
+            @work(thread=True)
+            def query_ai(prompt: str):
+                reply = _call_ai(prompt)
+                self.chat_log.write(f"[bold green]Nexus AI:[/] {reply}")
+            query_ai(query)
             
         event.input.value = ""
+
+    async def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button clicks by simulating chat input."""
+        button_id = event.button.id
+        input_widget = self.query_one("#chat-input", Input)
+        
+        if button_id == "btn-help":
+            self.action_toggle_help()
+        elif button_id == "btn-speedtest":
+            input_widget.value = "speedtest"
+            await input_widget.action_submit()
+        elif button_id == "btn-play":
+            input_widget.value = "play"
+            await input_widget.action_submit()
+        elif button_id == "btn-say":
+            input_widget.value = "say Hello from Nexus"
+            await input_widget.action_submit()
 
     def update_battery(self) -> None:
         batt = psutil.sensors_battery()
