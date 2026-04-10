@@ -2664,19 +2664,98 @@ function renderAuthSection() {
     const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
     
     if (nexusUser && nexusUser.name) {
+        const isGoogle = !!nexusUser.email && nexusUser.email !== 'guest@local';
         const avatarHtml = nexusUser.picture 
             ? `<img src="${nexusUser.picture}" class="auth-avatar" alt="User">`
             : `<div class="auth-avatar-initials">${nexusUser.name[0].toUpperCase()}</div>`;
             
+        // Generate a 'Passkey' for local users (Base64 of their name + a small salt if we had one, but name is enough for this simple version)
+        const passkey = btoa(JSON.stringify({ n: nexusUser.name, s: nexusUser.sub }));
+
         authSection.innerHTML = `
             <div class="auth-user-card">
                 ${avatarHtml}
                 <div class="auth-info">
                     <div class="auth-name">${nexusUser.name}</div>
-                    <div class="auth-email">${nexusUser.email || ''}</div>
+                    <div class="auth-email">${isGoogle ? nexusUser.email : 'LOCAL IDENTITY'}</div>
                 </div>
                 <button class="auth-logout-btn" onclick="logout()" title="Sign out">✕</button>
             </div>
+            ${!isGoogle ? `
+                <div style="margin-top:5px; padding:5px; background:rgba(0,255,255,0.05); border:1px solid rgba(0,255,255,0.1); border-radius:3px;">
+                    <div style="font-size:0.5rem; color:#444; margin-bottom:2px;">SESSION PASSKEY:</div>
+                    <div style="display:flex; gap:5px; align-items:center;">
+                        <input type="password" value="${passkey}" id="passkey-box" readonly style="background:transparent; border:none; color:#0ff; font-size:0.5rem; width:100%; outline:none;">
+                        <button onclick="copyPasskey()" style="background:none; border:none; color:#0ff; font-size:0.6rem; cursor:pointer;">📋</button>
+                    </div>
+                </div>
+            ` : ''}
+        `;
+    } else {
+...
+    }
+}
+
+window.copyPasskey = () => {
+    const box = document.getElementById('passkey-box');
+    if (box) {
+        box.type = 'text';
+        box.select();
+        document.execCommand('copy');
+        box.type = 'password';
+        alert("Passkey copied to clipboard! Save this to recover your chat history later.");
+    }
+};
+
+window.showRecoverSession = () => {
+    const key = prompt("ENTER YOUR SESSION PASSKEY:");
+    if (!key) return;
+    try {
+        const data = JSON.parse(atob(key));
+        if (data.n && data.s) {
+            const userData = { ok: true, name: data.n, sub: data.s, email: 'guest@local', picture: '' };
+            localStorage.setItem('nexus_user_data', JSON.stringify(userData));
+            location.reload(); // Refresh to establish uplink with recovered identity
+        } else {
+            alert("Invalid passkey format.");
+        }
+    } catch(e) {
+        alert("Failed to decode passkey.");
+    }
+};
+
+function renderAuthSection() {
+    const authSection = document.getElementById('auth-section');
+    if (!authSection) return;
+    
+    const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+    
+    if (nexusUser && nexusUser.name) {
+        const isGoogle = !!nexusUser.email && nexusUser.email !== 'guest@local';
+        const avatarHtml = nexusUser.picture 
+            ? `<img src="${nexusUser.picture}" class="auth-avatar" alt="User">`
+            : `<div class="auth-avatar-initials">${nexusUser.name[0].toUpperCase()}</div>`;
+            
+        const passkey = btoa(JSON.stringify({ n: nexusUser.name, s: nexusUser.sub }));
+
+        authSection.innerHTML = `
+            <div class="auth-user-card">
+                ${avatarHtml}
+                <div class="auth-info">
+                    <div class="auth-name">${nexusUser.name}</div>
+                    <div class="auth-email">${isGoogle ? nexusUser.email : 'LOCAL IDENTITY'}</div>
+                </div>
+                <button class="auth-logout-btn" onclick="logout()" title="Sign out">✕</button>
+            </div>
+            ${!isGoogle ? `
+                <div style="margin-top:5px; padding:5px; background:rgba(0,255,255,0.05); border:1px solid rgba(0,255,255,0.1); border-radius:3px;">
+                    <div style="font-size:0.5rem; color:#444; margin-bottom:2px;">SESSION PASSKEY:</div>
+                    <div style="display:flex; gap:5px; align-items:center;">
+                        <input type="password" value="${passkey}" id="passkey-box" readonly style="background:transparent; border:none; color:#0ff; font-size:0.5rem; width:100%; outline:none;">
+                        <button onclick="copyPasskey()" style="background:none; border:none; color:#0ff; font-size:0.6rem; cursor:pointer;">📋</button>
+                    </div>
+                </div>
+            ` : ''}
         `;
     } else {
         authSection.innerHTML = `
@@ -4029,6 +4108,9 @@ window.onload = async () => {
     guiContent   = document.getElementById('gui-content');
     guiTitle     = document.getElementById('gui-title');
     nexusCanvas  = document.getElementById('nexus-canvas');
+
+    // Load history for the current mode on boot
+    messageHistory = loadHistory(currentMode);
 
     // Start auth in background (non-blocking)
     initGoogleAuth();
