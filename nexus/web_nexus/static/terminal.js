@@ -2580,14 +2580,14 @@ let _authInited     = false;
 async function initGoogleAuth() {
     if (_authInited) return;
     
-    console.log("[AUTH] Starting Google Identity handshake...");
     const statusMsg = document.getElementById('auth-status-msg');
     if (statusMsg) statusMsg.textContent = "[UPLINK] Synchronizing with Nexus mainframe...";
 
+    // Ensure sidebar placeholder exists
     renderAuthSection();
 
-    // 1. Force script presence
-    if (!window.google || !window.google.accounts) {
+    // 1. Force script presence (if not in HTML)
+    if (!document.querySelector('script[src*="gsi/client"]')) {
         const s = document.createElement('script');
         s.src = 'https://accounts.google.com/gsi/client';
         s.async = true; s.defer = true;
@@ -2599,27 +2599,20 @@ async function initGoogleAuth() {
         const cfg = await fetch(`${API_BASE}/api/config`).then(r => r.json()).catch(() => ({}));
         if (cfg.google_client_id) _googleClientID = cfg.google_client_id;
         
-        // Start aggressive polling
+        // Start polling for the Google library to render the SIDEBAR button
         let attempts = 0;
         const poll = setInterval(() => {
             attempts++;
             const hasGoogle = !!(window.google && window.google.accounts);
-            const wallEl = document.getElementById('g_id_signin_wall');
             const sideEl = document.getElementById('sidebar-g_id_signin');
 
-            if (hasGoogle && (wallEl || sideEl)) {
+            if (hasGoogle) {
+                // Initialize for SIDEBAR rendering
                 google.accounts.id.initialize({
                     client_id: _googleClientID,
                     callback: handleCredentialResponse,
-                    auto_select: false,
                     itp_support: true
                 });
-                
-                if (wallEl) {
-                    google.accounts.id.renderButton(wallEl, {
-                        type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'large'
-                    });
-                }
                 
                 if (sideEl) {
                     google.accounts.id.renderButton(sideEl, {
@@ -2627,22 +2620,21 @@ async function initGoogleAuth() {
                     });
                 }
 
-                // Confirm success
-                if ((wallEl && wallEl.children.length > 0) || (sideEl && sideEl.children.length > 0)) {
+                // Confirm success on the WALL (automatic HTML button)
+                const wallBtn = document.querySelector('.g_id_signin');
+                if (wallBtn && wallBtn.children.length > 0) {
                     _authInited = true;
                     clearInterval(poll);
-                    if (statusMsg) statusMsg.textContent = "Identity synchronized. Select account to enter.";
+                    if (statusMsg) statusMsg.textContent = "[PROTOCOL] Google Identity uplink established. Select account to enter.";
                 }
             }
             
-            // Show help messages for slow connections
             if (attempts === 5 && !hasGoogle && statusMsg) {
-                statusMsg.textContent = "[WAKING UP] Nexus backend is spinning up. This may take up to 30s...";
+                statusMsg.textContent = "[WAKING UP] Nexus backend is spinning up (Render.com free tier). This may take up to 30s...";
             }
 
-            // FALLBACK: If Google exists but won't render buttons, provide a manual link
-            if (attempts === 15 && hasGoogle && wallEl && wallEl.children.length === 0) {
-                wallEl.innerHTML = `<button onclick="google.accounts.id.prompt()" class="gui-btn" style="padding:15px 30px;">FORCE GOOGLE LOGIN</button>`;
+            if (attempts === 15 && sideEl && sideEl.children.length === 0) {
+                sideEl.innerHTML = `<button onclick="google.accounts.id.prompt()" style="background:none;border:1px solid #0ff;color:#0ff;font-size:10px;padding:6px 10px;cursor:pointer;font-family:inherit;border-radius:3px;">RETRY MANUAL HANDSHAKE</button>`;
             }
 
             if (attempts > 60) clearInterval(poll); 
