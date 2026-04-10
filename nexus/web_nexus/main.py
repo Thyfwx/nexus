@@ -61,14 +61,15 @@ async def ping():
 # ── Auth ──────────────────────────────────────────────────────────────────────
 @app.get("/api/config")
 async def get_config():
-    return {"google_client_id": GOOGLE_CLIENT_ID}
+    return {"google_client_id": _key("GOOGLE_CLIENT_ID")}
 
 @app.post("/auth/google")
 async def auth_google(request: Request):
     from google.oauth2 import id_token
     from google.auth.transport import requests as g_req
 
-    if not GOOGLE_CLIENT_ID:
+    client_id = _key("GOOGLE_CLIENT_ID")
+    if not client_id:
         return _JSONResponse({"error": "Google auth not configured on server"}, status_code=503)
 
     data = await request.json()
@@ -77,7 +78,7 @@ async def auth_google(request: Request):
         return _JSONResponse({"error": "No credential"}, status_code=400)
 
     try:
-        idinfo = id_token.verify_oauth2_token(credential, g_req.Request(), GOOGLE_CLIENT_ID)
+        idinfo = id_token.verify_oauth2_token(credential, g_req.Request(), client_id)
     except Exception as e:
         return _JSONResponse({"error": f"Token invalid: {str(e)[:80]}"}, status_code=401)
 
@@ -88,7 +89,7 @@ async def auth_google(request: Request):
         "picture": idinfo.get("picture", ""),
         "exp":     datetime.utcnow() + timedelta(days=30),
     }
-    token = pyjwt.encode(payload, SECRET_KEY, algorithm="HS256")
+    token = pyjwt.encode(payload, _key("SECRET_KEY") or SECRET_KEY, algorithm="HS256")
     is_prod = os.getenv("PRODUCTION", "") == "1"
 
     resp = _JSONResponse({
@@ -202,6 +203,9 @@ def get_system_prompt(mode="nexus", context=""):
 
 # ── Model registry ────────────────────────────────────────────────────────────
 MODELS = [
+    # GEMINI - Intelligence and Speed
+    {"id": "gemini-2.0-flash",                "provider": "gemini", "label": "Gemini 2.0 Flash"},
+    
     # GROQ - Speed Kings
     {"id": "llama-3.3-70b-versatile",         "provider": "groq",   "label": "Nexus Prime (70B)"},
     {"id": "meta-llama/llama-4-scout-17b-16e-instruct", "provider": "groq",   "label": "Llama 4 Scout"},

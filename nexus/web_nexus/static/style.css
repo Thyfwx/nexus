@@ -390,6 +390,49 @@ body {
 }
 
 /* ============================================================
+   AUTH OVERLAY (Login Wall)
+   ============================================================ */
+.auth-overlay {
+    position: fixed; inset: 0;
+    background: #050510; z-index: 10000;
+    display: flex; align-items: center; justify-content: center;
+    background-image: radial-gradient(circle at center, #0a0a20 0%, #050510 100%);
+}
+.auth-box {
+    background: rgba(10, 10, 30, 0.8); border: 2px solid var(--accent);
+    padding: 40px; width: 100%; max-width: 400px; text-align: center;
+    box-shadow: 0 0 40px rgba(0, 255, 255, 0.15); backdrop-filter: blur(10px);
+}
+.auth-header { color: var(--accent); font-size: 1.4rem; font-weight: 600; letter-spacing: 4px; margin-bottom: 15px; text-shadow: 0 0 10px var(--accent); }
+.auth-desc { color: #888; font-size: 0.85rem; line-height: 1.6; margin-bottom: 25px; }
+.auth-divider { display: flex; align-items: center; color: #333; font-size: 0.65rem; margin: 15px 0; }
+.auth-divider::before, .auth-divider::after { content: ''; flex: 1; border-bottom: 1px solid #1a1a30; }
+.auth-divider span { padding: 0 10px; }
+.auth-guest-link { background: transparent; border: none; color: #555; font-family: inherit; font-size: 0.75rem; letter-spacing: 2px; cursor: pointer; text-decoration: underline; }
+.auth-guest-link:hover { color: var(--accent); }
+.auth-terms { margin-top: 20px; font-size: 0.6rem; color: #333; }
+.auth-footer { color: #222; font-size: 0.55rem; margin-top: 25px; letter-spacing: 2px; }
+
+/* Modal Styles */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 11000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal-box { background: #050510; border: 1px solid var(--accent); padding: 30px; max-width: 500px; box-shadow: 0 0 30px rgba(0,255,255,0.1); }
+.modal-box h3 { color: var(--accent); margin-top: 0; letter-spacing: 2px; }
+.modal-body { color: #888; font-size: 0.8rem; line-height: 1.6; margin: 20px 0; text-align: left; }
+
+#agree-btn:disabled {
+    border-color: #222;
+    color: #333;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+#agree-btn:disabled:hover {
+    background: transparent;
+    color: #333;
+}
+
+body.auth-locked .monitor { display: none !important; }
+
+/* ============================================================
    ACCESSIBILITY PANEL
    ============================================================ */
 .a11y-panel {
