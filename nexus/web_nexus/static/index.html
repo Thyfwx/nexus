@@ -15,7 +15,7 @@
          data-context="signin"
          data-ux_mode="popup"
          data-callback="handleCredentialResponse"
-         data-auto_select="true"
+         data-auto_select="false"
          data-itp_support="true">
     </div>
 
@@ -25,8 +25,17 @@
             <div class="auth-header">NEXUS // CORE ACCESS</div>
             <p class="auth-desc" id="auth-status-msg">Authorization required. Synchronize your identity to establish an uplink.</p>
             
-            <!-- Target for JS-rendered Google Button -->
-            <div id="g_id_signin_wall" style="display:flex; justify-content:center; margin-bottom:20px;"></div>
+            <!-- Standard Google Sign-In Button (Automatic Rendering) -->
+            <div style="display:flex; justify-content:center; margin-bottom:20px;">
+                <div class="g_id_signin" 
+                     data-type="standard" 
+                     data-shape="rectangular" 
+                     data-theme="filled_blue" 
+                     data-text="signin_with" 
+                     data-size="large" 
+                     data-logo_alignment="left">
+                </div>
+            </div>
 
             <div class="auth-divider"><span>OR</span></div>
             <button class="auth-guest-link" onclick="showTerms()">CONTINUE AS GUEST</button>
