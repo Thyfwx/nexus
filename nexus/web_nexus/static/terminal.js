@@ -2702,6 +2702,9 @@ function renderAuthSection() {
 
 async function handleCredentialResponse(response) {
     console.log("[AUTH] Received Google Credential. Validating with backend...");
+    const statusMsg = document.getElementById('auth-status-msg');
+    if (statusMsg) statusMsg.textContent = "[UPLINK] Credential received. Handshaking with backend...";
+
     try {
         const res = await fetch(`${API_BASE}/auth/google`, {
             method: 'POST',
@@ -2715,13 +2718,16 @@ async function handleCredentialResponse(response) {
             renderAuthSection(); // Refresh sidebar UI
         } else {
             console.error("[AUTH] Backend validation failed:", data.error);
-            printToTerminal(`[ERR] Auth failed: ${data.error || 'Unknown error'}`, "sys-msg");
+            if (statusMsg) statusMsg.textContent = `[ERROR] Identity mismatch: ${data.error}`;
         }
     } catch(e) { 
         console.error("Auth failed:", e);
-        printToTerminal("[ERR] Authentication uplink failed. Check connection.", "sys-msg");
+        if (statusMsg) statusMsg.textContent = "[ERROR] Authentication uplink failed. Check connection.";
     }
 }
+
+// Expose globally for HTML API
+window.handleCredentialResponse = handleCredentialResponse;
 
 // Expose globally for HTML onclick handlers
 window.handleCredentialResponse = handleCredentialResponse;
