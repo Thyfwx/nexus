@@ -2773,11 +2773,51 @@ window.showTerms = () => {
     // Reset terms checkbox and button state
     const check = document.getElementById('terms-check');
     const btn   = document.getElementById('agree-btn');
+    const input = document.getElementById('guest-name-input');
+    const err   = document.getElementById('guest-error');
     if (check) check.checked = false;
     if (btn)   btn.disabled  = true;
+    if (input) input.value   = '';
+    if (err)   err.textContent = '';
     document.getElementById('terms-modal').style.display = 'flex'; 
 };
 window.hideTerms = () => { document.getElementById('terms-modal').style.display = 'none'; };
+
+async function submitGuestAuth() {
+    const input = document.getElementById('guest-name-input');
+    const err   = document.getElementById('guest-error');
+    const btn   = document.getElementById('agree-btn');
+    
+    let name = input ? input.value.trim() : 'Guest';
+    if (!name) name = 'Guest';
+    
+    if (btn) btn.textContent = 'CONNECTING...';
+    if (btn) btn.disabled = true;
+    if (err) err.textContent = '';
+
+    try {
+        const res = await fetch(`${API_BASE}/auth/guest`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name })
+        });
+        const data = await res.json();
+        
+        if (data.ok) {
+            localStorage.setItem('nexus_user_data', JSON.stringify(data));
+            revealTerminal(data.name);
+            renderAuthSection();
+        } else {
+            if (err) err.textContent = data.error || 'Server error';
+            if (btn) btn.textContent = 'I AGREE & ENTER';
+            if (btn) btn.disabled = false;
+        }
+    } catch(e) {
+        if (err) err.textContent = 'Connection failed';
+        if (btn) btn.textContent = 'I AGREE & ENTER';
+        if (btn) btn.disabled = false;
+    }
+}
 
 function updateUserIdentity(name) {
     if (!name) return;

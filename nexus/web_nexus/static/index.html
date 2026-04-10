@@ -36,12 +36,16 @@
                 3. GUEST: Guest sessions are local-only and not tracked on global leaderboards, but interaction logs still apply.
                 <br><br>
                 <div style="display:flex; align-items:center; gap:10px; margin-top:15px; border-top:1px solid #1a1a30; padding-top:15px;">
+                    <input type="text" id="guest-name-input" placeholder="Enter Alias (Max 20 chars)" maxlength="20" style="background:#111; border:1px solid var(--accent); color:#fff; padding:5px 8px; font-family:inherit; width:200px; outline:none;">
+                    <span id="guest-error" style="color:#f55; font-size:0.65rem;"></span>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px; margin-top:15px;">
                     <input type="checkbox" id="terms-check" onclick="document.getElementById('agree-btn').disabled = !this.checked">
                     <label for="terms-check" style="font-size:0.75rem; color:#aaa; cursor:pointer;">I have read and acknowledge the Nexus Protocol.</label>
                 </div>
             </div>
             <div style="display:flex; gap:10px; justify-content:center;">
-                <button id="agree-btn" class="gui-btn" onclick="revealTerminal('guest')" disabled>I AGREE & ENTER</button>
+                <button id="agree-btn" class="gui-btn" onclick="submitGuestAuth()" disabled>I AGREE & ENTER</button>
                 <button class="gui-btn" style="border-color:#444; color:#555;" onclick="hideTerms()">CANCEL</button>
             </div>
         </div>

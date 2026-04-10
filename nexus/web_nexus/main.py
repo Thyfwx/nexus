@@ -114,6 +114,51 @@ async def auth_google(request: Request):
                     max_age=30 * 24 * 3600, secure=secure)
     return resp
 
+import re
+import uuid
+
+# Basic profanity list (expandable)
+PROFANITY = ["fuck", "shit", "bitch", "cunt", "nigger", "nigga", "faggot", "asshole", "dick", "pussy", "cock", "slut", "whore"]
+
+@app.post("/auth/guest")
+async def auth_guest(request: Request):
+    data = await request.json()
+    raw_name = data.get("name", "").strip()
+    
+    if not raw_name or len(raw_name) > 20:
+        return _JSONResponse({"error": "Name must be 1-20 characters."}, status_code=400)
+    
+    # Profanity check (case insensitive, catch some basic replacements)
+    test_name = raw_name.lower().replace("@", "a").replace("0", "o").replace("1", "i").replace("!", "i").replace("3", "e").replace("$", "s")
+    for bad in PROFANITY:
+        if bad in test_name:
+            return _JSONResponse({"error": "Name contains restricted words."}, status_code=400)
+            
+    payload = {
+        "sub":     f"guest_{uuid.uuid4().hex[:8]}",
+        "name":    raw_name,
+        "email":   "guest@local",
+        "picture": "",
+        "exp":     datetime.utcnow() + timedelta(days=30),
+    }
+    
+    token = pyjwt.encode(payload, _key("SECRET_KEY") or os.getenv("SECRET_KEY", "nexus-dev-please-change-in-prod"), algorithm="HS256")
+    is_prod = os.getenv("PRODUCTION", "") == "1"
+
+    resp = _JSONResponse({
+        "ok":      True,
+        "name":    payload["name"],
+        "email":   payload["email"],
+        "picture": payload["picture"],
+    })
+    
+    samesite = "none" if is_prod else "lax"
+    secure   = True if is_prod else False
+    
+    resp.set_cookie("nexus_session", token, httponly=True, samesite=samesite,
+                    max_age=30 * 24 * 3600, secure=secure)
+    return resp
+
 @app.get("/api/me")
 async def get_me(request: Request):
     user = _get_session(request)
