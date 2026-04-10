@@ -2574,21 +2574,20 @@ function stopAllGames() {
 // =============================================================
 //  GOOGLE AUTHENTICATION
 // =============================================================
-let _googleClientID = ''; // Fetched from server for privacy
+let _googleClientID = '616205887439-s1l0out61vlu0l81307q9g64oai3gnur.apps.googleusercontent.com'; 
 let _authInited     = false;
 
 async function initGoogleAuth() {
     if (_authInited) return;
     
-    // Status feedback on login wall
+    console.log("[AUTH] Starting Google Identity handshake...");
     const statusMsg = document.getElementById('auth-status-msg');
     if (statusMsg) statusMsg.textContent = "[UPLINK] Synchronizing with Nexus mainframe...";
 
-    // Ensure sidebar placeholder exists for the poll to find
     renderAuthSection();
 
-    // 1. Ensure Google Script is present
-    if (!document.querySelector('script[src*="gsi/client"]')) {
+    // 1. Force script presence
+    if (!window.google || !window.google.accounts) {
         const s = document.createElement('script');
         s.src = 'https://accounts.google.com/gsi/client';
         s.async = true; s.defer = true;
@@ -2596,18 +2595,10 @@ async function initGoogleAuth() {
     }
 
     try {
-        // Try to get fresh ID from server — Render free tier might take 30s
-        console.log("[AUTH] Fetching config from", API_BASE);
+        // Try to get fresh ID from server
         const cfg = await fetch(`${API_BASE}/api/config`).then(r => r.json()).catch(() => ({}));
+        if (cfg.google_client_id) _googleClientID = cfg.google_client_id;
         
-        if (cfg.google_client_id) {
-            _googleClientID = cfg.google_client_id;
-            if (statusMsg) statusMsg.textContent = "[UPLINK] Identity protocol synced. Awaiting Google handshake.";
-        } else {
-            console.warn("[AUTH] Server config failed, using fallback ID.");
-            if (statusMsg) statusMsg.textContent = "[UPLINK] Signal weak. Attempting fallback authorization...";
-        }
-
         // Start aggressive polling
         let attempts = 0;
         const poll = setInterval(() => {
@@ -2636,23 +2627,22 @@ async function initGoogleAuth() {
                     });
                 }
 
-                // If buttons rendered or we've tried a lot, stop polling
+                // Confirm success
                 if ((wallEl && wallEl.children.length > 0) || (sideEl && sideEl.children.length > 0)) {
                     _authInited = true;
                     clearInterval(poll);
                     if (statusMsg) statusMsg.textContent = "Identity synchronized. Select account to enter.";
-                    console.log("[AUTH] Initialization complete.");
                 }
             }
             
-            // Render cold start helper
+            // Show help messages for slow connections
             if (attempts === 5 && !hasGoogle && statusMsg) {
-                statusMsg.textContent = "[WAKING UP] Nexus backend is spinning up (Render.com free tier). This may take up to 30s...";
+                statusMsg.textContent = "[WAKING UP] Nexus backend is spinning up. This may take up to 30s...";
             }
 
-            // If it's taking too long, show a manual fallback link in the sidebar
-            if (attempts === 15 && sideEl && sideEl.children.length === 0) {
-                sideEl.innerHTML = `<button onclick="google.accounts.id.prompt()" style="background:none;border:1px solid #0ff;color:#0ff;font-size:10px;padding:6px 10px;cursor:pointer;font-family:inherit;border-radius:3px;">RETRY MANUAL HANDSHAKE</button>`;
+            // FALLBACK: If Google exists but won't render buttons, provide a manual link
+            if (attempts === 15 && hasGoogle && wallEl && wallEl.children.length === 0) {
+                wallEl.innerHTML = `<button onclick="google.accounts.id.prompt()" class="gui-btn" style="padding:15px 30px;">FORCE GOOGLE LOGIN</button>`;
             }
 
             if (attempts > 60) clearInterval(poll); 
@@ -2660,7 +2650,6 @@ async function initGoogleAuth() {
 
     } catch (e) { 
         console.error("[AUTH] Init failed:", e);
-        if (statusMsg) statusMsg.textContent = "[ERROR] Auth sync-link failed. Check connection.";
     }
 }
 
