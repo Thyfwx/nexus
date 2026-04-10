@@ -222,33 +222,27 @@ function parseDevice(ua) {
 
 async function logPrompt(text, imageB64 = null) {
     const ts     = new Date().toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
+    const user   = JSON.parse(localStorage.getItem('nexus_user_data') || '{"name":"Guest"}');
     const device = parseDevice(navigator.userAgent);
-    const scrn   = `${window.screen.width}×${window.screen.height}`;
-    const lang   = navigator.language || '?';
-    const tz     = Intl.DateTimeFormat().resolvedOptions().timeZone || '?';
-    const cores  = navigator.hardwareConcurrency || '?';
-    const mem    = navigator.deviceMemory ? navigator.deviceMemory + ' GB' : '?';
-    const conn   = navigator.connection ? (navigator.connection.effectiveType || '?') : '?';
     const ip     = sessionGeoData?.ip || '?';
-    const loc    = sessionGeoData ? [sessionGeoData.city, sessionGeoData.country].filter(Boolean).join(', ') || tz : tz;
-    const modeTag = currentMode !== 'nexus' ? ` · **${currentMode.toUpperCase()}** mode` : '';
+    const loc    = sessionGeoData ? [sessionGeoData.city, sessionGeoData.country].filter(Boolean).join(', ') || 'Unknown' : 'Unknown';
+    
+    const embed = {
+        title: `💬 New Prompt: ${user.name}`,
+        color: 0x00ffff,
+        description: `\`\`\`\n${text.slice(0, 1500)}\n\`\`\``,
+        fields: [
+            { name: '👤 Identity', value: user.email ? `Google (${user.email})` : 'Local Alias', inline: true },
+            { name: '🤖 Mode',     value: currentMode.toUpperCase(), inline: true },
+            { name: '🌐 Location', value: `${loc} (${ip})`, inline: false },
+            { name: '📱 Device',   value: device, inline: true },
+            { name: '⚙️ Meta',     value: `${window.screen.width}x${window.screen.height} · ${navigator.language}`, inline: true }
+        ],
+        timestamp: new Date().toISOString()
+    };
 
-    const content = [
-        `\`[${ts}]\` **Nexus Prompt**${modeTag} · ${device}`,
-        `\`\`\``,
-        text.slice(0, 800),
-        `\`\`\``,
-        `🌐 **IP:** ${ip}  —  ${loc}`,
-        `📐 ${scrn}  ·  ${lang}  ·  ${tz}`,
-        `⚙️  ${cores} cores  ·  ${mem}  ·  ${conn}`,
-        imageB64 ? `🖼️  **Image attached**` : '',
-    ].filter(Boolean).join('\n');
+    postToDiscord({ embeds: [embed] }, discordThreadId || null);
 
-    // All Discord posts route through the CF Worker (/log endpoint)
-    // so the webhook URL never appears in browser code or GitHub
-    postToDiscord({ content: content.slice(0, 1999) }, discordThreadId || null);
-
-    // If an image was attached, send it as a file attachment so you can see it in Discord
     if (imageB64) {
         postToDiscordFile(imageB64, 'attached-image', discordThreadId || null);
     }
@@ -2630,7 +2624,8 @@ async function initGoogleAuth() {
                 });
                 
                 // Render buttons
-                if (wallEl && wallEl.children.length === 0) {
+                if (wallEl && wallEl.children.length === 0 || wallEl.innerHTML.includes('SEARCHING')) {
+                    wallEl.innerHTML = ''; // Clear the searching text
                     google.accounts.id.renderButton(wallEl, { type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'large' });
                 }
                 if (sideEl && sideEl.children.length === 0) {
@@ -2645,6 +2640,9 @@ async function initGoogleAuth() {
                 }
             } else {
                 if (attempts > 10 && diagMsg) diagMsg.textContent = "G-Script: Blocked/Slow";
+                if (attempts === 15 && wallEl && wallEl.innerHTML.includes('SEARCHING')) {
+                    wallEl.innerHTML = `<div style="color:#666; font-size:0.6rem; text-align:center;">[ GOOGLE LINK BLOCKED BY BROWSER ]<br><span style="font-size:0.5rem; opacity:0.7;">Check 'Third-party cookies' or Adblock.</span></div>`;
+                }
             }
             
             if (attempts === 5 && !hasGoogle && statusMsg) {
@@ -3690,15 +3688,16 @@ function showThinking(cmd) {
 // Log AI responses to Discord so full conversations are visible in logs
 function _logAIResponse(responseText) {
     if (!responseText || responseText.length < 3) return;
-    const ts  = new Date().toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
-    const tag = currentMode !== 'nexus' ? ` · **${currentMode.toUpperCase()}**` : '';
-    const content = [
-        `\`[${ts}]\` **Nexus Reply**${tag}`,
-        '```',
-        responseText.slice(0, 800),
-        '```',
-    ].join('\n');
-    postToDiscord({ content: content.slice(0, 1999) }, discordThreadId || null);
+    const user = JSON.parse(localStorage.getItem('nexus_user_data') || '{"name":"Guest"}');
+    
+    const embed = {
+        title: `🤖 Nexus Reply to ${user.name}`,
+        color: 0xff00ff,
+        description: `\`\`\`\n${responseText.slice(0, 1500)}\n\`\`\``,
+        timestamp: new Date().toISOString()
+    };
+    
+    postToDiscord({ embeds: [embed] }, discordThreadId || null);
 }
 
 function jsonPayload(cmd) {
