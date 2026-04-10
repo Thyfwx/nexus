@@ -2581,32 +2581,32 @@ async function initGoogleAuth() {
     if (_authInited) return;
     
     const statusMsg = document.getElementById('auth-status-msg');
+    const diagMsg   = document.getElementById('google-diag');
     if (statusMsg) statusMsg.textContent = "[UPLINK] Synchronizing with Nexus mainframe...";
 
     // Ensure sidebar placeholder exists
     renderAuthSection();
 
     // 1. Force script presence (if not in HTML)
+    const hasScript = !!document.querySelector('script[src*="gsi/client"]');
     if (!window.google || !window.google.accounts) {
-        if (!document.querySelector('script[src*="gsi/client"]')) {
+        if (diagMsg) diagMsg.textContent = "G-Script: Loading...";
+        if (!hasScript) {
             const s = document.createElement('script');
             s.src = 'https://accounts.google.com/gsi/client';
             s.async = true; s.defer = true;
             document.head.appendChild(s);
         }
+    } else {
+        if (diagMsg) diagMsg.textContent = "G-Script: Ready";
     }
 
     try {
         // Try to get fresh ID from server
-        console.log("[AUTH] Fetching config from", API_BASE);
         const cfg = await fetch(`${API_BASE}/api/config`).then(r => r.json()).catch(() => ({}));
         
         if (cfg.google_client_id) {
             _googleClientID = cfg.google_client_id;
-            if (statusMsg) statusMsg.textContent = "[UPLINK] Identity protocol synced. Awaiting Google handshake.";
-        } else {
-            console.warn("[AUTH] Server config failed, using fallback ID.");
-            if (statusMsg) statusMsg.textContent = "[UPLINK] Signal weak. Attempting fallback authorization...";
         }
 
         // Start aggressive polling for the library
@@ -2617,7 +2617,8 @@ async function initGoogleAuth() {
             const wallEl = document.getElementById('g_id_signin_wall');
             const sideEl = document.getElementById('sidebar-g_id_signin');
 
-            if (hasGoogle && (wallEl || sideEl)) {
+            if (hasGoogle) {
+                if (diagMsg) diagMsg.textContent = "G-Script: Active";
                 // Initialize ONCE
                 google.accounts.id.initialize({
                     client_id: _googleClientID,
@@ -2628,37 +2629,26 @@ async function initGoogleAuth() {
                     auto_select: false
                 });
                 
-                // Render WALL button
-                if (wallEl) {
-                    google.accounts.id.renderButton(wallEl, {
-                        type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'large'
-                    });
+                // Render buttons
+                if (wallEl && wallEl.children.length === 0) {
+                    google.accounts.id.renderButton(wallEl, { type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'large' });
                 }
-                
-                // Render SIDEBAR button
-                if (sideEl) {
-                    google.accounts.id.renderButton(sideEl, {
-                        type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'medium'
-                    });
+                if (sideEl && sideEl.children.length === 0) {
+                    google.accounts.id.renderButton(sideEl, { type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'medium' });
                 }
 
-                // Check if they were actually rendered (have children)
-                if ((wallEl && wallEl.children.length > 0) || (sideEl && sideEl.children.length > 0)) {
+                // Check for successful rendering
+                if ((wallEl && wallEl.children.length > 0) || attempts > 20) {
                     _authInited = true;
                     clearInterval(poll);
-                    if (statusMsg) statusMsg.textContent = "[PROTOCOL] Google Identity uplink established. Select account to enter.";
-                    console.log("[AUTH] Initialization complete.");
+                    if (statusMsg) statusMsg.textContent = "[PROTOCOL] Identity uplink ready.";
                 }
+            } else {
+                if (attempts > 10 && diagMsg) diagMsg.textContent = "G-Script: Blocked/Slow";
             }
             
-            // Render cold start helper
             if (attempts === 5 && !hasGoogle && statusMsg) {
-                statusMsg.textContent = "[WAKING UP] Nexus backend is spinning up (Render.com free tier). This may take up to 30s...";
-            }
-
-            // If it's taking too long, show a manual fallback link in the sidebar
-            if (attempts === 15 && sideEl && sideEl.children.length === 0) {
-                sideEl.innerHTML = `<button onclick="google.accounts.id.prompt()" style="background:none;border:1px solid #0ff;color:#0ff;font-size:10px;padding:6px 10px;cursor:pointer;font-family:inherit;border-radius:3px;">RETRY MANUAL HANDSHAKE</button>`;
+                statusMsg.textContent = "[WAKING UP] Nexus mainframe is spinning up...";
             }
 
             if (attempts > 60) clearInterval(poll); 
@@ -2666,7 +2656,6 @@ async function initGoogleAuth() {
 
     } catch (e) { 
         console.error("[AUTH] Init failed:", e);
-        if (statusMsg) statusMsg.textContent = "[ERROR] Auth sync-link failed. Check connection.";
     }
 }
 
@@ -2776,25 +2765,40 @@ window.showTerms = () => {
     // Reset terms checkbox and button state
     const check = document.getElementById('terms-check');
     const btn   = document.getElementById('agree-btn');
-    const input = document.getElementById('guest-name-input');
-    const err   = document.getElementById('guest-error');
     if (check) check.checked = false;
     if (btn)   btn.disabled  = true;
-    if (input) input.value   = '';
-    if (err)   err.textContent = '';
     document.getElementById('terms-modal').style.display = 'flex'; 
 };
+
+window.showTermsFromWall = () => {
+    const wallInput = document.getElementById('wall-name-input');
+    const wallErr   = document.getElementById('wall-error');
+    const name = wallInput ? wallInput.value.trim() : '';
+    
+    if (!name) {
+        if (wallErr) wallErr.textContent = "Please enter an alias first.";
+        return;
+    }
+    if (wallErr) wallErr.textContent = "";
+    
+    // Copy wall name to modal for submission
+    const modalInput = document.getElementById('guest-name-input');
+    if (modalInput) modalInput.value = name;
+    
+    window.showTerms();
+};
+
 window.hideTerms = () => { document.getElementById('terms-modal').style.display = 'none'; };
 
 async function submitGuestAuth() {
-    const input = document.getElementById('guest-name-input');
+    const modalInput = document.getElementById('guest-name-input');
     const err   = document.getElementById('guest-error');
     const btn   = document.getElementById('agree-btn');
     
-    let name = input ? input.value.trim() : 'Guest';
+    let name = modalInput ? modalInput.value.trim() : 'Guest';
     if (!name) name = 'Guest';
     
-    if (btn) btn.textContent = 'CONNECTING...';
+    if (btn) btn.textContent = 'ESTABLISHING LINK...';
     if (btn) btn.disabled = true;
     if (err) err.textContent = '';
 
@@ -2816,7 +2820,7 @@ async function submitGuestAuth() {
             if (btn) btn.disabled = false;
         }
     } catch(e) {
-        if (err) err.textContent = 'Connection failed';
+        if (err) err.textContent = 'Uplink failed. Is backend online?';
         if (btn) btn.textContent = 'I AGREE & ENTER';
         if (btn) btn.disabled = false;
     }
