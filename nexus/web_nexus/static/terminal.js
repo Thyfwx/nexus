@@ -3955,6 +3955,7 @@ window.onload = async () => {
     guiTitle     = document.getElementById('gui-title');
     nexusCanvas  = document.getElementById('nexus-canvas');
 
+    // Start auth in background (non-blocking)
     initGoogleAuth();
 
     const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
