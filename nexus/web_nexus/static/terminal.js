@@ -2574,7 +2574,7 @@ function stopAllGames() {
 // =============================================================
 //  GOOGLE AUTHENTICATION
 // =============================================================
-let _googleClientID = '616205887439-s1l0out61vlu0l81307q9g64oai3gnur.apps.googleusercontent.com'; // Hardcoded fallback
+let _googleClientID = ''; // Fetched from server for privacy
 let _authInited     = false;
 
 async function initGoogleAuth() {
