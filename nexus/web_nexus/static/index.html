@@ -13,15 +13,33 @@
     <div id="auth-screen" class="auth-overlay">
         <div class="auth-box">
             <div class="auth-header">NEXUS // CORE ACCESS</div>
-            <p class="auth-desc" id="auth-status-msg">Authorization required. Synchronize your identity to establish an uplink.</p>
+            <p class="auth-desc" id="auth-status-msg">Initialising identity protocols...</p>
             
-            <!-- Target for JS-rendered Google Button -->
-            <div id="g_id_signin_wall" style="display:flex; justify-content:center; margin-bottom:20px;"></div>
+            <!-- Google Auth Section -->
+            <div class="auth-sub-section">
+                <div class="auth-label">GOOGLE UPLINK</div>
+                <div id="g_id_signin_wall" style="display:flex; justify-content:center; min-height:40px;">
+                    <div style="color:#444; font-size:0.6rem; letter-spacing:1px;">[ SEARCHING FOR GOOGLE IDENTITY... ]</div>
+                </div>
+            </div>
 
             <div class="auth-divider"><span>OR</span></div>
-            <button class="auth-guest-link" onclick="showTerms()">CONTINUE AS GUEST</button>
-            <div class="auth-terms">By entering, you agree to the <a href="#" onclick="showTerms()">Nexus Protocol Terms of Access</a>.</div>
-            <div class="auth-footer">Security Level: Grade A // 256-bit Encrypted</div>
+
+            <!-- Local Identity Section -->
+            <div class="auth-sub-section">
+                <div class="auth-label">LOCAL IDENTITY</div>
+                <div style="display:flex; flex-direction:column; gap:10px; align-items:center;">
+                    <input type="text" id="wall-name-input" placeholder="Enter Alias (e.g. Player1)" maxlength="20" 
+                           style="background:#050510; border:1px solid #333; color:#0ff; padding:10px; font-family:inherit; width:100%; text-align:center; outline:none; font-size:0.8rem;">
+                    <button class="gui-btn" onclick="showTermsFromWall()" style="width:100%; padding:10px;">ESTABLISH LOCAL LINK</button>
+                    <div id="wall-error" style="color:#f55; font-size:0.6rem; height:10px;"></div>
+                </div>
+            </div>
+
+            <div class="auth-footer">
+                <div id="google-diag" style="color:#222; font-size:0.5rem; margin-bottom:10px;">G-Script: Pending...</div>
+                Security Level: Grade A // 256-bit Encrypted
+            </div>
         </div>
     </div>
 

@@ -404,7 +404,9 @@ body {
     box-shadow: 0 0 40px rgba(0, 255, 255, 0.15); backdrop-filter: blur(10px);
 }
 .auth-header { color: var(--accent); font-size: 1.4rem; font-weight: 600; letter-spacing: 4px; margin-bottom: 15px; text-shadow: 0 0 10px var(--accent); }
-.auth-desc { color: #888; font-size: 0.85rem; line-height: 1.6; margin-bottom: 25px; }
+.auth-desc { color: #888; font-size: 0.85rem; line-height: 1.6; margin-bottom: 25px; min-height: 2.5rem; }
+.auth-sub-section { margin: 20px 0; }
+.auth-label { color: #444; font-size: 0.6rem; letter-spacing: 2px; margin-bottom: 12px; font-weight: 600; }
 .auth-divider { display: flex; align-items: center; color: #333; font-size: 0.65rem; margin: 15px 0; }
 .auth-divider::before, .auth-divider::after { content: ''; flex: 1; border-bottom: 1px solid #1a1a30; }
 .auth-divider span { padding: 0 10px; }
