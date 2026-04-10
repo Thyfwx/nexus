@@ -203,20 +203,20 @@ def get_system_prompt(mode="nexus", context=""):
 
 # ── Model registry ────────────────────────────────────────────────────────────
 MODELS = [
-    # GEMINI - Intelligence and Speed
-    {"id": "gemini-2.0-flash",                "provider": "gemini", "label": "Gemini 2.0 Flash"},
-    
-    # GROQ - Speed Kings
+    # GROQ - Speed Kings (User Preferred)
     {"id": "llama-3.3-70b-versatile",         "provider": "groq",   "label": "Nexus Prime (70B)"},
     {"id": "meta-llama/llama-4-scout-17b-16e-instruct", "provider": "groq",   "label": "Llama 4 Scout"},
-    {"id": "deepseek-ai/DeepSeek-Coder-V2-Instruct", "provider": "hf",     "label": "DeepSeek Coder V2"},
     {"id": "qwen/qwen3-32b",                  "provider": "groq",   "label": "Qwen 3 (32B)"},
     
-    # HF - Massive Brains
+    # HF - Massive Brains (User Preferred)
+    {"id": "deepseek-ai/DeepSeek-Coder-V2-Instruct", "provider": "hf",     "label": "DeepSeek Coder V2"},
     {"id": "Qwen/Qwen2.5-72B-Instruct",       "provider": "hf",     "label": "Qwen 2.5 (72B)"},
     {"id": "mistralai/Mistral-7B-Instruct-v0.3", "provider": "hf",     "label": "Mistral 7B"},
     {"id": "google/gemma-2-27b-it",           "provider": "hf",     "label": "Gemma 2 (27B)"},
     {"id": "meta-llama/Llama-3.3-70B-Instruct", "provider": "hf",     "label": "Llama 3.3 (HF)"},
+
+    # GEMINI - (Fallback only)
+    {"id": "gemini-2.0-flash",                "provider": "gemini", "label": "Gemini 2.0 Flash"},
 ]
 
 current_model_idx = 0
