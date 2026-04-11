@@ -1,6 +1,2 @@
+# Ignore environment files containing secret keys
 .env
-__pycache__/
-*.pyc
-.venv/
-.DS_Store
-scores.json
