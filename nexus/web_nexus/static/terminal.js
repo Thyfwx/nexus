@@ -2576,7 +2576,11 @@ async function initGoogleAuth() {
 
     try {
         const cfg = await fetch(`${API_BASE}/api/config`).then(r => r.json()).catch(() => ({}));
-        if (cfg.google_client_id) _googleClientID = cfg.google_client_id;
+        if (cfg.google_client_id) {
+            _googleClientID = cfg.google_client_id;
+            const gLoad = document.getElementById('g_id_onload');
+            if (gLoad) gLoad.setAttribute('data-client_id', _googleClientID);
+        }
         
         let attempts = 0;
         const poll = setInterval(() => {
