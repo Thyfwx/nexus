@@ -1391,10 +1391,7 @@ function launchInvaders(difficulty) {
 
     const overlay = document.getElementById('invaders-overlay');
     const invCanvas = document.getElementById('invaders-canvas');
-    if (!overlay || !invCanvas) {
-        startInvadersClassic();
-        return;
-    }
+    if (!overlay || !invCanvas) return;
 
     stopAllGames();
     invadersActive = true;
@@ -1412,35 +1409,26 @@ function launchInvaders(difficulty) {
     const GRID_W = COLS * (EW + HGAP) - HGAP;
     const PLAYER_W = 40, PLAYER_H = 18;
 
-    let score = 0, lives = 3, wave = 1;
-    let gameOver = false;
+    let score = 0, lives = 3, wave = 1, gameOver = false;
     let lastTs = 0, stepTimer = 0, stepInterval = 750;
     let px = 280, playerBullet = null, shootCooldown = 0;
-    let eBullets = [];
-    let enemies = [], shields = [];
-    let gridX = 0, gridY = 60, gridDX = d.speed;
-    let invScoreSubmitted = false;
+    let eBullets = [], enemies = [], shields = [];
+    let gridX = 0, gridY = 60, gridDX = d.speed, invScoreSubmitted = false;
 
     function buildEnemies() {
         enemies = [];
-        gridX = (600 - GRID_W) / 2;
-        gridY = 60;
+        gridX = (600 - GRID_W) / 2; gridY = 60;
         gridDX = d.speed + (wave - 1) * 0.25;
         stepInterval = Math.max(180, 750 - (wave - 1) * 75);
         for (let r = 0; r < ROWS; r++) {
             enemies.push([]);
-            for (let c = 0; c < COLS; c++) {
-                const type = r === 0 ? 0 : r <= 2 ? 1 : 2;
-                enemies[r].push({ alive: true, type, anim: 0 });
-            }
+            for (let c = 0; c < COLS; c++) enemies[r].push({ alive: true, type: r === 0 ? 0 : r <= 2 ? 1 : 2, anim: 0 });
         }
     }
 
     function buildShields() {
         shields = [];
-        const BLK = 8;
-        const count = difficulty === 'easy' ? 5 : 4;
-        const spacing = 600 / (count + 1);
+        const BLK = 8, count = difficulty === 'easy' ? 5 : 4, spacing = 600 / (count + 1);
         for (let i = 1; i <= count; i++) {
             const sx = i * spacing - 24;
             for (let r = 0; r < 4; r++) for (let c = 0; c < 6; c++) {
@@ -1451,9 +1439,7 @@ function launchInvaders(difficulty) {
         }
     }
 
-    buildEnemies();
-    buildShields();
-
+    buildEnemies(); buildShields();
     _invadersKeys = {};
     _invadersKeyDown = (e) => {
         _invadersKeys[e.key] = true;
@@ -1468,13 +1454,11 @@ function launchInvaders(difficulty) {
         }
     };
     _invadersKeyUp = (e) => { delete _invadersKeys[e.key]; };
-    document.addEventListener('keydown', _invadersKeyDown);
-    document.addEventListener('keyup', _invadersKeyUp);
+    document.addEventListener('keydown', _invadersKeyDown); document.addEventListener('keyup', _invadersKeyUp);
 
     function frame(ts) {
         if (!invadersActive) return;
-        const raw = lastTs ? Math.min(ts - lastTs, 50) : 16.67;
-        const dt = raw / 16.67;
+        const raw = lastTs ? Math.min(ts - lastTs, 50) : 16.67, dt = raw / 16.67;
         lastTs = ts;
 
         if (!gameOver) {
@@ -1484,22 +1468,17 @@ function launchInvaders(difficulty) {
 
             gridX += gridDX * dt;
             if (gridX + GRID_W > 590 || gridX < 10) {
-                gridDX *= -1;
-                gridY += 15;
+                gridDX *= -1; gridY += 15;
                 if (gridY + (ROWS * VGAP) > 320) gameOver = true;
             }
 
             stepTimer += raw;
-            if (stepTimer > stepInterval) {
-                stepTimer = 0;
-                enemies.flat().forEach(e => e.anim = 1 - e.anim);
-            }
+            if (stepTimer > stepInterval) { stepTimer = 0; enemies.flat().forEach(e => e.anim = 1 - e.anim); }
 
             enemies.flat().forEach((e, i) => {
                 if (e.alive && Math.random() < d.fireRate * dt) {
                     const r = Math.floor(i / COLS), c = i % COLS;
-                    const ex = gridX + c * (EW + HGAP), ey = gridY + r * (EH + VGAP);
-                    eBullets.push({ x: ex + EW/2, y: ey + EH, vy: d.bulletSpeed });
+                    eBullets.push({ x: gridX + c * (EW + HGAP) + EW/2, y: gridY + r * (EH + VGAP) + EH, vy: d.bulletSpeed });
                 }
             });
 
@@ -1509,13 +1488,10 @@ function launchInvaders(difficulty) {
                 else {
                     enemies.flat().forEach(e => {
                         if (e.alive) {
-                            const r = enemies.findIndex(row => row.includes(e));
-                            const c = enemies[r].indexOf(e);
+                            const r = enemies.findIndex(row => row.includes(e)), c = enemies[r].indexOf(e);
                             const ex = gridX + c * (EW + HGAP), ey = gridY + r * (EH + VGAP);
-                            if (playerBullet.x > ex && playerBullet.x < ex + EW && playerBullet.y > ey && playerBullet.y < ey + EH) {
-                                e.alive = false; playerBullet = null;
-                                score += (3 - e.type) * 10 * wave;
-                                SoundManager.playBloop(200, 0.05);
+                            if (playerBullet && playerBullet.x > ex && playerBullet.x < ex + EW && playerBullet.y > ey && playerBullet.y < ey + EH) {
+                                e.alive = false; playerBullet = null; score += (3 - e.type) * 10 * wave; SoundManager.playBloop(200, 0.05);
                             }
                         }
                     });
@@ -1526,8 +1502,7 @@ function launchInvaders(difficulty) {
                 b.y += b.vy * dt;
                 if (b.y > 420) eBullets.splice(bi, 1);
                 else if (b.x > px && b.x < px + PLAYER_W && b.y > 380 && b.y < 380 + PLAYER_H) {
-                    eBullets.splice(bi, 1); lives--;
-                    SoundManager.playBloop(150, 0.1);
+                    eBullets.splice(bi, 1); lives--; SoundManager.playBloop(150, 0.1);
                     if (lives <= 0) gameOver = true;
                 }
             });
@@ -1536,38 +1511,24 @@ function launchInvaders(difficulty) {
                 if (!b) return;
                 shields.forEach(s => {
                     if (s.hp > 0 && b.x > s.x && b.x < s.x + s.w && b.y > s.y && b.y < s.y + s.h) {
-                        s.hp--;
-                        if (bi === 0) playerBullet = null; else eBullets.splice(bi - 1, 1);
+                        s.hp--; if (bi === 0) playerBullet = null; else eBullets.splice(bi - 1, 1);
                     }
                 });
             });
 
-            if (enemies.flat().every(e => !e.alive)) {
-                wave++; buildEnemies(); buildShields();
-                SoundManager.playBloop(800, 0.1);
-            }
+            if (enemies.flat().every(e => !e.alive)) { wave++; buildEnemies(); buildShields(); SoundManager.playBloop(800, 0.1); }
         }
 
         ctx.fillStyle = '#020208'; ctx.fillRect(0, 0, 600, 420);
-        ctx.fillStyle = '#0ff'; ctx.fillRect(px, 380, PLAYER_W, PLAYER_H);
-        ctx.fillRect(px + 15, 372, 10, 8);
+        ctx.fillStyle = '#0ff'; ctx.fillRect(px, 380, PLAYER_W, PLAYER_H); ctx.fillRect(px + 15, 372, 10, 8);
 
-        enemies.forEach((row, r) => {
-            row.forEach((e, c) => {
-                if (!e.alive) return;
-                const ex = gridX + c * (EW + HGAP), ey = gridY + r * (EH + VGAP);
-                const col = e.type === 0 ? '#f55' : e.type === 1 ? '#f0f' : '#0ff';
-                ctx.fillStyle = col;
-                ctx.fillRect(ex + 4, ey, EW - 8, EH);
-            });
-        });
+        enemies.forEach((row, r) => { row.forEach((e, c) => {
+            if (!e.alive) return;
+            ctx.fillStyle = e.type === 0 ? '#f55' : e.type === 1 ? '#f0f' : '#0ff';
+            ctx.fillRect(gridX + c * (EW + HGAP) + 4, gridY + r * (EH + VGAP), EW - 8, EH);
+        });});
 
-        shields.forEach(s => {
-            if (s.hp <= 0) return;
-            ctx.fillStyle = `rgba(0, 255, 255, ${s.hp / 4})`;
-            ctx.fillRect(s.x, s.y, s.w, s.h);
-        });
-
+        shields.forEach(s => { if (s.hp > 0) { ctx.fillStyle = `rgba(0, 255, 255, ${s.hp / 4})`; ctx.fillRect(s.x, s.y, s.w, s.h); }});
         ctx.fillStyle = '#fff';
         if (playerBullet) ctx.fillRect(playerBullet.x - 1, playerBullet.y, 3, 10);
         eBullets.forEach(b => ctx.fillRect(b.x - 1, b.y, 3, 10));
@@ -1580,33 +1541,23 @@ function launchInvaders(difficulty) {
             ctx.fillStyle = 'rgba(255,0,0,0.3)'; ctx.fillRect(0,0,600,420);
             ctx.fillStyle = '#f44'; ctx.font = 'bold 40px monospace'; ctx.textAlign = 'center';
             ctx.fillText('SYSTEM BREACHED', 300, 200);
-            ctx.fillStyle = '#fff'; ctx.font = '16px monospace';
-            ctx.fillText('SPACE TO RETRY', 300, 240);
+            ctx.fillStyle = '#fff'; ctx.font = '16px monospace'; ctx.fillText('SPACE TO RETRY', 300, 240);
             ctx.textAlign = 'left';
-            if (!invScoreSubmitted && score > 0) { 
-                submitScore('invaders', score); invScoreSubmitted = true; 
-            }
+            if (!invScoreSubmitted && score > 0) { submitScore('invaders', score); invScoreSubmitted = true; }
         }
-
         invadersRaf = requestAnimationFrame(frame);
     }
     invadersRaf = requestAnimationFrame(frame);
 }
 
 function stopInvaders() { 
-    cancelAnimationFrame(invadersRaf); 
-    invadersActive = false; 
-    document.removeEventListener('keydown', _invadersKeyDown);
-    document.removeEventListener('keyup', _invadersKeyUp);
+    cancelAnimationFrame(invadersRaf); invadersActive = false; 
+    document.removeEventListener('keydown', _invadersKeyDown); document.removeEventListener('keyup', _invadersKeyUp);
 }
 
 window.closeInvadersOverlay = () => {
-    stopInvaders();
-    document.getElementById('invaders-overlay').classList.add('hidden');
+    stopInvaders(); document.getElementById('invaders-overlay').classList.add('hidden');
 };
-
-function startInvadersClassic() {
-}
 
 // =============================================================
 //  FLAPPY BIRD
@@ -2576,11 +2527,7 @@ async function initGoogleAuth() {
 
     try {
         const cfg = await fetch(`${API_BASE}/api/config`).then(r => r.json()).catch(() => ({}));
-        if (cfg.google_client_id) {
-            _googleClientID = cfg.google_client_id;
-            const gLoad = document.getElementById('g_id_onload');
-            if (gLoad) gLoad.setAttribute('data-client_id', _googleClientID);
-        }
+        if (cfg.google_client_id) _googleClientID = cfg.google_client_id;
         
         let attempts = 0;
         const poll = setInterval(() => {
@@ -3785,6 +3732,38 @@ function _a11ySyncButtons() {
         if (btn.id === 'sound-toggle') btn.classList.toggle('on', SoundManager.enabled);
     });
 }
+
+function toggleA11yClass(cls) {
+    document.body.classList.toggle(cls);
+    if (cls === 'a11y-large' && document.body.classList.contains(cls))  document.body.classList.remove('a11y-xl');
+    if (cls === 'a11y-xl'    && document.body.classList.contains(cls))  document.body.classList.remove('a11y-large');
+    _a11ySave();
+    _a11ySyncButtons();
+}
+
+function toggleSound() {
+    SoundManager.enabled = !SoundManager.enabled;
+    if (SoundManager.enabled) SoundManager.playBloop(600, 0.05);
+    _a11ySave();
+    _a11ySyncButtons();
+}
+
+// ── Voice selection helpers ──────────────────────────────────────────────────
+// Preferred voice names in priority order (Google > Microsoft > macOS > default)
+const _VOICE_PREF = [
+    'Google US English', 'Google UK English Female', 'Google UK English Male',
+    'Microsoft Aria Online (Natural) - English (United States)',
+    'Microsoft Jenny Online (Natural) - English (United States)',
+    'Microsoft Guy Online (Natural) - English (United States)',
+    'Microsoft Zira - English (United States)',
+    'Microsoft David - English (United States)',
+    'Samantha', 'Alex', 'Karen', 'Daniel',
+];
+
+function _pickBestVoice(voices) {
+    // Try ranked preferences first
+    for (const name of _VOICE_PREF) {
+        const v = voices.find(v => v.name === name);
         if (v) return v;
     }
     // Fall back to any en-US voice, then any English voice
@@ -3792,6 +3771,87 @@ function _a11ySyncButtons() {
         || voices.find(v => v.lang.startsWith('en'))
         || voices[0];
 }
+
+function _buildVoiceOptions(sel) {
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices.length) {
+        sel.innerHTML = '<option value="">No voices available</option>';
+        return;
+    }
+    const saved = localStorage.getItem('nexus_tts_voice');
+    const list  = voices.filter(v => v.lang.startsWith('en'));
+    sel.innerHTML = '<option value="">— Auto (best available) —</option>';
+    (list.length ? list : voices).forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.name;
+        opt.textContent = `${v.name} (${v.lang})`;
+        sel.appendChild(opt);
+    });
+    // Set selection using sel.value — simpler and always works
+    if (saved) {
+        sel.value = saved;
+        if (!sel.value) { sel.value = ''; localStorage.removeItem('nexus_tts_voice'); }
+    } else {
+        const best = _pickBestVoice(list.length ? list : voices);
+        if (best) sel.value = best.name;
+    }
+}
+
+function clearAllHistory() {
+    if (!confirm("Wipe ALL conversation memory across ALL modes?")) return;
+    Object.values(HISTORY_KEYS).forEach(key => localStorage.removeItem(key));
+    messageHistory = [];
+    printToTerminal("[SYSTEM] Global memory wiped. All modes reset.", "sys-msg");
+    const p = document.getElementById('a11y-panel');
+    if (p) p.classList.remove('a11y-panel-open');
+}
+
+function toggleA11yPanel() {
+    const panel = document.getElementById('a11y-panel');
+    if (panel) {
+        panel.classList.toggle('a11y-panel-open');
+        // Re-populate voices each open (Chrome loads them async after first gesture)
+        if (panel.classList.contains('a11y-panel-open')) {
+            const sel = panel.querySelector('#a11y-voice-sel');
+            if (sel) _buildVoiceOptions(sel);
+        }
+        return;
+    }
+
+    const el = document.createElement('div');
+    el.id = 'a11y-panel';
+    el.className = 'a11y-panel a11y-panel-open';
+    el.innerHTML = `
+        <div class="a11y-panel-header">
+            <span>[ ACCESSIBILITY ]</span>
+            <button onclick="document.getElementById('a11y-panel').classList.remove('a11y-panel-open')" class="a11y-close">✕</button>
+        </div>
+
+        <div class="a11y-section-label">AI CONTEXT</div>
+        <div class="a11y-row">
+            <button class="a11y-toggle" style="border-color:#f55;color:#f55;" onclick="clearAllHistory()">CLEAR AI MEMORY</button>
+            <button class="a11y-toggle" style="border-color:#ff6600;color:#ff6600;" onclick="logout()">SIGN OUT</button>
+        </div>
+
+        <div class="a11y-section-label">VISUALS</div>
+        <div class="a11y-row">
+            <button class="a11y-toggle" data-class="crt-mode" onclick="toggleA11yClass('crt-mode')">CRT Mode</button>
+            <button class="a11y-toggle" id="sound-toggle" onclick="toggleSound()">Sound Effects</button>
+        </div>
+
+        <div class="a11y-section-label">TEXT SIZE</div>
+        <div class="a11y-row">
+            <button class="a11y-toggle" data-class="a11y-large" onclick="toggleA11yClass('a11y-large')">Large</button>
+            <button class="a11y-toggle" data-class="a11y-xl"    onclick="toggleA11yClass('a11y-xl')">Extra Large</button>
+        </div>
+
+        <div class="a11y-section-label">TEXT STYLE</div>
+        <div class="a11y-row">
+            <button class="a11y-toggle" data-class="a11y-bold"         onclick="toggleA11yClass('a11y-bold')">Bold</button>
+            <button class="a11y-toggle" data-class="a11y-wide-spacing" onclick="toggleA11yClass('a11y-wide-spacing')">Wide Spacing</button>
+        </div>
+        <div class="a11y-row">
+            <button class="a11y-toggle" data-class="a11y-dyslexic" onclick="toggleA11yClass('a11y-dyslexic')">Dyslexia Font</button>
         </div>
 
         <div class="a11y-section-label">DISPLAY</div>
