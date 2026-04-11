@@ -2587,6 +2587,7 @@ async function initGoogleAuth() {
             attempts++;
             const hasGoogle = !!(window.google && window.google.accounts);
             const sideEl = document.getElementById('sidebar-g_id_signin');
+            const wallEl = document.getElementById('g_id_signin_wall');
 
             if (hasGoogle) {
                 google.accounts.id.initialize({
@@ -2597,15 +2598,17 @@ async function initGoogleAuth() {
                     itp_support: true,
                     auto_select: true
                 });
-                
+
                 if (sideEl && sideEl.children.length === 0) {
                     google.accounts.id.renderButton(sideEl, { type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'medium' });
+                }
+                if (wallEl && wallEl.children.length === 0) {
+                    google.accounts.id.renderButton(wallEl, { type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'large' });
                 }
 
                 _authInited = true;
                 clearInterval(poll);
-            }
-            if (attempts > 30) clearInterval(poll); 
+            }            if (attempts > 30) clearInterval(poll); 
         }, 1000);
     } catch (e) { console.error("[AUTH] Init failed:", e); }
 }
