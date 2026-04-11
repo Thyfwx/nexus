@@ -192,9 +192,9 @@ class Nexus(App):
             res = requests.get("https://ipapi.co/json/", timeout=5).json()
             city = res.get("city", "Unknown")
             country = res.get("country_name", "Unknown")
-            self.geo_label.update(f"{city}, {country}")
+            self.call_from_thread(self.geo_label.update, f"{city}, {country}")
         except:
-            self.geo_label.update("Unknown Location")
+            self.call_from_thread(self.geo_label.update, "Unknown Location")
 
     def update_network(self) -> None:
         self.network_table.clear()
@@ -254,10 +254,10 @@ class Nexus(App):
                     st.get_best_server()
                     down = st.download() / 1_000_000
                     up = st.upload() / 1_000_000
-                    self.chat_log.write(f"[bold green]Download:[/] {down:.2f} Mbps")
-                    self.chat_log.write(f"[bold magenta]Upload:[/] {up:.2f} Mbps")
+                    self.call_from_thread(self.chat_log.write, f"[bold green]Download:[/] {down:.2f} Mbps")
+                    self.call_from_thread(self.chat_log.write, f"[bold magenta]Upload:[/] {up:.2f} Mbps")
                 except:
-                    self.chat_log.write("[red]Speedtest failed (is it installed?)[/]")
+                    self.call_from_thread(self.chat_log.write, "[red]Speedtest failed (is it installed?)[/]")
             run_test()
 
         # 4. MINI-GAME
@@ -306,7 +306,7 @@ class Nexus(App):
             @work(thread=True)
             def query_ai(prompt: str):
                 reply = _call_ai(prompt)
-                self.chat_log.write(f"[bold green]Nexus AI:[/] {reply}")
+                self.call_from_thread(self.chat_log.write, f"[bold green]Nexus AI:[/] {reply}")
             query_ai(query)
             
         event.input.value = ""
