@@ -2602,6 +2602,10 @@ async function initGoogleAuth() {
             if (sideEl && sideEl.children.length === 0) {
                 google.accounts.id.renderButton(sideEl, { type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'medium' });
             }
+            const wallEl = document.getElementById('g_id_signin_wall');
+            if (wallEl && wallEl.children.length === 0) {
+                google.accounts.id.renderButton(wallEl, { type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'large' });
+            }
 
             _authInited = true;
             return true;
