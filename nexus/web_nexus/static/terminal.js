@@ -3,11 +3,17 @@
 // =============================================================
 
 // --- Config ---
-const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const isLocal = window.location.hostname === 'localhost' || 
+                window.location.hostname === '127.0.0.1' || 
+                window.location.hostname.startsWith('192.168.') || 
+                window.location.hostname.endsWith('.local') ||
+                window.location.hostname === 'thyfwxit.com' ||
+                window.location.hostname === 'nexus.thyfwxit.com';
 const RENDER_HOST = 'nexus-terminalnexus.onrender.com';
 
-const WS_URL    = isLocal ? `ws://${window.location.host}/ws/terminal` : `wss://${RENDER_HOST}/ws/terminal`;
-const STATS_URL = isLocal ? `ws://${window.location.host}/ws/stats`    : `wss://${RENDER_HOST}/ws/stats`;
+const proto     = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const WS_URL    = isLocal ? `${proto}//${window.location.host}/ws/terminal` : `wss://${RENDER_HOST}/ws/terminal`;
+const STATS_URL = isLocal ? `${proto}//${window.location.host}/ws/stats`    : `wss://${RENDER_HOST}/ws/stats`;
 const API_BASE  = isLocal ? `${window.location.protocol}//${window.location.host}` : `https://${RENDER_HOST}`;
 
 // Discord webhook
@@ -3433,9 +3439,8 @@ input.addEventListener('keydown', (e) => {
     if (lc === 'play minesweeper')    { startMinesweeper(); return; }
     if (lc === 'play flappy')      { startFlappy(); return; }
     if (lc === 'play breakout')    { startBreakout(); return; }
-    if (lc === 'play invaders')    { startInvaders(); return; }
+    if (lc === 'play invaders' || lc === 'play space invaders') { startInvaders(); return; }
 
-    if (lc === 'play invaders')       { startInvaders(); return; }
     if (lc === 'type test' || lc === 'typetest') { startTypingTest(); return; }
     if (lc === 'matrix')              { startMatrixSaver(); return; }
     if (lc === 'monitor')             { startMonitor(); return; }
