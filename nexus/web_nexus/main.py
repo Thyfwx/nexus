@@ -90,6 +90,9 @@ async def auth_google(request: Request):
     token = pyjwt.encode(payload, _key("SECRET_KEY") or SECRET_KEY, algorithm="HS256")
     is_prod = os.getenv("PRODUCTION", "") == "1"
 
+    # Log login event
+    log_login(payload["name"], payload["email"], request)
+
     resp = _JSONResponse({
         "ok":      True,
         "name":    payload["name"],
@@ -140,6 +143,9 @@ async def auth_guest(request: Request):
     token = pyjwt.encode(payload, _key("SECRET_KEY") or os.getenv("SECRET_KEY", "nexus-dev-please-change-in-prod"), algorithm="HS256")
     is_prod = os.getenv("PRODUCTION", "") == "1"
 
+    # Log login event
+    log_login(payload["name"], payload["email"], request)
+
     resp = _JSONResponse({
         "ok":      True,
         "name":    payload["name"],
@@ -165,6 +171,43 @@ async def get_me(request: Request):
         "email":   user.get("email", ""),
         "picture": user.get("picture", ""),
     }
+
+LOGIN_LOG_FILE = os.path.join(base_dir, "logins.json")
+
+def log_login(name: str, email: str, request: Request):
+    """Log the user's login event with IP and Device Info."""
+    try:
+        ip = request.client.host if request.client else "unknown"
+        ua = request.headers.get("user-agent", "unknown")
+        
+        entry = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "name": name,
+            "email": email,
+            "ip": ip,
+            "user_agent": ua
+        }
+        
+        logs = []
+        if os.path.exists(LOGIN_LOG_FILE):
+            try:
+                with open(LOGIN_LOG_FILE, "r") as f:
+                    logs = json.load(f)
+            except:
+                pass
+        
+        logs.append(entry)
+        
+        # Keep only the last 1000 logins
+        logs = logs[-1000:]
+        
+        with open(LOGIN_LOG_FILE, "w") as f:
+            json.dump(logs, f, indent=2)
+            
+        print(f"[AUTH] Logged login: {name} ({email}) from {ip}")
+    except Exception as e:
+        print(f"[ERROR] Failed to log login: {e}")
+
 
 @app.post("/auth/logout")
 async def logout():
