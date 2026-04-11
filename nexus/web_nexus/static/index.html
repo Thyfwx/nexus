@@ -43,11 +43,9 @@
 
             <!-- Local Identity Section -->
             <div class="auth-sub-section">
-                <div class="auth-label">LOCAL IDENTITY</div>
+                <div class="auth-label">GUEST ACCESS</div>
                 <div style="display:flex; flex-direction:column; gap:10px; align-items:center;">
-                    <input type="text" id="wall-name-input" placeholder="Enter Alias" maxlength="20" 
-                           style="background:#050510; border:1px solid #333; color:#0ff; padding:10px; font-family:inherit; width:100%; text-align:center; outline:none; font-size:0.8rem;">
-                    <button class="gui-btn" onclick="showTermsFromWall()" style="width:100%; padding:10px;">ESTABLISH LOCAL LINK</button>
+                    <button class="gui-btn" onclick="showTermsFromWall()" style="width:100%; padding:10px;">CONTINUE AS GUEST</button>
                     <div id="wall-error" style="color:#f55; font-size:0.6rem; height:10px;"></div>
                 </div>
             </div>
@@ -68,9 +66,7 @@
                 2. AI: Interactions are processed via neural links. Do not share sensitive secrets with the abyss.<br><br>
                 3. GUEST: Guest sessions are local-only and not tracked on global leaderboards, but interaction logs still apply.
                 <br><br>
-                <div style="display:flex; align-items:center; gap:10px; margin-top:15px; border-top:1px solid #1a1a30; padding-top:15px;">
-                    <input type="text" id="guest-name-input" placeholder="Alias confirmed" readonly maxlength="20" style="background:#111; border:1px solid #333; color:#555; padding:5px 8px; font-family:inherit; width:200px; outline:none;">
-                </div>
+                <div id="guest-error" style="color:#f55; font-size:0.6rem; margin-top:5px; height:12px; text-align:center;"></div>
                 <div style="display:flex; align-items:center; gap:10px; margin-top:15px;">
                     <input type="checkbox" id="terms-check" onclick="document.getElementById('agree-btn').disabled = !this.checked">
                     <label for="terms-check" style="font-size:0.75rem; color:#aaa; cursor:pointer;">I have read and acknowledge the Nexus Protocol.</label>

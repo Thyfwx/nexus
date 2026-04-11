@@ -51,15 +51,6 @@ app.add_middleware(
 
 base_dir   = os.path.dirname(os.path.abspath(__file__))
 static_dir = os.path.join(base_dir, "static")
-app.mount("/static", StaticFiles(directory=static_dir), name="static")
-
-@app.get("/")
-async def get():
-    with open(os.path.join(static_dir, "index.html"), "r") as f:
-        return HTMLResponse(
-            f.read(),
-            headers={"Cache-Control": "no-store, no-cache, must-revalidate"}
-        )
 
 @app.get("/ping")
 async def ping():
@@ -542,3 +533,6 @@ async def websocket_stats(websocket: WebSocket):
             await asyncio.sleep(2)
     except Exception as e:
         print(f"[STATS WS] Closed: {e}")
+
+# Mount static files at the end so they don't override API routes
+app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")

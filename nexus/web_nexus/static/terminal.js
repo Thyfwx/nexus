@@ -2711,32 +2711,18 @@ window.showTerms = () => {
 };
 
 window.showTermsFromWall = () => {
-    const wallInput = document.getElementById('wall-name-input');
-    const wallErr   = document.getElementById('wall-error');
-    const name = wallInput ? wallInput.value.trim() : '';
-    
-    if (!name) {
-        if (wallErr) wallErr.textContent = "Please enter an alias first.";
-        return;
-    }
-    if (wallErr) wallErr.textContent = "";
-    
-    const modalInput = document.getElementById('guest-name-input');
-    if (modalInput) modalInput.value = name;
-    
     window.showTerms();
 };
 
 window.hideTerms = () => { document.getElementById('terms-modal').style.display = 'none'; };
 
 async function submitGuestAuth() {
-    const modalInput = document.getElementById('guest-name-input');
     const err   = document.getElementById('guest-error');
     const btn   = document.getElementById('agree-btn');
-    
-    let name = modalInput ? modalInput.value.trim() : 'Guest';
-    if (!name) name = 'Guest';
-    
+
+    let name = 'Guest';
+
+    console.log(`[AUTH] Attempting guest login via ${API_BASE}`);
     if (btn) btn.textContent = 'ESTABLISHING LINK...';
     if (btn) btn.disabled = true;
     if (err) err.textContent = '';
@@ -2747,8 +2733,9 @@ async function submitGuestAuth() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: name })
         });
+        console.log(`[AUTH] Response status: ${res.status}`);
         const data = await res.json();
-        
+        console.log(`[AUTH] Response data:`, data);
         if (data.ok) {
             localStorage.setItem('nexus_user_data', JSON.stringify(data));
             revealTerminal(data.name);
