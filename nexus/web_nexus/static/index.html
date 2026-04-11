@@ -8,15 +8,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
 </head>
 <body class="auth-locked">
-    <!-- Google Auth Config (HTML API) - Client ID will be injected by JS from backend config -->
-    <div id="g_id_onload"
-         data-context="signin"
-         data-ux_mode="popup"
-         data-callback="handleCredentialResponse"
-         data-auto_select="true"
-         data-itp_support="true">
-    </div>
-
     <!-- Login Wall Overlay -->
     <div id="auth-screen" class="auth-overlay">
         <div class="auth-box">
@@ -26,15 +17,7 @@
             <!-- Google Auth Section -->
             <div class="auth-sub-section">
                 <div class="auth-label">GOOGLE UPLINK</div>
-                <div style="display:flex; justify-content:center; min-height:40px;">
-                    <div class="g_id_signin" 
-                         data-type="standard" 
-                         data-shape="rectangular" 
-                         data-theme="filled_blue" 
-                         data-text="signin_with" 
-                         data-size="large" 
-                         data-logo_alignment="left">
-                    </div>
+                <div style="display:flex; justify-content:center; min-height:40px;" id="g_id_signin_wall">
                 </div>
             </div>
 
