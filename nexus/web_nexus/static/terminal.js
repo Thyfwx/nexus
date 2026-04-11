@@ -1353,242 +1353,260 @@ function stopSnake() {
 }
 
 // =============================================================
-//  CYBER INVADERS (Classic Edition)
+//  SPACE INVADERS
 // =============================================================
-let invadersRaf;
-let invadersActive = false;
+let invadersRaf, invadersActive = false;
+let _invadersKeys = {}, _invadersKeyDown = null, _invadersKeyUp = null;
 
 function startInvaders() {
     stopAllGames();
     invadersActive = true;
     guiContainer.classList.remove('gui-hidden');
-    guiTitle.textContent = 'CYBER INVADERS // MAINFRAME DEFENSE';
-    nexusCanvas.style.display = 'block';
-    nexusCanvas.width = 400; nexusCanvas.height = 360;
-    const ctx = nexusCanvas.getContext('2d');
+    guiTitle.textContent = 'SPACE INVADERS';
+    nexusCanvas.style.display = 'none';
 
-    let playerX = 180, bullets = [], enemies = [], particles = [], boss = null;
-    let shields = []; // Data Firewalls
-    let score = 0, wave = 1, gameOver = false, shake = 0;
-    let moveDir = 1;
+    guiContent.innerHTML = `
+        <div style="text-align:center;padding:10px 0;">
+            <div style="color:#0ff;letter-spacing:3px;font-size:0.8rem;margin-bottom:16px;">SELECT DIFFICULTY</div>
+            <div style="display:flex;flex-direction:column;gap:10px;align-items:center;">
+                <button class="gui-btn inv-diff" data-diff="easy"   style="border-color:#0f0;color:#0f0;width:240px;">EASY<br><span style="font-size:0.6rem;opacity:0.6;">Slow invaders · More shields</span></button>
+                <button class="gui-btn inv-diff" data-diff="medium" style="border-color:#ff0;color:#ff0;width:240px;">MEDIUM<br><span style="font-size:0.6rem;opacity:0.6;">Classic speed · Standard fire</span></button>
+                <button class="gui-btn inv-diff" data-diff="hard"   style="border-color:#f0f;color:#f0f;width:240px;">HARD<br><span style="font-size:0.6rem;opacity:0.6;">Fast · Aggressive fire rate</span></button>
+            </div>
+            <p style="color:#555;font-size:0.68rem;margin-top:14px;">← → to move &nbsp;·&nbsp; Space to fire</p>
+        </div>`;
 
-    function initShields() {
-        shields = [];
-        for (let i = 0; i < 4; i++) {
-            const sx = 50 + i * 100;
-            for (let r = 0; r < 3; r++) {
-                for (let c = 0; c < 4; c++) {
-                    shields.push({ x: sx + c * 10, y: 280 + r * 10, hp: 3 });
-                }
-            }
-        }
-    }
-
-    function initEnemies() {
-        enemies = [];
-        const rows = Math.min(6, 3 + Math.floor(wave / 2));
-        for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < 8; c++) {
-                enemies.push({ x: 40 + c * 40, y: 60 + r * 30, alive: true, type: r, hp: 1 });
-            }
-        }
-    }
-
-    function spawnBoss() {
-        boss = { x: 150, y: -50, targetY: 60, hp: 50 + (wave * 10), maxHp: 50 + (wave * 10), moveDir: 1 };
-        SoundManager.playBloop(100, 0.3);
-    }
-
-    function createExplosion(x, y, color) {
-        for (let i = 0; i < 8; i++) {
-            particles.push({
-                x, y, 
-                vx: (Math.random() - 0.5) * 6, 
-                vy: (Math.random() - 0.5) * 6, 
-                life: 1.0, 
-                color
-            });
-        }
-    }
-
-    if (wave % 5 === 0) spawnBoss(); else initEnemies();
-    initShields();
-
-    const movePlayer = (x) => {
-        const rect = nexusCanvas.getBoundingClientRect();
-        playerX = ((x - rect.left) / rect.width) * 400 - 20;
-        playerX = Math.max(0, Math.min(360, playerX));
-    };
-    nexusCanvas.onmousemove = (e) => movePlayer(e.clientX);
-    nexusCanvas.ontouchmove = (e) => { e.preventDefault(); movePlayer(e.touches[0].clientX); };
-    nexusCanvas.onclick = () => {
-        if (gameOver) { startInvaders(); return; }
-        if (bullets.length < 4) {
-            bullets.push({ x: playerX + 18, y: 330 });
-            SoundManager.playBloop(600, 0.03);
-        }
-    };
-
-    function tick(ts) {
-        if (!invadersActive) return;
-        
-        ctx.save();
-        if (shake > 0) {
-            ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake);
-            shake *= 0.9;
-        }
-
-        ctx.fillStyle = '#050510'; ctx.fillRect(0, 0, 400, 360);
-        
-        // Scanlines background
-        ctx.fillStyle = 'rgba(0, 255, 255, 0.03)';
-        for (let i = 0; i < 360; i += 4) ctx.fillRect(0, i, 400, 1);
-
-        if (!gameOver) {
-            // Player
-            ctx.fillStyle = '#0ff';
-            ctx.shadowBlur = 10; ctx.shadowColor = '#0ff';
-            ctx.fillRect(playerX, 330, 40, 10);
-            ctx.fillRect(playerX + 15, 320, 10, 10);
-            ctx.shadowBlur = 0;
-
-            // Bullets
-            bullets.forEach((b, i) => {
-                b.y -= 6; // SLOWER bullets for classic feel
-                ctx.fillStyle = '#fff'; ctx.fillRect(b.x, b.y, 3, 12);
-                
-                // Shield collision
-                shields.forEach((s, si) => {
-                    if (s.hp > 0 && b.x > s.x && b.x < s.x + 10 && b.y > s.y && b.y < s.y + 10) {
-                        s.hp--; bullets.splice(i, 1);
-                        SoundManager.playBloop(100, 0.02);
-                    }
-                });
-
-                if (b.y < 0) bullets.splice(i, 1);
-            });
-
-            // Shields
-            shields.forEach(s => {
-                if (s.hp <= 0) return;
-                ctx.fillStyle = `rgba(0, 255, 255, ${s.hp / 3})`;
-                ctx.fillRect(s.x, s.y, 9, 9);
-            });
-
-            // Particles
-            particles.forEach((p, i) => {
-                p.x += p.vx; p.y += p.vy; p.life -= 0.02;
-                ctx.fillStyle = p.color; ctx.globalAlpha = p.life;
-                ctx.fillRect(p.x, p.y, 3, 3);
-                if (p.life <= 0) particles.splice(i, 1);
-            });
-            ctx.globalAlpha = 1.0;
-
-            // Boss Logic
-            if (boss) {
-                if (boss.y < boss.targetY) boss.y += 1;
-                boss.x += boss.moveDir * 2;
-                if (boss.x > 300 || boss.x < 20) boss.moveDir *= -1;
-
-                // Boss health bar
-                ctx.fillStyle = '#333'; ctx.fillRect(100, 10, 200, 6);
-                ctx.fillStyle = '#f0f'; ctx.fillRect(100, 10, (boss.hp / boss.maxHp) * 200, 6);
-                
-                // Draw Boss
-                ctx.fillStyle = '#f0f'; ctx.font = 'bold 24px monospace';
-                ctx.fillText('[ FIREWALL ]', boss.x, boss.y);
-
-                // Bullet collision with Boss
-                bullets.forEach((b, bi) => {
-                    if (b.x > boss.x && b.x < boss.x + 120 && b.y > boss.y - 20 && b.y < boss.y) {
-                        boss.hp--; bullets.splice(bi, 1);
-                        createExplosion(b.x, b.y, '#f0f');
-                        shake = 4;
-                        SoundManager.playBloop(150, 0.02);
-                    }
-                });
-
-                if (boss.hp <= 0) {
-                    score += 500;
-                    createExplosion(boss.x + 60, boss.y, '#fff');
-                    boss = null;
-                    wave++;
-                    SoundManager.playBloop(800, 0.2);
-                    if (wave % 5 !== 0) initEnemies(); else spawnBoss();
-                }
-            }
-
-            // Regular Enemies
-            let edge = false;
-            enemies.forEach(e => {
-                if (!e.alive) return;
-                ctx.fillStyle = e.type % 2 === 0 ? '#f0f' : '#0f0';
-                ctx.font = 'bold 16px monospace';
-                const sprite = e.type % 2 === 0 ? '⚇' : '⚉';
-                ctx.fillText(sprite, e.x, e.y);
-                
-                if (e.x > 370 || e.x < 10) edge = true;
-
-                // Collision
-                bullets.forEach((b, bi) => {
-                    if (b.x > e.x - 5 && b.x < e.x + 20 && b.y > e.y - 15 && b.y < e.y) {
-                        e.alive = false; bullets.splice(bi, 1);
-                        score += 10 * wave;
-                        createExplosion(e.x, e.y, ctx.fillStyle);
-                        SoundManager.playBloop(200, 0.03);
-                    }
-                });
-
-                if (e.y > 315) gameOver = true;
-            });
-
-            if (edge) {
-                moveDir *= -1;
-                enemies.forEach(e => e.y += 12);
-            }
-            enemies.forEach(e => e.x += moveDir * (0.8 + wave * 0.12)); // SLOWER movement
-
-            if (!boss && enemies.length > 0 && enemies.every(e => !e.alive)) {
-                wave++;
-                initEnemies();
-                initShields(); // Restore shields each wave
-                if (wave % 5 === 0) spawnBoss();
-                SoundManager.playBloop(800, 0.1);
-            }
-
-            ctx.fillStyle = '#0ff'; ctx.font = '10px monospace';
-            ctx.fillText(`MAINFRAME SECURITY: ${Math.max(0, 100 - wave)}%`, 10, 20);
-            ctx.fillText(`THREAT LEVEL: ${wave}`, 320, 20);
-            ctx.fillText(`DATA RECOVERED: ${score}`, 10, 350);
-        } else {
-            // SYSTEM BREACHED - PROPER END SCREEN
-            ctx.fillStyle = 'rgba(255,0,0,0.4)'; ctx.fillRect(0,0,400,360);
-            ctx.strokeStyle = '#f44'; ctx.lineWidth = 2; ctx.strokeRect(50, 100, 300, 120);
-            
-            ctx.textAlign = 'center';
-            ctx.fillStyle = '#f44'; ctx.font = 'bold 28px monospace';
-            ctx.fillText('SYSTEM BREACHED', 200, 145);
-            
-            ctx.fillStyle = '#fff'; ctx.font = '14px monospace';
-            ctx.fillText(`DATA RECOVERED: ${score}`, 200, 175);
-            
-            ctx.fillStyle = '#0ff'; ctx.font = '11px monospace';
-            ctx.fillText('CLICK TO RESTORE UPLINK', 200, 205);
-            ctx.textAlign = 'left';
-            
-            if (score > 0 && !nexusCanvas.onclick) { 
-                submitScore('invaders', score);
-                nexusCanvas.onclick = () => { nexusCanvas.onclick = null; startInvaders(); };
-            }
-        }
-
-        ctx.restore();
-        invadersRaf = requestAnimationFrame(tick);
-    }
-    invadersRaf = requestAnimationFrame(tick);
+    guiContent.querySelectorAll('.inv-diff').forEach(btn => {
+        btn.addEventListener('click', () => launchInvaders(btn.dataset.diff));
+    });
 }
 
-function stopInvaders() { cancelAnimationFrame(invadersRaf); invadersActive = false; }
+function launchInvaders(difficulty) {
+    const DIFFS = {
+        easy:   { speed: 0.7,  fireRate: 0.003, bulletSpeed: 3,   playerSpeed: 5 },
+        medium: { speed: 1.1,  fireRate: 0.006, bulletSpeed: 4.5, playerSpeed: 5 },
+        hard:   { speed: 1.6,  fireRate: 0.011, bulletSpeed: 6.5, playerSpeed: 6 },
+    };
+    const d = DIFFS[difficulty] || DIFFS.medium;
+
+    const overlay = document.getElementById('invaders-overlay');
+    const invCanvas = document.getElementById('invaders-canvas');
+    if (!overlay || !invCanvas) {
+        startInvadersClassic();
+        return;
+    }
+
+    stopAllGames();
+    invadersActive = true;
+    overlay.classList.remove('hidden');
+    invCanvas.style.display = 'block';
+    invCanvas.width = 600; invCanvas.height = 420;
+    const ctx = invCanvas.getContext('2d');
+
+    const scoreDisplay = document.getElementById('inv-score-display');
+    const waveDisplay  = document.getElementById('inv-wave-display');
+    const livesDisplay = document.getElementById('inv-lives-display');
+
+    const COLS = 10, ROWS = 4;
+    const EW = 32, EH = 20, HGAP = 20, VGAP = 15;
+    const GRID_W = COLS * (EW + HGAP) - HGAP;
+    const PLAYER_W = 40, PLAYER_H = 18;
+
+    let score = 0, lives = 3, wave = 1;
+    let gameOver = false;
+    let lastTs = 0, stepTimer = 0, stepInterval = 750;
+    let px = 280, playerBullet = null, shootCooldown = 0;
+    let eBullets = [];
+    let enemies = [], shields = [];
+    let gridX = 0, gridY = 60, gridDX = d.speed;
+    let invScoreSubmitted = false;
+
+    function buildEnemies() {
+        enemies = [];
+        gridX = (600 - GRID_W) / 2;
+        gridY = 60;
+        gridDX = d.speed + (wave - 1) * 0.25;
+        stepInterval = Math.max(180, 750 - (wave - 1) * 75);
+        for (let r = 0; r < ROWS; r++) {
+            enemies.push([]);
+            for (let c = 0; c < COLS; c++) {
+                const type = r === 0 ? 0 : r <= 2 ? 1 : 2;
+                enemies[r].push({ alive: true, type, anim: 0 });
+            }
+        }
+    }
+
+    function buildShields() {
+        shields = [];
+        const BLK = 8;
+        const count = difficulty === 'easy' ? 5 : 4;
+        const spacing = 600 / (count + 1);
+        for (let i = 1; i <= count; i++) {
+            const sx = i * spacing - 24;
+            for (let r = 0; r < 4; r++) for (let c = 0; c < 6; c++) {
+                if (r === 3 && (c === 1 || c === 2 || c === 3 || c === 4)) continue;
+                if (r === 2 && (c === 2 || c === 3)) continue;
+                shields.push({ x: sx + c * BLK, y: 320 + r * BLK, w: BLK, h: BLK, hp: 4 });
+            }
+        }
+    }
+
+    buildEnemies();
+    buildShields();
+
+    _invadersKeys = {};
+    _invadersKeyDown = (e) => {
+        _invadersKeys[e.key] = true;
+        if (e.key === ' ') {
+            e.preventDefault();
+            if (gameOver) { launchInvaders(difficulty); return; }
+            if (!playerBullet && shootCooldown <= 0) {
+                playerBullet = { x: px + PLAYER_W / 2, y: 375, vy: -d.bulletSpeed - 3 };
+                shootCooldown = 250;
+                SoundManager.playBloop(660, 0.05);
+            }
+        }
+    };
+    _invadersKeyUp = (e) => { delete _invadersKeys[e.key]; };
+    document.addEventListener('keydown', _invadersKeyDown);
+    document.addEventListener('keyup', _invadersKeyUp);
+
+    function frame(ts) {
+        if (!invadersActive) return;
+        const raw = lastTs ? Math.min(ts - lastTs, 50) : 16.67;
+        const dt = raw / 16.67;
+        lastTs = ts;
+
+        if (!gameOver) {
+            if ((_invadersKeys['ArrowLeft']  || _invadersKeys['a']) && px > 5) px -= d.playerSpeed * dt;
+            if ((_invadersKeys['ArrowRight'] || _invadersKeys['d']) && px < 600 - PLAYER_W - 5) px += d.playerSpeed * dt;
+            if (shootCooldown > 0) shootCooldown -= raw;
+
+            gridX += gridDX * dt;
+            if (gridX + GRID_W > 590 || gridX < 10) {
+                gridDX *= -1;
+                gridY += 15;
+                if (gridY + (ROWS * VGAP) > 320) gameOver = true;
+            }
+
+            stepTimer += raw;
+            if (stepTimer > stepInterval) {
+                stepTimer = 0;
+                enemies.flat().forEach(e => e.anim = 1 - e.anim);
+            }
+
+            enemies.flat().forEach((e, i) => {
+                if (e.alive && Math.random() < d.fireRate * dt) {
+                    const r = Math.floor(i / COLS), c = i % COLS;
+                    const ex = gridX + c * (EW + HGAP), ey = gridY + r * (EH + VGAP);
+                    eBullets.push({ x: ex + EW/2, y: ey + EH, vy: d.bulletSpeed });
+                }
+            });
+
+            if (playerBullet) {
+                playerBullet.y += playerBullet.vy * dt;
+                if (playerBullet.y < 0) playerBullet = null;
+                else {
+                    enemies.flat().forEach(e => {
+                        if (e.alive) {
+                            const r = enemies.findIndex(row => row.includes(e));
+                            const c = enemies[r].indexOf(e);
+                            const ex = gridX + c * (EW + HGAP), ey = gridY + r * (EH + VGAP);
+                            if (playerBullet.x > ex && playerBullet.x < ex + EW && playerBullet.y > ey && playerBullet.y < ey + EH) {
+                                e.alive = false; playerBullet = null;
+                                score += (3 - e.type) * 10 * wave;
+                                SoundManager.playBloop(200, 0.05);
+                            }
+                        }
+                    });
+                }
+            }
+
+            eBullets.forEach((b, bi) => {
+                b.y += b.vy * dt;
+                if (b.y > 420) eBullets.splice(bi, 1);
+                else if (b.x > px && b.x < px + PLAYER_W && b.y > 380 && b.y < 380 + PLAYER_H) {
+                    eBullets.splice(bi, 1); lives--;
+                    SoundManager.playBloop(150, 0.1);
+                    if (lives <= 0) gameOver = true;
+                }
+            });
+
+            [playerBullet, ...eBullets].forEach((b, bi) => {
+                if (!b) return;
+                shields.forEach(s => {
+                    if (s.hp > 0 && b.x > s.x && b.x < s.x + s.w && b.y > s.y && b.y < s.y + s.h) {
+                        s.hp--;
+                        if (bi === 0) playerBullet = null; else eBullets.splice(bi - 1, 1);
+                    }
+                });
+            });
+
+            if (enemies.flat().every(e => !e.alive)) {
+                wave++; buildEnemies(); buildShields();
+                SoundManager.playBloop(800, 0.1);
+            }
+        }
+
+        ctx.fillStyle = '#020208'; ctx.fillRect(0, 0, 600, 420);
+        ctx.fillStyle = '#0ff'; ctx.fillRect(px, 380, PLAYER_W, PLAYER_H);
+        ctx.fillRect(px + 15, 372, 10, 8);
+
+        enemies.forEach((row, r) => {
+            row.forEach((e, c) => {
+                if (!e.alive) return;
+                const ex = gridX + c * (EW + HGAP), ey = gridY + r * (EH + VGAP);
+                const col = e.type === 0 ? '#f55' : e.type === 1 ? '#f0f' : '#0ff';
+                ctx.fillStyle = col;
+                ctx.fillRect(ex + 4, ey, EW - 8, EH);
+            });
+        });
+
+        shields.forEach(s => {
+            if (s.hp <= 0) return;
+            ctx.fillStyle = `rgba(0, 255, 255, ${s.hp / 4})`;
+            ctx.fillRect(s.x, s.y, s.w, s.h);
+        });
+
+        ctx.fillStyle = '#fff';
+        if (playerBullet) ctx.fillRect(playerBullet.x - 1, playerBullet.y, 3, 10);
+        eBullets.forEach(b => ctx.fillRect(b.x - 1, b.y, 3, 10));
+
+        if (scoreDisplay) scoreDisplay.textContent = score;
+        if (waveDisplay)  waveDisplay.textContent = wave;
+        if (livesDisplay) livesDisplay.textContent = '♥'.repeat(lives);
+
+        if (gameOver) {
+            ctx.fillStyle = 'rgba(255,0,0,0.3)'; ctx.fillRect(0,0,600,420);
+            ctx.fillStyle = '#f44'; ctx.font = 'bold 40px monospace'; ctx.textAlign = 'center';
+            ctx.fillText('SYSTEM BREACHED', 300, 200);
+            ctx.fillStyle = '#fff'; ctx.font = '16px monospace';
+            ctx.fillText('SPACE TO RETRY', 300, 240);
+            ctx.textAlign = 'left';
+            if (!invScoreSubmitted && score > 0) { 
+                submitScore('invaders', score); invScoreSubmitted = true; 
+            }
+        }
+
+        invadersRaf = requestAnimationFrame(frame);
+    }
+    invadersRaf = requestAnimationFrame(frame);
+}
+
+function stopInvaders() { 
+    cancelAnimationFrame(invadersRaf); 
+    invadersActive = false; 
+    document.removeEventListener('keydown', _invadersKeyDown);
+    document.removeEventListener('keyup', _invadersKeyUp);
+}
+
+window.closeInvadersOverlay = () => {
+    stopInvaders();
+    document.getElementById('invaders-overlay').classList.add('hidden');
+};
+
+function startInvadersClassic() {
+}
 
 // =============================================================
 //  FLAPPY BIRD
@@ -1795,29 +1813,6 @@ function stopFlappy() {
 //  BREAKOUT
 // =============================================================
 let breakoutFrame, breakoutActive = false;
-
-function startBreakout() {
-    stopAllGames();
-    guiContainer.classList.remove('gui-hidden');
-    guiTitle.textContent = 'NEXUS BREAKOUT';
-    nexusCanvas.style.display = 'none';
-
-    guiContent.innerHTML = `
-        <div style="text-align:center;padding:10px 0;">
-            <div style="color:#0ff;letter-spacing:3px;font-size:0.8rem;margin-bottom:16px;">SELECT DIFFICULTY</div>
-            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-                <button class="gui-btn brk-diff" data-diff="easy"   style="border-color:#0f0;color:#0f0;">EASY</button>
-                <button class="gui-btn brk-diff" data-diff="medium" style="border-color:#ff0;color:#ff0;">MEDIUM</button>
-                <button class="gui-btn brk-diff" data-diff="hard"   style="border-color:#f0f;color:#f0f;">HARD</button>
-                <button class="gui-btn brk-diff" data-diff="chaos"  style="border-color:#f00;color:#f00;">CHAOS</button>
-            </div>
-            <p style="color:#555;font-size:0.68rem;margin-top:14px;">Mouse or touch to move your paddle</p>
-        </div>`;
-
-    guiContent.querySelectorAll('.brk-diff').forEach(btn => {
-        btn.addEventListener('click', () => launchBreakout(btn.dataset.diff));
-    });
-}
 
 function startBreakout() {
     stopAllGames();
@@ -3783,38 +3778,6 @@ function _a11ySyncButtons() {
         if (btn.id === 'sound-toggle') btn.classList.toggle('on', SoundManager.enabled);
     });
 }
-
-function toggleA11yClass(cls) {
-    document.body.classList.toggle(cls);
-    if (cls === 'a11y-large' && document.body.classList.contains(cls))  document.body.classList.remove('a11y-xl');
-    if (cls === 'a11y-xl'    && document.body.classList.contains(cls))  document.body.classList.remove('a11y-large');
-    _a11ySave();
-    _a11ySyncButtons();
-}
-
-function toggleSound() {
-    SoundManager.enabled = !SoundManager.enabled;
-    if (SoundManager.enabled) SoundManager.playBloop(600, 0.05);
-    _a11ySave();
-    _a11ySyncButtons();
-}
-
-// ── Voice selection helpers ──────────────────────────────────────────────────
-// Preferred voice names in priority order (Google > Microsoft > macOS > default)
-const _VOICE_PREF = [
-    'Google US English', 'Google UK English Female', 'Google UK English Male',
-    'Microsoft Aria Online (Natural) - English (United States)',
-    'Microsoft Jenny Online (Natural) - English (United States)',
-    'Microsoft Guy Online (Natural) - English (United States)',
-    'Microsoft Zira - English (United States)',
-    'Microsoft David - English (United States)',
-    'Samantha', 'Alex', 'Karen', 'Daniel',
-];
-
-function _pickBestVoice(voices) {
-    // Try ranked preferences first
-    for (const name of _VOICE_PREF) {
-        const v = voices.find(v => v.name === name);
         if (v) return v;
     }
     // Fall back to any en-US voice, then any English voice
@@ -3822,87 +3785,6 @@ function _pickBestVoice(voices) {
         || voices.find(v => v.lang.startsWith('en'))
         || voices[0];
 }
-
-function _buildVoiceOptions(sel) {
-    const voices = window.speechSynthesis.getVoices();
-    if (!voices.length) {
-        sel.innerHTML = '<option value="">No voices available</option>';
-        return;
-    }
-    const saved = localStorage.getItem('nexus_tts_voice');
-    const list  = voices.filter(v => v.lang.startsWith('en'));
-    sel.innerHTML = '<option value="">— Auto (best available) —</option>';
-    (list.length ? list : voices).forEach(v => {
-        const opt = document.createElement('option');
-        opt.value = v.name;
-        opt.textContent = `${v.name} (${v.lang})`;
-        sel.appendChild(opt);
-    });
-    // Set selection using sel.value — simpler and always works
-    if (saved) {
-        sel.value = saved;
-        if (!sel.value) { sel.value = ''; localStorage.removeItem('nexus_tts_voice'); }
-    } else {
-        const best = _pickBestVoice(list.length ? list : voices);
-        if (best) sel.value = best.name;
-    }
-}
-
-function clearAllHistory() {
-    if (!confirm("Wipe ALL conversation memory across ALL modes?")) return;
-    Object.values(HISTORY_KEYS).forEach(key => localStorage.removeItem(key));
-    messageHistory = [];
-    printToTerminal("[SYSTEM] Global memory wiped. All modes reset.", "sys-msg");
-    const p = document.getElementById('a11y-panel');
-    if (p) p.classList.remove('a11y-panel-open');
-}
-
-function toggleA11yPanel() {
-    const panel = document.getElementById('a11y-panel');
-    if (panel) {
-        panel.classList.toggle('a11y-panel-open');
-        // Re-populate voices each open (Chrome loads them async after first gesture)
-        if (panel.classList.contains('a11y-panel-open')) {
-            const sel = panel.querySelector('#a11y-voice-sel');
-            if (sel) _buildVoiceOptions(sel);
-        }
-        return;
-    }
-
-    const el = document.createElement('div');
-    el.id = 'a11y-panel';
-    el.className = 'a11y-panel a11y-panel-open';
-    el.innerHTML = `
-        <div class="a11y-panel-header">
-            <span>[ ACCESSIBILITY ]</span>
-            <button onclick="document.getElementById('a11y-panel').classList.remove('a11y-panel-open')" class="a11y-close">✕</button>
-        </div>
-
-        <div class="a11y-section-label">AI CONTEXT</div>
-        <div class="a11y-row">
-            <button class="a11y-toggle" style="border-color:#f55;color:#f55;" onclick="clearAllHistory()">CLEAR AI MEMORY</button>
-            <button class="a11y-toggle" style="border-color:#ff6600;color:#ff6600;" onclick="logout()">SIGN OUT</button>
-        </div>
-
-        <div class="a11y-section-label">VISUALS</div>
-        <div class="a11y-row">
-            <button class="a11y-toggle" data-class="crt-mode" onclick="toggleA11yClass('crt-mode')">CRT Mode</button>
-            <button class="a11y-toggle" id="sound-toggle" onclick="toggleSound()">Sound Effects</button>
-        </div>
-
-        <div class="a11y-section-label">TEXT SIZE</div>
-        <div class="a11y-row">
-            <button class="a11y-toggle" data-class="a11y-large" onclick="toggleA11yClass('a11y-large')">Large</button>
-            <button class="a11y-toggle" data-class="a11y-xl"    onclick="toggleA11yClass('a11y-xl')">Extra Large</button>
-        </div>
-
-        <div class="a11y-section-label">TEXT STYLE</div>
-        <div class="a11y-row">
-            <button class="a11y-toggle" data-class="a11y-bold"         onclick="toggleA11yClass('a11y-bold')">Bold</button>
-            <button class="a11y-toggle" data-class="a11y-wide-spacing" onclick="toggleA11yClass('a11y-wide-spacing')">Wide Spacing</button>
-        </div>
-        <div class="a11y-row">
-            <button class="a11y-toggle" data-class="a11y-dyslexic" onclick="toggleA11yClass('a11y-dyslexic')">Dyslexia Font</button>
         </div>
 
         <div class="a11y-section-label">DISPLAY</div>
@@ -3967,4 +3849,60 @@ window.onload = async () => {
     } else {
         console.log("[NEXUS] Awaiting Authorization...");
     }
+};
+
+// =============================================================
+//  RANKINGS OVERLAY
+// =============================================================
+window.showRankingsOverlay = async function(game = 'pong') {
+    const overlay = document.getElementById('rankings-overlay');
+    if (!overlay) return;
+    stopAllGames();
+    overlay.classList.remove('hidden');
+    
+    const tabs = document.getElementById('rankings-tabs');
+    const content = document.getElementById('rankings-content');
+    const games = ['pong', 'snake_easy', 'snake_endless', 'snake_speed', 'wordle', 'breakout', 'invaders'];
+    
+    if (tabs) {
+        tabs.innerHTML = '';
+        games.forEach(g => {
+            const btn = document.createElement('button');
+            btn.className = `rankings-tab ${g === game ? 'active' : ''}`;
+            btn.textContent = g.split('_')[0].toUpperCase();
+            btn.onclick = () => window.showRankingsOverlay(g);
+            tabs.appendChild(btn);
+        });
+    }
+
+    if (content) content.innerHTML = '<p style="color:#0ff;text-align:center;padding:20px;">LINKING TO DATABANK...</p>';
+
+    try {
+        const resp = await fetch(`${API_BASE}/api/leaderboard?game=${game}`);
+        const scores = await resp.json();
+        
+        if (!scores || !scores.length) {
+            content.innerHTML = `<div class="rankings-empty">NO DATA LOGGED FOR ${game.toUpperCase()}<br><span style="opacity:0.5;font-size:0.6rem;">BE THE FIRST TO BREACH THE LEADERBOARD</span></div>`;
+            return;
+        }
+
+        let html = `<table class="rankings-table"><thead><tr><th>RANK</th><th>NAME</th><th style="text-align:right;">SCORE</th><th style="text-align:right;">DATE</th></tr></thead><tbody>`;
+        scores.forEach((s, i) => {
+            const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+            html += `<tr>
+                <td><span class="r-medal">${medal}</span><span class="r-num">${i + 1}</span></td>
+                <td class="r-name">${escHtml(s.name)}</td>
+                <td class="r-score" style="text-align:right;">${Number(s.score).toLocaleString()}</td>
+                <td class="r-date" style="text-align:right;">${s.date || ''}</td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        content.innerHTML = html;
+    } catch (e) {
+        content.innerHTML = '<p style="color:#f55;text-align:center;padding:20px;">UPLINK FAILED. BACKEND OFFLINE.</p>';
+    }
+};
+
+window.closeRankingsOverlay = () => {
+    document.getElementById('rankings-overlay').classList.add('hidden');
 };
