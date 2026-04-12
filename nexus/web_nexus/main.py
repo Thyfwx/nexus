@@ -42,26 +42,21 @@ def _get_session(request: Request):
     except Exception:
         return None
 
+# Better CORS for credentials
 app = FastAPI()
-
-# Better CORS for credentials (allow_origins="*" is not allowed with allow_credentials=True)
-from fastapi.middleware.cors import CORSMiddleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex="https?://.*", # Allow any origin while maintaining credential support
+    allow_origin_regex="https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
 )
 
-base_dir   = os.path.dirname(os.path.abspath(__file__))
-static_dir = os.path.join(base_dir, "static")
-
+# Move common routes up
 @app.get("/ping")
 async def ping():
-    return _JSONResponse({"ok": True})
+    return {"ok": True}
 
-# ── Auth ──────────────────────────────────────────────────────────────────────
 @app.get("/api/config")
 async def get_config():
     return {"google_client_id": _key("GOOGLE_CLIENT_ID")}
@@ -524,7 +519,9 @@ def run_speedtest() -> str:
 @app.websocket("/ws/terminal")
 async def websocket_terminal(websocket: WebSocket):
     await websocket.accept()
+    print("[WS] Client connected")
     await websocket.send_text(f"[MODEL:{MODELS[current_model_idx]['label']}]")
+    await websocket.send_text("[SYSTEM] Uplink established. Nexus Core ready.")
 
     while True:
         try:
