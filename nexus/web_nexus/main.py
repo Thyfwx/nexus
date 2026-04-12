@@ -571,8 +571,9 @@ async def websocket_terminal(websocket: WebSocket):
             else:
                 try:
                     print(f"[AI] Generating response for: {cmd!r} (Mode: {mode})")
+                    # Fix: Use prompt_ai instead of get_ai_response
                     result = await asyncio.wait_for(
-                        asyncio.get_running_loop().run_in_executor(None, get_ai_response, cmd, history, mode, context),
+                        asyncio.get_running_loop().run_in_executor(None, prompt_ai, cmd, history, mode, context),
                         timeout=40.0
                     )
                     
