@@ -365,6 +365,12 @@ function runBootSequence(callback) {
 //  WEBSOCKET
 // =============================================================
 function connectWS() {
+    // Single Connection Guard: Stop if already connected or connecting
+    if (termWs && (termWs.readyState === WebSocket.OPEN || termWs.readyState === WebSocket.CONNECTING)) {
+        console.log("[WS] Connection already active. Skipping duplicate init.");
+        return;
+    }
+
     // Boot sequence runs once ever — reconnects skip straight to connect
     if (!_hasBooted) {
         _hasBooted = true;
