@@ -3432,11 +3432,20 @@ function setupInputListeners() {
 
 setupInputListeners();
 
-        if (!done) return;
-        return;
+function handleCommand(cmd) {
+    const lc = cmd.toLowerCase();
+    if (lc === 'clear') { 
+        if (output) output.innerHTML = ''; 
+        messageHistory = []; 
+        pendingImageB64 = null; 
+        localStorage.removeItem(HISTORY_KEYS[currentMode]); 
+        return; 
     }
-    if (lc === 'clear')               { output.innerHTML = ''; messageHistory = []; pendingImageB64 = null; localStorage.removeItem(HISTORY_KEYS[currentMode]); return; }
-    if (lc === 'history')             { showHistory(); return; }
+    if (lc === 'history') { showHistory(); return; }
+
+    const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+    const pl = document.getElementById('prompt-label')?.textContent || (nexusUser?.name ? `${nexusUser.name.toLowerCase()}@nexus:~$` : 'guest@nexus:~$');
+
     if (lc === 'help')                { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); showHelp(); return; }
     if (lc === 'whoami')              { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); runWhoami(); return; }
     if (lc === 'neofetch')            { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); runNeofetch(); return; }
