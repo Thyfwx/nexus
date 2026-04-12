@@ -68,7 +68,7 @@ const isLocal = (window.location.hostname === 'localhost' ||
 // Only load secrets locally to avoid MIME errors on production
 if (isLocal && !window.GROQ_KEY) {
     const s = document.createElement('script');
-    s.src = "secrets.js";
+    s.src = "./secrets.js"; // Force relative path
     document.head.appendChild(s);
 }
 
@@ -3638,21 +3638,21 @@ function handleCommand(cmd) {
         console.log(`[AI] Dispatching EVIL...`);
         askEvil(cmd, imgSnap, null, 'evil-msg');
     } else {
-        console.log(`[AI] Dispatching ${currentMode.toUpperCase()} via WebSocket...`);
+        console.log(`[AI] Dispatching ${currentMode.toUpperCase()}...`);
         showThinking(cmd);
         
-        // Safety fallback: if WebSocket fails to reply in 18s, use the Proxy
-        _thinkFallbackCmd = cmd;
-        clearTimeout(_thinkTimeout);
-        _thinkTimeout = setTimeout(() => {
-            if (_thinkFallbackCmd) {
-                console.warn("[AI] WebSocket timed out. Falling back to Proxy...");
-                askEvil(cmd, imgSnap, MODE_SYSTEMS[currentMode] || MODE_SYSTEMS.nexus, 'ai-msg');
-                _thinkFallbackCmd = null;
-            }
-        }, 18000);
-
         if (termWs && termWs.readyState === WebSocket.OPEN) {
+            // Register timeout only IF we are using WS
+            _thinkFallbackCmd = cmd;
+            clearTimeout(_thinkTimeout);
+            _thinkTimeout = setTimeout(() => {
+                if (_thinkFallbackCmd) {
+                    console.warn("[AI] WebSocket timed out. Falling back to Proxy...");
+                    askEvil(cmd, imgSnap, MODE_SYSTEMS[currentMode] || MODE_SYSTEMS.nexus, 'ai-msg');
+                    _thinkFallbackCmd = null;
+                }
+            }, 18000);
+
             const historySlice = messageHistory.slice(-12).map(m => ({ 
                 role: m.role === 'assistant' || m.role === 'model' || m.role === 'nexus' ? 'assistant' : 'user', 
                 content: m.content 
@@ -3666,7 +3666,7 @@ function handleCommand(cmd) {
             if (imgSnap) payload.imageB64 = imgSnap;
             termWs.send(JSON.stringify(payload));
         } else {
-            console.warn("[WS] Not connected. Falling back to Proxy...");
+            console.warn("[AI] WebSocket offline. Immediate fallback to Direct API...");
             askEvil(cmd, imgSnap, MODE_SYSTEMS[currentMode] || MODE_SYSTEMS.nexus, 'ai-msg');
         }
     }

@@ -524,7 +524,9 @@ async def websocket_terminal(websocket: WebSocket):
     while True:
         try:
             raw = await websocket.receive_text()
-            if raw.strip() == "__ping__": continue
+            if raw.strip() == "__ping__": 
+                await websocket.send_text("__pong__")
+                continue
             data = json.loads(raw)
             # Handle both 'command' and 'cmd' for better frontend compatibility
             cmd = (data.get("command") or data.get("cmd") or "").strip()
