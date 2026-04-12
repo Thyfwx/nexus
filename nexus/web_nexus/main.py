@@ -52,7 +52,7 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-# Move common routes up
+# 1. PRIORITY ROUTES (API & WS)
 @app.get("/ping")
 async def ping():
     return {"ok": True}
