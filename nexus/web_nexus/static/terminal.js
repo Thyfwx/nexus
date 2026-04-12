@@ -18,7 +18,10 @@ window.onerror = function(msg, url, line, col, error) {
         </div>
         <b style="color:#fff;">STACK TRACE:</b><br>
         <pre style="background:#111;padding:15px;color:#888;white-space:pre-wrap;">${error?.stack || 'No stack trace available.'}</pre>
-        <button onclick="location.reload()" style="background:#f00;color:#fff;border:none;padding:10px 20px;cursor:pointer;font-weight:bold;margin-top:20px;">FORCE SYSTEM REBOOT</button>
+        <div style="display:flex; gap:10px;">
+            <button onclick="location.reload()" style="background:#f00;color:#fff;border:none;padding:10px 20px;cursor:pointer;font-weight:bold;margin-top:20px;">FORCE SYSTEM REBOOT</button>
+            <button onclick="window.open('https://www.youtube.com/@Thyfwx', '_blank')" style="background:#fff;color:#f00;border:none;padding:10px 20px;cursor:pointer;font-weight:bold;margin-top:20px;">REPORT CRASH TO YOUTUBE</button>
+        </div>
     `;
     document.body.appendChild(diagnostic);
     return false;
