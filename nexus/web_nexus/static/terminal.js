@@ -3575,11 +3575,12 @@ function handleCommand(cmd) {
     
     console.log(`[AI] Dispatching ${currentMode.toUpperCase()} via High-Reliability Proxy...`);
     askEvil(cmd, imgSnap, (currentMode === 'evil' ? null : system), msgCls);
-});
+}
 
 // =============================================================
 //  QUICK ACTION BUTTONS
 // =============================================================
+
 document.querySelectorAll('.action-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         const cmd = btn.getAttribute('data-cmd');
