@@ -2,8 +2,11 @@
 //  NEXUS TERMINAL v4.0
 // =============================================================
 
+console.log("[NEXUS] Core script loading...");
+
 // --- Global Diagnostic Reporter ---
 window.onerror = function(msg, url, line, col, error) {
+    console.error("[NEXUS CRASH]", msg, "at", url, ":", line);
     const diagnostic = document.createElement('div');
     diagnostic.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(20,0,0,0.95);color:#f55;padding:40px;z-index:99999;font-family:monospace;overflow:auto;line-height:1.5;border:4px solid #f00;";
     diagnostic.innerHTML = `
