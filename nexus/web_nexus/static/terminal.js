@@ -2604,46 +2604,56 @@ async function initGoogleAuth() {
     if (_authInited) return;
     renderAuthSection();
 
-    try {
-        const cfg = await fetch(`${API_BASE}/api/config`).then(r => r.json()).catch(() => ({}));
-        if (cfg.google_client_id) _googleClientID = cfg.google_client_id;
-        
-        const setupGoogle = () => {
-            const hasGoogle = !!(window.google && window.google.accounts);
-            if (!hasGoogle) return false;
+    const setupGoogle = () => {
+        const hasGoogle = !!(window.google && window.google.accounts);
+        if (!hasGoogle) return false;
 
-            google.accounts.id.initialize({
-                client_id: _googleClientID,
-                callback: handleCredentialResponse,
-                ux_mode: 'popup',
-                context: 'signin',
-                itp_support: true,
-                auto_select: true
-            });
-            
-            const sideEl = document.getElementById('sidebar-g_id_signin');
-            if (sideEl && sideEl.children.length === 0) {
-                google.accounts.id.renderButton(sideEl, { type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'medium' });
+        google.accounts.id.initialize({
+            client_id: _googleClientID,
+            callback: handleCredentialResponse,
+            ux_mode: 'popup',
+            context: 'signin',
+            itp_support: true,
+            auto_select: true
+        });
+
+        const sideEl = document.getElementById('sidebar-g_id_signin');
+        if (sideEl && sideEl.children.length === 0) {
+            google.accounts.id.renderButton(sideEl, { type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'medium' });
+        }
+        const wallEl = document.getElementById('g_id_signin_wall');
+        if (wallEl && wallEl.children.length === 0) {
+            google.accounts.id.renderButton(wallEl, { type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'large' });
+        }
+
+        _authInited = true;
+        return true;
+    };
+
+    // Try immediately with default ID
+    if (setupGoogle()) {
+        console.log("[AUTH] Init with local ID");
+    }
+
+    // Update ID from server in background
+    fetch(`${API_BASE}/api/config`)
+        .then(r => r.json())
+        .then(cfg => {
+            if (cfg.google_client_id && cfg.google_client_id !== _googleClientID) {
+                console.log("[AUTH] Updating Client ID from server...");
+                _googleClientID = cfg.google_client_id;
+                _authInited = false; // re-init with new ID
+                setupGoogle();
             }
-            const wallEl = document.getElementById('g_id_signin_wall');
-            if (wallEl && wallEl.children.length === 0) {
-                google.accounts.id.renderButton(wallEl, { type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'large' });
-            }
+        })
+        .catch(() => { /* keep using default */ });
 
-            _authInited = true;
-            return true;
-        };
-
-        // Try immediately
-        if (setupGoogle()) return;
-
-        // Fallback: If script isn't loaded yet, wait for it
-        let attempts = 0;
-        const poll = setInterval(() => {
-            attempts++;
-            if (setupGoogle() || attempts > 20) clearInterval(poll); 
-        }, 200); // Fast poll
-    } catch (e) { console.error("[AUTH] Init failed:", e); }
+    // Fallback: If script isn't loaded yet, wait for it
+    let attempts = 0;
+    const poll = setInterval(() => {
+        attempts++;
+        if (setupGoogle() || attempts > 20) clearInterval(poll); 
+    }, 200); // Fast poll
 }
 
 function renderAuthSection() {
