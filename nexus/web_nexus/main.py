@@ -209,17 +209,21 @@ async def get_diagnostics():
 LOGIN_LOG_FILE = os.path.join(base_dir, "logins.json")
 
 def log_login(name: str, email: str, request: Request):
-    """Log the user's login event with IP and Device Info."""
+    """Log the user's login event with IP, Device, and Traffic Source."""
     try:
         ip = request.client.host if request.client else "unknown"
         ua = request.headers.get("user-agent", "unknown")
+        referer = request.headers.get("referer", "direct")
+        origin = request.headers.get("origin", "unknown")
         
         entry = {
             "timestamp": datetime.utcnow().isoformat(),
             "name": name,
             "email": email,
             "ip": ip,
-            "user_agent": ua
+            "user_agent": ua,
+            "source": referer,
+            "origin": origin
         }
         
         logs = []

@@ -3633,6 +3633,18 @@ function handleCommand(cmd) {
     } else {
         console.log(`[AI] Dispatching ${currentMode.toUpperCase()} via WebSocket...`);
         showThinking(cmd);
+        
+        // Safety fallback: if WebSocket fails to reply in 18s, use the Proxy
+        _thinkFallbackCmd = cmd;
+        clearTimeout(_thinkTimeout);
+        _thinkTimeout = setTimeout(() => {
+            if (_thinkFallbackCmd) {
+                console.warn("[AI] WebSocket timed out. Falling back to Proxy...");
+                askEvil(cmd, imgSnap, MODE_SYSTEMS[currentMode] || MODE_SYSTEMS.nexus, 'ai-msg');
+                _thinkFallbackCmd = null;
+            }
+        }, 18000);
+
         if (termWs && termWs.readyState === WebSocket.OPEN) {
             const historySlice = messageHistory.slice(-12).map(m => ({ 
                 role: m.role === 'assistant' || m.role === 'model' || m.role === 'nexus' ? 'assistant' : 'user', 
