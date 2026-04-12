@@ -25,7 +25,7 @@ SECRET_KEY       = os.getenv("SECRET_KEY", "nexus-dev-please-change-in-prod")
 
 def _key(name: str) -> str:
     """Read key from environment. Sanitizes Google Client ID to prevent concatenation bugs."""
-    val = os.getenv(name, '')
+    val = os.getenv(name, '').strip().strip('"').strip("'")
     if name == "GOOGLE_CLIENT_ID" and ".apps.googleusercontent.com" in val:
         # If the ID is duplicated (Render bug or double paste), take only the first one
         parts = val.split(".apps.googleusercontent.com")
