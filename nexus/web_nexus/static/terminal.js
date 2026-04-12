@@ -1646,7 +1646,6 @@ function startInvaders() {
         ctx.restore();
         invadersRaf = requestAnimationFrame(tick);
     }
-    invadersRaf = requestAnimationFrame(tick);
 }
 
 function stopInvaders() { cancelAnimationFrame(invadersRaf); invadersActive = false; }
@@ -2635,7 +2634,8 @@ function stopAllGames() {
 //  GOOGLE AUTHENTICATION
 // =============================================================
 let _googleClientID = '616205887439-s1l0out61vlu0l81307q9g64oai3gnur.apps.googleusercontent.com'; 
-let _authInited     = false;
+let _authInited = false;
+let _googleInited = false; // Add this to prevent double-init warning
 
 async function initGoogleAuth() {
     if (_authInited) return;
@@ -2643,7 +2643,7 @@ async function initGoogleAuth() {
 
     const setupGoogle = () => {
         const hasGoogle = !!(window.google && window.google.accounts);
-        if (!hasGoogle) return false;
+        if (!hasGoogle || _googleInited) return _googleInited;
 
         google.accounts.id.initialize({
             client_id: _googleClientID,
@@ -2653,6 +2653,8 @@ async function initGoogleAuth() {
             itp_support: true,
             auto_select: true
         });
+        _googleInited = true;
+
 
         const sideEl = document.getElementById('sidebar-g_id_signin');
         if (sideEl && sideEl.children.length === 0) {
