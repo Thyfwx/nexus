@@ -3734,8 +3734,10 @@ function connectStats() {
 
 function updateClientStats() {
     if (statsWs && statsWs.readyState === WebSocket.OPEN) return;
-    cpuStat.textContent = (navigator.hardwareConcurrency || '--') + ' Cores';
-    memStat.textContent  = (navigator.deviceMemory || '--') + ' GB';
+    if (!cpuStat) cpuStat = document.getElementById('cpu-stat');
+    if (!memStat) memStat = document.getElementById('mem-stat');
+    if (cpuStat) cpuStat.textContent = (navigator.hardwareConcurrency || '--') + ' Cores';
+    if (memStat) memStat.textContent  = (navigator.deviceMemory || '--') + ' GB';
 }
 
 // =============================================================
