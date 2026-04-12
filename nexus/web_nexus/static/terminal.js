@@ -6,10 +6,8 @@
 const isLocal = window.location.hostname === 'localhost' || 
                 window.location.hostname === '127.0.0.1' || 
                 window.location.hostname.startsWith('192.168.') || 
-                window.location.hostname.endsWith('.local') ||
-                window.location.hostname === 'thyfwxit.com' ||
-                window.location.hostname === 'nexus.thyfwxit.com';
-const RENDER_HOST = 'nexus-terminalnexus.onrender.com';
+                window.location.hostname.endsWith('.local');
+const RENDER_HOST = 'nexus-terminal-v4.onrender.com';
 
 const proto     = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const WS_URL    = isLocal ? `${proto}//${window.location.host}/ws/terminal` : `wss://${RENDER_HOST}/ws/terminal`;
