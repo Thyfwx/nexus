@@ -3152,6 +3152,14 @@ async function askGroqDirect(cmd, system) {
     } catch (e) { console.error("Direct Groq failed:", e); return null; }
 }
 
+// --- AI Utilities ---
+function _clearThinking() {
+    clearTimeout(_thinkTimeout);
+    _thinkTimeout = null;
+    _thinkFallbackCmd = null;
+    document.getElementById('ai-thinking')?.remove();
+}
+
 async function askEvil(cmd, imageB64 = null, systemOverride = null, msgClass = 'evil-msg') {
     // Only intercept image generation in EVIL mode (not when called as vision fallback)
     if (!systemOverride) {
