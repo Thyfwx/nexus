@@ -74,9 +74,8 @@ if (isLocal && !window.GROQ_KEY) {
 
 const RENDER_HOST = 'nexus-terminalnexus.onrender.com';
 
-const proto     = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const WS_URL    = isLocal ? `${proto}//${window.location.host}/ws/terminal` : `wss://${RENDER_HOST}/ws/terminal`;
-const STATS_URL = isLocal ? `${proto}//${window.location.host}/ws/stats`    : `wss://${RENDER_HOST}/ws/stats`;
+const WS_URL    = isLocal ? `ws://${window.location.host}/ws/terminal` : `wss://${RENDER_HOST}/ws/terminal`;
+const STATS_URL = isLocal ? `ws://${window.location.host}/ws/stats`    : `wss://${RENDER_HOST}/ws/stats`;
 const API_BASE  = isLocal ? `${window.location.protocol}//${window.location.host}` : `https://${RENDER_HOST}`;
 
 // Discord webhook
