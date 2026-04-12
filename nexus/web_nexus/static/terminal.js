@@ -66,7 +66,8 @@ const isLocal = window.location.hostname === 'localhost' ||
                 window.location.hostname.startsWith('192.168.') || 
                 window.location.hostname.endsWith('.local');
 
-if (isLocal) {
+// Only load secrets locally to avoid MIME errors on production
+if (isLocal && !window.GROQ_KEY) {
     const s = document.createElement('script');
     s.src = "secrets.js";
     document.head.appendChild(s);
@@ -2622,16 +2623,23 @@ function stopAllGames() {
     mineActive = false;
     breachActive = false;
     typeTestActive = false;
+    wordleActive = false;
     clearInterval(typeTimerInterval);
     clearInterval(monitorInterval);
-    
+
+    if (input) {
+        input.value = '';
+        input.focus();
+    }
+
     // TOTAL WIPE of canvas listeners to prevent 'game jumping'
     nexusCanvas.onclick = null;
     nexusCanvas.onmousedown = null;
     nexusCanvas.onmousemove = null;
     nexusCanvas.ontouchstart = null;
     nexusCanvas.ontouchmove = null;
-    
+    nexusCanvas.ontouchend = null;
+
     // Clear any active game intervals/frames not caught by sub-functions
     cancelAnimationFrame(pongRaf);
     cancelAnimationFrame(flappyFrame);
