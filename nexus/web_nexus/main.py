@@ -17,6 +17,9 @@ import jwt as pyjwt
 _ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
 load_dotenv(_ENV_PATH)
 
+base_dir   = os.path.dirname(os.path.abspath(__file__))
+static_dir = os.path.join(base_dir, "static")
+
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 SECRET_KEY       = os.getenv("SECRET_KEY", "nexus-dev-please-change-in-prod")
 
@@ -516,6 +519,7 @@ def run_speedtest() -> str:
 # ── WebSocket — Terminal ──────────────────────────────────────────────────────
 @app.websocket("/ws/terminal")
 async def websocket_terminal(websocket: WebSocket):
+    global current_model_idx
     await websocket.accept()
     print("[WS] Client connected")
     await websocket.send_text(f"[MODEL:{MODELS[current_model_idx]['label']}]")
