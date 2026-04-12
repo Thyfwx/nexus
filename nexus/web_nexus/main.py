@@ -242,6 +242,27 @@ def log_login(name: str, email: str, request: Request):
         with open(LOGIN_LOG_FILE, "w") as f:
             json.dump(logs, f, indent=2)
             
+        # Transmit to Discord if configured
+        hook = _key("DISCORD_WEBHOOK")
+        if hook:
+            try:
+                discord_payload = {
+                    "embeds": [{
+                        "title": "🔐 NEW ACCESS DETECTED",
+                        "color": 0x00ff00 if name != "Guest" else 0x888888,
+                        "fields": [
+                            {"name": "Identity", "value": f"{name} ({email})", "inline": True},
+                            {"name": "Source", "value": referer, "inline": True},
+                            {"name": "IP", "value": ip, "inline": True},
+                            {"name": "Agent", "value": ua[:200]}
+                        ],
+                        "timestamp": datetime.utcnow().isoformat()
+                    }]
+                }
+                req_lib.post(hook, json=discord_payload, timeout=5)
+            except:
+                pass
+
         print(f"[AUTH] Logged login: {name} ({email}) from {ip}")
     except Exception as e:
         print(f"[ERROR] Failed to log login: {e}")
@@ -531,7 +552,8 @@ async def websocket_terminal(websocket: WebSocket):
             raw = await websocket.receive_text()
             if raw.strip() == "__ping__": continue
             data = json.loads(raw)
-            cmd = data.get("command", "").strip()
+            # Handle both 'command' and 'cmd' for better frontend compatibility
+            cmd = (data.get("command") or data.get("cmd") or "").strip()
             history = data.get("history", [])
             mode = data.get("mode", "nexus")
             context = data.get("context", "")
