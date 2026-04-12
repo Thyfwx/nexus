@@ -99,6 +99,29 @@ body {
     white-space: nowrap;
 }
 
+/* Status Bar Elements */
+.conn-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #555;
+    box-shadow: 0 0 5px rgba(0,0,0,0.5);
+    transition: background 0.3s, box-shadow 0.3s;
+}
+.conn-dot.connected {
+    background: #0f0;
+    box-shadow: 0 0 8px #0f0;
+}
+.conn-dot.disconnected {
+    background: #f00;
+    box-shadow: 0 0 8px #f00;
+}
+#active-model {
+    font-family: 'Fira Code', monospace;
+    text-transform: uppercase;
+}
+
+
 .stat-label {
     color: var(--accent);
     font-size: 0.7rem;
