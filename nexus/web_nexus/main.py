@@ -21,8 +21,7 @@ GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 SECRET_KEY       = os.getenv("SECRET_KEY", "nexus-dev-please-change-in-prod")
 
 def _key(name: str) -> str:
-    """Always re-reads .env so key changes take effect without a server restart."""
-    load_dotenv(_ENV_PATH, override=True)
+    """Read key from environment (populated by .env or Render dashboard)."""
     return os.getenv(name, '')
 
 def _get_session(request: Request):
