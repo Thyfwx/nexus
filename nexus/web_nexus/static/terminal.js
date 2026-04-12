@@ -486,6 +486,9 @@ window.showLeaderboard = showLeaderboard;
 //  TYPEWRITER EFFECT FOR AI RESPONSES
 // =============================================================
 function printTypewriter(text, className = 'ai-msg') {
+    if (!output) output = document.getElementById('terminal-output');
+    if (!output) return;
+
     const p = document.createElement('p');
     p.className = className;
     output.appendChild(p);
@@ -3585,6 +3588,10 @@ document.querySelectorAll('.action-btn').forEach(btn => {
 //  UTILITIES
 // =============================================================
 function printToTerminal(text, className = 'sys-msg') {
+    // Fail-safe initialization
+    if (!output) output = document.getElementById('terminal-output');
+    if (!output) return; // Still not found? Silently fail to prevent crash.
+
     const p = document.createElement('p');
     p.className = className;
     p.innerHTML = text.replace(/\n/g, '<br>');
@@ -3593,6 +3600,9 @@ function printToTerminal(text, className = 'sys-msg') {
 }
 
 function showThinking(cmd) {
+    if (!output) output = document.getElementById('terminal-output');
+    if (!output) return;
+
     document.getElementById('ai-thinking')?.remove(); // clear any stale one first
     clearTimeout(_thinkTimeout);
     _thinkFallbackCmd = cmd || null;
