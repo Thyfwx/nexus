@@ -51,6 +51,9 @@ let cmdHistory = JSON.parse(localStorage.getItem('nexus_cmd_history') || '[]');
 let historyIndex = -1;
 let currentMode = localStorage.getItem('nexus_mode') || 'nexus';
 
+// Animation frame holders to prevent crashes in stopAllGames
+let pongRaf, flappyFrame, breakoutRaf, invadersRaf;
+
 // =============================================================
 //  SOUND DESIGN (WEB AUDIO API)
 // =============================================================
