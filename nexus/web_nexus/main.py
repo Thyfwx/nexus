@@ -333,14 +333,12 @@ def get_system_prompt(mode="nexus", context=""):
 MODELS = [
     # GROQ - Speed Kings (User Preferred)
     {"id": "llama-3.3-70b-versatile",         "provider": "groq",   "label": "Nexus Prime (70B)"},
-    {"id": "meta-llama/llama-4-scout-17b-16e-instruct", "provider": "groq",   "label": "Llama 4 Scout"},
-    {"id": "qwen/qwen3-32b",                  "provider": "groq",   "label": "Qwen 3 (32B)"},
+    {"id": "llama-3.1-8b-instant",            "provider": "groq",   "label": "Nexus Lite (8B)"},
+    {"id": "mixtral-8x7b-32768",              "provider": "groq",   "label": "Mixtral Speed"},
     
     # HF - Massive Brains (User Preferred)
     {"id": "deepseek-ai/DeepSeek-Coder-V2-Instruct", "provider": "hf",     "label": "DeepSeek Coder V2"},
     {"id": "Qwen/Qwen2.5-72B-Instruct",       "provider": "hf",     "label": "Qwen 2.5 (72B)"},
-    {"id": "mistralai/Mistral-7B-Instruct-v0.3", "provider": "hf",     "label": "Mistral 7B"},
-    {"id": "google/gemma-2-27b-it",           "provider": "hf",     "label": "Gemma 2 (27B)"},
     {"id": "meta-llama/Llama-3.3-70B-Instruct", "provider": "hf",     "label": "Llama 3.3 (HF)"},
 
     # GEMINI - (Fallback only)
@@ -456,7 +454,8 @@ def call_groq(model_id: str, prompt: str, history: list, system: str) -> str:
     if resp.status_code != 200: raise Exception(f"{resp.status_code} {resp.text[:200]}")
     return resp.json()["choices"][0]["message"]["content"]
 
-def get_ai_response(prompt: str, history: list = None, mode: str = "nexus", context: str = "") -> dict:
+def prompt_ai(prompt: str, history: list = None, mode: str = "nexus", context: str = "") -> dict:
+    """Main entry point for AI responses. Cycles through models until one works."""
     global current_model_idx
     prev_label = MODELS[current_model_idx]["label"]
     system = get_system_prompt(mode, context)
@@ -472,16 +471,15 @@ def get_ai_response(prompt: str, history: list = None, mode: str = "nexus", cont
             elif model["provider"] == "hf":
                 text = call_hf(model["id"], prompt, history or [], system)
             else: continue
+            
             switched_from     = prev_label if idx != current_model_idx else None
             current_model_idx = idx
             return {"text": text, "label": model["label"], "switched_from": switched_from}
         except Exception as e:
-            import traceback
-            print(f"[MODEL SKIP] {model['label']}: {e!s:.80}")
-            traceback.print_exc()
+            print(f"[MODEL SKIP] {model['label']}: {e}")
             continue
 
-    return {"text": "AI unavailable. Check keys.", "label": MODELS[current_model_idx]["label"], "switched_from": None}
+    return {"text": "AI UPLINK FAILURE: All providers (Groq/Gemini/HF) are offline. Check server API keys.", "label": "ERROR", "switched_from": None}
 
 # ── Sanitization ─────────────────────────────────────────────────────────────
 import re as _re
