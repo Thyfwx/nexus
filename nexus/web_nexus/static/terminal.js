@@ -2,12 +2,22 @@
 //  NEXUS TERMINAL v4.0
 // =============================================================
 
-// --- Global Error Reporter ---
+// --- Global Diagnostic Reporter ---
 window.onerror = function(msg, url, line, col, error) {
-    const errDiv = document.createElement('div');
-    errDiv.style = "position:fixed;top:0;left:0;width:100%;background:#f00;color:#fff;padding:10px;z-index:9999;font-family:monospace;font-size:12px;border-bottom:2px solid #fff;";
-    errDiv.innerHTML = `[NEXUS CRASH] ${msg}<br>Line: ${line} Col: ${col}<br>File: ${url}`;
-    document.body.appendChild(errDiv);
+    const diagnostic = document.createElement('div');
+    diagnostic.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(20,0,0,0.95);color:#f55;padding:40px;z-index:99999;font-family:monospace;overflow:auto;line-height:1.5;border:4px solid #f00;";
+    diagnostic.innerHTML = `
+        <h1 style="color:#fff;margin-top:0;">🛑 NEXUS SYSTEM CRITICAL FAILURE</h1>
+        <div style="background:#000;padding:20px;border:1px solid #500;margin-bottom:20px;">
+            <b style="color:#fff;">ERROR:</b> ${msg}<br>
+            <b style="color:#fff;">LOCATION:</b> ${url}<br>
+            <b style="color:#fff;">LINE:</b> ${line} <b style="color:#fff;">COL:</b> ${col}
+        </div>
+        <b style="color:#fff;">STACK TRACE:</b><br>
+        <pre style="background:#111;padding:15px;color:#888;white-space:pre-wrap;">${error?.stack || 'No stack trace available.'}</pre>
+        <button onclick="location.reload()" style="background:#f00;color:#fff;border:none;padding:10px 20px;cursor:pointer;font-weight:bold;margin-top:20px;">FORCE SYSTEM REBOOT</button>
+    `;
+    document.body.appendChild(diagnostic);
     return false;
 };
 
@@ -3990,26 +4000,32 @@ function toggleA11yPanel() {
 
 // Global Boot
 window.onload = async () => {
-    // Initialize DOM references
-    cpuStat      = document.getElementById('cpu-stat');
-    memStat      = document.getElementById('mem-stat');
-    output       = document.getElementById('terminal-output');
-    input        = document.getElementById('terminal-input');
-    guiContainer = document.getElementById('game-gui-container');
-    guiContent   = document.getElementById('gui-content');
-    guiTitle     = document.getElementById('gui-title');
-    nexusCanvas  = document.getElementById('nexus-canvas');
+    try {
+        // Initialize DOM references
+        cpuStat      = document.getElementById('cpu-stat');
+        memStat      = document.getElementById('mem-stat');
+        output       = document.getElementById('terminal-output');
+        input        = document.getElementById('terminal-input');
+        guiContainer = document.getElementById('game-gui-container');
+        guiContent   = document.getElementById('gui-content');
+        guiTitle     = document.getElementById('gui-title');
+        nexusCanvas  = document.getElementById('nexus-canvas');
 
-    // Load history for the current mode on boot
-    messageHistory = loadHistory(currentMode);
+        // Load history for the current mode on boot
+        messageHistory = loadHistory(currentMode);
 
-    // Start auth in background (non-blocking)
-    initGoogleAuth();
+        // Start auth in background (non-blocking)
+        initGoogleAuth();
 
-    const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
-    if (nexusUser && nexusUser.name) {
-        revealTerminal(nexusUser.name);
-    } else {
-        console.log("[NEXUS] Awaiting Authorization...");
+        const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+        if (nexusUser && nexusUser.name) {
+            revealTerminal(nexusUser.name);
+        } else {
+            console.log("[NEXUS] Awaiting Authorization...");
+        }
+    } catch (e) {
+        console.error("[CRITICAL] Boot sequence failed:", e);
+        // Ensure diagnostic reporter catches this if it's a hard crash
+        throw e; 
     }
 };
