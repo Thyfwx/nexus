@@ -2652,7 +2652,10 @@ function renderAuthSection() {
                     <div class="auth-name">${nexusUser.name}</div>
                     <div class="auth-email">${isGoogle ? nexusUser.email : 'LOCAL IDENTITY'}</div>
                 </div>
-                <button class="auth-logout-btn" onclick="logout()" title="Sign out">✕</button>
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                    <button class="auth-logout-btn" onclick="logout()" title="Sign out">✕</button>
+                    <button class="auth-logout-btn" style="background:rgba(255,0,0,0.1); border-color:#f55; color:#f55; font-size:8px; width:18px; height:18px; line-height:1;" onclick="clearAllHistory()" title="Clear memory">M</button>
+                </div>
             </div>
         `;
     } else {
@@ -2708,10 +2711,14 @@ function revealTerminal(name) {
     if (monitor) monitor.style.display = 'flex';
     if (terms)   terms.style.display   = 'none';
     document.body.classList.remove('auth-locked');
-    
+
+    // Ensure DOM references and listeners are set up now that UI is visible
+    output = document.getElementById('terminal-output');
+    input  = document.getElementById('terminal-input');
+    setupInputListeners();
+
     if (name) updateUserIdentity(name);
-    renderAuthSection(); 
-    
+    renderAuthSection();
     logPrompt(`[PROTOCOL] User '${name}' acknowledged Terms of Access and established uplink.`);
     
     connectWS();
@@ -3331,63 +3338,77 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
 // =============================================================
 //  INPUT HANDLING
 // =============================================================
-input.addEventListener('input', () => {
-    SoundManager.playClick();
-});
+function setupInputListeners() {
+    if (!input) input = document.getElementById('terminal-input');
+    if (!input) return;
 
-input.addEventListener('keydown', (e) => {
-    // Route keypresses to Wordle when active
-    if (wordleActive) {
-        if (e.key === 'Enter') { e.preventDefault(); wordleKey('ENTER'); return; }
-        if (e.key === 'Backspace') { wordleKey('⌫'); return; }
-        if (/^[a-zA-Z]$/.test(e.key)) { wordleKey(e.key.toUpperCase()); e.preventDefault(); return; }
-    }
+    input.addEventListener('input', () => {
+        SoundManager.playClick();
+    });
 
-    // Typing test: live feedback, Escape to cancel
-    if (typeTestActive) {
-        if (e.key === 'Escape') {
-            clearInterval(typeTimerInterval);
-            typeTestActive = false;
-            guiContainer.classList.add('gui-hidden');
-            printToTerminal('Typing test cancelled.', 'sys-msg');
-            input.value = '';
+    input.addEventListener('keydown', (e) => {
+        // Route keypresses to Wordle when active
+        if (wordleActive) {
+            if (e.key === 'Enter') { e.preventDefault(); wordleKey('ENTER'); return; }
+            if (e.key === 'Backspace') { wordleKey('⌫'); return; }
+            if (/^[a-zA-Z]$/.test(e.key)) { wordleKey(e.key.toUpperCase()); e.preventDefault(); return; }
+        }
+
+        // Typing test: live feedback, Escape to cancel
+        if (typeTestActive) {
+            if (e.key === 'Escape') {
+                clearInterval(typeTimerInterval);
+                typeTestActive = false;
+                guiContainer.classList.add('gui-hidden');
+                printToTerminal('Typing test cancelled.', 'sys-msg');
+                input.value = '';
+                return;
+            }
+            if (e.key !== 'Enter') {
+                setTimeout(() => checkTypingTest(input.value), 0);
+                return;
+            }
+        }
+
+        if (e.key !== 'Enter' && e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (historyIndex < cmdHistory.length - 1) { historyIndex++; input.value = cmdHistory[historyIndex]; }
             return;
         }
-        if (e.key !== 'Enter') {
-            setTimeout(() => checkTypingTest(input.value), 0);
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            historyIndex > 0 ? (historyIndex--, input.value = cmdHistory[historyIndex]) : (historyIndex = -1, input.value = '');
             return;
         }
-    }
 
-    if (e.key !== 'Enter' && e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+        let cmd = input.value.trim();
+        if (!cmd) return;
 
-    if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        if (historyIndex < cmdHistory.length - 1) { historyIndex++; input.value = cmdHistory[historyIndex]; }
-        return;
-    }
-    if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        historyIndex > 0 ? (historyIndex--, input.value = cmdHistory[historyIndex]) : (historyIndex = -1, input.value = '');
-        return;
-    }
+        cmdHistory.unshift(cmd);
+        if (cmdHistory.length > 50) cmdHistory.pop();
+        localStorage.setItem('nexus_cmd_history', JSON.stringify(cmdHistory));
+        historyIndex = -1;
+        input.value = '';
 
-    let cmd = input.value.trim();
-    if (!cmd) return;
+        const lc = cmd.toLowerCase();
+        const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+        const pl = document.getElementById('prompt-label')?.textContent || (nexusUser?.name ? `${nexusUser.name.toLowerCase()}@nexus:~$` : 'guest@nexus:~$');
 
-    cmdHistory.unshift(cmd);
-    if (cmdHistory.length > 50) cmdHistory.pop();
-    localStorage.setItem('nexus_cmd_history', JSON.stringify(cmdHistory));
-    historyIndex = -1;
-    input.value = '';
+        // Typing test intercept
+        if (typeTestActive) {
+            const done = checkTypingTest(cmd);
+            if (done) return;
+        }
 
-    const lc = cmd.toLowerCase();
-    const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
-    const pl = document.getElementById('prompt-label')?.textContent || (nexusUser?.name ? `${nexusUser.name.toLowerCase()}@nexus:~$` : 'guest@nexus:~$');
+        printToTerminal(`${pl} ${cmd}`, 'user-cmd');
+        handleCommand(cmd);
+    });
+}
 
-    // Typing test intercept
-    if (typeTestActive) {
-        const done = checkTypingTest(cmd);
+setupInputListeners();
+
         if (!done) return;
         return;
     }
@@ -3907,13 +3928,8 @@ function toggleA11yPanel() {
             <button onclick="document.getElementById('a11y-panel').classList.remove('a11y-panel-open')" class="a11y-close">✕</button>
         </div>
 
-        <div class="a11y-section-label">AI CONTEXT</div>
-        <div class="a11y-row">
-            <button class="a11y-toggle" style="border-color:#f55;color:#f55;" onclick="clearAllHistory()">CLEAR AI MEMORY</button>
-            <button class="a11y-toggle" style="border-color:#ff6600;color:#ff6600;" onclick="logout()">SIGN OUT</button>
-        </div>
-
         <div class="a11y-section-label">VISUALS</div>
+
         <div class="a11y-row">
             <button class="a11y-toggle" data-class="crt-mode" onclick="toggleA11yClass('crt-mode')">CRT Mode</button>
             <button class="a11y-toggle" id="sound-toggle" onclick="toggleSound()">Sound Effects</button>
