@@ -2,6 +2,15 @@
 //  NEXUS TERMINAL v4.0
 // =============================================================
 
+// --- Global Error Reporter ---
+window.onerror = function(msg, url, line, col, error) {
+    const errDiv = document.createElement('div');
+    errDiv.style = "position:fixed;top:0;left:0;width:100%;background:#f00;color:#fff;padding:10px;z-index:9999;font-family:monospace;font-size:12px;border-bottom:2px solid #fff;";
+    errDiv.innerHTML = `[NEXUS CRASH] ${msg}<br>Line: ${line} Col: ${col}<br>File: ${url}`;
+    document.body.appendChild(errDiv);
+    return false;
+};
+
 // --- Config ---
 const isLocal = window.location.hostname === 'localhost' || 
                 window.location.hostname === '127.0.0.1' || 
