@@ -412,23 +412,24 @@ function doConnect() {
 
     termWs.onmessage = (event) => {
         const text = event.data;
+        _clearThinking();
 
-        _clearThinking(); // remove thinking indicator on ANY incoming message
-
-        // [MODEL:label] — update status display, never print to terminal
+        // 1. Handle Model Labels (Silent update)
         if (text.startsWith('[MODEL:')) {
             const label = text.match(/\[MODEL:([^\]]+)\]/)?.[1];
-            if (label) {
-                const el = document.getElementById('mode-indicator');
-                // Show model name briefly in status bar next to mode (don't overwrite mode)
-                const modelEl = document.getElementById('active-model');
-                if (modelEl) modelEl.textContent = label;
-            }
+            const modelEl = document.getElementById('active-model');
+            if (modelEl && label) modelEl.textContent = label;
             return;
         }
 
-        if (text.includes('[TRIGGER:')) { handleAITriggers(text); return; }
+        // 2. Handle System Messages
+        if (text.startsWith('[SYSTEM]')) {
+            printToTerminal(text, 'sys-msg');
+            return;
+        }
 
+        // 3. Handle Triggers
+        if (text.includes('[TRIGGER:')) { handleAITriggers(text); return; }
         if (text.includes('[GUI_TRIGGER:')) {
             const match = text.match(/\[GUI_TRIGGER:([^:]+):([^\]]+)\]/);
             if (match) showGameGUI(match[1], match[2]);
@@ -436,26 +437,25 @@ function doConnect() {
             return;
         }
 
-        // Skip prompt echoes and __ping__ acks
-        if (/\w+@nexus/.test(text.trim())) return;
-        if (text.includes('__ping__')) return;
+        // 4. Ignore Internal Pings/Echoes
+        if (text.includes('__ping__') || text.includes('__pong__') || /\w+@nexus/.test(text.trim())) return;
 
-        // Accumulate for history — debounce 800ms so streaming chunks merge
+        // 5. Display AI Text
+        printTypewriter(text);
+
+        // Accumulate for history
         _streamBuf += text;
         clearTimeout(_streamTimer);
         _streamTimer = setTimeout(() => {
             const full = _streamBuf.trim();
             if (full) {
-                messageHistory.push({ role: 'assistant', content: full.slice(0, 600) });
-                if (messageHistory.length > 10) messageHistory.splice(0, messageHistory.length - 10);
+                messageHistory.push({ role: 'assistant', content: full.slice(0, 1500) });
+                if (messageHistory.length > 15) messageHistory.shift();
                 saveHistory();
-                // Log AI response to Discord so you can read full conversations
                 _logAIResponse(full);
             }
             _streamBuf = '';
         }, 800);
-
-        printTypewriter(text);
     };
 
     // If WS drops while thinking, clear immediately and show error
@@ -463,8 +463,9 @@ function doConnect() {
         clearInterval(_wsPingId);
         _clearThinking();
         const dot = document.getElementById('conn-dot');
-        if (dot) dot.className = 'conn-dot disconnected';
-        setTimeout(connectWS, 3000);
+        if (dot) { dot.className = 'conn-dot disconnected'; }
+        // Cool-down reconnection to prevent infinite spamming
+        setTimeout(connectWS, 5000); 
     };
     termWs.onerror = () => { _clearThinking(); };
 }
