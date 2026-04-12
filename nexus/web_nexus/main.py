@@ -177,36 +177,36 @@ async def get_me(request: Request):
         "picture": user.get("picture", ""),
     }
 
-@app.get(\"/api/diagnostics\")
+@app.get("/api/diagnostics")
 async def get_diagnostics():
     import shutil
     try:
         cpu = psutil.cpu_percent(interval=None)
         mem = psutil.virtual_memory().percent
-        disk = shutil.disk_usage(\"/\")
+        disk = shutil.disk_usage("/")
         
         # Get last 50 logins
         logs = []
         if os.path.exists(LOGIN_LOG_FILE):
-            with open(LOGIN_LOG_FILE, \"r\") as f:
+            with open(LOGIN_LOG_FILE, "r") as f:
                 logs = json.load(f)[-50:]
                 
         return {
-            \"system\": {
-                \"cpu_percent\": cpu,
-                \"mem_percent\": mem,
-                \"disk_total\": disk.total,
-                \"disk_used\": disk.used,
-                \"disk_free\": disk.free,
-                \"status\": \"HEALTHY\"
+            "system": {
+                "cpu_percent": cpu,
+                "mem_percent": mem,
+                "disk_total": disk.total,
+                "disk_used": disk.used,
+                "disk_free": disk.free,
+                "status": "HEALTHY"
             },
-            \"recent_logins\": logs,
-            \"timestamp\": datetime.utcnow().isoformat()
+            "recent_logins": logs,
+            "timestamp": datetime.utcnow().isoformat()
         }
     except Exception as e:
-        return {\"status\": \"ERROR\", \"message\": str(e)}
+        return {"status": "ERROR", "message": str(e)}
 
-LOGIN_LOG_FILE = os.path.join(base_dir, \"logins.json\")
+LOGIN_LOG_FILE = os.path.join(base_dir, "logins.json")
 
 def log_login(name: str, email: str, request: Request):
     """Log the user's login event with IP and Device Info."""
