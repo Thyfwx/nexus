@@ -457,6 +457,16 @@ def call_groq(model_id: str, prompt: str, history: list, system: str) -> str:
     if resp.status_code != 200: raise Exception(f"{resp.status_code} {resp.text[:200]}")
     return resp.json()["choices"][0]["message"]["content"]
 
+@app.get("/api/status")
+async def get_status():
+    """Hidden diagnostic to check if keys are loaded (masked for security)."""
+    return {
+        "groq_loaded": bool(_key("GROQ_API_KEY")),
+        "hf_loaded":   bool(_key("HF_API_KEY")),
+        "gemini_loaded": bool(_key("GEMINI_API_KEY")),
+        "google_id":   bool(_key("GOOGLE_CLIENT_ID"))
+    }
+
 def prompt_ai(prompt: str, history: list = None, mode: str = "nexus", context: str = "") -> dict:
     """Main entry point for AI responses. Cycles through models until one works."""
     global current_model_idx
