@@ -15,17 +15,15 @@ from google.genai import types
 import jwt as pyjwt
 
 _ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
-load_dotenv(_ENV_PATH)
+if os.path.exists(_ENV_PATH):
+    load_dotenv(_ENV_PATH)
 
 base_dir   = os.path.dirname(os.path.abspath(__file__))
 static_dir = os.path.join(base_dir, "static")
 
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
-SECRET_KEY       = os.getenv("SECRET_KEY", "nexus-dev-please-change-in-prod")
-
 def _key(name: str) -> str:
     """Read key from environment. Sanitizes Google Client ID to prevent concatenation bugs."""
-    val = os.getenv(name, '').strip().strip('"').strip("'")
+    val = os.environ.get(name, '').strip().strip('"').strip("'")
     if name == "GOOGLE_CLIENT_ID" and ".apps.googleusercontent.com" in val:
         # If the ID is duplicated (Render bug or double paste), take only the first one
         parts = val.split(".apps.googleusercontent.com")
@@ -39,8 +37,7 @@ def _get_session(request: Request):
     if not token:
         return None
     try:
-        # Use the dynamic _key to match what was used in auth_google
-        key = _key("SECRET_KEY") or os.getenv("SECRET_KEY", "nexus-dev-please-change-in-prod")
+        key = _key("SECRET_KEY") or "nexus-dev-please-change-in-prod"
         return pyjwt.decode(token, key, algorithms=["HS256"])
     except Exception:
         return None
