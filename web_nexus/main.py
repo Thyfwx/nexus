@@ -8,14 +8,17 @@ import shutil
 import re
 import traceback
 import requests as req_lib
-import jwt as pyjwt
+try:
+    import jwt
+except ImportError:
+    # Fallback for environments where PyJWT is installed but not recognized as 'jwt'
+    import jwt as jwt
 from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI, WebSocket, Request
 from fastapi.responses import RedirectResponse, JSONResponse as _JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
 from dotenv import load_dotenv
 
 from google import genai
@@ -46,7 +49,7 @@ def _get_session(request: Request):
         return None
     try:
         key = _key("SECRET_KEY") or "nexus-dev-please-change-in-prod"
-        return pyjwt.decode(token, key, algorithms=["HS256"])
+        return jwt.decode(token, key, algorithms=["HS256"])
     except Exception:
         return None
 
@@ -107,7 +110,7 @@ async def auth_google(request: Request):
         "picture": idinfo.get("picture", ""),
         "exp":     datetime.now(UTC) + timedelta(days=30),
     }
-    token = pyjwt.encode(payload, _key("SECRET_KEY") or os.getenv("SECRET_KEY", "nexus-dev-please-change-in-prod"), algorithm="HS256")
+    token = jwt.encode(payload, _key("SECRET_KEY") or os.getenv("SECRET_KEY", "nexus-dev-please-change-in-prod"), algorithm="HS256")
     is_prod = os.getenv("PRODUCTION", "") == "1"
 
     # Log login event
@@ -163,7 +166,7 @@ async def auth_guest(request: Request):
         "exp":     datetime.now(UTC) + timedelta(days=30),
     }
     
-    token = pyjwt.encode(payload, _key("SECRET_KEY") or os.getenv("SECRET_KEY", "nexus-dev-please-change-in-prod"), algorithm="HS256")
+    token = jwt.encode(payload, _key("SECRET_KEY") or os.getenv("SECRET_KEY", "nexus-dev-please-change-in-prod"), algorithm="HS256")
     is_prod = os.getenv("PRODUCTION", "") == "1"
 
     # Log login event

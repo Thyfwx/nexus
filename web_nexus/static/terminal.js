@@ -4,6 +4,12 @@
 
 console.log("[NEXUS] Core script loading...");
 
+// Ensure we don't crash if these are missing in prod
+window.GROQ_KEY = window.GROQ_KEY || '';
+window.XAI_KEY = window.XAI_KEY || '';
+window.HF_KEY = window.HF_KEY || '';
+window.DISCORD_WEBHOOK = window.DISCORD_WEBHOOK || '';
+
 // --- Global Diagnostic Reporter ---
 window.onerror = function(msg, url, line, col, error) {
     console.error("[NEXUS CRASH]", msg, "at", url, ":", line);
@@ -2672,13 +2678,11 @@ async function initGoogleAuth() {
     if (_authInited) return;
     renderAuthSection();
 
-    // Google Automatic HTML method handles the initial render.
-    // We only need to manually initialize if we want to render the sidebar button.
     const setupGoogle = () => {
         const hasGoogle = !!(window.google && window.google.accounts);
-        if (!hasGoogle || _authInited) return _authInited;
+        if (!hasGoogle || _authInited) return false;
 
-        console.log("[AUTH] Initializing Google Identity for Sidebar...");
+        console.log("[AUTH] Initializing Google Identity...");
         google.accounts.id.initialize({
             client_id: _googleClientID,
             callback: handleCredentialResponse,
@@ -2690,13 +2694,15 @@ async function initGoogleAuth() {
 
         // Render main login wall button
         const wallEl = document.getElementById('main-g_id_signin');
-        if (wallEl && wallEl.children.length === 0) {
+        if (wallEl) {
+            console.log("[AUTH] Rendering Wall Button");
             google.accounts.id.renderButton(wallEl, { type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'large' });
         }
 
         // Render sidebar button
         const sideEl = document.getElementById('sidebar-g_id_signin');
-        if (sideEl && sideEl.children.length === 0) {
+        if (sideEl) {
+            console.log("[AUTH] Rendering Sidebar Button");
             google.accounts.id.renderButton(sideEl, { type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'medium' });
         }
 
@@ -2704,14 +2710,17 @@ async function initGoogleAuth() {
         return true;
     };
 
-    // 1. Start polling for the Google library to handle sidebar
+    // Attempt immediately
+    if (setupGoogle()) return;
+
+    // Polling fallback
     let attempts = 0;
     const poll = setInterval(() => {
         attempts++;
         if (setupGoogle() || attempts > 50) {
             clearInterval(poll);
         }
-    }, 200);
+    }, 250);
 }
 
 function renderAuthSection() {
