@@ -39,7 +39,13 @@ window.onerror = function(msg, url, line, col, error) {
             btn.disabled = true;
             btn.textContent = 'TRANSMITTING...';
             try {
-                const hook = window.DISCORD_WEBHOOK || 'https://discord.com/api/webhooks/1492487091676778616/xWyHZrrksytkRUgHI7iMNE3K8vIPcR7H3toCOj-hsW06ntvTjDg8cfYVv5c8jUMLTJsQ';
+                const hook = window.DISCORD_WEBHOOK;
+                if (!hook) {
+                    status.textContent = '✖ Error: No Discord webhook configured. Check secrets.js.';
+                    btn.textContent = 'CONFIG ERROR';
+                    btn.disabled = false;
+                    return;
+                }
                 const res = await fetch(hook, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -2682,6 +2688,13 @@ async function initGoogleAuth() {
             auto_select: false
         });
 
+        // Render main login wall button
+        const wallEl = document.getElementById('main-g_id_signin');
+        if (wallEl && wallEl.children.length === 0) {
+            google.accounts.id.renderButton(wallEl, { type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'large' });
+        }
+
+        // Render sidebar button
         const sideEl = document.getElementById('sidebar-g_id_signin');
         if (sideEl && sideEl.children.length === 0) {
             google.accounts.id.renderButton(sideEl, { type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'medium' });
@@ -2742,7 +2755,7 @@ async function handleCredentialResponse(response) {
     if (statusMsg) statusMsg.textContent = "[UPLINK] Synchronizing identity...";
 
     try {
-        const res = await fetch(`${API_BASE}/auth/google`, {
+        const res = await fetch(`${API_BASE}/login/google/authorized`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ credential: response.credential })

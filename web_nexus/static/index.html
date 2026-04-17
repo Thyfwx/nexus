@@ -7,7 +7,7 @@
     <meta name="referrer" content="no-referrer-when-downgrade">
     <link rel="stylesheet" href="./style.css?v=9">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
-    <script src="https://accounts.google.com/gsi/client"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
     <body class="auth-locked">
 
@@ -20,25 +20,7 @@
             <!-- Google Auth Section -->
             <div class="auth-sub-section">
                 <div class="auth-label">GOOGLE UPLINK</div>
-                <div style="display:flex; justify-content:center; min-height:44px; flex-direction:column; align-items:center;">
-                    <!-- Google Automatic Auth Configuration -->
-                    <div id="g_id_onload"
-                         data-client_id="616205887439-s1l0out61vlu0l81307q9g64oai3gnur.apps.googleusercontent.com"
-                         data-context="signin"
-                         data-ux_mode="redirect"
-                         data-login_uri="https://nexus-terminalnexus.onrender.com/login/google/authorized"
-                         data-auto_select="false"
-                         data-itp_support="true">
-                    </div>
-                    <!-- Google Automatic Button -->
-                    <div class="g_id_signin"
-                         data-type="standard"
-                         data-shape="rectangular"
-                         data-theme="filled_blue"
-                         data-text="signin_with"
-                         data-size="large"
-                         data-logo_alignment="left">
-                    </div>
+                <div id="main-g_id_signin" style="display:flex; justify-content:center; min-height:44px; align-items:center;">
                 </div>
             </div>
 
@@ -162,4 +144,3 @@
         <script src="terminal.js?fix=102"></script>
     </body>
     </html>
-
