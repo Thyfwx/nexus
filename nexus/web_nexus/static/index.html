@@ -20,7 +20,8 @@
             <!-- Google Auth Section -->
             <div class="auth-sub-section">
                 <div class="auth-label">GOOGLE UPLINK</div>
-                <div style="display:flex; justify-content:center; min-height:40px;" id="g_id_signin_wall">
+                <div style="display:flex; justify-content:center; min-height:40px; flex-direction:column; align-items:center;" id="g_id_signin_wall">
+                    <div id="google-loading-status" style="font-size:0.6rem; color:#555; margin-top:10px;">Establishing connection to Google...</div>
                 </div>
             </div>
 
@@ -141,7 +142,6 @@
             </div>
         </div>
     </div>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
         <script src="terminal.js?fix=102"></script>
     </body>
     </html>
