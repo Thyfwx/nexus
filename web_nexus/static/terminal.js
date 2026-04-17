@@ -2680,46 +2680,50 @@ async function initGoogleAuth() {
     renderAuthSection();
 
     const setupGoogle = () => {
-        const hasGoogle = !!(window.google && window.google.accounts);
-        if (!hasGoogle || _authInited) return false;
+        if (!window.google || !window.google.accounts || !window.google.accounts.id) return false;
+        if (_authInited) return true;
 
         console.log("[AUTH] Initializing Google Identity...");
-        google.accounts.id.initialize({
-            client_id: _googleClientID,
-            callback: handleCredentialResponse,
-            ux_mode: 'popup',
-            context: 'signin',
-            itp_support: true,
-            auto_select: false
-        });
+        try {
+            google.accounts.id.initialize({
+                client_id: _googleClientID,
+                callback: handleCredentialResponse,
+                ux_mode: 'popup',
+                context: 'signin',
+                itp_support: true,
+                auto_select: false
+            });
 
-        // Render main login wall button
-        const wallEl = document.getElementById('main-g_id_signin');
-        if (wallEl) {
-            console.log("[AUTH] Rendering Wall Button");
-            google.accounts.id.renderButton(wallEl, { type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'large' });
+            // Render both locations if they exist
+            ['main-g_id_signin', 'sidebar-g_id_signin'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    console.log(`[AUTH] Rendering Button in #${id}`);
+                    google.accounts.id.renderButton(el, { 
+                        type: 'standard', 
+                        shape: 'rectangular', 
+                        theme: 'filled_blue', 
+                        text: 'signin_with', 
+                        size: id.includes('main') ? 'large' : 'medium' 
+                    });
+                }
+            });
+
+            _authInited = true;
+            return true;
+        } catch (e) {
+            console.error("[AUTH] Google initialization failed:", e);
+            return false;
         }
-
-        // Render sidebar button
-        const sideEl = document.getElementById('sidebar-g_id_signin');
-        if (sideEl) {
-            console.log("[AUTH] Rendering Sidebar Button");
-            google.accounts.id.renderButton(sideEl, { type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'medium' });
-        }
-
-        _authInited = true;
-        return true;
     };
 
-    // Attempt immediately
-    if (setupGoogle()) return;
-
-    // Polling fallback
+    // Poll until ready
     let attempts = 0;
     const poll = setInterval(() => {
         attempts++;
-        if (setupGoogle() || attempts > 50) {
+        if (setupGoogle() || attempts > 40) {
             clearInterval(poll);
+            if (!_authInited) console.warn("[AUTH] Google GSI timed out.");
         }
     }, 250);
 }

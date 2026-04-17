@@ -8,11 +8,7 @@ import shutil
 import re
 import traceback
 import requests as req_lib
-try:
-    import jwt
-except ImportError:
-    # Fallback for environments where PyJWT is installed but not recognized as 'jwt'
-    import jwt as jwt
+import jwt
 from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI, WebSocket, Request
@@ -373,7 +369,7 @@ MODELS = [
 current_model_idx = 0
 
 # ── AI Callers ────────────────────────────────────────────────────────────────
-def call_hf(model_id: str, prompt: str, history: list, system: str) -> str:
+def call_hf(model_id: str, prompt: str, history: list | None, system: str) -> str:
     api_key = _key("HF_API_KEY")
     if not api_key: raise ValueError("HF_API_KEY not set")
     
@@ -405,7 +401,7 @@ def call_hf(model_id: str, prompt: str, history: list, system: str) -> str:
     if resp.status_code != 200: raise Exception(f"{resp.status_code} {resp.text[:200]}")
     return resp.json()["choices"][0]["message"]["content"]
 
-def call_gemini(model_id: str, prompt: str, history: list, system: str) -> str:
+def call_gemini(model_id: str, prompt: str, history: list | None, system: str) -> str:
     api_key = _key("GEMINI_API_KEY")
     if not api_key: raise ValueError("GEMINI_API_KEY not set")
     
@@ -449,7 +445,7 @@ def call_gemini(model_id: str, prompt: str, history: list, system: str) -> str:
         print(f"[GEMINI ERROR] {e}")
         raise
 
-def call_groq(model_id: str, prompt: str, history: list, system: str) -> str:
+def call_groq(model_id: str, prompt: str, history: list | None, system: str) -> str:
     api_key = _key("GROQ_API_KEY")
     if not api_key: raise ValueError("GROQ_API_KEY not set")
     
@@ -489,7 +485,7 @@ async def get_status():
         "google_id":   bool(_key("GOOGLE_CLIENT_ID"))
     }
 
-def prompt_ai(prompt: str, history: list = None, mode: str = "nexus", context: str = "") -> dict:
+def prompt_ai(prompt: str, history: list | None = None, mode: str = "nexus", context: str = "") -> dict:
     """Main entry point for AI responses. Cycles through models until one works."""
     global current_model_idx
     prev_label = MODELS[current_model_idx]["label"]
