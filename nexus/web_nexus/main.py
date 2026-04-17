@@ -22,14 +22,8 @@ base_dir   = os.path.dirname(os.path.abspath(__file__))
 static_dir = os.path.join(base_dir, "static")
 
 def _key(name: str) -> str:
-    """Read key from environment. Sanitizes Google Client ID to prevent concatenation bugs."""
-    val = os.environ.get(name, '').strip().strip('"').strip("'")
-    if name == "GOOGLE_CLIENT_ID" and ".apps.googleusercontent.com" in val:
-        # If the ID is duplicated (Render bug or double paste), take only the first one
-        parts = val.split(".apps.googleusercontent.com")
-        if len(parts) > 1:
-            return parts[0] + ".apps.googleusercontent.com"
-    return val
+    """Read key from environment."""
+    return os.environ.get(name, '').strip().strip('"').strip("'").strip()
 
 def _get_session(request: Request):
     """Decode and return the session JWT payload, or None if missing/invalid."""
