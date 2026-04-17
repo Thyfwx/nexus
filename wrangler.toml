@@ -1,17 +1,7 @@
+# Cloudflare Pages configuration - NOT a Worker
 name = "nexus-terminal"
-compatibility_date = "2024-01-01"
 pages_build_output_dir = "Nexus/web_nexus/static"
-
-[build]
-command = "echo \"Nexus UI Optimized\""
+compatibility_date = "2024-01-01"
 
 [deployment]
 production_branch = "main"
-
-[[headers]]
-for = "/*"
-[headers.values]
-X-Frame-Options = "DENY"
-X-Content-Type-Options = "nosniff"
-Referrer-Policy = "no-referrer-when-downgrade"
-Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://static.cloudflareinsights.com; connect-src 'self' https://nexus-terminalnexus.onrender.com wss://nexus-terminalnexus.onrender.com; img-src 'self' data: https://*.googleusercontent.com; frame-src https://accounts.google.com; style-src 'self' 'unsafe-inline';"
