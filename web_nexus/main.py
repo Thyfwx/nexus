@@ -72,7 +72,12 @@ async def get_config():
 @app.post("/login/google/authorized")
 async def auth_google(request: Request):
     client_id = _key("GOOGLE_CLIENT_ID")
+    is_prod = os.getenv("PRODUCTION", "") == "1"
+    
+    print(f"[DIAG] Login attempt. ClientID set: {bool(client_id)}, IsProd: {is_prod}")
+    
     if not client_id:
+        print("[ERROR] GOOGLE_CLIENT_ID is missing from environment!")
         return _JSONResponse({"error": "Google auth not configured on server"}, status_code=503)
 
     # Handle both JSON (popup) and Form-Encoded (redirect)
@@ -108,10 +113,6 @@ async def auth_google(request: Request):
     # Log login event
     log_login(payload["name"], payload["email"], request)
 
-    # Cross-site cookie support
-    samesite = "none" if is_prod else "lax"
-    secure   = True if is_prod else False
-
     if is_redirect:
         # Traditional Redirect: Return to home with cookie set
         resp = RedirectResponse(url="/", status_code=303)
@@ -123,7 +124,12 @@ async def auth_google(request: Request):
             "email":   payload["email"],
             "picture": payload["picture"],
         })
-    
+
+    # Robust cookie settings for Render/HTTPS
+    is_https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+    samesite = "lax" 
+    secure   = True if is_https else False
+
     resp.set_cookie("nexus_session", token, httponly=True, samesite=samesite,
                     max_age=30 * 24 * 3600, secure=secure)
     return resp
@@ -169,14 +175,14 @@ async def auth_guest(request: Request):
         "email":   payload["email"],
         "picture": payload["picture"],
     })
-    
-    samesite = "none" if is_prod else "lax"
-    secure   = True if is_prod else False
-    
+
+    is_https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+    samesite = "lax"
+    secure   = True if is_https else False
+
     resp.set_cookie("nexus_session", token, httponly=True, samesite=samesite,
                     max_age=30 * 24 * 3600, secure=secure)
     return resp
-
 @app.get("/api/me")
 async def get_me(request: Request):
     user = _get_session(request)
