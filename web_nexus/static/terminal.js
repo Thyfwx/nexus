@@ -3,6 +3,7 @@
 // =============================================================
 
 console.log("[NEXUS] Core script loading...");
+window.NEXUS_BOOT_START = Date.now();
 
 // Ensure we don't crash if these are missing in prod
 window.GROQ_KEY = window.GROQ_KEY || '';
@@ -4188,6 +4189,7 @@ window.onload = async () => {
         } else {
             console.log("[NEXUS] Awaiting Authorization...");
         }
+        console.log(`[NEXUS] Boot sequence complete in ${Date.now() - window.NEXUS_BOOT_START}ms`);
     } catch (e) {
         console.error("[CRITICAL] Boot sequence failed:", e);
         // Ensure diagnostic reporter catches this if it's a hard crash
