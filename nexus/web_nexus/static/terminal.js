@@ -2666,11 +2666,13 @@ async function initGoogleAuth() {
     if (_authInited) return;
     renderAuthSection();
 
+    // Google Automatic HTML method handles the initial render.
+    // We only need to manually initialize if we want to render the sidebar button.
     const setupGoogle = () => {
         const hasGoogle = !!(window.google && window.google.accounts);
         if (!hasGoogle || _authInited) return _authInited;
 
-        console.log("[AUTH] Initializing Google Identity Services...");
+        console.log("[AUTH] Initializing Google Identity for Sidebar...");
         google.accounts.id.initialize({
             client_id: _googleClientID,
             callback: handleCredentialResponse,
@@ -2684,41 +2686,19 @@ async function initGoogleAuth() {
         if (sideEl && sideEl.children.length === 0) {
             google.accounts.id.renderButton(sideEl, { type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'medium' });
         }
-        const wallEl = document.getElementById('g_id_signin_wall');
-        if (wallEl && wallEl.children.length <= 1) { // 1 because of loading-status div
-            google.accounts.id.renderButton(wallEl, { type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'large' });
-            const loadingStatus = document.getElementById('google-loading-status');
-            if (loadingStatus) loadingStatus.style.display = 'none';
-        }
 
         _authInited = true;
         return true;
     };
 
-    // 1. Start polling for the Google library immediately (don't wait for fetch)
+    // 1. Start polling for the Google library to handle sidebar
     let attempts = 0;
     const poll = setInterval(() => {
         attempts++;
         if (setupGoogle() || attempts > 50) {
             clearInterval(poll);
-            if (!_authInited) console.error("[AUTH] Google Library failed to load after 10s.");
         }
     }, 200);
-
-    // 2. Fetch real Client ID from server in background and re-init if different
-    fetch(`${API_BASE}/api/config`)
-        .then(r => r.json())
-        .then(cfg => {
-            if (cfg.google_client_id && cfg.google_client_id !== _googleClientID) {
-                console.log("[AUTH] Updating Client ID from server and re-initializing...");
-                _googleClientID = cfg.google_client_id;
-                _authInited = false; // allow re-init
-                setupGoogle();
-            }
-        })
-        .catch(e => {
-            console.warn("[AUTH] Server config fetch failed, continuing with fallback ID.");
-        });
 }
 
 function renderAuthSection() {
