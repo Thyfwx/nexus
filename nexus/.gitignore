@@ -4,3 +4,6 @@ __pycache__/
 .venv/
 .DS_Store
 scores.json
+logins.json
+web_nexus/logins.json
+web_nexus/static/secrets.js

@@ -63,7 +63,7 @@ window.onerror = function(msg, url, line, col, error) {
 // --- Config ---
 const isLocal = (function() {
     const h = window.location.hostname;
-    return h === 'localhost' || h === '127.0.0.1' || h.startsWith('192.168.');
+    return h === 'localhost' || h === '127.0.0.1' || h.startsWith('192.168.') || h.startsWith('10.') || h.startsWith('172.');
 })();
 
 // Only load secrets locally to avoid MIME errors on production
@@ -79,7 +79,7 @@ const RENDER_HOST = 'nexus-terminalnexus.onrender.com';
 const proto     = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const WS_URL    = isLocal ? `${proto}//${window.location.host}/ws/terminal` : `wss://${RENDER_HOST}/ws/terminal`;
 const STATS_URL = isLocal ? `${proto}//${window.location.host}/ws/stats`    : `wss://${RENDER_HOST}/ws/stats`;
-const API_BASE  = isLocal ? `${window.location.protocol}//${window.location.host}` : `https://${RENDER_HOST}`;
+const API_BASE  = isLocal ? '' : `https://${RENDER_HOST}`;
 
 // Discord webhook
 // Discord logging routes through the CF Worker — webhook URL stored as CF secret,
@@ -2660,18 +2660,17 @@ function stopAllGames() {
 // =============================================================
 //  GOOGLE AUTHENTICATION
 // =============================================================
-let _googleClientID = '616205887439-s1l0out61vlu0l81307q9g64oai3gnur.apps.googleusercontent.com'; 
+let _googleClientID = '616205887439-s1l0out61vlu0l81307q9g64oai3gnur.apps.googleusercontent.com';
 let _authInited = false;
-let _googleInited = false; // Add this to prevent double-init warning
-
 async function initGoogleAuth() {
     if (_authInited) return;
     renderAuthSection();
 
     const setupGoogle = () => {
         const hasGoogle = !!(window.google && window.google.accounts);
-        if (!hasGoogle || _googleInited) return _googleInited;
+        if (!hasGoogle || _authInited) return _authInited;
 
+        console.log("[AUTH] Initializing Google Identity Services...");
         google.accounts.id.initialize({
             client_id: _googleClientID,
             callback: handleCredentialResponse,
@@ -2679,8 +2678,7 @@ async function initGoogleAuth() {
             context: 'signin',
             itp_support: true,
             auto_select: false
-        });        _googleInited = true;
-
+        });
 
         const sideEl = document.getElementById('sidebar-g_id_signin');
         if (sideEl && sideEl.children.length === 0) {
@@ -2695,30 +2693,26 @@ async function initGoogleAuth() {
         return true;
     };
 
-    // Try immediately with default ID
-    if (setupGoogle()) {
-        console.log("[AUTH] Init with local ID");
+    // 1. Fetch real Client ID from server
+    try {
+        const resp = await fetch(`${API_BASE}/api/config`);
+        const cfg = await resp.json();
+        if (cfg.google_client_id) {
+            _googleClientID = cfg.google_client_id;
+        }
+    } catch(e) {
+        console.warn("[AUTH] Failed to fetch server config, using fallback client ID.");
     }
 
-    // Update ID from server in background
-    fetch(`${API_BASE}/api/config`)
-        .then(r => r.json())
-        .then(cfg => {
-            if (cfg.google_client_id && cfg.google_client_id !== _googleClientID) {
-                console.log("[AUTH] Updating Client ID from server...");
-                _googleClientID = cfg.google_client_id;
-                _authInited = false; // re-init with new ID
-                setupGoogle();
-            }
-        })
-        .catch(() => { /* keep using default */ });
-
-    // Fallback: If script isn't loaded yet, wait for it
+    // 2. Poll for the Google library to load
     let attempts = 0;
     const poll = setInterval(() => {
         attempts++;
-        if (setupGoogle() || attempts > 20) clearInterval(poll); 
-    }, 200); // Fast poll
+        if (setupGoogle() || attempts > 50) {
+            clearInterval(poll);
+            if (!_authInited) console.error("[AUTH] Google Library failed to load after 10s.");
+        }
+    }, 200);
 }
 
 function renderAuthSection() {
@@ -2784,11 +2778,12 @@ async function handleCredentialResponse(response) {
 window.handleCredentialResponse = handleCredentialResponse;
 window.revealTerminal = revealTerminal;
 window.logout = logout;
+window.submitGuestAuth = submitGuestAuth;
 
 function logout() {
     if (!confirm("Terminate session and sign out?")) return;
     localStorage.removeItem('nexus_user_data');
-    location.reload(); 
+    location.reload();
 }
 
 function revealTerminal(name) {
@@ -2808,21 +2803,21 @@ function revealTerminal(name) {
     if (name) updateUserIdentity(name);
     renderAuthSection();
     logPrompt(`[PROTOCOL] User '${name}' acknowledged Terms of Access and established uplink.`);
-    
+
     connectWS();
     connectStats();
     updateClientStats();
     setInterval(updateClientStats, 5000);
-    
+
     printToTerminal(`[AUTH] Identity Verified: ${name}. Uplink established.`, 'conn-ok');
 }
 
-window.showTerms = () => { 
+window.showTerms = () => {
     const check = document.getElementById('terms-check');
     const btn   = document.getElementById('agree-btn');
     if (check) check.checked = false;
     if (btn)   btn.disabled  = true;
-    document.getElementById('terms-modal').style.display = 'flex'; 
+    document.getElementById('terms-modal').style.display = 'flex';
 };
 
 window.showTermsFromWall = () => {
@@ -2867,6 +2862,27 @@ async function submitGuestAuth() {
     }
 }
 
+async function showLogs() {
+    printToTerminal("[SYS] Retrieving recent login logs...", "sys-msg");
+    try {
+        const res = await fetch(`${API_BASE}/api/diagnostics`);
+        const data = await res.json();
+        if (data.recent_logins && data.recent_logins.length) {
+            printToTerminal("--- RECENT LOGIN ACTIVITY ---", "sys-msg");
+            data.recent_logins.reverse().forEach(log => {
+                const ts = new Date(log.timestamp).toLocaleTimeString();
+                const name = log.name || 'Unknown';
+                const ip = log.ip || '?.?.?.?';
+                const src = log.source === 'direct' ? 'Direct' : 'Referral';
+                printToTerminal(`[${ts}] ${name.padEnd(10)} | IP: ${ip.padEnd(15)} | ${src}`, "conn-ok");
+            });
+        } else {
+            printToTerminal("[SYS] No login logs found in database.", "sys-msg");
+        }
+    } catch (e) {
+        printToTerminal("[ERR] Failed to fetch diagnostic logs.", "sys-msg");
+    }
+}
 function updateUserIdentity(name) {
     if (!name) return;
     // Update prompts
@@ -3522,6 +3538,7 @@ function handleCommand(cmd) {
     if (lc === 'help')                { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); showHelp(); return; }
     if (lc === 'whoami')              { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); runWhoami(); return; }
     if (lc === 'neofetch')            { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); runNeofetch(); return; }
+    if (lc === 'logs' || lc === 'log') { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); showLogs(); return; }
     if (lc === 'leaderboard' || lc === 'rankings') { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); showLeaderboard(); return; }
     if (lc === 'login' || lc === 'signin') {
         printToTerminal(`${pl} ${cmd}`, 'user-cmd');
@@ -3702,6 +3719,7 @@ document.querySelectorAll('.action-btn').forEach(btn => {
         if (cmd === 'help')             { printToTerminal(`${promptLabel} help`, 'user-cmd'); showHelp(); input.focus(); return; }
         if (cmd === 'whoami')           { printToTerminal(`${promptLabel} whoami`, 'user-cmd'); runWhoami(); input.focus(); return; }
         if (cmd === 'neofetch')         { printToTerminal(`${promptLabel} neofetch`, 'user-cmd'); runNeofetch(); input.focus(); return; }
+        if (cmd === 'logs' || cmd === 'log') { printToTerminal(`${promptLabel} logs`, 'user-cmd'); showLogs(); input.focus(); return; }
         if (cmd === 'play pong')        { startPong(); return; }
         if (cmd === 'play snake')       { startSnake(); return; }
         if (cmd === 'play wordle')      { startWordle(); return; }
