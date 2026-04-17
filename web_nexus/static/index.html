@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nexus Web Terminal</title>
+    <meta name="referrer" content="no-referrer-when-downgrade">
+    <link rel="stylesheet" href="./style.css?v=9">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://accounts.google.com/gsi/client"></script>
+</head>
+    <body class="auth-locked">
+
+    <!-- Login Wall Overlay -->
+    <div id="auth-screen" class="auth-overlay">
+        <div class="auth-box">
+            <div class="auth-header">NEXUS // CORE ACCESS</div>
+            <p class="auth-desc" id="auth-status-msg">Identity synchronization required.</p>
+            
+            <!-- Google Auth Section -->
+            <div class="auth-sub-section">
+                <div class="auth-label">GOOGLE UPLINK</div>
+                <div style="display:flex; justify-content:center; min-height:44px; flex-direction:column; align-items:center;">
+                    <!-- Google Automatic Auth Configuration -->
+                    <div id="g_id_onload"
+                         data-client_id="616205887439-s1l0out61vlu0l81307q9g64oai3gnur.apps.googleusercontent.com"
+                         data-context="signin"
+                         data-ux_mode="redirect"
+                         data-login_uri="https://nexus-terminalnexus.onrender.com/login/google/authorized"
+                         data-auto_select="false"
+                         data-itp_support="true">
+                    </div>
+                    <!-- Google Automatic Button -->
+                    <div class="g_id_signin"
+                         data-type="standard"
+                         data-shape="rectangular"
+                         data-theme="filled_blue"
+                         data-text="signin_with"
+                         data-size="large"
+                         data-logo_alignment="left">
+                    </div>
+                </div>
+            </div>
+
+            <div class="auth-divider"><span>OR</span></div>
+
+            <!-- Local Identity Section -->
+            <div class="auth-sub-section">
+                <div class="auth-label">GUEST ACCESS</div>
+                <div style="display:flex; flex-direction:column; gap:10px; align-items:center;">
+                    <button class="gui-btn" onclick="showTermsFromWall()" style="width:100%; padding:10px;">CONTINUE AS GUEST</button>
+                    <div id="wall-error" style="color:#f55; font-size:0.6rem; height:10px;"></div>
+                </div>
+            </div>
+
+            <div class="auth-footer">
+                Security Level: Grade A // 256-bit Encrypted
+            </div>
+        </div>
+    </div>
+
+    <!-- Terms Modal -->
+    <div id="terms-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-box">
+            <h3>NEXUS PROTOCOL // TERMS</h3>
+            <div class="modal-body">
+                <div style="color:var(--accent); font-size:0.7rem; margin-bottom:10px;">[ DATA & PRIVACY ]</div>
+                1. LOGGING: Every command typed, your IP, and connection metadata are logged strictly for system optimization and security.<br><br>
+                2. AI: Interactions are processed via neural links. Do not share sensitive secrets with the abyss.<br><br>
+                3. GUEST: Guest sessions are local-only and not tracked on global leaderboards, but interaction logs still apply.
+                <br><br>
+                <div id="guest-error" style="color:#f55; font-size:0.6rem; margin-top:5px; height:12px; text-align:center;"></div>
+                <div style="display:flex; align-items:center; gap:10px; margin-top:15px;">
+                    <input type="checkbox" id="terms-check" onclick="document.getElementById('agree-btn').disabled = !this.checked">
+                    <label for="terms-check" style="font-size:0.75rem; color:#aaa; cursor:pointer;">I have read and acknowledge the Nexus Protocol.</label>
+                </div>
+            </div>
+            <div style="display:flex; gap:10px; justify-content:center;">
+                <button id="agree-btn" class="gui-btn" onclick="submitGuestAuth()" disabled>I AGREE & ENTER</button>
+                <button class="gui-btn" style="border-color:#444; color:#555;" onclick="hideTerms()">CANCEL</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="monitor" style="display:none;" id="main-monitor">
+        <div class="screen-glare"></div>
+        <div class="glass-panel">
+            <header class="status-bar">
+                <div class="status-item"><div id="conn-dot" class="conn-dot"></div> <span class="stat-label">CPU</span> <span id="cpu-stat">--</span></div>
+                <div class="status-item"><span class="stat-label">MEM</span> <span id="mem-stat">--</span></div>
+                <div class="status-item status-title" id="status-title">NEXUS OS</div>
+                <div class="status-item"><span class="stat-label">MODE</span> <span id="mode-indicator">NEXUS</span> <span id="active-model" style="opacity:0.5;font-size:0.6rem;margin-left:5px;"></span></div>
+            </header>
+
+            <main class="terminal-container" id="terminal-container">
+                <div class="terminal-output" id="terminal-output"></div>
+                <div class="terminal-input-wrapper">
+                    <span class="prompt" id="prompt-label">guest@nexus:~$</span>
+                    <input type="text" id="terminal-input" autocomplete="off" autofocus spellcheck="false">
+                    <label class="attach-btn" title="Attach image for AI scan">
+                        📎
+                        <input type="file" id="img-input" accept="image/*" style="display:none;">
+                    </label>
+                </div>
+            </main>
+
+            <aside class="quick-actions">
+                <!-- Auth section — populated by JS -->
+                <div id="auth-section"></div>
+
+                <div class="aside-header">GAMES</div>
+                <button class="action-btn" data-cmd="play wordle">Wordle</button>
+                <button class="action-btn" data-cmd="play snake">Snake</button>
+                <button class="action-btn" data-cmd="play pong">Pong</button>
+                <button class="action-btn" data-cmd="play minesweeper">Mines</button>
+                <button class="action-btn" data-cmd="play flappy">Flappy</button>
+                <button class="action-btn" data-cmd="play breakout">Breakout</button>
+                <button class="action-btn" data-cmd="play invaders">Invaders</button>
+
+                <div class="aside-header" style="margin-top:10px;">AI MODE</div>
+                <div class="mode-picker">
+                    <button class="mode-btn active" data-mode="nexus" title="Standard Nexus AI">NEXUS</button>
+                    <button class="mode-btn" data-mode="evil" title="Unfiltered/Raw Mode">EVIL</button>
+                    <button class="mode-btn" data-mode="coder" title="Technical/Code Focus">CODER</button>
+                    <button class="mode-btn" data-mode="sage" title="Philosophical Mode">SAGE</button>
+                    <button class="mode-btn" data-mode="void" title="Abyss/Cryptic Mode" style="grid-column: span 2; border-color:#f0f; color:#f0f;">VOID</button>
+                </div>
+
+
+                <div class="aside-header" style="margin-top:10px;">TOOLS</div>
+                <button class="action-btn" data-cmd="logs">Logs</button>
+                <button class="action-btn" data-cmd="leaderboard">Rankings</button>
+                <button class="action-btn" data-cmd="type test">Type Test</button>
+                <button class="action-btn" data-cmd="matrix">Matrix</button>
+                <button class="action-btn" data-cmd="monitor">Monitor</button>
+                <button class="action-btn" data-cmd="help">Help</button>
+                <button class="action-btn" data-cmd="clear">Clear</button>
+
+                <button class="a11y-open-btn" onclick="toggleA11yPanel()" title="Accessibility settings">
+                    <span class="a11y-badge">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="5" r="1"/>
+                            <path d="m9 20 3-6 3 6M6 8l6 2 6-2M12 10v4"/>
+                        </svg>
+                    </span>
+                    <span class="a11y-label">ACCESSIBILITY</span>
+                </button>
+            </aside>
+
+            <div id="game-gui-container" class="gui-hidden">
+                <div id="gui-header">
+                    <span id="gui-title">8-BIT SYSTEM</span>
+                    <button id="gui-close">X</button>
+                </div>
+                <div id="gui-content-wrapper">
+                    <div id="gui-content"></div>
+                    <canvas id="nexus-canvas" width="400" height="400" style="display:none;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+        <script src="terminal.js?fix=102"></script>
+    </body>
+    </html>
+
