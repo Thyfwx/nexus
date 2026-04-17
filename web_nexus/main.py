@@ -49,11 +49,31 @@ def _get_session(request: Request):
     except Exception:
         return None
 
-# Better CORS for credentials
+# Better CORS and Security Headers
 app = FastAPI()
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    # Strict CSP: Only allow Google, Cloudflare, and ourselves
+    csp = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://static.cloudflareinsights.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data: https://*.googleusercontent.com https://*.agilebits.com; "
+        "connect-src 'self' https://nexus-terminalnexus.onrender.com wss://nexus-terminalnexus.onrender.com https://api.groq.com https://router.huggingface.co; "
+        "frame-src https://accounts.google.com;"
+    )
+    response.headers["Content-Security-Policy"] = csp
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    return response
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex="https?://.*",
+    allow_origins=["https://thyfwxit.com", "https://nexus-terminalnexus.onrender.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
