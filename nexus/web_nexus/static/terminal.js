@@ -79,7 +79,7 @@ const RENDER_HOST = 'nexus-terminalnexus.onrender.com';
 const proto     = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const WS_URL    = isLocal ? `${proto}//${window.location.host}/ws/terminal` : `wss://${RENDER_HOST}/ws/terminal`;
 const STATS_URL = isLocal ? `${proto}//${window.location.host}/ws/stats`    : `wss://${RENDER_HOST}/ws/stats`;
-const API_BASE  = isLocal ? '' : `https://${RENDER_HOST}`;
+const API_BASE  = ''; // Always use relative paths for better mobile/CORS compatibility
 
 // Discord webhook
 // Discord logging routes through the CF Worker — webhook URL stored as CF secret,
@@ -2685,8 +2685,10 @@ async function initGoogleAuth() {
             google.accounts.id.renderButton(sideEl, { type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'medium' });
         }
         const wallEl = document.getElementById('g_id_signin_wall');
-        if (wallEl && wallEl.children.length === 0) {
+        if (wallEl && wallEl.children.length <= 1) { // 1 because of loading-status div
             google.accounts.id.renderButton(wallEl, { type: 'standard', shape: 'rectangular', theme: 'filled_blue', text: 'signin_with', size: 'large' });
+            const loadingStatus = document.getElementById('google-loading-status');
+            if (loadingStatus) loadingStatus.style.display = 'none';
         }
 
         _authInited = true;
