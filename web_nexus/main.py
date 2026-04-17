@@ -376,12 +376,14 @@ def call_hf(model_id: str, prompt: str, history: list | None, system: str) -> st
     messages = [{"role": "system", "content": system}]
     temp_msgs = []
     for h in (history or []):
+        if not h or not isinstance(h, dict): continue
         h_role = h.get("role", "user").lower()
         role = "assistant" if h_role in ["assistant", "model", "ai", "nexus"] else "user"
+        content = h.get("content", "")
         if temp_msgs and temp_msgs[-1]["role"] == role:
-            temp_msgs[-1]["content"] += "\n" + h.get("content", "")
+            temp_msgs[-1]["content"] += "\n" + content
         else:
-            temp_msgs.append({"role": role, "content": h.get("content", "")})
+            temp_msgs.append({"role": role, "content": content})
             
     messages.extend(temp_msgs)
     if messages and messages[-1]["role"] == "user":
@@ -409,15 +411,15 @@ def call_gemini(model_id: str, prompt: str, history: list | None, system: str) -
     
     contents = []
     for h in (history or []):
-        # Gemini is extremely picky: roles must alternate user/model
+        if not h or not isinstance(h, dict): continue
         h_role = h.get("role", "user").lower()
         role = "model" if h_role in ["assistant", "model", "ai", "nexus"] else "user"
+        content = h.get("content", "")
         
-        # Avoid back-to-back same roles by merging content
         if contents and contents[-1].role == role:
-            contents[-1].parts[0].text += "\n" + h.get("content", "")
+            contents[-1].parts[0].text += "\n" + content
         else:
-            contents.append(types.Content(role=role, parts=[types.Part.from_text(h.get("content", ""))]))
+            contents.append(types.Content(role=role, parts=[types.Part.from_text(content)]))
     
     # Ensure it ends with user message
     if contents and contents[-1].role == "user":
@@ -452,12 +454,14 @@ def call_groq(model_id: str, prompt: str, history: list | None, system: str) -> 
     messages = [{"role": "system", "content": system}]
     temp_msgs = []
     for h in (history or []):
+        if not h or not isinstance(h, dict): continue
         h_role = h.get("role", "user").lower()
         role = "assistant" if h_role in ["assistant", "model", "ai", "nexus"] else "user"
+        content = h.get("content", "")
         if temp_msgs and temp_msgs[-1]["role"] == role:
-            temp_msgs[-1]["content"] += "\n" + h.get("content", "")
+            temp_msgs[-1]["content"] += "\n" + content
         else:
-            temp_msgs.append({"role": role, "content": h.get("content", "")})
+            temp_msgs.append({"role": role, "content": content})
     
     messages.extend(temp_msgs)
     if messages and messages[-1]["role"] == "user":
@@ -528,7 +532,14 @@ def generate_image(prompt: str) -> str:
             prompt=prompt,
             config=genai.types.GenerateImagesConfig(number_of_images=1, aspect_ratio="1:1")
         )
-        b64 = base64.b64encode(response.generated_images[0].image.image_bytes).decode("utf-8")
+        if not response or not response.generated_images:
+            return "[ERROR] Image engine returned no results"
+            
+        img = response.generated_images[0]
+        if not img or not img.image or not img.image.image_bytes:
+            return "[ERROR] Image data is corrupted or missing"
+
+        b64 = base64.b64encode(img.image.image_bytes).decode("utf-8")
         return f"[IMAGE:{b64}]"
     except Exception as e:
         return f"[ERROR] Image failed: {str(e)[:80]}"
