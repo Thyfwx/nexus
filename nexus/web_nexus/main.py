@@ -59,13 +59,24 @@ async def get_config():
 async def auth_google(request: Request):
     from google.oauth2 import id_token
     from google.auth.transport import requests as g_req
+    from fastapi.responses import RedirectResponse
 
     client_id = _key("GOOGLE_CLIENT_ID")
     if not client_id:
         return _JSONResponse({"error": "Google auth not configured on server"}, status_code=503)
 
-    data = await request.json()
-    credential = data.get("credential", "")
+    # Handle both JSON (popup) and Form-Encoded (redirect)
+    content_type = request.headers.get("content-type", "")
+    credential = ""
+    is_redirect = "application/x-www-form-urlencoded" in content_type
+
+    if is_redirect:
+        form_data = await request.form()
+        credential = form_data.get("credential", "")
+    else:
+        data = await request.json()
+        credential = data.get("credential", "")
+
     if not credential:
         return _JSONResponse({"error": "No credential"}, status_code=400)
 
@@ -87,16 +98,21 @@ async def auth_google(request: Request):
     # Log login event
     log_login(payload["name"], payload["email"], request)
 
-    resp = _JSONResponse({
-        "ok":      True,
-        "name":    payload["name"],
-        "email":   payload["email"],
-        "picture": payload["picture"],
-    })
-    
-    # Cross-site cookie support: samesite='none' requires secure=True
+    # Cross-site cookie support
     samesite = "none" if is_prod else "lax"
     secure   = True if is_prod else False
+
+    if is_redirect:
+        # Traditional Redirect: Return to home with cookie set
+        resp = RedirectResponse(url="/", status_code=303)
+    else:
+        # Popup Flow: Return JSON
+        resp = _JSONResponse({
+            "ok":      True,
+            "name":    payload["name"],
+            "email":   payload["email"],
+            "picture": payload["picture"],
+        })
     
     resp.set_cookie("nexus_session", token, httponly=True, samesite=samesite,
                     max_age=30 * 24 * 3600, secure=secure)
