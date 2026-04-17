@@ -2704,7 +2704,9 @@ async function initGoogleAuth() {
                         shape: 'rectangular', 
                         theme: 'filled_blue', 
                         text: 'signin_with', 
-                        size: id.includes('main') ? 'large' : 'medium' 
+                        size: id.includes('main') ? 'large' : 'medium',
+                        width: '250',
+                        alignment: 'center'
                     });
                 }
             });
