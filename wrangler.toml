@@ -1,6 +1,6 @@
 # Cloudflare Pages configuration - NOT a Worker
 name = "nexus-terminal"
-pages_build_output_dir = "Nexus/web_nexus/static"
+pages_build_output_dir = "web_nexus/static"
 compatibility_date = "2024-01-01"
 
 [deployment]
