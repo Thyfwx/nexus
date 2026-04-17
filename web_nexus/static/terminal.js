@@ -2766,6 +2766,10 @@ function renderAuthSection() {
 }
 
 async function handleCredentialResponse(response) {
+    if (!response || !response.credential) {
+        console.error("[AUTH] Google returned an empty response:", response);
+        return;
+    }
     console.log("[AUTH] Received Google Credential. Validating with backend...");
     const statusMsg = document.getElementById('auth-status-msg');
     if (statusMsg) statusMsg.textContent = "[UPLINK] Synchronizing identity...";
