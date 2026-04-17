@@ -90,9 +90,9 @@ async def auth_google(request: Request):
         "name":    idinfo.get("name", "Player"),
         "email":   idinfo.get("email", ""),
         "picture": idinfo.get("picture", ""),
-        "exp":     datetime.utcnow() + timedelta(days=30),
+        "exp":     datetime.now(asyncio.UTC if hasattr(asyncio, "UTC") else datetime.UTC) + timedelta(days=30),
     }
-    token = pyjwt.encode(payload, _key("SECRET_KEY") or SECRET_KEY, algorithm="HS256")
+    token = pyjwt.encode(payload, _key("SECRET_KEY") or os.getenv("SECRET_KEY", "nexus-dev-please-change-in-prod"), algorithm="HS256")
     is_prod = os.getenv("PRODUCTION", "") == "1"
 
     # Log login event
@@ -147,7 +147,7 @@ async def auth_guest(request: Request):
         "name":    raw_name,
         "email":   "guest@local",
         "picture": "",
-        "exp":     datetime.utcnow() + timedelta(days=30),
+        "exp":     datetime.now(asyncio.UTC if hasattr(asyncio, "UTC") else datetime.UTC) + timedelta(days=30),
     }
     
     token = pyjwt.encode(payload, _key("SECRET_KEY") or os.getenv("SECRET_KEY", "nexus-dev-please-change-in-prod"), algorithm="HS256")
@@ -206,7 +206,7 @@ async def get_diagnostics():
                 "status": "HEALTHY"
             },
             "recent_logins": logs,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(asyncio.UTC if hasattr(asyncio, "UTC") else datetime.UTC).isoformat()
         }
     except Exception as e:
         return {"status": "ERROR", "message": str(e)}
@@ -222,7 +222,7 @@ def log_login(name: str, email: str, request: Request):
         origin = request.headers.get("origin", "unknown")
         
         entry = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(asyncio.UTC if hasattr(asyncio, "UTC") else datetime.UTC).isoformat(),
             "name": name,
             "email": email,
             "ip": ip,
@@ -300,7 +300,7 @@ async def post_score(request: Request):
     if existing:
         if score > existing["score"]:
             existing["score"] = score
-            existing["date"]  = datetime.utcnow().strftime("%Y-%m-%d")
+            existing["date"]  = datetime.now(asyncio.UTC if hasattr(asyncio, "UTC") else datetime.UTC).strftime("%Y-%m-%d")
             existing["picture"] = user.get("picture", "") # Keep picture current
     else:
         all_scores[game].append({
@@ -308,7 +308,7 @@ async def post_score(request: Request):
             "name":  user_name,
             "picture": user.get("picture", ""), # Store picture
             "score": score,
-            "date":  datetime.utcnow().strftime("%Y-%m-%d"),
+            "date":  datetime.now(asyncio.UTC if hasattr(asyncio, "UTC") else datetime.UTC).strftime("%Y-%m-%d"),
         })
 
     save_scores(all_scores)
