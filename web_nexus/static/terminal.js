@@ -74,25 +74,25 @@ window.onerror = function(msg, url, line, col, error) {
 };
 
 // --- Config ---
+const RENDER_HOST = 'nexus-terminalnexus.onrender.com';
+
 const isLocal = (function() {
     const h = window.location.hostname;
     return h === 'localhost' || h === '127.0.0.1' || h.startsWith('192.168.') || h.startsWith('10.') || h.startsWith('172.');
 })();
 
-// Only load secrets locally to avoid MIME errors on production
-if (isLocal && !window.GROQ_KEY) {
-    console.log("[NEXUS] Local environment detected. Loading secrets...");
-    const s = document.createElement('script');
-    s.src = "secrets.js"; 
-    document.head.appendChild(s);
-}
+// Detect if we are on the main Render host or a custom domain
+const isRender = window.location.hostname.includes('onrender.com');
+const proto    = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 
-const RENDER_HOST = window.location.host;
+// If we are NOT on Render and NOT local, we must point to the Render backend
+const BACKEND_URL = (isLocal || isRender) ? window.location.host : RENDER_HOST;
 
-const proto     = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const WS_URL    = `${proto}//${window.location.host}/ws/terminal`;
+const WS_URL    = `${proto}//${BACKEND_URL}/ws/terminal`;
 const STATS_URL = `${proto}//${window.location.host}/ws/stats`;
-const API_BASE  = ''; // Always use relative paths for better domain compatibility
+const API_BASE  = (isLocal || isRender) ? '' : `https://${RENDER_HOST}`;
+
+console.log(`[NEXUS] Routing established. Backend: ${BACKEND_URL}`);
 
 // Discord webhook
 // Discord logging routes through the CF Worker — webhook URL stored as CF secret,
