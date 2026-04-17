@@ -1,0 +1,5 @@
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer-when-downgrade
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://nexus-terminalnexus.onrender.com wss://nexus-terminalnexus.onrender.com https://nexus-evil-proxy.xavierscott300.workers.dev; frame-src https://accounts.google.com; img-src 'self' data:; font-src 'self' data:;
