@@ -1,9 +1,0 @@
-.env
-__pycache__/
-*.pyc
-.venv/
-.DS_Store
-scores.json
-logins.json
-web_nexus/logins.json
-web_nexus/static/secrets.js
