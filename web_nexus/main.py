@@ -377,9 +377,9 @@ def call_hf(model_id: str, prompt: str, history: list | None, system: str) -> st
     temp_msgs = []
     for h in (history or []):
         if not h or not isinstance(h, dict): continue
-        h_role = h.get("role", "user").lower()
+        h_role = str(h.get("role", "user")).lower()
         role = "assistant" if h_role in ["assistant", "model", "ai", "nexus"] else "user"
-        content = h.get("content", "")
+        content = str(h.get("content", ""))
         if temp_msgs and temp_msgs[-1]["role"] == role:
             temp_msgs[-1]["content"] += "\n" + content
         else:
@@ -412,9 +412,9 @@ def call_gemini(model_id: str, prompt: str, history: list | None, system: str) -
     contents = []
     for h in (history or []):
         if not h or not isinstance(h, dict): continue
-        h_role = h.get("role", "user").lower()
+        h_role = str(h.get("role", "user")).lower()
         role = "model" if h_role in ["assistant", "model", "ai", "nexus"] else "user"
-        content = h.get("content", "")
+        content = str(h.get("content", ""))
         
         if contents and contents[-1].role == role:
             contents[-1].parts[0].text += "\n" + content
@@ -455,9 +455,9 @@ def call_groq(model_id: str, prompt: str, history: list | None, system: str) -> 
     temp_msgs = []
     for h in (history or []):
         if not h or not isinstance(h, dict): continue
-        h_role = h.get("role", "user").lower()
+        h_role = str(h.get("role", "user")).lower()
         role = "assistant" if h_role in ["assistant", "model", "ai", "nexus"] else "user"
-        content = h.get("content", "")
+        content = str(h.get("content", ""))
         if temp_msgs and temp_msgs[-1]["role"] == role:
             temp_msgs[-1]["content"] += "\n" + content
         else:

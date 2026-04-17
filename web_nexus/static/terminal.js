@@ -87,12 +87,12 @@ if (isLocal && !window.GROQ_KEY) {
     document.head.appendChild(s);
 }
 
-const RENDER_HOST = 'nexus-terminalnexus.onrender.com';
+const RENDER_HOST = window.location.host;
 
 const proto     = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const WS_URL    = isLocal ? `${proto}//${window.location.host}/ws/terminal` : `wss://${RENDER_HOST}/ws/terminal`;
-const STATS_URL = isLocal ? `${proto}//${window.location.host}/ws/stats`    : `wss://${RENDER_HOST}/ws/stats`;
-const API_BASE  = ''; // Always use relative paths for better mobile/CORS compatibility
+const WS_URL    = `${proto}//${window.location.host}/ws/terminal`;
+const STATS_URL = `${proto}//${window.location.host}/ws/stats`;
+const API_BASE  = ''; // Always use relative paths for better domain compatibility
 
 // Discord webhook
 // Discord logging routes through the CF Worker — webhook URL stored as CF secret,
