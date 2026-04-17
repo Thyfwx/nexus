@@ -4,9 +4,10 @@ import os
 import json
 import requests as req_lib
 import psutil
-from datetime import datetime, timedelta
+import uuid
+from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
-from fastapi.responses import HTMLResponse, JSONResponse as _JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse as _JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -14,12 +15,17 @@ from google import genai
 from google.genai import types
 import jwt as pyjwt
 
-_ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+# Pathing
+base_dir   = os.path.dirname(os.path.abspath(__file__))
+static_dir = os.path.join(base_dir, "static")
+
+# Environment
+_ENV_PATH = os.path.join(base_dir, '.env')
 if os.path.exists(_ENV_PATH):
     load_dotenv(_ENV_PATH)
 
-base_dir   = os.path.dirname(os.path.abspath(__file__))
-static_dir = os.path.join(base_dir, "static")
+# Use timezone.utc for compatibility and correctness
+UTC = timezone.utc
 
 def _key(name: str) -> str:
     """Read key from environment."""
@@ -90,7 +96,7 @@ async def auth_google(request: Request):
         "name":    idinfo.get("name", "Player"),
         "email":   idinfo.get("email", ""),
         "picture": idinfo.get("picture", ""),
-        "exp":     datetime.now(asyncio.UTC if hasattr(asyncio, "UTC") else datetime.UTC) + timedelta(days=30),
+        "exp":     datetime.now(UTC) + timedelta(days=30),
     }
     token = pyjwt.encode(payload, _key("SECRET_KEY") or os.getenv("SECRET_KEY", "nexus-dev-please-change-in-prod"), algorithm="HS256")
     is_prod = os.getenv("PRODUCTION", "") == "1"
@@ -147,7 +153,7 @@ async def auth_guest(request: Request):
         "name":    raw_name,
         "email":   "guest@local",
         "picture": "",
-        "exp":     datetime.now(asyncio.UTC if hasattr(asyncio, "UTC") else datetime.UTC) + timedelta(days=30),
+        "exp":     datetime.now(UTC) + timedelta(days=30),
     }
     
     token = pyjwt.encode(payload, _key("SECRET_KEY") or os.getenv("SECRET_KEY", "nexus-dev-please-change-in-prod"), algorithm="HS256")
@@ -206,7 +212,7 @@ async def get_diagnostics():
                 "status": "HEALTHY"
             },
             "recent_logins": logs,
-            "timestamp": datetime.now(asyncio.UTC if hasattr(asyncio, "UTC") else datetime.UTC).isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
     except Exception as e:
         return {"status": "ERROR", "message": str(e)}
@@ -222,7 +228,7 @@ def log_login(name: str, email: str, request: Request):
         origin = request.headers.get("origin", "unknown")
         
         entry = {
-            "timestamp": datetime.now(asyncio.UTC if hasattr(asyncio, "UTC") else datetime.UTC).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "name": name,
             "email": email,
             "ip": ip,
@@ -300,7 +306,7 @@ async def post_score(request: Request):
     if existing:
         if score > existing["score"]:
             existing["score"] = score
-            existing["date"]  = datetime.now(asyncio.UTC if hasattr(asyncio, "UTC") else datetime.UTC).strftime("%Y-%m-%d")
+            existing["date"]  = datetime.now(UTC).strftime("%Y-%m-%d")
             existing["picture"] = user.get("picture", "") # Keep picture current
     else:
         all_scores[game].append({
@@ -308,7 +314,7 @@ async def post_score(request: Request):
             "name":  user_name,
             "picture": user.get("picture", ""), # Store picture
             "score": score,
-            "date":  datetime.now(asyncio.UTC if hasattr(asyncio, "UTC") else datetime.UTC).strftime("%Y-%m-%d"),
+            "date":  datetime.now(UTC).strftime("%Y-%m-%d"),
         })
 
     save_scores(all_scores)
