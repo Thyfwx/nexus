@@ -2,18 +2,26 @@ import asyncio
 import base64
 import os
 import json
-import requests as req_lib
-import psutil
 import uuid
+import psutil
+import shutil
+import re
+import traceback
+import requests as req_lib
+import jwt as pyjwt
 from datetime import datetime, timedelta, timezone
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse as _JSONResponse
+
+from fastapi import FastAPI, WebSocket, Request
+from fastapi.responses import RedirectResponse, JSONResponse as _JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from dotenv import load_dotenv
+
 from google import genai
 from google.genai import types
-import jwt as pyjwt
+from google.oauth2 import id_token
+from google.auth.transport import requests as g_req
 
 # Pathing
 base_dir   = os.path.dirname(os.path.abspath(__file__))
@@ -63,10 +71,6 @@ async def get_config():
 
 @app.post("/login/google/authorized")
 async def auth_google(request: Request):
-    from google.oauth2 import id_token
-    from google.auth.transport import requests as g_req
-    from fastapi.responses import RedirectResponse
-
     client_id = _key("GOOGLE_CLIENT_ID")
     if not client_id:
         return _JSONResponse({"error": "Google auth not configured on server"}, status_code=503)
@@ -123,9 +127,6 @@ async def auth_google(request: Request):
     resp.set_cookie("nexus_session", token, httponly=True, samesite=samesite,
                     max_age=30 * 24 * 3600, secure=secure)
     return resp
-
-import re
-import uuid
 
 # Basic profanity list (expandable)
 PROFANITY = [
@@ -190,7 +191,6 @@ async def get_me(request: Request):
 
 @app.get("/api/diagnostics")
 async def get_diagnostics():
-    import shutil
     try:
         cpu = psutil.cpu_percent(interval=None)
         mem = psutil.virtual_memory().percent
@@ -508,8 +508,7 @@ def prompt_ai(prompt: str, history: list = None, mode: str = "nexus", context: s
     return {"text": "AI UPLINK FAILURE: All providers (Groq/Gemini/HF) are offline. Check server API keys.", "label": "ERROR", "switched_from": None}
 
 # ── Sanitization ─────────────────────────────────────────────────────────────
-import re as _re
-_BAD_TAG = _re.compile(r'\[(EVIL|ERROR|WARN|INFO|OK|MODEL|IMAGE)[^\]]*\]', _re.IGNORECASE)
+_BAD_TAG = re.compile(r'\[(EVIL|ERROR|WARN|INFO|OK|MODEL|IMAGE)[^\]]*\]', re.IGNORECASE)
 def sanitize_ai(text: str) -> str:
     return _BAD_TAG.sub('', text).strip()
 
@@ -619,7 +618,6 @@ async def websocket_terminal(websocket: WebSocket):
                     print(f"[AI] TIMEOUT (40s) for: {cmd!r}")
                     await websocket.send_text("[ERROR] Request timed out after 40s. Model might be overloaded.")
                 except Exception as e:
-                    import traceback
                     print(f"[AI] CRITICAL ERROR: {e}")
                     traceback.print_exc()
                     await websocket.send_text(f"[ERROR] AI Engine failure: {str(e)[:100]}")
