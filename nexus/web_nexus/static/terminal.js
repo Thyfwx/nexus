@@ -2693,18 +2693,7 @@ async function initGoogleAuth() {
         return true;
     };
 
-    // 1. Fetch real Client ID from server
-    try {
-        const resp = await fetch(`${API_BASE}/api/config`);
-        const cfg = await resp.json();
-        if (cfg.google_client_id) {
-            _googleClientID = cfg.google_client_id;
-        }
-    } catch(e) {
-        console.warn("[AUTH] Failed to fetch server config, using fallback client ID.");
-    }
-
-    // 2. Poll for the Google library to load
+    // 1. Start polling for the Google library immediately (don't wait for fetch)
     let attempts = 0;
     const poll = setInterval(() => {
         attempts++;
@@ -2713,6 +2702,21 @@ async function initGoogleAuth() {
             if (!_authInited) console.error("[AUTH] Google Library failed to load after 10s.");
         }
     }, 200);
+
+    // 2. Fetch real Client ID from server in background and re-init if different
+    fetch(`${API_BASE}/api/config`)
+        .then(r => r.json())
+        .then(cfg => {
+            if (cfg.google_client_id && cfg.google_client_id !== _googleClientID) {
+                console.log("[AUTH] Updating Client ID from server and re-initializing...");
+                _googleClientID = cfg.google_client_id;
+                _authInited = false; // allow re-init
+                setupGoogle();
+            }
+        })
+        .catch(e => {
+            console.warn("[AUTH] Server config fetch failed, continuing with fallback ID.");
+        });
 }
 
 function renderAuthSection() {
