@@ -4144,6 +4144,16 @@ window.onload = async () => {
         guiTitle     = document.getElementById('gui-title');
         nexusCanvas  = document.getElementById('nexus-canvas');
 
+        // Check for existing session on server (handles redirect return)
+        try {
+            const meRes = await fetch(`${API_BASE}/api/me`);
+            const meData = await meRes.json();
+            if (meData.ok) {
+                localStorage.setItem('nexus_user_data', JSON.stringify(meData));
+                revealTerminal(meData.name);
+            }
+        } catch(e) {}
+
         // Load history for the current mode on boot
         messageHistory = loadHistory(currentMode);
 
