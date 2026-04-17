@@ -417,9 +417,14 @@ def call_gemini(model_id: str, prompt: str, history: list | None, system: str) -
         content = str(h.get("content", ""))
         
         if contents and contents[-1].role == role:
-            contents[-1].parts[0].text += "\n" + content
+            # Append to last message if same role
+            existing_parts = contents[-1].parts
+            if existing_parts and len(existing_parts) > 0:
+                existing_parts[0].text = (existing_parts[0].text or "") + "\n" + content
         else:
-            contents.append(types.Content(role=role, parts=[types.Part.from_text(content)]))
+            # Create new content block using keyword arguments to satisfy Pylance
+            part = types.Part(text=content)
+            contents.append(types.Content(role=role, parts=[part]))
     
     # Ensure it ends with user message
     if contents and contents[-1].role == "user":
@@ -536,10 +541,14 @@ def generate_image(prompt: str) -> str:
             return "[ERROR] Image engine returned no results"
             
         img = response.generated_images[0]
-        if not img or not img.image or not img.image.image_bytes:
+        if not img or not hasattr(img, 'image') or not img.image:
             return "[ERROR] Image data is corrupted or missing"
 
-        b64 = base64.b64encode(img.image.image_bytes).decode("utf-8")
+        raw_bytes = img.image.image_bytes
+        if not isinstance(raw_bytes, (bytes, bytearray)):
+            return "[ERROR] Invalid image data format"
+
+        b64 = base64.b64encode(raw_bytes).decode("utf-8")
         return f"[IMAGE:{b64}]"
     except Exception as e:
         return f"[ERROR] Image failed: {str(e)[:80]}"
