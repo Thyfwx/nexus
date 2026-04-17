@@ -2678,9 +2678,8 @@ async function initGoogleAuth() {
             ux_mode: 'popup',
             context: 'signin',
             itp_support: true,
-            auto_select: true
-        });
-        _googleInited = true;
+            auto_select: false
+        });        _googleInited = true;
 
 
         const sideEl = document.getElementById('sidebar-g_id_signin');
