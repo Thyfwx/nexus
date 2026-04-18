@@ -532,20 +532,20 @@ def get_system_prompt(mode="nexus", context=""):
 # ── Model registry ────────────────────────────────────────────────────────────
 MODELS = [
     # Primary Fast Interaction
-    {"id": "llama-3.3-70b-versatile",         "provider": "groq",   "label": "Nexus Prime"},
-    {"id": "llama-3.1-8b-instant",            "provider": "groq",   "label": "Nexus Lite"},
+    {"id": "llama-3.3-70b-versatile",         "provider": "groq",   "label": "Nexus"},
+    {"id": "llama-3.1-8b-instant",            "provider": "groq",   "label": "Nexus"},
     
     # Fallback Fast Engines (To prevent rate-limit failures)
-    {"id": "mixtral-8x7b-32768",              "provider": "groq",   "label": "Nexus Core"},
-    {"id": "gemma2-9b-it",                    "provider": "groq",   "label": "Nexus Insight"},
+    {"id": "mixtral-8x7b-32768",              "provider": "groq",   "label": "Nexus"},
+    {"id": "gemma2-9b-it",                    "provider": "groq",   "label": "Nexus"},
 
     # High Intelligence (Pro Tier)
-    {"id": "gemini-2.0-flash",                "provider": "gemini", "label": "Nexus Advanced"},
+    {"id": "gemini-2.0-flash",                "provider": "gemini", "label": "Nexus"},
     {"id": "gemini-1.5-pro",                  "provider": "gemini", "label": "Nexus Pro"},
 
     # Massive Brains (Secondary)
-    {"id": "meta-llama/Llama-3.2-3B-Instruct", "provider": "hf", "label": "Nexus Oracle"},
-    {"id": "Qwen/Qwen2.5-Coder-32B-Instruct",  "provider": "hf", "label": "Nexus Coder"},
+    {"id": "meta-llama/Llama-3.2-3B-Instruct", "provider": "hf", "label": "Nexus"},
+    {"id": "Qwen/Qwen2.5-Coder-32B-Instruct",  "provider": "hf", "label": "Nexus"},
 ]
 
 current_model_idx = 0
