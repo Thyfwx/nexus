@@ -36,14 +36,30 @@ if os.path.exists(_ENV_PATH):
 UTC = timezone.utc
 
 def _key(name: str) -> str:
-    """Read key from environment and sanitize safely."""
-    # Load from .env if local
+    """Read key from environment and sanitize safely against Render duplication."""
     if os.path.exists(_ENV_PATH):
         load_dotenv(_ENV_PATH, override=True)
     
-    val = os.environ.get(name, '').strip()
-    # Safely strip surrounding quotes or whitespace, but preserve inner characters
-    return val.strip('"').strip("'").strip()
+    val = os.environ.get(name, '').strip().strip('"').strip("'").strip()
+    
+    # PACIFIC SHIELD: Render sometimes duplicates environment variables in the container.
+    # Example: "gsk_123gsk_123" instead of "gsk_123".
+    # We must aggressively split on known prefixes to extract the pure key.
+    if name == "GROQ_API_KEY" and val.startswith("gsk_"):
+        # Split by the prefix, take the second part (the first valid key), and re-add the prefix
+        parts = val.split("gsk_")
+        if len(parts) > 1 and parts[1]: return "gsk_" + parts[1]
+    
+    if name == "GEMINI_API_KEY" and val.startswith("AIzaSy"):
+        parts = val.split("AIzaSy")
+        if len(parts) > 1 and parts[1]: return "AIzaSy" + parts[1]
+        
+    if name == "GOOGLE_CLIENT_ID" and ".apps.googleusercontent.com" in val:
+        # Extract just the first valid client ID before any duplicated strings
+        match = re.search(r"([0-9]+-[a-z0-9]+\.apps\.googleusercontent\.com)", val)
+        if match: return match.group(1)
+
+    return val
 
 def _get_session(request: Request):
     """Decode and return the session JWT payload, or None if missing/invalid."""
@@ -693,8 +709,10 @@ async def test_ai_link():
         gemini_key = _key("GEMINI_API_KEY")
         if gemini_key:
             print(f"[TEST] Gemini Key Prefix: {gemini_key[:7]}...")
+            # Use valid Gemini request format
+            payload = {"contents": [{"parts": [{"text": "hi"}]}]}
             res = req_lib.post(f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}",
-                json={"contents": [{"parts": [{"text": "hi"}]}]}, timeout=5)
+                json=payload, timeout=5)
             results["gemini"] = "ONLINE" if res.status_code == 200 else f"OFFLINE ({res.status_code})"
         else: results["gemini"] = "KEY_MISSING"
 
