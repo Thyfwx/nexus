@@ -88,6 +88,28 @@ async def ping():
 async def get_config():
     return {"google_client_id": _key("GOOGLE_CLIENT_ID")}
 
+@app.post("/api/report")
+async def report_error(request: Request):
+    try:
+        data = await request.json()
+        report = data.get("report", "No report data")
+        user   = _get_session(request)
+        user_name = user["name"] if user else "Anonymous"
+        
+        print(f"\n[REPORT] Received Diagnostic from {user_name}:")
+        print(f"--- START REPORT ---\n{report}\n--- END REPORT ---\n")
+        
+        # In a real system, you'd use an email API like SendGrid or SES here.
+        # For now, we log it to the server and transmit to Discord if configured.
+        webhook = _key("DISCORD_WEBHOOK")
+        if webhook:
+            req_lib.post(webhook, json={"content": f"🚨 **DIAGNOSTIC RECEIVED** (from {user_name}):\n```\n{report[:1900]}\n```"})
+            
+        return {"ok": True, "message": "Diagnostic transmitted to Nexus Command."}
+    except Exception as e:
+        print(f"[ERROR] Reporting failed: {e}")
+        return _JSONResponse({"error": "Transmission failure"}, status_code=500)
+
 @app.post("/login/google/authorized")
 async def auth_google(request: Request):
     client_id = _key("GOOGLE_CLIENT_ID")
