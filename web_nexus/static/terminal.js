@@ -2838,10 +2838,6 @@ async function revealTerminal(name) {
     if (name) updateUserIdentity(name);
     renderAuthSection();
 
-    // Original clean startup sequence
-    printToTerminal('[OK] Nexus AI v3.0 — uplink established.', 'conn-ok');
-    printToTerminal(`Nexus online. Ask me anything — or type help to see what's here.`, 'ready-msg');
-    
     connectWS();
     connectStats();
     updateClientStats();
