@@ -1,4 +1,5 @@
 .env
+.env.cloudflare
 __pycache__/
 *.pyc
 .venv/
