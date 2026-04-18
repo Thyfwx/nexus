@@ -46,20 +46,13 @@ window.onerror = function(msg, url, line, col, error) {
             btn.disabled = true;
             btn.textContent = 'TRANSMITTING...';
             try {
-                const hook = window.DISCORD_WEBHOOK;
-                if (!hook) {
-                    status.textContent = '✖ Error: No Discord webhook configured. Check secrets.js.';
-                    btn.textContent = 'CONFIG ERROR';
-                    btn.disabled = false;
-                    return;
-                }
-                const res = await fetch(hook, {
+                const res = await fetch(`${API_BASE}/api/report`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ content: `🚨 **SYSTEM CRASH DETECTED**\n\`\`\`\n${reportData.slice(0, 1900)}\n\`\`\`` })
+                    body: JSON.stringify({ report: reportData })
                 });
                 if (res.ok) {
-                    status.textContent = '✔ Report transmitted to Nexus Command.';
+                    status.textContent = '✔ Report transmitted to Nexus Command (xavier@thyfwxit.com).';
                     btn.textContent = 'REPORT SENT';
                 } else { throw new Error(); }
             } catch(e) {
@@ -74,6 +67,13 @@ window.onerror = function(msg, url, line, col, error) {
 };
 
 // --- Config ---
+const isLocal = (function() {
+    const h = window.location.hostname;
+    return h === 'localhost' || h === '127.0.0.1' || h.startsWith('192.168.') || h.startsWith('10.') || h.startsWith('172.');
+})();
+const isRender = window.location.hostname.includes('onrender.com');
+const RENDER_HOST = 'nexus-terminalnexus.onrender.com';
+
 // --- AI Routing Protocol ---
 // NO KEYS ARE STORED IN THE FRONTEND.
 // All requests are routed through the secure Render backend.
