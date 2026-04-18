@@ -36,15 +36,14 @@ if os.path.exists(_ENV_PATH):
 UTC = timezone.utc
 
 def _key(name: str) -> str:
-    """Read key from environment and sanitize aggressively."""
+    """Read key from environment and sanitize safely."""
     # Load from .env if local
     if os.path.exists(_ENV_PATH):
         load_dotenv(_ENV_PATH, override=True)
     
     val = os.environ.get(name, '').strip()
-    # Pacific Shield: Strip anything after a comma, space, or semicolon to fix typos
-    clean_val = val.split(',')[0].split(' ')[0].split(';')[0].strip('"').strip("'").strip()
-    return clean_val
+    # Safely strip surrounding quotes or whitespace, but preserve inner characters
+    return val.strip('"').strip("'").strip()
 
 def _get_session(request: Request):
     """Decode and return the session JWT payload, or None if missing/invalid."""
