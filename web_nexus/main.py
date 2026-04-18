@@ -160,6 +160,7 @@ async def report_error(request: Request):
 @app.post("/api/chat")
 async def api_chat(request: Request):
     """REST fallback for AI chat when WebSockets are unavailable."""
+    global current_model_idx
     try:
         data = await request.json()
         cmd = data.get("cmd", "")
@@ -169,6 +170,24 @@ async def api_chat(request: Request):
         f_idx = data.get("force_idx")
 
         if not cmd: return _JSONResponse({"error": "Empty command"}, status_code=400)
+
+        # Handle system commands
+        if cmd == "models":
+            res = "\n--- AVAILABLE AI NEURAL LINKS ---\n"
+            for i, m in enumerate(MODELS):
+                mark = " [ACTIVE]" if i == current_model_idx else ""
+                res += f"[{i+1}] {m['label']}{mark}\n"
+            res += "\nUse 'model <number>' to force a specific link."
+            return {"ok": True, "text": res, "label": "SYSTEM", "id": current_model_idx}
+
+        if cmd.startswith("model "):
+            try:
+                idx = int(cmd.split()[-1]) - 1
+                if 0 <= idx < len(MODELS):
+                    current_model_idx = idx
+                    return {"ok": True, "text": f"[SYSTEM] Neural link locked to: {MODELS[idx]['label']}", "label": MODELS[idx]['label'], "id": idx}
+            except: pass
+            return {"ok": True, "text": "[ERROR] Invalid link index.", "label": "ERROR"}
 
         result = await asyncio.wait_for(
             asyncio.get_running_loop().run_in_executor(None, prompt_ai, cmd, history, mode, context, f_idx),
@@ -504,17 +523,17 @@ def get_system_prompt(mode="nexus", context=""):
 
 # ── Model registry ────────────────────────────────────────────────────────────
 MODELS = [
-    # GROQ - Speed Kings & Cost Efficient (Primary for Fast Interaction)
-    {"id": "llama-3.3-70b-versatile",         "provider": "groq",   "label": "Nexus Prime (70B)"},
-    {"id": "llama-3.1-8b-instant",            "provider": "groq",   "label": "Nexus Lite (8B)"},
+    # Primary Fast Interaction
+    {"id": "llama-3.3-70b-versatile",         "provider": "groq",   "label": "Nexus Prime"},
+    {"id": "llama-3.1-8b-instant",            "provider": "groq",   "label": "Nexus Lite"},
 
-    # GEMINI - High Intelligence & Large Context (The 'Pro' Tier)
-    {"id": "gemini-2.0-flash",                "provider": "gemini", "label": "Gemini 2.0 Flash"},
-    {"id": "gemini-1.5-pro",                  "provider": "gemini", "label": "Gemini 1.5 Pro"},
+    # High Intelligence (Pro Tier)
+    {"id": "gemini-2.0-flash",                "provider": "gemini", "label": "Nexus Advanced"},
+    {"id": "gemini-1.5-pro",                  "provider": "gemini", "label": "Nexus Pro"},
 
-    # HF - Massive Brains (Secondary / Free Inference API)
-    {"id": "Qwen/Qwen2.5-72B-Instruct",       "provider": "hf",     "label": "Qwen 2.5 (72B)"},
-    {"id": "deepseek-ai/DeepSeek-Coder-V2-Instruct", "provider": "hf",     "label": "DeepSeek Coder"},
+    # Massive Brains (Secondary)
+    {"id": "Qwen/Qwen2.5-72B-Instruct",       "provider": "hf",     "label": "Nexus Oracle"},
+    {"id": "deepseek-ai/DeepSeek-Coder-V2-Instruct", "provider": "hf",     "label": "Nexus Coder"},
 ]
 
 current_model_idx = 0
@@ -799,7 +818,7 @@ async def websocket_terminal(websocket: WebSocket):
                 res = "\n--- AVAILABLE AI NEURAL LINKS ---\n"
                 for i, m in enumerate(MODELS):
                     mark = " [ACTIVE]" if i == current_model_idx else ""
-                    res += f"[{i+1}] {m['label']} ({m['provider'].upper()}){mark}\n"
+                    res += f"[{i+1}] {m['label']}{mark}\n"
                 res += "\nUse 'model <number>' to force a specific link."
                 await websocket.send_text(res)
             elif cmd.startswith("model "):
