@@ -91,7 +91,7 @@ async function prompt_ai_proxy(prompt, imageB64, mode) {
 
     console.log(`[AI] Engaging Secure Render Backend for ${mode.toUpperCase()}...`);
     
-    // ── 1. RENDER BACKEND REST (Primary) ──────────────────────────────
+    // ── 1. RENDER BACKEND REST (Primary Chat Path) ────────────────────
     try {
         const res = await fetch(`${API_BASE}/api/chat`, {
             method: 'POST',
@@ -101,14 +101,9 @@ async function prompt_ai_proxy(prompt, imageB64, mode) {
         const data = await res.json();
         if (data.ok) {
             _clearThinking();
-            const p = document.createElement('p');
-            p.className = `ai-msg ${msgClass}`;
-            output.appendChild(p);
-            p.textContent = data.text;
+            printAIResponse(data.text, msgClass);
             messageHistory.push({ role: 'assistant', content: data.text });
             saveHistory();
-            output.scrollTop = output.scrollHeight;
-            if (data.label) updateActiveModelLabel(data.label);
             return;
         }
     } catch(e) { console.error("[AI] Render REST failed:", e); }
@@ -123,9 +118,17 @@ async function prompt_ai_proxy(prompt, imageB64, mode) {
     }
 }
 
+function printAIResponse(text, className) {
+    if (!output) output = document.getElementById('terminal-output');
+    const p = document.createElement('p');
+    p.className = className;
+    p.innerHTML = text.replace(/\n/g, '<br>');
+    output.appendChild(p);
+    output.scrollTop = output.scrollHeight;
+}
+
 function updateActiveModelLabel(label) {
-    const el = document.getElementById('active-model');
-    if (el) el.textContent = label;
+    // Hidden to maintain Nexus identity
 }
 
 // System State
@@ -2821,7 +2824,11 @@ function logout() {
     location.reload();
 }
 
+let terminalRevealed = false;
 async function revealTerminal(name) {
+    if (terminalRevealed) return;
+    terminalRevealed = true;
+
     const overlay = document.getElementById('auth-screen');
     const monitor = document.getElementById('main-monitor');
     const terms   = document.getElementById('terms-modal');
