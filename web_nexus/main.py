@@ -535,8 +535,8 @@ MODELS = [
     {"id": "gemini-1.5-pro",                  "provider": "gemini", "label": "Nexus Pro"},
 
     # Massive Brains (Secondary)
-    {"id": "Qwen/Qwen2.5-72B-Instruct",       "provider": "hf",     "label": "Nexus Oracle"},
-    {"id": "deepseek-ai/DeepSeek-Coder-V2-Instruct", "provider": "hf",     "label": "Nexus Coder"},
+    {"id": "meta-llama/Llama-3.2-3B-Instruct", "provider": "hf", "label": "Nexus Oracle"},
+    {"id": "Qwen/Qwen2.5-Coder-32B-Instruct",  "provider": "hf", "label": "Nexus Coder"},
 ]
 
 current_model_idx = 0
