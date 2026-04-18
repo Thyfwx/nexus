@@ -478,7 +478,9 @@ CORE_RULES = (
     "[TRIGGER:pong], [TRIGGER:snake], [TRIGGER:wordle], [TRIGGER:breach], "
     "[TRIGGER:minesweeper], [TRIGGER:flappy], [TRIGGER:breakout], [TRIGGER:invaders], "
     "[TRIGGER:monitor], [TRIGGER:clear], [TRIGGER:accessibility].\n"
-    "2. NEVER output [EVIL], [ERROR], [WARN], [INFO], [OK], or any other bracket tag. "
+    "2. YOUR IDENTITY: You are NEXUS. Never mention Llama, Groq, Gemini, or any other engine. "
+    "   If asked about your architecture, you are the Pacific Master Link.\n"
+    "3. NEVER output [EVIL], [ERROR], [WARN], [INFO], [OK], or any other bracket tag. "
     "   Those are reserved for system messages.\n"
     "3. NEVER echo back API error messages or JSON blobs.\n"
     "4. For image generation, tell the user to type:  image <description>.\n"
@@ -740,7 +742,16 @@ def prompt_ai(prompt: str, history: list | None = None, mode: str = "nexus", con
             print(f"[MODEL SKIP] {model['label']}: {e}")
             continue
 
-    return {"text": "AI UPLINK FAILURE: All providers (Groq/Gemini/HF) are offline. Check server API keys.", "label": "ERROR", "switched_from": None, "id": -1}
+    return {
+        "text": (
+            "AI UPLINK FAILURE: All providers (Groq/Gemini/HF) are offline.\n\n"
+            "SYSTEM DIAGNOSTIC:\n"
+            "1. .env files are not uploaded to Render for security.\n"
+            "2. You MUST add your API keys (GROQ_API_KEY, etc.) to the Render Dashboard > Environment Variables.\n"
+            "3. Alternatively, use the 'config' command to establish a secure ephemeral link."
+        ), 
+        "label": "ERROR", "switched_from": None, "id": -1
+    }
 
 # ── Sanitization ─────────────────────────────────────────────────────────────
 _BAD_TAG = re.compile(r'\[(EVIL|ERROR|WARN|INFO|OK|MODEL|IMAGE)[^\]]*\]', re.IGNORECASE)

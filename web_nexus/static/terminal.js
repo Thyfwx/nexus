@@ -2840,10 +2840,10 @@ async function revealTerminal(name) {
     
     // PACIFIC BOOT SEQUENCE: High-Fidelity Rapid Startup
     const lines = [
-        `[ OK ] UPLINK: ${BACKEND_URL}`,
-        "[ OK ] KERNEL: Pacific-v4.0.1 (Stable)",
-        "[ OK ] PROXY:  Nexus-Evil-Proxy (Active)",
-        "[ OK ] NEURAL: Pacific Nexus OS Handshake established.",
+        `[ OK ] UPLINK: Synchronized`,
+        "[ OK ] KERNEL: Pacific-v4.0.5 (Stable)",
+        "[ OK ] PROXY:  Pacific Master Link (Active)",
+        "[ OK ] NEURAL: Nexus Protocol synchronized.",
         `[AUTH] Identity Verified: ${name}. Welcome to the Grid.`
     ];
 
@@ -3420,7 +3420,6 @@ function setupInputListeners() {
             if (done) return;
         }
 
-        printToTerminal(`${pl} ${cmd}`, 'user-cmd');
         handleCommand(cmd);
     };
 }
@@ -3430,6 +3429,16 @@ function setupInputListeners() {
 
 function handleCommand(cmd) {
     const lc = cmd.toLowerCase();
+
+    // ── 1. Terminal Printing (Singular Entry Point) ─────────────
+    const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+    const pl = document.getElementById('prompt-label')?.textContent || (nexusUser?.name ? `${nexusUser.name.toLowerCase()}@nexus:~$` : 'guest@nexus:~$');
+    
+    const silentCmds = ['clear', 'history'];
+    if (!silentCmds.includes(lc)) {
+        printToTerminal(`${pl} ${cmd}`, 'user-cmd');
+    }
+
     if (lc === 'clear') { 
         if (output) output.innerHTML = ''; 
         messageHistory = []; 
@@ -3439,7 +3448,6 @@ function handleCommand(cmd) {
     }
     if (lc === 'history') { showHistory(); return; }
 
-    const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
     const isOwner = nexusUser?.name?.toLowerCase().includes('xavier');
 
     // PACIFIC SHIELD: Access Control
@@ -3627,7 +3635,6 @@ document.querySelectorAll('.action-btn').forEach(btn => {
         const promptLabel = document.getElementById('prompt-label')?.textContent || (nexusUser?.name ? `${nexusUser.name.toLowerCase()}@nexus:~$` : 'guest@nexus:~$');
         
         // PACIFIC UI: Clean single-print execution
-        printToTerminal(`${promptLabel} ${cmd}`, 'user-cmd');
         handleCommand(cmd);
         input.focus();
     });
