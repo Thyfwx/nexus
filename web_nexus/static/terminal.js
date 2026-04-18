@@ -54,9 +54,12 @@ window.onerror = function(msg, url, line, col, error) {
                 if (res.ok) {
                     status.textContent = '✔ Report transmitted to Nexus Command (xavier@thyfwxit.com).';
                     btn.textContent = 'REPORT SENT';
-                } else { throw new Error(); }
+                } else { 
+                    throw new Error("Backend response failed");
+                }
             } catch(e) {
-                status.textContent = '✖ Transmission failed. Please copy/paste the stack trace to support.';
+                console.error("[REPORT ERROR]", e);
+                status.textContent = '✖ Transmission failed. Nexus Command is unreachable.';
                 btn.textContent = 'SEND FAILED';
                 btn.disabled = false;
             }
@@ -71,14 +74,17 @@ const isLocal = (function() {
     const h = window.location.hostname;
     return h === 'localhost' || h === '127.0.0.1' || h.startsWith('192.168.') || h.startsWith('10.') || h.startsWith('172.');
 })();
-const isRender = window.location.hostname.includes('onrender.com');
 const RENDER_HOST = 'nexus-terminalnexus.onrender.com';
+const isRender = window.location.hostname.includes('onrender.com');
+const proto    = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 
 // --- AI Routing Protocol ---
-// NO KEYS ARE STORED IN THE FRONTEND.
-// All requests are routed through the secure Render backend.
 const BACKEND_URL = (isLocal || isRender) ? window.location.host : RENDER_HOST;
 const API_BASE  = (isLocal || isRender) ? '' : `https://${RENDER_HOST}`;
+
+// Fix: Restore WebSocket URLs
+const WS_URL    = `${proto}//${BACKEND_URL}/ws/terminal`;
+const STATS_URL = `${proto}//${BACKEND_URL}/ws/stats`;
 
 async function prompt_ai_proxy(prompt, history, mode, context) {
     // This is the ONLY way to talk to AI. It uses the backend's secure keys.
@@ -90,15 +96,7 @@ async function prompt_ai_proxy(prompt, history, mode, context) {
     }
 }
 
-// Discord webhook
-// Discord logging routes through the CF Worker — webhook URL stored as CF secret,
-// never in browser code or GitHub. PROMPT_LOG_URL kept for legacy compat check.
-const PROMPT_LOG_URL = true; // always enabled — actual URL lives in CF Worker secret
-
-// EVIL mode routes through Cloudflare Worker — keys stored as CF secrets, never in browser
-const EVIL_PROXY = 'https://nexus-evil-proxy.xavierscott300.workers.dev';
-
-// --- State ---
+// System State
 let termWs;
 let messageHistory = [];
 let cmdHistory = JSON.parse(localStorage.getItem('nexus_cmd_history') || '[]');
