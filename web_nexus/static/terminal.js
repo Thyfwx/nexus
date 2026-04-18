@@ -3268,12 +3268,12 @@ const MODES = {
         msgCls:  'conn-ok',
     },
     void: {
-        prompt:  'void@nexus:~$',
-        color:   '#ff00ff',
-        title:   'NEXUS VOID // Abyss',
-        label:   'VOID',
-        msg:     '[ABYSS] Non-Euclidean link established. Logic is an illusion.',
-        msgCls:  'sys-msg',
+        prompt:  'student@nexus:~$',
+        color:   '#00ffcc',
+        title:   'NEXUS ACADEMY // Teacher',
+        label:   'ACADEMY',
+        msg:     '[ACADEMY] Educational module loaded. How can I help you learn today?',
+        msgCls:  'conn-ok',
     },
 };
 
