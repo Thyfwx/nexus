@@ -135,9 +135,20 @@ async def auth_google(request: Request):
         return _JSONResponse({"error": "No credential"}, status_code=400)
 
     try:
-        idinfo = id_token.verify_oauth2_token(credential, g_req.Request(), client_id)
+        # Diagnostic: Print IDs (masked) to compare
+        expected_id = client_id
+        print(f"[AUTH] Verifying token. Expected Audience: {expected_id[:15]}...")
+        
+        idinfo = id_token.verify_oauth2_token(credential, g_req.Request(), expected_id)
+        
+        # Verify the audience matches exactly
+        if idinfo['aud'] != expected_id:
+            print(f"[ERROR] Audience mismatch! Token aud: {idinfo['aud']} vs Expected: {expected_id}")
+            return _JSONResponse({"error": "Identity mismatch: Audience error"}, status_code=401)
+            
     except Exception as e:
-        return _JSONResponse({"error": f"Token invalid: {str(e)[:80]}"}, status_code=401)
+        print(f"[ERROR] Token validation failed: {str(e)}")
+        return _JSONResponse({"error": f"Token invalid: {str(e)[:100]}"}, status_code=401)
 
     payload = {
         "sub":     idinfo["sub"],
