@@ -87,10 +87,50 @@ const NEXUS_EVIL_PROXY = 'https://nexus-evil-proxy.xavierscott300.workers.dev';
 const WS_URL    = `${proto}//${BACKEND_URL}/ws/terminal`;
 const STATS_URL = `${proto}//${BACKEND_URL}/ws/stats`;
 
-async function prompt_ai_proxy(prompt, imageB64, mode, context) {
+/**
+ * MASTER PACIFIC UPLINK
+ * Tries Cloudflare Master Proxy -> Render Backend REST -> Render Backend WS
+ */
+async function prompt_ai_proxy(prompt, imageB64, mode) {
     const sysPrompt = (mode === 'shadow' ? null : (MODE_SYSTEMS[mode] || MODE_SYSTEMS.nexus));
     const msgClass  = (mode === 'shadow' ? 'shadow-msg' : 'ai-msg');
-    await askPacific(prompt, imageB64, sysPrompt, msgClass);
+
+    // ── 1. CLOUDFLARE MASTER UPLINK (The "Specific Thing") ─────────────
+    console.log(`[AI] Attempting Cloudflare Master Link for ${mode.toUpperCase()}...`);
+    const success = await askPacific(prompt, imageB64, sysPrompt, msgClass);
+    if (success) return;
+
+    // ── 2. RENDER BACKEND FALLBACK (REST) ──────────────────────────────
+    console.warn("[AI] Cloudflare Link offline. Attempting Render Secure REST...");
+    try {
+        const res = await fetch(`${API_BASE}/api/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cmd: prompt, history: messageHistory.slice(-10), mode, imageB64 })
+        });
+        const data = await res.json();
+        if (data.ok) {
+            _clearThinking();
+            const p = document.createElement('p');
+            p.className = `ai-msg ${msgClass}`;
+            output.appendChild(p);
+            p.textContent = data.text;
+            messageHistory.push({ role: 'assistant', content: data.text });
+            saveHistory();
+            output.scrollTop = output.scrollHeight;
+            if (data.label) updateActiveModelLabel(data.label);
+            return;
+        }
+    } catch(e) { console.error("[AI] Render REST failed:", e); }
+
+    // ── 3. WEBSOCKET LAST RESORT ───────────────────────────────────────
+    if (termWs && termWs.readyState === WebSocket.OPEN) {
+        console.warn("[AI] Falling back to WebSocket...");
+        termWs.send(JSON.stringify({ command: prompt, history: messageHistory.slice(-10), mode, imageB64 }));
+    } else {
+        _clearThinking();
+        printToTerminal(`[CRITICAL] All neural links failed. Check connectivity.`, "conn-err");
+    }
 }
 
 function updateActiveModelLabel(label) {
@@ -3209,14 +3249,13 @@ async function askPacific(cmd, imageB64 = null, systemOverride = null, msgClass 
             // Pass "vintage ..." as-is so generateImage can detect it
             const isVintageCmd = /^vintage\s/i.test(cmd);
             generateImage(isVintageCmd ? cmd.trim() : genMatch[1].trim());
-            return;
+            return true;
         }
     }
 
     showThinking();
     messageHistory.push({ role: 'user', content: cmd });
 
-    // For shadow mode: don't send system prompt in browser JS — worker injects it server-side
     // Strict role mapping for the proxy/worker to prevent 400 Bad Request
     const historySlice = messageHistory.slice(-12).slice(0, -1).map(m => ({ 
         role: m.role === 'assistant' || m.role === 'model' || m.role === 'nexus' ? 'assistant' : 'user', 
@@ -3226,8 +3265,6 @@ async function askPacific(cmd, imageB64 = null, systemOverride = null, msgClass 
     const messages = systemOverride
         ? [{ role: 'system', content: systemOverride }, ...historySlice, { role: 'user', content: cmd }]
         : [...historySlice, { role: 'user', content: cmd }];
-
-    console.log(`[AI] Dispatching ${currentMode.toUpperCase()} request to proxy. Hist length: ${historySlice.length}`);
 
     try {
         const body = { messages };
@@ -3240,21 +3277,11 @@ async function askPacific(cmd, imageB64 = null, systemOverride = null, msgClass 
             body:    JSON.stringify(body),
         });
 
-        document.getElementById('ai-thinking')?.remove();
+        if (!resp.ok) return false;
 
-        if (!resp.ok) {
-            const err = await resp.text();
-            console.error(`[AI PROXY ERROR] ${resp.status}: ${err}`);
-            
-            // PACIFIC SHIELD: If proxy fails, fallback to Backend Secure Link (GROQ)
-            printToTerminal(`[${currentMode.toUpperCase()}] Proxy offline. Rerouting via Nexus Core...`, 'sys-msg');
-            prompt_ai_proxy(cmd, historySlice, currentMode, systemOverride || '');
-            return;
-        }
-
+        _clearThinking();
         const p = document.createElement('p');
         p.className = `ai-msg ${msgClass}`;
-
         output.appendChild(p);
 
         let currentSpan = document.createElement('span');
@@ -3302,13 +3329,13 @@ async function askPacific(cmd, imageB64 = null, systemOverride = null, msgClass 
             messageHistory.push({ role: 'assistant', content: fullText.slice(0, 800) });
             if (messageHistory.length > 14) messageHistory.splice(0, messageHistory.length - 14);
             saveHistory();
-            _logAIResponse(fullText); // log SHADOW/CF-Worker responses to Discord too
+            _logAIResponse(fullText);
+            return true;
         }
-
+        return false;
     } catch (err) {
-        document.getElementById('ai-thinking')?.remove();
-        printToTerminal(`[${currentMode.toUpperCase()}] Connection failed — ${err.message}`, 'sys-msg');
-        messageHistory.pop();
+        console.error("Pacific Link failed:", err);
+        return false;
     }
 }
 
@@ -3544,7 +3571,6 @@ function handleCommand(cmd) {
     if (lc === 'history') { showHistory(); return; }
 
     const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
-    const pl = document.getElementById('prompt-label')?.textContent || (nexusUser?.name ? `${nexusUser.name.toLowerCase()}@nexus:~$` : 'guest@nexus:~$');
     const isOwner = nexusUser?.name?.toLowerCase().includes('xavier');
 
     // PACIFIC SHIELD: Access Control
