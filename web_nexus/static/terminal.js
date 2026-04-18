@@ -2926,14 +2926,20 @@ async function showLogs() {
         printToTerminal("[ERR] Failed to fetch diagnostic logs.", "sys-msg");
     }
 }
+function capitalizeName(str) {
+    if (!str) return '';
+    return str.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+}
+
 function updateUserIdentity(name) {
     if (!name) return;
+    const capName = capitalizeName(name);
     // Update prompts
-    MODES.nexus.prompt = `${name.toLowerCase()}@nexus:~$`;
-    MODES.shadow.prompt  = `${name.toLowerCase()}@shadow:~$`;
-    MODES.coder.prompt = `${name.toLowerCase()}@dev:~$`;
-    MODES.sage.prompt  = `${name.toLowerCase()}@sage:~$`;
-    MODES.education.prompt  = `${name.toLowerCase()}@education:~$`;
+    MODES.nexus.prompt = `${capName}@nexus:~$`;
+    MODES.shadow.prompt  = `${capName}@shadow:~$`;
+    MODES.coder.prompt = `${capName}@dev:~$`;
+    MODES.sage.prompt  = `${capName}@sage:~$`;
+    MODES.education.prompt  = `${capName}@education:~$`;
     
     const pl = document.getElementById('prompt-label');
     if (pl) pl.textContent = MODES[currentMode].prompt;
@@ -2941,7 +2947,7 @@ function updateUserIdentity(name) {
     // Update status bar
     const titleEl = document.getElementById('status-title');
     if (titleEl) {
-        titleEl.textContent = `NEXUS OS // ${name.toUpperCase()}`;
+        titleEl.textContent = `PACIFIC // KERNEL`;
     }
 }
 
@@ -3309,8 +3315,6 @@ function setMode(modeKey) {
     if (m.color) {
         document.documentElement.style.setProperty('--accent', m.color);
         document.documentElement.style.setProperty('--txt-color', m.color);
-        // Refresh link bar with new mode color
-        updateNeuralLinkBar(); 
     }
 
     document.querySelectorAll('.mode-btn').forEach(btn => {
