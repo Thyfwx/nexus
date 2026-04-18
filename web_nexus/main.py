@@ -546,6 +546,10 @@ MODELS = [
     # Primary Fast Interaction
     {"id": "llama-3.3-70b-versatile",         "provider": "groq",   "label": "Nexus Prime"},
     {"id": "llama-3.1-8b-instant",            "provider": "groq",   "label": "Nexus Lite"},
+    
+    # Fallback Fast Engines (To prevent rate-limit failures)
+    {"id": "mixtral-8x7b-32768",              "provider": "groq",   "label": "Nexus Core"},
+    {"id": "gemma2-9b-it",                    "provider": "groq",   "label": "Nexus Insight"},
 
     # High Intelligence (Pro Tier)
     {"id": "gemini-2.0-flash",                "provider": "gemini", "label": "Nexus Advanced"},
