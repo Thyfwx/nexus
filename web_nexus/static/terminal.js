@@ -3433,9 +3433,11 @@ function handleCommand(cmd) {
 
     // ── 1. Terminal Printing (Singular Entry Point) ─────────────
     const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
-    const pl = document.getElementById('prompt-label')?.textContent || (nexusUser?.name ? `${nexusUser.name.toLowerCase()}@nexus:~$` : 'guest@nexus:~$');
+    const capName = capitalizeName(nexusUser?.name || 'Guest');
+    const pl = `${capName}@nexus:~$`;
     
-    const silentCmds = ['clear', 'history'];
+    // PACIFIC UI: Commands that handle their own specialized transitions
+    const silentCmds = ['clear', 'history', 'play wordle', 'play snake', 'play pong', 'play minesweeper', 'play flappy', 'play breakout', 'play invaders'];
     if (!silentCmds.includes(lc)) {
         printToTerminal(`${pl} ${cmd}`, 'user-cmd');
     }
