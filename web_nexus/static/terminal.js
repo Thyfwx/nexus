@@ -3914,21 +3914,26 @@ window.nexusExpandImg = function(src) {
     guiContainer.classList.remove('gui-hidden');
 };
 
-document.getElementById('img-input').addEventListener('change', (e) => {
-    if (e.target.files[0]) openImageViewer(e.target.files[0]);
-    e.target.value = '';
-});
+const imgInp = document.getElementById('img-input');
+if (imgInp) {
+    imgInp.addEventListener('change', (e) => {
+        if (e.target.files[0]) openImageViewer(e.target.files[0]);
+        e.target.value = '';
+    });
+}
 
 // =============================================================
 //  MOBILE: hide sidebar when keyboard is open
 // =============================================================
 const quickActions = document.querySelector('.quick-actions');
-input.addEventListener('focus', () => {
-    if (window.innerWidth <= 700) quickActions.classList.add('kb-hidden');
-});
-input.addEventListener('blur', () => {
-    quickActions.classList.remove('kb-hidden');
-});
+if (input && quickActions) {
+    input.addEventListener('focus', () => {
+        if (window.innerWidth <= 700) quickActions.classList.add('kb-hidden');
+    });
+    input.addEventListener('blur', () => {
+        quickActions.classList.remove('kb-hidden');
+    });
+}
 
 // =============================================================
 //  INIT
