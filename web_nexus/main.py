@@ -111,12 +111,13 @@ async def report_error(request: Request):
 @app.post("/login/google/authorized")
 async def auth_google(request: Request):
     raw_id = _key("GOOGLE_CLIENT_ID")
-    # Pacific Shield: Strip anything after a comma, space, or quote to fix dashboard typos
-    client_id = raw_id.split(',')[0].split(' ')[0].strip().strip('"').strip("'")
+    # Pacific Shield: Extract ONLY the valid Client ID part using regex
+    match = re.search(r"[0-9-]+[a-z0-9]+\.apps\.googleusercontent\.com", raw_id)
+    client_id = match.group(0) if match else raw_id.split(',')[0].split(' ')[0].strip()
     
     is_prod = os.getenv("PRODUCTION", "") == "1"
     
-    print(f"[DIAG] Login attempt. Clean ID: {client_id[:15]}... (Raw len: {len(raw_id)})")
+    print(f"[AUTH] Login Attempt. Clean ID: {client_id[:15]}... Full: {client_id}")
     
     if not client_id:
         print("[ERROR] GOOGLE_CLIENT_ID is missing from environment!")
@@ -474,7 +475,9 @@ def call_gemini(model_id: str, prompt: str, history: list | None, system: str) -
             # Append to last message if same role
             existing_parts = contents[-1].parts
             if existing_parts and len(existing_parts) > 0:
-                existing_parts[0].text = (existing_parts[0].text or "") + "\n" + content
+                # Use str() to ensure Pylance recognizes the type
+                current_text = str(existing_parts[0].text or "")
+                existing_parts[0].text = current_text + "\n" + content
         else:
             # Create new content block using keyword arguments to satisfy Pylance
             part = types.Part(text=content)
@@ -485,7 +488,8 @@ def call_gemini(model_id: str, prompt: str, history: list | None, system: str) -
         # Safe access to parts
         last_parts = contents[-1].parts
         if last_parts and len(last_parts) > 0:
-            last_parts[0].text = (last_parts[0].text or "") + "\n" + prompt
+            current_prompt_text = str(last_parts[0].text or "")
+            last_parts[0].text = current_prompt_text + "\n" + prompt
     else:
         contents.append(types.Content(role="user", parts=[types.Part(text=prompt)]))
     
