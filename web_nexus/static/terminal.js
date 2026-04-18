@@ -3251,7 +3251,7 @@ const MODES = {
     nexus: {
         prompt:  'guest@nexus:~$',
         color:   '#4af',
-        title:   'NEXUS PRIME // Terminal',
+        title:   'NEXUS',
         label:   'NEXUS',
         msg:     '', 
         msgCls:  'sys-msg',
@@ -3259,7 +3259,7 @@ const MODES = {
     shadow: {
         prompt:  'shadow@nexus:~$',
         color:   '#ff6600',
-        title:   'SHADOW NEXUS // Unfiltered',
+        title:   'NEXUS UNFILTERED',
         label:   'SHADOW',
         msg:     '',
         msgCls:  'conn-ok',
@@ -3267,7 +3267,7 @@ const MODES = {
     coder: {
         prompt:  'dev@nexus:~$',
         color:   '#0f0',
-        title:   'PACIFIC ARCHITECT // Dev',
+        title:   'NEXUS CODER',
         label:   'CODER',
         msg:     '',
         msgCls:  'conn-ok',
@@ -3275,7 +3275,7 @@ const MODES = {
     sage: {
         prompt:  'sage@nexus:~$',
         color:   '#a06fff',
-        title:   'NEXUS ORACLE // Sage',
+        title:   'NEXUS SAGE',
         label:   'SAGE',
         msg:     '',
         msgCls:  'conn-ok',
@@ -3283,7 +3283,7 @@ const MODES = {
     education: {
         prompt:  'guest@education:~$',
         color:   '#00ffcc',
-        title:   'NEXUS EDUCATION // Teacher',
+        title:   'NEXUS EDUCATION',
         label:   'EDUCATION',
         msg:     '',
         msgCls:  'conn-ok',

@@ -9,4 +9,3 @@ This is the local workspace for Gemini CLI projects in `~/Documents/gemini-proje
 
 ## Active Projects
 - **tmc (Terminal Mission Control):** A Python-based real-time system dashboard using `rich` and `psutil`.
-
