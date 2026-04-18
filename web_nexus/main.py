@@ -712,6 +712,7 @@ async def test_ai_link():
             # Use valid Gemini request format
             payload = {"contents": [{"role": "user", "parts": [{"text": "hi"}]}]}
             res = req_lib.post(f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}",
+                headers={"Content-Type": "application/json"},
                 json=payload, timeout=5)
             results["gemini"] = "ONLINE" if res.status_code == 200 else f"OFFLINE ({res.status_code})"
         else: results["gemini"] = "KEY_MISSING"
