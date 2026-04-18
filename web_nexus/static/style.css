@@ -162,8 +162,8 @@ body {
 .ready-msg { color: #0ff; }
 .help-msg  { color: #ccc; white-space: pre-wrap; }
 .user-cmd  { color: #fff; font-weight: 600; margin-top: 16px !important; }
-.ai-msg    { color: #e0e0e0; line-height: 1.7; padding-bottom: 4px; }
-.shadow-msg  { color: #ffaa55; line-height: 1.7; border-left: 2px solid #ff6600; padding-left: 12px; margin-left: 2px; }
+.ai-msg    { color: #e0e0e0; line-height: 1.7; padding-bottom: 4px; font-family: 'Inter', sans-serif; font-size: 0.95rem; letter-spacing: 0.2px; }
+.shadow-msg  { color: #ffaa55; line-height: 1.7; border-left: 2px solid #ff6600; padding-left: 12px; margin-left: 2px; font-family: 'Inter', sans-serif; font-size: 0.95rem; letter-spacing: 0.2px; }
 
 .terminal-input-wrapper {
     display: flex;
