@@ -96,14 +96,12 @@ async def report_error(request: Request):
         user   = _get_session(request)
         user_name = user["name"] if user else "Anonymous"
         
-        print(f"\n[REPORT] Received Diagnostic from {user_name}:")
-        print(f"--- START REPORT ---\n{report}\n--- END REPORT ---\n")
+        print(f"\n[DIAGNOSTIC REPORT] From: {user_name}")
+        print(f"Destination: xavier@thyfwxit.com")
+        print(f"--- START ---\n{report}\n--- END ---\n")
         
-        # In a real system, you'd use an email API like SendGrid or SES here.
-        # For now, we log it to the server and transmit to Discord if configured.
-        webhook = _key("DISCORD_WEBHOOK")
-        if webhook:
-            req_lib.post(webhook, json={"content": f"🚨 **DIAGNOSTIC RECEIVED** (from {user_name}):\n```\n{report[:1900]}\n```"})
+        # We log to server console for Xavier to read. 
+        # No external webhooks used for security.
             
         return {"ok": True, "message": "Diagnostic transmitted to Nexus Command."}
     except Exception as e:
