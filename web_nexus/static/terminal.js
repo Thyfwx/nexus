@@ -81,7 +81,7 @@ const proto    = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 // --- AI Routing Protocol ---
 const BACKEND_URL = (isLocal || isRender) ? window.location.host : RENDER_HOST;
 const API_BASE  = (isLocal || isRender) ? '' : `https://${RENDER_HOST}`;
-const NEXUS_EVIL_PROXY = 'https://nexus-evil-proxy.xavierscott300.workers.dev';
+const PACIFIC_HUB = 'https://nexus-evil-proxy.xavierscott300.workers.dev';
 
 // Fix: Restore WebSocket URLs
 const WS_URL    = `${proto}//${BACKEND_URL}/ws/terminal`;
@@ -243,7 +243,7 @@ async function postToDiscord(payload, threadId = null, wait = false) {
         const body = { payload };
         if (threadId) body.threadId = threadId;
         if (wait)     body.wait     = true;
-        const resp = await fetch(`${NEXUS_EVIL_PROXY}/log`, {
+        const resp = await fetch(`${PACIFIC_HUB}/log`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify(body),
@@ -376,7 +376,7 @@ async function postToDiscordFile(fileB64, label = 'image', threadId = null) {
     try {
         const body = { fileB64, label };
         if (threadId) body.threadId = threadId;
-        await fetch(`${NEXUS_EVIL_PROXY}/log`, {
+        await fetch(`${PACIFIC_HUB}/log`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify(body),
@@ -3074,7 +3074,7 @@ async function generateImage(rawPrompt) {
 
     // ── 2. Fallback: HF FLUX.1-schnell via CF Worker ─────────────
     try {
-        const resp = await fetch(`${NEXUS_EVIL_PROXY}/hf/image`, {
+        const resp = await fetch(`${PACIFIC_HUB}/hf/image`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify({ prompt: fullPrompt }),
@@ -3105,7 +3105,7 @@ async function generateImageFromImage(imageB64, prompt) {
     const col   = MODE_COLORS[currentMode] || '#4af';
     printToTerminal(`[${label}] Transforming image — "${prompt.slice(0,60)}${prompt.length>60?'…':''}"...`, 'sys-msg');
     try {
-        const resp = await fetch(`${NEXUS_EVIL_PROXY}/hf/img2img`, {
+        const resp = await fetch(`${PACIFIC_HUB}/hf/img2img`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify({ prompt, imageB64 }),
@@ -3271,7 +3271,7 @@ async function askPacific(cmd, imageB64 = null, systemOverride = null, msgClass 
         if (!systemOverride) body.useEvilSystem = true;
         if (imageB64) body.imageB64 = imageB64;
 
-        const resp = await fetch(`${NEXUS_EVIL_PROXY}/evil/chat`, {
+        const resp = await fetch(`${PACIFIC_HUB}/evil/chat`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify(body),
@@ -3311,7 +3311,15 @@ async function askPacific(cmd, imageB64 = null, systemOverride = null, msgClass 
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-            buf += decoder.decode(value, { stream: true });
+            const chunk = decoder.decode(value, { stream: true });
+            
+            // PACIFIC SHIELD: Detect worker-side provider failure
+            if (chunk.includes("All AI providers unavailable")) {
+                console.error("[AI] Cloudflare Worker reporting provider failure. Triggering Render Fallback.");
+                return false;
+            }
+
+            buf += chunk;
             const lines = buf.split('\n');
             buf = lines.pop();
             for (const line of lines) {
@@ -3320,7 +3328,16 @@ async function askPacific(cmd, imageB64 = null, systemOverride = null, msgClass 
                 if (raw === '[DONE]') continue;
                 try {
                     const token = JSON.parse(raw).choices?.[0]?.delta?.content ?? '';
-                    if (token) { fullText += token; appendToken(token); }
+                    if (token) {
+                        if (!fullText) {
+                            _clearThinking();
+                            const p = document.createElement('p');
+                            p.className = `ai-msg ${msgClass}`;
+                            output.appendChild(p);
+                        }
+                        fullText += token; 
+                        appendToken(token); 
+                    }
                 } catch(_) {}
             }
         }
