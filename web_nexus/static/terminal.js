@@ -74,25 +74,21 @@ window.onerror = function(msg, url, line, col, error) {
 };
 
 // --- Config ---
-const RENDER_HOST = 'nexus-terminalnexus.onrender.com';
-
-const isLocal = (function() {
-    const h = window.location.hostname;
-    return h === 'localhost' || h === '127.0.0.1' || h.startsWith('192.168.') || h.startsWith('10.') || h.startsWith('172.');
-})();
-
-// Detect if we are on the main Render host or a custom domain
-const isRender = window.location.hostname.includes('onrender.com');
-const proto    = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-
-// If we are NOT on Render and NOT local, we must point to the Render backend
+// --- AI Routing Protocol ---
+// NO KEYS ARE STORED IN THE FRONTEND.
+// All requests are routed through the secure Render backend.
 const BACKEND_URL = (isLocal || isRender) ? window.location.host : RENDER_HOST;
-
-const WS_URL    = `${proto}//${BACKEND_URL}/ws/terminal`;
-const STATS_URL = `${proto}//${window.location.host}/ws/stats`;
 const API_BASE  = (isLocal || isRender) ? '' : `https://${RENDER_HOST}`;
 
-console.log(`[NEXUS] Routing established. Backend: ${BACKEND_URL}`);
+async function prompt_ai_proxy(prompt, history, mode, context) {
+    // This is the ONLY way to talk to AI. It uses the backend's secure keys.
+    if (termWs && termWs.readyState === WebSocket.OPEN) {
+        termWs.send(JSON.stringify({ command: prompt, history, mode, context }));
+    } else {
+        printToTerminal("[ERROR] AI Link Offline. Re-establishing connection...", "conn-err");
+        connectWS();
+    }
+}
 
 // Discord webhook
 // Discord logging routes through the CF Worker — webhook URL stored as CF secret,
