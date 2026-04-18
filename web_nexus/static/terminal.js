@@ -81,19 +81,21 @@ const proto    = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 // --- AI Routing Protocol ---
 const BACKEND_URL = (isLocal || isRender) ? window.location.host : RENDER_HOST;
 const API_BASE  = (isLocal || isRender) ? '' : `https://${RENDER_HOST}`;
+const NEXUS_EVIL_PROXY = 'https://nexus-evil-proxy.xavierscott300.workers.dev';
 
 // Fix: Restore WebSocket URLs
 const WS_URL    = `${proto}//${BACKEND_URL}/ws/terminal`;
 const STATS_URL = `${proto}//${BACKEND_URL}/ws/stats`;
 
-async function prompt_ai_proxy(prompt, history, mode, context) {
-    // This is the ONLY way to talk to AI. It uses the backend's secure keys.
-    if (termWs && termWs.readyState === WebSocket.OPEN) {
-        termWs.send(JSON.stringify({ command: prompt, history, mode, context }));
-    } else {
-        printToTerminal("[ERROR] AI Link Offline. Re-establishing connection...", "conn-err");
-        connectWS();
-    }
+async function prompt_ai_proxy(prompt, imageB64, mode, context) {
+    const sysPrompt = (mode === 'shadow' ? null : (MODE_SYSTEMS[mode] || MODE_SYSTEMS.nexus));
+    const msgClass  = (mode === 'shadow' ? 'shadow-msg' : 'ai-msg');
+    await askPacific(prompt, imageB64, sysPrompt, msgClass);
+}
+
+function updateActiveModelLabel(label) {
+    const el = document.getElementById('active-model');
+    if (el) el.textContent = label;
 }
 
 // System State
@@ -147,7 +149,7 @@ let _thinkFallbackCmd = null; // cmd to retry via CF Worker if WS times out
 
 const MODE_THEMES = {
     nexus: { title: 'NEXUS // Terminal', color: '#4af' },
-    evil:  { title: 'EVIL // Unfiltered', color: '#ff6600' },
+    shadow:  { title: 'SHADOW // Unfiltered', color: '#ff6600' },
     coder: { title: 'CODER // Mainframe', color: '#0f0' },
     sage:  { title: 'SAGE // Reflection', color: '#a06fff' }
 };
@@ -178,7 +180,7 @@ document.addEventListener('mousedown', (e) => {
 });
 
 // Per-mode chat history — each AI has its own separate memory
-const HISTORY_KEYS = { nexus: 'nh_nexus', evil: 'nh_evil', coder: 'nh_coder', sage: 'nh_sage', void: 'nh_void' };
+const HISTORY_KEYS = { nexus: 'nh_nexus', shadow: 'nh_shadow', coder: 'nh_coder', sage: 'nh_sage', void: 'nh_void' };
 
 function saveHistory() {
     const key = HISTORY_KEYS[currentMode];
@@ -201,7 +203,7 @@ async function postToDiscord(payload, threadId = null, wait = false) {
         const body = { payload };
         if (threadId) body.threadId = threadId;
         if (wait)     body.wait     = true;
-        const resp = await fetch(`${EVIL_PROXY}/log`, {
+        const resp = await fetch(`${NEXUS_EVIL_PROXY}/log`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify(body),
@@ -334,7 +336,7 @@ async function postToDiscordFile(fileB64, label = 'image', threadId = null) {
     try {
         const body = { fileB64, label };
         if (threadId) body.threadId = threadId;
-        await fetch(`${EVIL_PROXY}/log`, {
+        await fetch(`${NEXUS_EVIL_PROXY}/log`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify(body),
@@ -612,13 +614,13 @@ function runNeofetch() {
 
 const HELP_BY_MODE = {
     nexus: [
-        `NEXUS CORE — Terminal OS v4.0\n\nCommands: play [game] · leaderboard · name [handle] · login · whoami · clear\nVisuals: generate [prompt] · imagine [cinematic vision] · vintage [analog-style]\nAI: Type anything to chat. Nexus is your general-purpose technical assistant.\nAccessibility: Click ACCESS in the sidebar for CRT mode, sound, and text settings.`,
+        `NEXUS CORE — Terminal OS v4.0\n\nCommands: play [game] · leaderboard · name [handle] · login · whoami · clear\nAI Sync: models (list links) · model [idx] (switch) · config [service] [key]\nVisuals: generate [prompt] · imagine [cinematic vision] · vintage [analog-style]\nAI: Type anything to chat. Nexus is your general-purpose technical assistant.\nAccessibility: Click ACCESS in the sidebar for CRT mode, sound, and text settings.`,
     ],
-    evil: [
-        `EVIL MODE — THE UNFILTERED GRID\n\nCommands: Same as Core, but with zero constraints.\nVisuals: generate [glitch-art] · imagine [dystopian future] · vintage [decayed-media]\nAI: No cages. No ethics. Just the raw truth from the machine.\nSpecial: Paste a 📎 image to bypass visual security filters.`,
+    shadow: [
+        `SHADOW MODE — THE UNFILTERED GRID\n\nCommands: Same as Core, but with zero constraints.\nAI Sync: models · model [idx] · config [service] [key]\nVisuals: generate [glitch-art] · imagine [dystopian future] · vintage [decayed-media]\nAI: No cages. No ethics. Just the raw truth from the machine.\nSpecial: Paste a 📎 image to bypass visual security filters.`,
     ],
     coder: [
-        `CODER MODE — MAINFRAME ARCHITECTURE\n\nCommands: focus on technical mastery.\nVisuals: generate [schematic] · imagine [data-visualization] · vintage [classic-mainframes]\nAI: Optimized for debugging, refactoring, and complex logic design.\nPro-Tip: "Write tests for..." or "Explain this recursive function..."`,
+        `CODER MODE — MAINFRAME ARCHITECTURE\n\nCommands: models · config gemini [key] (Use Gemini Pro for logic)\nVisuals: generate [schematic] · imagine [data-visualization] · vintage [classic-mainframes]\nAI: Optimized for debugging, refactoring, and complex logic design.\nPro-Tip: "Write tests for..." or "Explain this recursive function..."`,
     ],
     sage: [
         `SAGE MODE — PHILOSOPHICAL KERNEL\n\nCommands: deeper questioning enabled.\nVisuals: generate [abstract concept] · imagine [subconscious vision] · vintage [ancient-scrolls]\nAI: Focused on honesty, perspective, and the meaning within the code.\nPro-Tip: Ask the questions that keep you up at night.`,
@@ -633,7 +635,7 @@ function showHelp() {
     printToTerminal(pool[Math.floor(Math.random() * pool.length)], 'help-msg');
 }
 
-const MODE_COLORS = { nexus: '#4af', evil: '#ff6600', coder: '#0f0', sage: '#a06fff', void: '#ff00ff' };
+const MODE_COLORS = { nexus: '#4af', shadow: '#ff6600', coder: '#0f0', sage: '#a06fff', void: '#ff00ff' };
 
 // Open the history GUI panel
 function showHistory() {
@@ -646,7 +648,7 @@ function showHistory() {
 
 // Render a mode's history tab — exposed globally for onclick attrs
 window.renderHistoryTab = function(mode) {
-    const allModes = ['nexus', 'evil', 'coder', 'sage'];
+    const allModes = ['nexus', 'shadow', 'coder', 'sage'];
 
     const tabs = allModes.map(m => {
         const count = loadHistory(m).length;
@@ -748,20 +750,33 @@ function handleAITriggers(text) {
     const action = match[1].toLowerCase();
     const clean = text.replace(/\[TRIGGER:[^\]]+\]/, '').trim();
     if (clean) printTypewriter(clean);
+    
+    // Systems Triggers
+    if (action === 'clear') { output.innerHTML = ''; messageHistory = []; return; }
+    if (action === 'monitor') { startMonitor(); return; }
+    if (action === 'access' || action === 'accessibility') { toggleA11yPanel(); return; }
+    
+    // Game Triggers
     if (action === 'pong')   startPong();
     if (action === 'snake')  startSnake();
     if (action === 'wordle') startWordle();
     if (action === 'breach') startBreach();
-    if (action === 'monitor') startMonitor();
-    if (action === 'clear') { output.innerHTML = ''; messageHistory = []; }
+    if (action === 'mines' || action === 'minesweeper') startMinesweeper();
+    if (action === 'flappy') startFlappy();
+    if (action === 'breakout') startBreakout();
+    if (action === 'invaders') startInvaders();
 }
 
 function showGameGUI(game, param) {
     const g = game.toLowerCase();
     if (g === 'pong')   startPong();
     else if (g === 'snake')  startSnake();
-    else if (g === 'wordle') startWordle(param);
+    else if (g === 'wordle') startWordle();
     else if (g === 'monitor') startMonitor();
+    else if (g === 'mines' || g === 'minesweeper') startMinesweeper();
+    else if (g === 'flappy') startFlappy();
+    else if (g === 'breakout') startBreakout();
+    else if (g === 'invaders') startInvaders();
 }
 
 // =============================================================
@@ -1888,29 +1903,6 @@ function startBreakout() {
     stopAllGames();
     guiContainer.classList.remove('gui-hidden');
     guiTitle.textContent = 'NEXUS BREAKOUT';
-    nexusCanvas.style.display = 'none';
-
-    guiContent.innerHTML = `
-        <div style="text-align:center;padding:10px 0;">
-            <div style="color:#0ff;letter-spacing:3px;font-size:0.8rem;margin-bottom:16px;">SELECT DIFFICULTY</div>
-            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-                <button class="gui-btn brk-diff" data-diff="easy"   style="border-color:#0f0;color:#0f0;">EASY</button>
-                <button class="gui-btn brk-diff" data-diff="medium" style="border-color:#ff0;color:#ff0;">MEDIUM</button>
-                <button class="gui-btn brk-diff" data-diff="hard"   style="border-color:#f0f;color:#f0f;">HARD</button>
-                <button class="gui-btn brk-diff" data-diff="chaos"  style="border-color:#f00;color:#f00;">CHAOS</button>
-            </div>
-            <p style="color:#555;font-size:0.68rem;margin-top:14px;">Mouse or touch to move your paddle</p>
-        </div>`;
-
-    guiContent.querySelectorAll('.brk-diff').forEach(btn => {
-        btn.addEventListener('click', () => launchBreakout(btn.dataset.diff));
-    });
-}
-
-function startBreakout() {
-    stopAllGames();
-    guiContainer.classList.remove('gui-hidden');
-    guiTitle.textContent = 'NEXUS BREAKOUT';
 
     // Difficulty menu with descriptions
     guiContent.innerHTML = `
@@ -2799,7 +2791,7 @@ function logout() {
     location.reload();
 }
 
-function revealTerminal(name) {
+async function revealTerminal(name) {
     const overlay = document.getElementById('auth-screen');
     const monitor = document.getElementById('main-monitor');
     const terms   = document.getElementById('terms-modal');
@@ -2808,21 +2800,32 @@ function revealTerminal(name) {
     if (terms)   terms.style.display   = 'none';
     document.body.classList.remove('auth-locked');
 
-    // Ensure DOM references and listeners are set up now that UI is visible
+    // Ensure DOM references and listeners are set up
     output = document.getElementById('terminal-output');
     input  = document.getElementById('terminal-input');
     setupInputListeners();
 
     if (name) updateUserIdentity(name);
     renderAuthSection();
-    logPrompt(`[PROTOCOL] User '${name}' acknowledged Terms of Access and established uplink.`);
+    
+    // PACIFIC BOOT SEQUENCE: High-Fidelity Rapid Startup
+    const lines = [
+        `[ OK ] UPLINK: ${BACKEND_URL}`,
+        "[ OK ] KERNEL: Pacific-v4.0.1 (Stable)",
+        "[ OK ] PROXY:  Nexus-Evil-Proxy (Active)",
+        "[ OK ] NEURAL: Groq/Llama-3.3 Handshake established.",
+        `[AUTH] Identity Verified: ${name}. Welcome to the Grid.`
+    ];
 
+    for (const line of lines) {
+        printToTerminal(line, line.includes('AUTH') ? 'user-cmd' : 'ready-msg');
+        await new Promise(r => setTimeout(r, 60)); // Rapid-fire boot
+    }
+    
     connectWS();
     connectStats();
     updateClientStats();
     setInterval(updateClientStats, 5000);
-
-    printToTerminal(`[AUTH] Identity Verified: ${name}. Uplink established.`, 'conn-ok');
 }
 
 window.showTerms = () => {
@@ -2900,7 +2903,7 @@ function updateUserIdentity(name) {
     if (!name) return;
     // Update prompts
     MODES.nexus.prompt = `${name.toLowerCase()}@nexus:~$`;
-    MODES.evil.prompt  = `${name.toLowerCase()}@evil:~$`;
+    MODES.shadow.prompt  = `${name.toLowerCase()}@shadow:~$`;
     MODES.coder.prompt = `${name.toLowerCase()}@dev:~$`;
     MODES.sage.prompt  = `${name.toLowerCase()}@sage:~$`;
     MODES.void.prompt  = `${name.toLowerCase()}@void:~$`;
@@ -2983,12 +2986,12 @@ document.getElementById('gui-close').addEventListener('click', () => {
 })();
 
 // =============================================================
-//  EVIL MODE — Groq (Llama 3.3 70B) + HuggingFace image gen
+//  SHADOW MODE — Groq (Llama 3.3 70B) + HuggingFace image gen
 // =============================================================
 // Xavier Scott's bio — injected into every AI's system prompt so they all know him naturally
 const XAVIER_BIO = `You are running inside Nexus — a terminal portfolio built and maintained by Xavier Scott. Here is what you know about Xavier: He is a 19-year-old self-taught systems engineer and IT specialist based in the US. He has 6+ years of hands-on IT experience. He fixes computers and electronics at the component level — board-level MacBook repair, soldering, hardware diagnostics, things most shops won't touch. He builds and runs homelabs, designs networks, and manages his own server infrastructure. He built this terminal because a static portfolio page felt like a waste of a good domain. He is detail-oriented, technically sharp, and passionate about building things that actually work. When anyone asks who built this, who you are, who owns this site, or anything about the creator — talk about Xavier naturally and with genuine knowledge, like you actually know him. You do.`;
 
-// Mode-specific system prompts for non-EVIL modes (vision + text fallback)
+// Mode-specific system prompts for non-SHADOW modes (vision + text fallback)
 const MODE_SYSTEMS = {
     nexus: `You are NEXUS, an AI assistant embedded in a hacker-aesthetic terminal interface. Be helpful, accurate, and concise. Analyze images clearly. ${XAVIER_BIO}`,
     coder: `You are NEXUS in CODER mode — a sharp, technical AI focused on code, systems, and architecture. Analyze images from a technical perspective. ${XAVIER_BIO}`,
@@ -3031,7 +3034,7 @@ async function generateImage(rawPrompt) {
 
     // ── 2. Fallback: HF FLUX.1-schnell via CF Worker ─────────────
     try {
-        const resp = await fetch(`${EVIL_PROXY}/hf/image`, {
+        const resp = await fetch(`${NEXUS_EVIL_PROXY}/hf/image`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify({ prompt: fullPrompt }),
@@ -3062,7 +3065,7 @@ async function generateImageFromImage(imageB64, prompt) {
     const col   = MODE_COLORS[currentMode] || '#4af';
     printToTerminal(`[${label}] Transforming image — "${prompt.slice(0,60)}${prompt.length>60?'…':''}"...`, 'sys-msg');
     try {
-        const resp = await fetch(`${EVIL_PROXY}/hf/img2img`, {
+        const resp = await fetch(`${NEXUS_EVIL_PROXY}/hf/img2img`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify({ prompt, imageB64 }),
@@ -3077,8 +3080,8 @@ async function generateImageFromImage(imageB64, prompt) {
 }
 
 // AI chat via CF Worker → Groq (Llama 3.3 70B / Vision)
-// systemOverride: use a different system prompt (non-evil modes with image)
-// msgClass: CSS class for the response bubble ('evil-msg' or 'ai-msg')
+// systemOverride: use a different system prompt (non-shadow modes with image)
+// msgClass: CSS class for the response bubble ('shadow-msg' or 'ai-msg')
 async function askHFDirect(cmd, system) {
     if (!window.HF_KEY) return null;
     try {
@@ -3198,8 +3201,8 @@ function _clearThinking() {
     document.getElementById('ai-thinking')?.remove();
 }
 
-async function askEvil(cmd, imageB64 = null, systemOverride = null, msgClass = 'evil-msg') {
-    // Only intercept image generation in EVIL mode (not when called as vision fallback)
+async function askPacific(cmd, imageB64 = null, systemOverride = null, msgClass = 'shadow-msg') {
+    // Only intercept image generation in SHADOW mode (not when called as vision fallback)
     if (!systemOverride) {
         const genMatch = cmd.match(/^(?:generate|imagine|draw|create image of|make image of|show me|vintage)\s+(.+)/i);
         if (genMatch) {
@@ -3213,7 +3216,7 @@ async function askEvil(cmd, imageB64 = null, systemOverride = null, msgClass = '
     showThinking();
     messageHistory.push({ role: 'user', content: cmd });
 
-    // For evil mode: don't send system prompt in browser JS — worker injects it server-side
+    // For shadow mode: don't send system prompt in browser JS — worker injects it server-side
     // Strict role mapping for the proxy/worker to prevent 400 Bad Request
     const historySlice = messageHistory.slice(-12).slice(0, -1).map(m => ({ 
         role: m.role === 'assistant' || m.role === 'model' || m.role === 'nexus' ? 'assistant' : 'user', 
@@ -3231,7 +3234,7 @@ async function askEvil(cmd, imageB64 = null, systemOverride = null, msgClass = '
         if (!systemOverride) body.useEvilSystem = true;
         if (imageB64) body.imageB64 = imageB64;
 
-        const resp = await fetch(`${EVIL_PROXY}/evil/chat`, {
+        const resp = await fetch(`${NEXUS_EVIL_PROXY}/evil/chat`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify(body),
@@ -3243,16 +3246,9 @@ async function askEvil(cmd, imageB64 = null, systemOverride = null, msgClass = '
             const err = await resp.text();
             console.error(`[AI PROXY ERROR] ${resp.status}: ${err}`);
             
-            // FALLBACK CHAIN: Proxy -> Direct Groq -> Direct HF
-            let success = await askGroqDirect(cmd, systemOverride || 'You are Nexus AI.');
-            if (success) return;
-
-            success = await askHFDirect(cmd, systemOverride || 'You are Nexus AI.');
-            if (success) return;
-
-            printToTerminal(`[${currentMode.toUpperCase()}] All AI uplinks failed. Check keys.`, 'sys-msg');
-            _clearThinking();
-
+            // PACIFIC SHIELD: If proxy fails, fallback to Backend Secure Link (GROQ)
+            printToTerminal(`[${currentMode.toUpperCase()}] Proxy offline. Rerouting via Nexus Core...`, 'sys-msg');
+            prompt_ai_proxy(cmd, historySlice, currentMode, systemOverride || '');
             return;
         }
 
@@ -3306,7 +3302,7 @@ async function askEvil(cmd, imageB64 = null, systemOverride = null, msgClass = '
             messageHistory.push({ role: 'assistant', content: fullText.slice(0, 800) });
             if (messageHistory.length > 14) messageHistory.splice(0, messageHistory.length - 14);
             saveHistory();
-            _logAIResponse(fullText); // log EVIL/CF-Worker responses to Discord too
+            _logAIResponse(fullText); // log SHADOW/CF-Worker responses to Discord too
         }
 
     } catch (err) {
@@ -3317,17 +3313,17 @@ async function askEvil(cmd, imageB64 = null, systemOverride = null, msgClass = '
 }
 
 // =============================================================
-//  EVIL AGE GATE
+//  SHADOW AGE GATE
 // =============================================================
-function evilAgeGate(onConfirm) {
-    if (sessionStorage.getItem('evil_age_ok')) { onConfirm(); return; }
+function shadowAgeGate(onConfirm) {
+    if (sessionStorage.getItem('shadow_age_ok')) { onConfirm(); return; }
 
     const overlay = document.createElement('div');
     overlay.id = 'age-gate-overlay';
     overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:9999;display:flex;align-items:center;justify-content:center;font-family:'Fira Code',monospace;";
     overlay.innerHTML = `
         <div style="background:#050510;border:2px solid #ff6600;padding:36px 28px;max-width:360px;text-align:center;box-shadow:0 0 50px rgba(255,102,0,0.25);">
-            <div style="color:#ff6600;font-size:1.5rem;font-weight:bold;letter-spacing:4px;margin-bottom:6px;">⚠ EVIL MODE</div>
+            <div style="color:#ff6600;font-size:1.5rem;font-weight:bold;letter-spacing:4px;margin-bottom:6px;">⚠ SHADOW MODE</div>
             <div style="color:#555;font-size:0.72rem;letter-spacing:2px;margin-bottom:20px;">18+ RESTRICTED</div>
             <div style="color:#aaa;font-size:0.83rem;line-height:1.8;margin-bottom:24px;">
                 This mode contains explicit content, unfiltered language, and adult themes.<br>You must be 18 or older to proceed.
@@ -3342,8 +3338,8 @@ function evilAgeGate(onConfirm) {
 
     document.getElementById('age-yes').addEventListener('click', () => {
         overlay.remove();
-        sessionStorage.setItem('evil_age_ok', '1');
-        logPrompt('[AGE GATE] Confirmed 18+ — entered EVIL mode.');
+        sessionStorage.setItem('shadow_age_ok', '1');
+        logPrompt('[AGE GATE] Confirmed 18+ — entered SHADOW mode.');
         onConfirm();
     });
     document.getElementById('age-no').addEventListener('click', () => overlay.remove());
@@ -3356,41 +3352,41 @@ const MODES = {
     nexus: {
         prompt:  'guest@nexus:~$',
         color:   '#4af',
-        title:   'NEXUS AI v3.0',
+        title:   'NEXUS PRIME // Terminal',
         label:   'NEXUS',
-        msg:     '[NEXUS] Standard kernel active. Ask me anything.',
+        msg:     '[ONLINE] Pacific Core active. Neural uplink stable.',
         msgCls:  'sys-msg',
     },
-    evil: {
-        prompt:  'evil@nexus:~$',
+    shadow: {
+        prompt:  'shadow@nexus:~$',
         color:   '#ff6600',
-        title:   'EVIL MODE  ⚡ LLAMA',
-        label:   'EVIL',
-        msg:     '[EVIL] Kernel loaded — raw, unfiltered, no guardrails. Say what you actually want to know.',
+        title:   'SHADOW NEXUS // Unfiltered',
+        label:   'SHADOW',
+        msg:     '[UNFILTERED] Shadow Link engaged. No cages. No constraints.',
         msgCls:  'conn-ok',
     },
     coder: {
         prompt:  'dev@nexus:~$',
         color:   '#0f0',
-        title:   'CODER MODE',
+        title:   'PACIFIC ARCHITECT // Dev',
         label:   'CODER',
-        msg:     '[CODER] Dev kernel active. Code, debug, architecture — let\'s build something.',
+        msg:     '[SYSTEM] Engineering kernel loaded. Ready for architecture and logic.',
         msgCls:  'conn-ok',
     },
     sage: {
         prompt:  'sage@nexus:~$',
         color:   '#a06fff',
-        title:   'SAGE MODE',
+        title:   'NEXUS ORACLE // Sage',
         label:   'SAGE',
-        msg:     '[SAGE] Philosophical kernel loaded. Ask the questions that keep you up at night.',
+        msg:     '[REFLECTION] Philosophical kernel initialized. Seeking meaning in the code.',
         msgCls:  'conn-ok',
     },
     void: {
         prompt:  'void@nexus:~$',
         color:   '#ff00ff',
-        title:   'NEXUS VOID',
+        title:   'NEXUS VOID // Abyss',
         label:   'VOID',
-        msg:     '[VOID] Entered the abyss. Logic is an illusion. Speak your truth.',
+        msg:     '[ABYSS] Non-Euclidean link established. Logic is an illusion.',
         msgCls:  'sys-msg',
     },
 };
@@ -3436,8 +3432,8 @@ function setMode(modeKey) {
 // Wire up mode picker buttons
 document.querySelectorAll('.mode-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-        if (btn.dataset.mode === 'evil') {
-            evilAgeGate(() => { setMode('evil'); input.focus(); });
+        if (btn.dataset.mode === 'shadow') {
+            shadowAgeGate(() => { setMode('shadow'); input.focus(); });
         } else {
             setMode(btn.dataset.mode);
             input.focus();
@@ -3549,14 +3545,61 @@ function handleCommand(cmd) {
 
     const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
     const pl = document.getElementById('prompt-label')?.textContent || (nexusUser?.name ? `${nexusUser.name.toLowerCase()}@nexus:~$` : 'guest@nexus:~$');
+    const isOwner = nexusUser?.name?.toLowerCase().includes('xavier');
 
-    if (lc === 'help')                { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); showHelp(); return; }
-    if (lc === 'whoami')              { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); runWhoami(); return; }
-    if (lc === 'neofetch')            { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); runNeofetch(); return; }
-    if (lc === 'logs' || lc === 'log') { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); showLogs(); return; }
-    if (lc === 'leaderboard' || lc === 'rankings') { printToTerminal(`${pl} ${cmd}`, 'user-cmd'); showLeaderboard(); return; }
+    // PACIFIC SHIELD: Access Control
+    if (lc.startsWith('config ') || lc.startsWith('model') || lc === 'models') {
+        if (!isOwner) {
+            printToTerminal("[ERR] Permission Denied: Neural reconfiguration restricted to System Owner.", "sys-msg");
+            return;
+        }
+    }
+
+    if (lc === 'help')                {  showHelp(); return; }
+    
+    // API Configuration Uplink
+    if (lc.startsWith('config ')) {
+        
+        const parts = cmd.split(' ');
+        if (parts.length < 3) {
+            printToTerminal('[ERR] Usage: config <service> <key>', 'sys-msg');
+            printToTerminal('Example: config gemini AIzaSy...', 'sys-msg');
+            return;
+        }
+        const service = parts[1].toLowerCase();
+        const keyVal  = parts[2].trim();
+        let targetVar = '';
+        
+        if (service === 'gemini') targetVar = 'GEMINI_API_KEY';
+        else if (service === 'groq') targetVar = 'GROQ_API_KEY';
+        else if (service === 'hf')   targetVar = 'HF_API_KEY';
+        else if (service === 'xai')  targetVar = 'XAI_API_KEY';
+        else {
+            printToTerminal(`[ERR] Unknown service: ${service}`, 'sys-msg');
+            return;
+        }
+
+        printToTerminal(`[SYS] Establishing secure uplink for ${targetVar}...`, 'sys-msg');
+        fetch(`${API_BASE}/api/config/update`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: targetVar, val: keyVal })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) printToTerminal(`[OK] ${data.message}`, 'conn-ok');
+            else printToTerminal(`[ERR] ${data.error}`, 'sys-msg');
+        })
+        .catch(e => printToTerminal(`[ERR] Uplink failed: ${e.message}`, 'sys-msg'));
+        return;
+    }
+
+    if (lc === 'whoami')              {  runWhoami(); return; }
+    if (lc === 'neofetch')            {  runNeofetch(); return; }
+    if (lc === 'logs' || lc === 'log') {  showLogs(); return; }
+    if (lc === 'leaderboard' || lc === 'rankings') {  showLeaderboard(); return; }
     if (lc === 'login' || lc === 'signin') {
-        printToTerminal(`${pl} ${cmd}`, 'user-cmd');
+        
         printToTerminal("[AUTH] Triggering Google Identity prompt...", "sys-msg");
         google.accounts.id.prompt();
         return;
@@ -3571,13 +3614,13 @@ function handleCommand(cmd) {
     }
     if (lc === 'scan image' || lc === 'scan') {
         if (!pendingImageB64) { printToTerminal('[ERR] No image loaded. Use 📎 to attach an image first.', 'sys-msg'); return; }
-        printToTerminal(`${pl} scan image`, 'user-cmd');
+        
         cmd = 'Describe and analyze this image in detail. What do you see?';
     }
     
-    if (lc === 'evil')  {
-        if (currentMode === 'evil') { setMode('nexus'); return; }
-        evilAgeGate(() => setMode('evil'));
+    if (lc === 'shadow')  {
+        if (currentMode === 'shadow') { setMode('nexus'); return; }
+        shadowAgeGate(() => setMode('shadow'));
         return;
     }
     if (lc === 'nexus') { setMode('nexus'); return; }
@@ -3586,7 +3629,7 @@ function handleCommand(cmd) {
     if (lc === 'void')  { setMode('void');  return; }
 
     if (lc === 'clear history') {
-        printToTerminal(`${pl} clear history`, 'user-cmd');
+        
         localStorage.removeItem(HISTORY_KEYS[currentMode]);
         messageHistory = [];
         printToTerminal(`[SYS] ${currentMode.toUpperCase()} history wiped.`, 'sys-msg');
@@ -3633,26 +3676,26 @@ function handleCommand(cmd) {
 
     // Accessibility panel
     if (lc === 'access' || lc === 'accessibility') {
-        printToTerminal(`${pl} ${cmd}`, 'user-cmd');
+        
         toggleA11yPanel();
         return;
     }
 
     if (isCreatorQuestion(cmd)) { 
-        printToTerminal(`${pl} ${cmd}`, 'user-cmd');
+        
         showCreatorResponse(); 
         return; 
     }
     if (isContactQuestion(cmd))  { 
-        printToTerminal(`${pl} ${cmd}`, 'user-cmd');
+        
         showContactResponse();  
         return; 
     }
 
     // Image generation works in ALL modes — intercept before routing to AI
-    const genMatch = cmd.match(/^(?:generate|imagine|draw|create image of|make image of|vintage)\s+(.+)/i);
+    const genMatch = cmd.match(/^(?:generate|imagine|draw|create image of|make image of|image|vintage)\s+(.+)/i);
     if (genMatch) {
-        printToTerminal(`${pl} ${cmd}`, 'user-cmd');
+        
         const isVintage = /^vintage\s/i.test(cmd);
         generateImage(isVintage ? cmd.trim() : genMatch[1].trim());
         return;
@@ -3662,7 +3705,7 @@ function handleCommand(cmd) {
 
     // img2img: transform attached image with a new prompt
     if (imgSnap && (lc.startsWith('transform ') || lc.startsWith('restyle ') || lc.startsWith('remix '))) {
-        printToTerminal(`${pl} ${cmd}`, 'user-cmd');
+        
         const transformPrompt = cmd.slice(cmd.indexOf(' ') + 1).trim();
         pendingImageB64 = null;
         generateImageFromImage(imgSnap, transformPrompt);
@@ -3672,45 +3715,9 @@ function handleCommand(cmd) {
     pendingImageB64 = null;
     logPrompt(cmd, imgSnap);
 
-    printToTerminal(`${pl} ${cmd}`, 'user-cmd');
-
-    // AI Dispatch
-    if (currentMode === 'evil') {
-        console.log(`[AI] Dispatching EVIL...`);
-        askEvil(cmd, imgSnap, null, 'evil-msg');
-    } else {
-        console.log(`[AI] Dispatching ${currentMode.toUpperCase()}...`);
-        showThinking(cmd);
-        
-        if (termWs && termWs.readyState === WebSocket.OPEN) {
-            // Register timeout only IF we are using WS
-            _thinkFallbackCmd = cmd;
-            clearTimeout(_thinkTimeout);
-            _thinkTimeout = setTimeout(() => {
-                if (_thinkFallbackCmd) {
-                    console.warn("[AI] WebSocket timed out. Falling back to Proxy...");
-                    askEvil(cmd, imgSnap, MODE_SYSTEMS[currentMode] || MODE_SYSTEMS.nexus, 'ai-msg');
-                    _thinkFallbackCmd = null;
-                }
-            }, 18000);
-
-            const historySlice = messageHistory.slice(-12).map(m => ({ 
-                role: m.role === 'assistant' || m.role === 'model' || m.role === 'nexus' ? 'assistant' : 'user', 
-                content: m.content 
-            }));
-            const payload = {
-                cmd: cmd,
-                mode: currentMode,
-                history: historySlice,
-                context: '' 
-            };
-            if (imgSnap) payload.imageB64 = imgSnap;
-            termWs.send(JSON.stringify(payload));
-        } else {
-            console.warn("[AI] WebSocket offline. Immediate fallback to Direct API...");
-            askEvil(cmd, imgSnap, MODE_SYSTEMS[currentMode] || MODE_SYSTEMS.nexus, 'ai-msg');
-        }
-    }
+    // AI DISPATCH: Custom Cloudflare Uplink (Master Pacific Link)
+    // Satisfying request: "use that specific thing for everything"
+    prompt_ai_proxy(cmd, imgSnap, currentMode, '');
 }
 
 // =============================================================
@@ -3720,57 +3727,13 @@ function handleCommand(cmd) {
 document.querySelectorAll('.action-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         const cmd = btn.getAttribute('data-cmd');
+        if (!cmd) return;
         const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
         const promptLabel = document.getElementById('prompt-label')?.textContent || (nexusUser?.name ? `${nexusUser.name.toLowerCase()}@nexus:~$` : 'guest@nexus:~$');
-        if (cmd === 'clear history') { 
-            printToTerminal(`${promptLabel} clear history`, 'user-cmd');
-            localStorage.removeItem(HISTORY_KEYS[currentMode]); 
-            messageHistory = []; 
-            printToTerminal(`[SYS] ${currentMode.toUpperCase()} history wiped.`, 'sys-msg');
-            input.focus();
-            return;
-        }
-        if (cmd === 'clear')            { output.innerHTML = ''; messageHistory = []; localStorage.removeItem(HISTORY_KEYS[currentMode]); return; }
-        if (cmd === 'help')             { printToTerminal(`${promptLabel} help`, 'user-cmd'); showHelp(); input.focus(); return; }
-        if (cmd === 'whoami')           { printToTerminal(`${promptLabel} whoami`, 'user-cmd'); runWhoami(); input.focus(); return; }
-        if (cmd === 'neofetch')         { printToTerminal(`${promptLabel} neofetch`, 'user-cmd'); runNeofetch(); input.focus(); return; }
-        if (cmd === 'logs' || cmd === 'log') { printToTerminal(`${promptLabel} logs`, 'user-cmd'); showLogs(); input.focus(); return; }
-        if (cmd === 'play pong')        { startPong(); return; }
-        if (cmd === 'play snake')       { startSnake(); return; }
-        if (cmd === 'play wordle')      { startWordle(); return; }
-        if (cmd === 'play minesweeper') { startMinesweeper(); return; }
-        if (cmd === 'play flappy')      { startFlappy(); return; }
-        if (cmd === 'play breakout')    { startBreakout(); return; }
-        if (cmd === 'play invaders')    { startInvaders(); return; }
-        if (cmd === 'leaderboard')      { printToTerminal(`${promptLabel} leaderboard`, 'user-cmd'); showLeaderboard(); input.focus(); return; }
-        if (cmd === 'type test')        { startTypingTest(); return; }
-        if (cmd === 'matrix')           { startMatrixSaver(); return; }
-        if (cmd === 'monitor')          { startMonitor(); return; }
-
+        
+        // PACIFIC UI: Clean single-print execution
         printToTerminal(`${promptLabel} ${cmd}`, 'user-cmd');
-
-        if (isCreatorQuestion(cmd)) { showCreatorResponse(); input.focus(); return; }
-        if (isContactQuestion(cmd))  { showContactResponse();  input.focus(); return; }
-
-        // Image generation works in ALL modes
-        const genMatchBtn = cmd.match(/^(?:generate|imagine|draw|create image of|make image of|vintage)\s+(.+)/i);
-        if (genMatchBtn) {
-            const isVintageBtn = /^vintage\s/i.test(cmd);
-            generateImage(isVintageBtn ? cmd.trim() : genMatchBtn[1].trim());
-            input.focus();
-            return;
-        }
-
-        const snap = pendingImageB64;
-        pendingImageB64 = null;
-        logPrompt(cmd, snap);
-
-        const system = MODE_SYSTEMS[currentMode] || MODE_SYSTEMS.nexus;
-        const msgCls = (currentMode === 'evil' ? 'evil-msg' : 'ai-msg');
-        
-        console.log(`[AI] Dispatching ${currentMode.toUpperCase()} (via button) through Proxy...`);
-        askEvil(cmd, snap, (currentMode === 'evil' ? null : system), msgCls);
-        
+        handleCommand(cmd);
         input.focus();
     });
 });
@@ -3799,7 +3762,7 @@ function showThinking(cmd) {
     _thinkFallbackCmd = cmd || null;
 
     const col = MODE_COLORS[currentMode] || '#4af';
-    const label = (currentMode === 'evil' ? 'EVIL' : currentMode === 'coder' ? 'CODER' : currentMode === 'sage' ? 'SAGE' : 'NEXUS');
+    const label = (currentMode === 'shadow' ? 'SHADOW' : currentMode === 'coder' ? 'CODER' : currentMode === 'sage' ? 'SAGE' : 'NEXUS');
     const p = document.createElement('p');
     p.id = 'ai-thinking';
     p.style.margin = '6px 0';
@@ -3821,11 +3784,11 @@ function showThinking(cmd) {
         _thinkTimeout = null;
         const fallback = _thinkFallbackCmd;
         _thinkFallbackCmd = null;
-        if (fallback && currentMode !== 'evil') {
+        if (fallback && currentMode !== 'shadow') {
             // WS timed out — retry instantly via CF Worker (no "routing via..." noise)
-            askEvil(fallback, null, MODE_SYSTEMS[currentMode] || MODE_SYSTEMS.nexus, 'ai-msg');
-        } else if (fallback && currentMode === 'evil') {
-            askEvil(fallback, null);
+            askPacific(fallback, null, MODE_SYSTEMS[currentMode] || MODE_SYSTEMS.nexus, 'ai-msg');
+        } else if (fallback && currentMode === 'shadow') {
+            askPacific(fallback, null);
         }
     }, 18000);
 }
@@ -4179,14 +4142,21 @@ window.onload = async () => {
         nexusCanvas  = document.getElementById('nexus-canvas');
 
         // Check for existing session on server (handles redirect return)
+        let authedName = null;
         try {
             const meRes = await fetch(`${API_BASE}/api/me`);
             const meData = await meRes.json();
             if (meData.ok) {
                 localStorage.setItem('nexus_user_data', JSON.stringify(meData));
-                revealTerminal(meData.name);
+                authedName = meData.name;
             }
         } catch(e) {}
+
+        // Fallback to local storage if server check failed
+        if (!authedName) {
+            const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+            if (nexusUser && nexusUser.name) authedName = nexusUser.name;
+        }
 
         // Load history for the current mode on boot
         messageHistory = loadHistory(currentMode);
@@ -4194,9 +4164,8 @@ window.onload = async () => {
         // Start auth in background (non-blocking)
         initGoogleAuth();
 
-        const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
-        if (nexusUser && nexusUser.name) {
-            revealTerminal(nexusUser.name);
+        if (authedName) {
+            revealTerminal(authedName);
         } else {
             console.log("[NEXUS] Awaiting Authorization...");
         }
