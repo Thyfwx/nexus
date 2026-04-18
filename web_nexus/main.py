@@ -922,4 +922,4 @@ async def websocket_stats(websocket: WebSocket):
 
 # Mount static files at the end so they don't override API routes
 app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
-"/", StaticFiles(directory=static_dir, html=True), name="static")
+
