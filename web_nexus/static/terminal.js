@@ -83,19 +83,15 @@ const STATS_URL = `${proto}//${BACKEND_URL}/ws/stats`;
 
 /**
  * MASTER PACIFIC UPLINK
- * Tries Cloudflare Master Proxy -> Render Backend REST -> Render Backend WS
+ * Routes all AI traffic securely through the Render Backend (main.py).
+ * Bypasses the unconfigured Cloudflare worker to ensure stability.
  */
 async function prompt_ai_proxy(prompt, imageB64, mode) {
-    const sysPrompt = (mode === 'shadow' ? null : (MODE_SYSTEMS[mode] || MODE_SYSTEMS.nexus));
     const msgClass  = (mode === 'shadow' ? 'shadow-msg' : 'ai-msg');
 
-    // ── 1. CLOUDFLARE MASTER UPLINK (The "Specific Thing") ─────────────
-    console.log(`[AI] Attempting Cloudflare Master Link for ${mode.toUpperCase()}...`);
-    const success = await askPacific(prompt, imageB64, sysPrompt, msgClass);
-    if (success) return;
-
-    // ── 2. RENDER BACKEND FALLBACK (REST) ──────────────────────────────
-    console.warn("[AI] Cloudflare Link offline. Attempting Render Secure REST...");
+    console.log(`[AI] Engaging Secure Render Backend for ${mode.toUpperCase()}...`);
+    
+    // ── 1. RENDER BACKEND REST (Primary) ──────────────────────────────
     try {
         const res = await fetch(`${API_BASE}/api/chat`, {
             method: 'POST',
@@ -117,7 +113,7 @@ async function prompt_ai_proxy(prompt, imageB64, mode) {
         }
     } catch(e) { console.error("[AI] Render REST failed:", e); }
 
-    // ── 3. WEBSOCKET LAST RESORT ───────────────────────────────────────
+    // ── 2. WEBSOCKET FALLBACK ───────────────────────────────────────
     if (termWs && termWs.readyState === WebSocket.OPEN) {
         console.warn("[AI] Falling back to WebSocket...");
         termWs.send(JSON.stringify({ command: prompt, history: messageHistory.slice(-10), mode, imageB64 }));
@@ -2847,7 +2843,7 @@ async function revealTerminal(name) {
         `[ OK ] UPLINK: ${BACKEND_URL}`,
         "[ OK ] KERNEL: Pacific-v4.0.1 (Stable)",
         "[ OK ] PROXY:  Nexus-Evil-Proxy (Active)",
-        "[ OK ] NEURAL: Groq/Llama-3.3 Handshake established.",
+        "[ OK ] NEURAL: Pacific Nexus OS Handshake established.",
         `[AUTH] Identity Verified: ${name}. Welcome to the Grid.`
     ];
 
@@ -4039,6 +4035,34 @@ window.onload = async () => {
         guiContent   = document.getElementById('gui-content');
         guiTitle     = document.getElementById('gui-title');
         nexusCanvas  = document.getElementById('nexus-canvas');
+
+        // PRE-BOOT HEALTH CHECK (Vital for Render free tier sleep)
+        let isBackendOnline = false;
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000); // Wait 8s for Render wake
+            const pingRes = await fetch(`${API_BASE}/ping`, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            if (pingRes.ok) isBackendOnline = true;
+        } catch (e) {
+            console.warn("[BOOT] Health check failed. Backend may be offline.");
+        }
+
+        if (!isBackendOnline) {
+            const maint = document.createElement('div');
+            maint.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(10,10,15,0.98);color:#f55;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Fira Code',monospace;text-align:center;padding:20px;";
+            maint.innerHTML = `
+                <div style="width:12px;height:12px;background:#f55;border-radius:50%;margin-bottom:15px;box-shadow:0 0 10px #f55;animation:pulse 2s infinite;"></div>
+                <h1 style="color:#fff;font-size:1.5rem;letter-spacing:2px;margin:0 0 10px 0;">SYSTEM OFFLINE</h1>
+                <p style="color:#aaa;max-width:400px;line-height:1.6;font-size:0.85rem;">
+                    "This is my creation."<br>
+                    The Nexus Core is currently undergoing maintenance or entering a sleep cycle. Neural uplinks are severed.
+                </p>
+                <button onclick="location.reload()" style="margin-top:20px;background:none;border:1px solid #555;color:#888;padding:8px 16px;cursor:pointer;font-family:monospace;transition:0.2s;">[ INITIATE PING REFRESH ]</button>
+            `;
+            document.body.appendChild(maint);
+            return; // Halt boot sequence entirely
+        }
 
         // Check for existing session on server (handles redirect return)
         let authedName = null;
