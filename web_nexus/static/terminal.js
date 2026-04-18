@@ -123,7 +123,27 @@ function printAIResponse(text, className) {
 }
 
 function updateActiveModelLabel(label) {
-    // Hidden to maintain Nexus identity
+    // Silent in status bar, but updated in neural link bar
+    updateNeuralLinkBar();
+}
+
+function updateNeuralLinkBar(activeIndex = null) {
+    const bar = document.getElementById('neural-link-bar');
+    if (!bar) return;
+    
+    // If no index provided, try to find current model in some state or default to 0
+    const idx = activeIndex !== null ? activeIndex : 0;
+    
+    bar.querySelectorAll('.link-item').forEach((item, i) => {
+        item.classList.toggle('active', i === idx);
+        if (i === idx) {
+            item.style.color = MODES[currentMode].color;
+            item.style.borderColor = MODES[currentMode].color;
+        } else {
+            item.style.color = '';
+            item.style.borderColor = '';
+        }
+    });
 }
 
 // System State
@@ -457,8 +477,10 @@ function doConnect() {
         // 1. Handle Model Labels (Silent update)
         if (text.startsWith('[MODEL:')) {
             const label = text.match(/\[MODEL:([^\]]+)\]/)?.[1];
-            const modelEl = document.getElementById('active-model');
-            if (modelEl && label) modelEl.textContent = label;
+            // We use the full label list indices from main.py
+            const modelNames = ["Nexus Prime", "Nexus Lite", "Nexus Core", "Nexus Insight", "Nexus Advanced", "Nexus Pro"];
+            const idx = modelNames.indexOf(label);
+            if (idx !== -1) updateNeuralLinkBar(idx);
             return;
         }
 
@@ -2833,6 +2855,9 @@ async function revealTerminal(name) {
     if (name) updateUserIdentity(name);
     renderAuthSection();
 
+    // RESTORED: Identity Verification Alert
+    printToTerminal(`[AUTH] Identity Verified: ${name}. Welcome to the Grid.`, 'conn-ok');
+
     connectWS();
     connectStats();
     updateClientStats();
@@ -3293,6 +3318,8 @@ function setMode(modeKey) {
     if (m.color) {
         document.documentElement.style.setProperty('--accent', m.color);
         document.documentElement.style.setProperty('--txt-color', m.color);
+        // Refresh link bar with new mode color
+        updateNeuralLinkBar(); 
     }
 
     document.querySelectorAll('.mode-btn').forEach(btn => {

@@ -142,6 +142,33 @@ body {
     overflow: hidden;
 }
 
+.neural-link-bar {
+    display: flex;
+    gap: 8px;
+    padding: 6px 12px;
+    background: rgba(0, 0, 0, 0.4);
+    border-bottom: 1px solid rgba(0, 255, 255, 0.1);
+    font-family: 'Fira Code', monospace;
+    font-size: 0.62rem;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+}
+.neural-link-bar::-webkit-scrollbar { display: none; }
+.link-item {
+    color: #444;
+    padding: 2px 6px;
+    border: 1px solid transparent;
+    transition: all 0.3s ease;
+    letter-spacing: 1px;
+}
+.link-item.active {
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    background: rgba(0, 255, 255, 0.05);
+    text-shadow: 0 0 5px var(--accent);
+}
+
 .terminal-output {
     flex-grow: 1;
     overflow-y: auto;
