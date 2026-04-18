@@ -436,13 +436,6 @@ function doConnect() {
         const dot = document.getElementById('conn-dot');
         if (dot) { dot.className = 'conn-dot connected'; }
 
-        // Welcome message only on the very first successful connection after boot
-        if (_firstOpen) {
-            _firstOpen = false;
-            printToTerminal('[OK] Nexus AI v3.0 — uplink established.', 'conn-ok');
-            setTimeout(() => printTypewriter(`Nexus online. Ask me anything — or type help to see what's here.`, 'ready-msg'), 500);
-        }
-
         // Smart keepalive — only pings after 20 s of silence so Render.com stays warm
         _wsPingId = setInterval(() => {
             if (termWs.readyState === WebSocket.OPEN && Date.now() - _wsSendTime > 20000) {

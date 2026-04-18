@@ -824,8 +824,6 @@ async def websocket_terminal(websocket: WebSocket):
     global current_model_idx
     await websocket.accept()
     print("[WS] Client connected")
-    await websocket.send_text(f"[MODEL:{MODELS[current_model_idx]['label']}]")
-    await websocket.send_text("[SYSTEM] Uplink established. Nexus Core ready.")
 
     while True:
         try:
