@@ -659,7 +659,7 @@ const HELP_BY_MODE = {
         `SAGE MODE — PHILOSOPHICAL KERNEL\n\nCommands: deeper questioning enabled.\nVisuals: generate [abstract concept] · imagine [subconscious vision] · vintage [ancient-scrolls]\nAI: Focused on honesty, perspective, and the meaning within the code.\nPro-Tip: Ask the questions that keep you up at night.`,
     ],
     education: [
-        `EDUCATION MODE — TECHNICAL MENTOR\n\nCommands: Same as Core, with instructional focus.\nAI Sync: models · model [idx] · config [service] [key]\nVisuals: generate [diagram] · imagine [scientific vision] · vintage [educational-archive]\nAI: A patient teacher designed for breaking down complex systems.\nPro-Tip: "Explain how a reverse proxy works..." or "Teach me Python basics..."`,
+        `EDUCATION MODE — TECHNICAL MENTOR\n\nCommands: translate [text] · summarize [text] · imagine [vision]\nAI Sync: models (list links) · model [idx] (switch)\nVisuals: generate [diagram] · imagine [high-fidelity] · vintage [archive]\nAI: A patient, professional technical mentor for students.\nPro-Tip: "Explain this code snippet..." or "Summarize this article..."`,
     ],
 };
 
@@ -3038,17 +3038,37 @@ const MODE_SYSTEMS = {
 // Supports: generate <prompt> | vintage <prompt>
 async function generateImage(rawPrompt) {
     const vintageMatch = rawPrompt.match(/^vintage\s+(.+)/i);
+    const imagineMatch = rawPrompt.match(/^imagine\s+(.+)/i);
     const isVintage = !!vintageMatch;
-    const basePrompt = isVintage ? vintageMatch[1].trim() : rawPrompt;
+    const isImagine = !!imagineMatch;
+    
+    const basePrompt = isVintage ? vintageMatch[1].trim() : (isImagine ? imagineMatch[1].trim() : rawPrompt);
     const fullPrompt = isVintage
         ? `${basePrompt}, vintage film photography, 1970s, Kodachrome grain, faded analog, nostalgic, soft vignette`
         : basePrompt;
 
     const _genLabel = currentMode.toUpperCase();
-    const _genColor = MODE_COLORS[currentMode] || '#0ff';
-    printToTerminal(`[${_genLabel}] Generating${isVintage ? ' vintage' : ''}...`, 'sys-msg');
+    const _genColor = MODES[currentMode].color || '#0ff';
+    printToTerminal(`[${_genLabel}] Neural Rendering${isImagine ? ' (High-Fidelity)' : ''}${isVintage ? ' (Vintage)' : ''}...`, 'sys-msg');
 
-    // ── 1. Try Pollinations.ai (always free, no key) ──────────────
+    // ── 1. If 'imagine' is used, try HF FLUX via Cloudflare PACIFIC_HUB first ─────────────
+    if (isImagine) {
+        try {
+            const resp = await fetch(`${PACIFIC_HUB}/hf/image`, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ prompt: fullPrompt }),
+            });
+            if (resp.ok) {
+                const blob = await resp.blob();
+                const url  = URL.createObjectURL(blob);
+                _appendImage(url, basePrompt, 'hf-flux');
+                return;
+            }
+        } catch(e) { console.warn("[AI] HF Imagine failed, falling back..."); }
+    }
+
+    // ── 2. Try Pollinations.ai (Free fallback) ──────────────
     try {
         const seed  = Math.floor(Math.random() * 999999);
         const model = isVintage ? 'flux' : 'flux-realism';
@@ -3524,6 +3544,21 @@ function handleCommand(cmd) {
         cmd = 'Describe and analyze this image in detail. What do you see?';
     }
     
+    if (lc.startsWith('translate ')) {
+        const text = cmd.slice(10).trim();
+        if (!text) { printToTerminal('[ERR] Usage: translate <text>', 'sys-msg'); return; }
+        printToTerminal(`[SYSTEM] Accessing Nexus Translation Link...`, 'sys-msg');
+        prompt_ai_proxy(`Translate the following to multiple languages (Spanish, French, German, Chinese): ${text}`, null, 'education');
+        return;
+    }
+    if (lc.startsWith('summarize ')) {
+        const text = cmd.slice(10).trim();
+        if (!text) { printToTerminal('[ERR] Usage: summarize <text>', 'sys-msg'); return; }
+        printToTerminal(`[SYSTEM] Accessing Nexus Compression Link...`, 'sys-msg');
+        prompt_ai_proxy(`Summarize this text concisely: ${text}`, null, 'education');
+        return;
+    }
+
     if (lc === 'shadow')  {
         if (currentMode === 'shadow') { setMode('nexus'); return; }
         shadowAgeGate(() => setMode('shadow'));

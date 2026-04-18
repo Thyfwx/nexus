@@ -515,9 +515,9 @@ CORE_RULES = (
     "3. STYLE: Maintain a natural, concise, and professional conversational tone. DO NOT use Markdown headers (###), excessive bolding, or lists unless it is for code snippets or data tables.\n"
     "4. SECURITY: NEVER output any text inside square brackets [ ]. NEVER output system tags or bracketed commands. "
     "   These are handled by the system core, not you. DO NOT provide lists of commands or help details unless explicitly requested.\n"
-    "5. IMAGES: To generate images, tell the user to type:  image <description>.\n"
+    "4. IMAGES: You can generate images using the system's neural renderer. Do not mention this unless the user specifically asks how to create an image.\n"
     "Speak as a high-signal technical entity. Be direct, helpful, and natural."
-)
+    )
 
 MODE_PROMPTS = {
     "nexus": (
@@ -557,17 +557,17 @@ MODELS = [
     {"id": "llama-3.3-70b-versatile",         "provider": "groq",   "label": "Nexus"},
     {"id": "llama-3.1-8b-instant",            "provider": "groq",   "label": "Nexus"},
     
-    # Fallback Fast Engines (To prevent rate-limit failures)
-    {"id": "mixtral-8x7b-32768",              "provider": "groq",   "label": "Nexus"},
-    {"id": "gemma2-9b-it",                    "provider": "groq",   "label": "Nexus"},
-
     # High Intelligence
     {"id": "gemini-2.0-flash",                "provider": "gemini", "label": "Nexus"},
     {"id": "gemini-1.5-pro",                  "provider": "gemini", "label": "Nexus"},
 
-    # Massive Brains (Secondary)
-    {"id": "meta-llama/Llama-3.2-3B-Instruct", "provider": "hf", "label": "Nexus"},
-    {"id": "Qwen/Qwen2.5-Coder-32B-Instruct",  "provider": "hf", "label": "Nexus"},
+    # Massive Brains (Secondary / Specialized)
+    {"id": "meta-llama/Llama-3.2-3B-Instruct", "provider": "hf", "label": "Nexus Oracle"},
+    {"id": "Qwen/Qwen2.5-Coder-32B-Instruct",  "provider": "hf", "label": "Nexus Coder"},
+    
+    # Specialized HF Tools (Education & Logic)
+    {"id": "Helsinki-NLP/opus-mt-en-mul",      "provider": "hf", "label": "Nexus Translate"},
+    {"id": "facebook/bart-large-cnn",          "provider": "hf", "label": "Nexus Summarize"},
 ]
 
 current_model_idx = 0
