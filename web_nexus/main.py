@@ -739,19 +739,19 @@ def prompt_ai(prompt: str, history: list | None = None, mode: str = "nexus", con
             current_model_idx = idx
             return {"text": text, "label": model["label"], "switched_from": switched_from, "id": idx}
         except Exception as e:
-            print(f"[MODEL SKIP] {model['label']}: {e}")
+            print(f"[MODEL SKIP] {model['label']} ({model['provider']}): {e}")
+            traceback.print_exc()
             continue
 
-    return {
-        "text": (
-            "AI UPLINK FAILURE: All providers (Groq/Gemini/HF) are offline.\n\n"
-            "SYSTEM DIAGNOSTIC:\n"
-            "1. .env files are not uploaded to Render for security.\n"
-            "2. You MUST add your API keys (GROQ_API_KEY, etc.) to the Render Dashboard > Environment Variables.\n"
-            "3. Alternatively, use the 'config' command to establish a secure ephemeral link."
-        ), 
-        "label": "ERROR", "switched_from": None, "id": -1
-    }
+    err_text = (
+        "AI UPLINK FAILURE: All providers (Groq/Gemini/HF) are offline.\n\n"
+        "SYSTEM DIAGNOSTIC:\n"
+        "1. .env files are not uploaded to Render for security.\n"
+        "2. You MUST add your API keys (GROQ_API_KEY, etc.) to the Render Dashboard > Environment Variables.\n"
+        "3. Alternatively, use the 'config' command to establish a secure ephemeral link.\n"
+        "4. LOGS: Check the Render logs for 'MODEL SKIP' tracebacks to see the exact error."
+    )
+    return {"text": err_text, "label": "ERROR", "switched_from": None, "id": -1}
 
 # ── Sanitization ─────────────────────────────────────────────────────────────
 _BAD_TAG = re.compile(r'\[(EVIL|ERROR|WARN|INFO|OK|MODEL|IMAGE)[^\]]*\]', re.IGNORECASE)
