@@ -3463,10 +3463,13 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
 // =============================================================
 //  INPUT HANDLING
 // =============================================================
+let inputListenersInited = false;
 function setupInputListeners() {
     if (!input) input = document.getElementById('terminal-input');
-    if (!input) return;
-    console.log("[NEXUS] Calibrating Input Listeners...");
+    if (!input || inputListenersInited) return;
+    
+    console.log("[NEXUS] Input Protocol Initialized.");
+    inputListenersInited = true;
 
     input.oninput = () => { SoundManager.playClick(); };
 

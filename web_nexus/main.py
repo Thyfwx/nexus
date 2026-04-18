@@ -556,11 +556,39 @@ def call_groq(model_id: str, prompt: str, history: list | None, system: str) -> 
 async def get_status():
     """Hidden diagnostic to check if keys are loaded (masked for security)."""
     return {
-        "groq_loaded": bool(_key("GROQ_API_KEY")),
-        "hf_loaded":   bool(_key("HF_API_KEY")),
-        "gemini_loaded": bool(_key("GEMINI_API_KEY")),
-        "google_id":   bool(_key("GOOGLE_CLIENT_ID"))
+        "groq_ok": bool(_key("GROQ_API_KEY")),
+        "gemini_ok": bool(_key("GEMINI_API_KEY")),
+        "google_ok": bool(_key("GOOGLE_CLIENT_ID")),
+        "message": "Visit /api/ai_test to perform a live handshake check."
     }
+
+@app.get("/api/ai_test")
+async def test_ai_link():
+    """Perform a live test of AI providers."""
+    results = {}
+    try:
+        # Test Groq (minimal call)
+        groq_key = _key("GROQ_API_KEY")
+        if groq_key:
+            res = req_lib.post("https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
+                json={"model": "llama-3.3-70b-versatile", "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1},
+                timeout=5
+            )
+            results["groq"] = "ONLINE" if res.status_code == 200 else f"OFFLINE ({res.status_code})"
+        else: results["groq"] = "KEY_MISSING"
+
+        # Test Gemini
+        gemini_key = _key("GEMINI_API_KEY")
+        if gemini_key:
+            res = req_lib.post(f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}",
+                json={"contents": [{"parts": [{"text": "hi"}]}]}, timeout=5)
+            results["gemini"] = "ONLINE" if res.status_code == 200 else f"OFFLINE ({res.status_code})"
+        else: results["gemini"] = "KEY_MISSING"
+
+    except Exception as e:
+        return {"error": str(e)}
+    return results
 
 def prompt_ai(prompt: str, history: list | None = None, mode: str = "nexus", context: str = "") -> dict:
     """Main entry point for AI responses. Cycles through models until one works."""
