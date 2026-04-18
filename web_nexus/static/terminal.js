@@ -5,12 +5,6 @@
 console.log("[NEXUS] Core script loading...");
 window.NEXUS_BOOT_START = Date.now();
 
-// Ensure we don't crash if these are missing in prod
-window.GROQ_KEY = window.GROQ_KEY || '';
-window.XAI_KEY = window.XAI_KEY || '';
-window.HF_KEY = window.HF_KEY || '';
-window.DISCORD_WEBHOOK = window.DISCORD_WEBHOOK || '';
-
 // --- Global Diagnostic Reporter ---
 window.onerror = function(msg, url, line, col, error) {
     console.error("[NEXUS CRASH]", msg, "at", url, ":", line);
@@ -3122,116 +3116,6 @@ async function generateImageFromImage(imageB64, prompt) {
 // AI chat via CF Worker → Groq (Llama 3.3 70B / Vision)
 // systemOverride: use a different system prompt (non-shadow modes with image)
 // msgClass: CSS class for the response bubble ('shadow-msg' or 'ai-msg')
-async function askHFDirect(cmd, system) {
-    if (!window.HF_KEY) return null;
-    try {
-        const historySlice = messageHistory.slice(-10).map(m => ({
-            role: m.role === 'assistant' || m.role === 'model' || m.role === 'nexus' ? 'assistant' : 'user',
-            content: m.content
-        }));
-        const modelId = "Qwen/Qwen2.5-72B-Instruct"; // Top-tier HF reasoning model
-        const resp = await fetch(`https://router.huggingface.co/hf-inference/models/${modelId}/v1/chat/completions`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${window.HF_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                model: modelId,
-                messages: [{ role: 'system', content: system }, ...historySlice, { role: 'user', content: cmd }],
-                max_tokens: 1024,
-                stream: true
-            })
-        });
-        if (!resp.ok) return null;
-        
-        document.getElementById('ai-thinking')?.remove();
-        const p = document.createElement('p');
-        p.className = 'ai-msg';
-        output.appendChild(p);
-        let full = '';
-        
-        const reader = resp.body.getReader();
-        const decoder = new TextDecoder();
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const chunk = decoder.decode(value);
-            const lines = chunk.split('\n');
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    if (line.includes('[DONE]')) break;
-                    try {
-                        const json = JSON.parse(line.slice(6));
-                        const token = json.choices[0].delta.content || '';
-                        full += token;
-                        p.textContent = full;
-                        output.scrollTop = output.scrollHeight;
-                    } catch(e) {}
-                }
-            }
-        }
-        messageHistory.push({ role: 'assistant', content: full });
-        saveHistory();
-        return true;
-    } catch (e) { console.error("Direct HF failed:", e); return null; }
-}
-
-async function askGroqDirect(cmd, system) {
-    if (!window.GROQ_KEY) return null;
-    try {
-        const historySlice = messageHistory.slice(-10).map(m => ({
-            role: m.role === 'assistant' || m.role === 'model' || m.role === 'nexus' ? 'assistant' : 'user',
-            content: m.content
-        }));
-        const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${window.GROQ_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                model: 'llama-3.3-70b-versatile',
-                messages: [{ role: 'system', content: system }, ...historySlice, { role: 'user', content: cmd }],
-                stream: true
-            })
-        });
-        if (!resp.ok) return null;
-        
-        // _clearThinking is defined in doConnect closure in current b38dcc3 state...
-        // Wait, I reverted to b38dcc3. I should check where _clearThinking is.
-        document.getElementById('ai-thinking')?.remove();
-
-        const p = document.createElement('p');
-        p.className = 'ai-msg';
-        output.appendChild(p);
-        let full = '';
-        
-        const reader = resp.body.getReader();
-        const decoder = new TextDecoder();
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const chunk = decoder.decode(value);
-            const lines = chunk.split('\n');
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    if (line.includes('[DONE]')) break;
-                    try {
-                        const json = JSON.parse(line.slice(6));
-                        const token = json.choices[0].delta.content || '';
-                        full += token;
-                        p.textContent = full;
-                        output.scrollTop = output.scrollHeight;
-                    } catch(e) {}
-                }
-            }
-        }
-        messageHistory.push({ role: 'assistant', content: full });
-        saveHistory();
-        return true;
-    } catch (e) { console.error("Direct Groq failed:", e); return null; }
-}
 
 // --- AI Utilities ---
 function _clearThinking() {
@@ -3279,31 +3163,6 @@ async function askPacific(cmd, imageB64 = null, systemOverride = null, msgClass 
 
         if (!resp.ok) return false;
 
-        _clearThinking();
-        const p = document.createElement('p');
-        p.className = `ai-msg ${msgClass}`;
-        output.appendChild(p);
-
-        let currentSpan = document.createElement('span');
-        p.appendChild(currentSpan);
-        let scrollQueued = false;
-
-        function appendToken(token) {
-            const parts = token.split('\n');
-            parts.forEach((part, i) => {
-                if (i > 0) {
-                    p.appendChild(document.createElement('br'));
-                    currentSpan = document.createElement('span');
-                    p.appendChild(currentSpan);
-                }
-                if (part) currentSpan.textContent += part;
-            });
-            if (!scrollQueued) {
-                scrollQueued = true;
-                requestAnimationFrame(() => { output.scrollTop = output.scrollHeight; scrollQueued = false; });
-            }
-        }
-
         const reader  = resp.body.getReader();
         const decoder = new TextDecoder();
         let fullText = '', buf = '';
@@ -3314,10 +3173,7 @@ async function askPacific(cmd, imageB64 = null, systemOverride = null, msgClass 
             const chunk = decoder.decode(value, { stream: true });
             
             // PACIFIC SHIELD: Detect worker-side provider failure
-            if (chunk.includes("All AI providers unavailable")) {
-                console.error("[AI] Cloudflare Worker reporting provider failure. Triggering Render Fallback.");
-                return false;
-            }
+            if (chunk.includes("All AI providers unavailable")) return false;
 
             buf += chunk;
             const lines = buf.split('\n');
