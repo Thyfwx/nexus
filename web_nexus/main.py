@@ -448,9 +448,12 @@ def call_gemini(model_id: str, prompt: str, history: list | None, system: str) -
     
     # Ensure it ends with user message
     if contents and contents[-1].role == "user":
-        contents[-1].parts[0].text += "\n" + prompt
+        # Safe access to parts
+        last_parts = contents[-1].parts
+        if last_parts and len(last_parts) > 0:
+            last_parts[0].text = (last_parts[0].text or "") + "\n" + prompt
     else:
-        contents.append(types.Content(role="user", parts=[types.Part.from_text(prompt)]))
+        contents.append(types.Content(role="user", parts=[types.Part(text=prompt)]))
     
     print(f"[GEMINI] Calling {model_id} with {len(contents)} segments...")
     try:

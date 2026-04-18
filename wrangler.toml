@@ -1,10 +1,17 @@
 # Cloudflare Pages Configuration
+<<<<<<< HEAD
 name = "nexus-terminal"
 pages_build_output_dir = "web_nexus/static"
 compatibility_date = "2024-01-01"
 
 [deployment]
 production_branch = "main"
+=======
+# This file is for the Nexus Terminal frontend
+
+[vars]
+BACKEND_URL = "nexus-terminalnexus.onrender.com"
+>>>>>>> fcec5bce535b2ecd5a50d63ac61deb3f704fe843
 
 [vars]
 BACKEND_URL = "nexus-terminalnexus.onrender.com"
