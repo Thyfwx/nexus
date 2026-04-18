@@ -732,6 +732,9 @@ def prompt_ai(prompt: str, history: list | None = None, mode: str = "nexus", con
             elif model["provider"] == "groq":
                 text = call_groq(model["id"], prompt, history or [], system)
             elif model["provider"] == "hf":
+                # Safely skip HF models if no key is provided
+                api_key = _key("HF_API_KEY")
+                if not api_key: continue
                 text = call_hf(model["id"], prompt, history or [], system)
             else: continue
             
