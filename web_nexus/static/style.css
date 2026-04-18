@@ -142,41 +142,6 @@ body {
     overflow: hidden;
 }
 
-.neural-link-bar {
-    display: flex;
-    gap: 8px;
-    padding: 6px 12px;
-    background: rgba(0, 0, 0, 0.4);
-    border-bottom: 1px solid rgba(0, 255, 255, 0.1);
-    font-family: 'Fira Code', monospace;
-    font-size: 0.62rem;
-    overflow-x: auto;
-    white-space: nowrap;
-    scrollbar-width: none;
-}
-.neural-link-bar::-webkit-scrollbar { display: none; }
-.link-item {
-    color: #444;
-    padding: 2px 6px;
-    border: 1px solid transparent;
-    transition: all 0.3s ease;
-    letter-spacing: 1px;
-}
-.link-item.active {
-    color: var(--accent);
-    border: 1px solid var(--accent);
-    background: rgba(0, 255, 255, 0.05);
-    text-shadow: 0 0 5px var(--accent);
-}
-
-.terminal-output {
-    flex-grow: 1;
-    overflow-y: auto;
-    margin-bottom: 10px;
-    padding-right: 6px;
-    scrollbar-gutter: stable;
-}
-
 .terminal-output p {
     margin: 8px 0;
     animation: fadeIn 0.2s ease-in;
@@ -184,13 +149,29 @@ body {
     word-break: break-word;
 }
 
-.sys-msg   { color: #88f; }
-.conn-ok   { color: #0f0; font-weight: bold; }
-.ready-msg { color: #0ff; }
-.help-msg  { color: #ccc; white-space: pre-wrap; }
-.user-cmd  { color: #fff; font-weight: 600; margin-top: 16px !important; }
-.ai-msg    { color: #e0e0e0; line-height: 1.6; padding-bottom: 4px; }
-.shadow-msg  { color: #ffaa55; line-height: 1.6; border-left: 2px solid #ff6600; padding-left: 12px; margin-left: 2px; }
+.sys-msg      { color: #88f; }
+.conn-ok      { color: #0f0; font-weight: bold; }
+.ready-msg    { color: #0ff; }
+.help-msg     { color: #ccc; white-space: pre-wrap; }
+.user-cmd     { color: #fff; font-weight: 600; margin-top: 16px !important; }
+
+/* Unified AI Message Styling (Side Border Aesthetic) */
+.ai-msg { 
+    line-height: 1.6; 
+    padding-bottom: 4px; 
+    padding-left: 12px; 
+    margin-left: 2px;
+    border-left: 2px solid var(--accent);
+    color: var(--accent);
+    filter: brightness(1.2);
+}
+
+/* Explicit Mode Color Overrides (if needed) */
+.shadow-msg    { color: #ffaa55; border-left-color: #ff6600; }
+.nexus-msg     { color: #77ccff; border-left-color: #44aaff; }
+.coder-msg     { color: #77ff77; border-left-color: #00ff00; }
+.sage-msg      { color: #b08fff; border-left-color: #a06fff; }
+.education-msg { color: #55ffdd; border-left-color: #00ffcc; }
 
 .terminal-input-wrapper {
     display: flex;

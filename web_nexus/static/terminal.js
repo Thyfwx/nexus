@@ -119,31 +119,14 @@ async function prompt_ai_proxy(prompt, imageB64, mode) {
 }
 
 function printAIResponse(text, className) {
-    printTypewriter(text, className);
+    // Apply both the global AI styling and the specific mode styling
+    // This ensures EVERY mode gets the side-border and matching text color.
+    const unifiedClass = `ai-msg ${currentMode}-msg`;
+    printTypewriter(text, unifiedClass);
 }
 
 function updateActiveModelLabel(label) {
-    // Silent in status bar, but updated in neural link bar
-    updateNeuralLinkBar();
-}
-
-function updateNeuralLinkBar(activeIndex = null) {
-    const bar = document.getElementById('neural-link-bar');
-    if (!bar) return;
-    
-    // If no index provided, try to find current model in some state or default to 0
-    const idx = activeIndex !== null ? activeIndex : 0;
-    
-    bar.querySelectorAll('.link-item').forEach((item, i) => {
-        item.classList.toggle('active', i === idx);
-        if (i === idx) {
-            item.style.color = MODES[currentMode].color;
-            item.style.borderColor = MODES[currentMode].color;
-        } else {
-            item.style.color = '';
-            item.style.borderColor = '';
-        }
-    });
+    // Hidden to maintain Nexus identity
 }
 
 // System State
@@ -474,15 +457,8 @@ function doConnect() {
         const text = event.data;
         _clearThinking();
 
-        // 1. Handle Model Labels (Silent update)
-        if (text.startsWith('[MODEL:')) {
-            const label = text.match(/\[MODEL:([^\]]+)\]/)?.[1];
-            // We use the full label list indices from main.py
-            const modelNames = ["Nexus Prime", "Nexus Lite", "Nexus Core", "Nexus Insight", "Nexus Advanced", "Nexus Pro"];
-            const idx = modelNames.indexOf(label);
-            if (idx !== -1) updateNeuralLinkBar(idx);
-            return;
-        }
+        // 1. Handle Model Labels (Silent)
+        if (text.startsWith('[MODEL:')) return;
 
         // 2. Handle System Messages
         if (text.startsWith('[SYSTEM]')) {
@@ -495,15 +471,15 @@ function doConnect() {
         if (text.includes('[GUI_TRIGGER:')) {
             const match = text.match(/\[GUI_TRIGGER:([^:]+):([^\]]+)\]/);
             if (match) showGameGUI(match[1], match[2]);
-            printTypewriter(text.replace(/\[GUI_TRIGGER:[^\]]+\]\n?/, ''));
+            printAIResponse(text.replace(/\[GUI_TRIGGER:[^\]]+\]\n?/, ''), 'ai-msg');
             return;
         }
 
         // 4. Ignore Internal Pings/Echoes
         if (text.includes('__ping__') || text.includes('__pong__') || /\w+@nexus/.test(text.trim())) return;
 
-        // 5. Display AI Text
-        printTypewriter(text);
+        // 5. Display AI Text (Unified Aesthetic)
+        printAIResponse(text, 'ai-msg');
 
         // Accumulate for history
         _streamBuf += text;
@@ -2855,8 +2831,9 @@ async function revealTerminal(name) {
     if (name) updateUserIdentity(name);
     renderAuthSection();
 
-    // RESTORED: Identity Verification Alert
+    // RESTORED: Identity Verification and Welcome Greeting
     printToTerminal(`[AUTH] Identity Verified: ${name}. Welcome to the Grid.`, 'conn-ok');
+    printToTerminal(`Nexus online. Ask me anything — or type help to see what's here.`, 'ready-msg');
 
     connectWS();
     connectStats();
