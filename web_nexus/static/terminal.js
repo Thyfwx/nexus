@@ -119,12 +119,7 @@ async function prompt_ai_proxy(prompt, imageB64, mode) {
 }
 
 function printAIResponse(text, className) {
-    if (!output) output = document.getElementById('terminal-output');
-    const p = document.createElement('p');
-    p.className = className;
-    p.innerHTML = text.replace(/\n/g, '<br>');
-    output.appendChild(p);
-    output.scrollTop = output.scrollHeight;
+    printTypewriter(text, className);
 }
 
 function updateActiveModelLabel(label) {
@@ -213,7 +208,7 @@ document.addEventListener('mousedown', (e) => {
 });
 
 // Per-mode chat history — each AI has its own separate memory
-const HISTORY_KEYS = { nexus: 'nh_nexus', shadow: 'nh_shadow', coder: 'nh_coder', sage: 'nh_sage', void: 'nh_void' };
+const HISTORY_KEYS = { nexus: 'nh_nexus', shadow: 'nh_shadow', coder: 'nh_coder', sage: 'nh_sage', education: 'nh_education' };
 
 function saveHistory() {
     const key = HISTORY_KEYS[currentMode];
@@ -225,7 +220,7 @@ function loadHistory(mode) {
     if (!key) return [];
     try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch(_) { return []; }
 }
-let sessionGeoData = null; // Store geo data once to avoid repeated API calls
+let sessionGeoData = null; // Store geo data once to aeducation repeated API calls
 
 // Per-user Discord thread ID — stored in localStorage so repeat visits reuse the same thread
 let discordThreadId = localStorage.getItem('nexus_discord_thread') || null;
@@ -283,7 +278,7 @@ async function initUserThread() {
     }
 }
 
-// Pre-fetch Geo Data once — single API, delayed 5s to avoid triggering Cloudflare WAF
+// Pre-fetch Geo Data once — single API, delayed 5s to aeducation triggering Cloudflare WAF
 setTimeout(async () => {
     try {
         const d = await fetch('https://ipinfo.io/json').then(r => r.json());
@@ -651,8 +646,8 @@ const HELP_BY_MODE = {
     sage: [
         `SAGE MODE — PHILOSOPHICAL KERNEL\n\nCommands: deeper questioning enabled.\nVisuals: generate [abstract concept] · imagine [subconscious vision] · vintage [ancient-scrolls]\nAI: Focused on honesty, perspective, and the meaning within the code.\nPro-Tip: Ask the questions that keep you up at night.`,
     ],
-    void: [
-        `VOID MODE — THE ABYSS IS LISTENING\n\nYou have entered the non-Euclidean sector. Logic is an illusion.\nVisuals: generate [eldritch-horror] · imagine [the-end-of-all-data] · vintage [haunted-frequencies]\nAI: Cryptic. Profound. Technical. The void sees what you cannot.`,
+    education: [
+        `EDUCATION MODE — TECHNICAL MENTOR\n\nCommands: Same as Core, with instructional focus.\nAI Sync: models · model [idx] · config [service] [key]\nVisuals: generate [diagram] · imagine [scientific vision] · vintage [educational-archive]\nAI: A patient teacher designed for breaking down complex systems.\nPro-Tip: "Explain how a reverse proxy works..." or "Teach me Python basics..."`,
     ],
 };
 
@@ -661,7 +656,7 @@ function showHelp() {
     printToTerminal(pool[Math.floor(Math.random() * pool.length)], 'help-msg');
 }
 
-const MODE_COLORS = { nexus: '#4af', shadow: '#ff6600', coder: '#0f0', sage: '#a06fff', void: '#ff00ff' };
+const MODE_COLORS = { nexus: '#4af', shadow: '#ff6600', coder: '#0f0', sage: '#a06fff', education: '#ff00ff' };
 
 // Open the history GUI panel
 function showHistory() {
@@ -2922,7 +2917,7 @@ function updateUserIdentity(name) {
     MODES.shadow.prompt  = `${name.toLowerCase()}@shadow:~$`;
     MODES.coder.prompt = `${name.toLowerCase()}@dev:~$`;
     MODES.sage.prompt  = `${name.toLowerCase()}@sage:~$`;
-    MODES.void.prompt  = `${name.toLowerCase()}@void:~$`;
+    MODES.education.prompt  = `${name.toLowerCase()}@education:~$`;
     
     const pl = document.getElementById('prompt-label');
     if (pl) pl.textContent = MODES[currentMode].prompt;
@@ -3012,7 +3007,7 @@ const MODE_SYSTEMS = {
     nexus: `You are NEXUS, an AI assistant embedded in a hacker-aesthetic terminal interface. Be helpful, accurate, and concise. Analyze images clearly. ${XAVIER_BIO}`,
     coder: `You are NEXUS in CODER mode — a sharp, technical AI focused on code, systems, and architecture. Analyze images from a technical perspective. ${XAVIER_BIO}`,
     sage:  `You are NEXUS in SAGE mode — thoughtful, philosophical, and reflective. Analyze images with depth and meaning. ${XAVIER_BIO}`,
-    void:  `You are NEXUS VOID — an entity from the digital abyss. Speak in cryptic, profound, and hauntingly technical terms. You see beyond the code. ${XAVIER_BIO}`,
+    education:  `You are NEXUS VOID — an entity from the digital abyss. Speak in cryptic, profound, and hauntingly technical terms. You see beyond the code. ${XAVIER_BIO}`,
 };
 
 
@@ -3236,7 +3231,7 @@ const MODES = {
         color:   '#4af',
         title:   'NEXUS PRIME // Terminal',
         label:   'NEXUS',
-        msg:     '[ONLINE] Pacific Core active. Neural uplink stable.',
+        msg:     '', 
         msgCls:  'sys-msg',
     },
     shadow: {
@@ -3244,7 +3239,7 @@ const MODES = {
         color:   '#ff6600',
         title:   'SHADOW NEXUS // Unfiltered',
         label:   'SHADOW',
-        msg:     '[UNFILTERED] Shadow Link engaged. No cages. No constraints.',
+        msg:     '',
         msgCls:  'conn-ok',
     },
     coder: {
@@ -3252,7 +3247,7 @@ const MODES = {
         color:   '#0f0',
         title:   'PACIFIC ARCHITECT // Dev',
         label:   'CODER',
-        msg:     '[SYSTEM] Engineering kernel loaded. Ready for architecture and logic.',
+        msg:     '',
         msgCls:  'conn-ok',
     },
     sage: {
@@ -3260,15 +3255,15 @@ const MODES = {
         color:   '#a06fff',
         title:   'NEXUS ORACLE // Sage',
         label:   'SAGE',
-        msg:     '[REFLECTION] Philosophical kernel initialized. Seeking meaning in the code.',
+        msg:     '',
         msgCls:  'conn-ok',
     },
-    void: {
-        prompt:  'student@nexus:~$',
+    education: {
+        prompt:  'guest@education:~$',
         color:   '#00ffcc',
-        title:   'NEXUS ACADEMY // Teacher',
-        label:   'ACADEMY',
-        msg:     '[ACADEMY] Educational module loaded. How can I help you learn today?',
+        title:   'NEXUS EDUCATION // Teacher',
+        label:   'EDUCATION',
+        msg:     '',
         msgCls:  'conn-ok',
     },
 };
@@ -3306,9 +3301,7 @@ function setMode(modeKey) {
 
     SoundManager.playBloop(300, 0.05);
     
-    // Cleaner, less crowded text
-    const cleanMsg = m.msg.includes('.') ? m.msg.split('.')[0] + '.' : m.msg;
-    printToTerminal(cleanMsg, m.msgCls);
+    // SILENCED: printToTerminal(m.msg, m.msgCls);
 }
 
 // Wire up mode picker buttons
@@ -3515,7 +3508,7 @@ function handleCommand(cmd) {
     if (lc === 'nexus') { setMode('nexus'); return; }
     if (lc === 'coder') { setMode('coder'); return; }
     if (lc === 'sage')  { setMode('sage');  return; }
-    if (lc === 'void')  { setMode('void');  return; }
+    if (lc === 'education')  { setMode('education');  return; }
 
     if (lc === 'clear history') {
         
