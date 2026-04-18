@@ -414,15 +414,13 @@ def get_system_prompt(mode="nexus", context=""):
 
 # ── Model registry ────────────────────────────────────────────────────────────
 MODELS = [
-    # GROQ - Speed Kings (User Preferred)
+    # GROQ - Speed Kings & Cost Efficient (Primary)
     {"id": "llama-3.3-70b-versatile",         "provider": "groq",   "label": "Nexus Prime (70B)"},
     {"id": "llama-3.1-8b-instant",            "provider": "groq",   "label": "Nexus Lite (8B)"},
-    {"id": "mixtral-8x7b-32768",              "provider": "groq",   "label": "Mixtral Speed"},
     
-    # HF - Massive Brains (User Preferred)
-    {"id": "deepseek-ai/DeepSeek-Coder-V2-Instruct", "provider": "hf",     "label": "DeepSeek Coder V2"},
+    # HF - Massive Brains (Secondary / Free Inference API)
     {"id": "Qwen/Qwen2.5-72B-Instruct",       "provider": "hf",     "label": "Qwen 2.5 (72B)"},
-    {"id": "meta-llama/Llama-3.3-70B-Instruct", "provider": "hf",     "label": "Llama 3.3 (HF)"},
+    {"id": "deepseek-ai/DeepSeek-Coder-V2-Instruct", "provider": "hf",     "label": "DeepSeek Coder"},
 
     # GEMINI - (Fallback only)
     {"id": "gemini-2.0-flash",                "provider": "gemini", "label": "Gemini 2.0 Flash"},
@@ -564,12 +562,13 @@ async def get_status():
 
 @app.get("/api/ai_test")
 async def test_ai_link():
-    """Perform a live test of AI providers."""
+    """Perform a live test of AI providers with safe identity logging."""
     results = {}
     try:
-        # Test Groq (minimal call)
+        # Test Groq
         groq_key = _key("GROQ_API_KEY")
         if groq_key:
+            print(f"[TEST] Groq Key Prefix: {groq_key[:7]}...")
             res = req_lib.post("https://api.groq.com/openai/v1/chat/completions",
                 headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
                 json={"model": "llama-3.3-70b-versatile", "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1},
@@ -581,6 +580,7 @@ async def test_ai_link():
         # Test Gemini
         gemini_key = _key("GEMINI_API_KEY")
         if gemini_key:
+            print(f"[TEST] Gemini Key Prefix: {gemini_key[:7]}...")
             res = req_lib.post(f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}",
                 json={"contents": [{"parts": [{"text": "hi"}]}]}, timeout=5)
             results["gemini"] = "ONLINE" if res.status_code == 200 else f"OFFLINE ({res.status_code})"
