@@ -2837,20 +2837,10 @@ async function revealTerminal(name) {
 
     if (name) updateUserIdentity(name);
     renderAuthSection();
-    
-    // PACIFIC BOOT SEQUENCE: High-Fidelity Rapid Startup
-    const lines = [
-        `[ OK ] UPLINK: Synchronized`,
-        "[ OK ] KERNEL: Pacific-v4.0.5 (Stable)",
-        "[ OK ] PROXY:  Pacific Master Link (Active)",
-        "[ OK ] NEURAL: Nexus Protocol synchronized.",
-        `[AUTH] Identity Verified: ${name}. Welcome to the Grid.`
-    ];
 
-    for (const line of lines) {
-        printToTerminal(line, line.includes('AUTH') ? 'user-cmd' : 'ready-msg');
-        await new Promise(r => setTimeout(r, 60)); // Rapid-fire boot
-    }
+    // Original clean startup sequence
+    printToTerminal('[OK] Nexus AI v3.0 — uplink established.', 'conn-ok');
+    printToTerminal(`Nexus online. Ask me anything — or type help to see what's here.`, 'ready-msg');
     
     connectWS();
     connectStats();
