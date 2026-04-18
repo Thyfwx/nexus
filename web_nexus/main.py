@@ -110,10 +110,13 @@ async def report_error(request: Request):
 
 @app.post("/login/google/authorized")
 async def auth_google(request: Request):
-    client_id = _key("GOOGLE_CLIENT_ID")
+    raw_id = _key("GOOGLE_CLIENT_ID")
+    # Pacific Shield: Strip anything after a comma, space, or quote to fix dashboard typos
+    client_id = raw_id.split(',')[0].split(' ')[0].strip().strip('"').strip("'")
+    
     is_prod = os.getenv("PRODUCTION", "") == "1"
     
-    print(f"[DIAG] Login attempt. ClientID set: {bool(client_id)}, IsProd: {is_prod}")
+    print(f"[DIAG] Login attempt. Clean ID: {client_id[:15]}... (Raw len: {len(raw_id)})")
     
     if not client_id:
         print("[ERROR] GOOGLE_CLIENT_ID is missing from environment!")
