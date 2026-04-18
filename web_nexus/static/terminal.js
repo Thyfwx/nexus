@@ -3466,12 +3466,11 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
 function setupInputListeners() {
     if (!input) input = document.getElementById('terminal-input');
     if (!input) return;
+    console.log("[NEXUS] Calibrating Input Listeners...");
 
-    input.addEventListener('input', () => {
-        SoundManager.playClick();
-    });
+    input.oninput = () => { SoundManager.playClick(); };
 
-    input.addEventListener('keydown', (e) => {
+    input.onkeydown = (e) => {
         // Route keypresses to Wordle when active
         if (wordleActive) {
             if (e.key === 'Enter') { e.preventDefault(); wordleKey('ENTER'); return; }
@@ -3517,7 +3516,6 @@ function setupInputListeners() {
         historyIndex = -1;
         input.value = '';
 
-        const lc = cmd.toLowerCase();
         const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
         const pl = document.getElementById('prompt-label')?.textContent || (nexusUser?.name ? `${nexusUser.name.toLowerCase()}@nexus:~$` : 'guest@nexus:~$');
 
@@ -3529,10 +3527,11 @@ function setupInputListeners() {
 
         printToTerminal(`${pl} ${cmd}`, 'user-cmd');
         handleCommand(cmd);
-    });
+    };
 }
 
-setupInputListeners();
+// Redundant global call removed to prevent double-texting
+// setupInputListeners();
 
 function handleCommand(cmd) {
     const lc = cmd.toLowerCase();
