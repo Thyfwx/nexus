@@ -825,9 +825,19 @@ async def websocket_terminal(websocket: WebSocket):
             if raw.strip() == "__ping__": 
                 await websocket.send_text("__pong__")
                 continue
-            data = json.loads(raw)
+            
+            try:
+                data = json.loads(raw)
+            except:
+                continue
+
             # Handle both 'command' and 'cmd' for better frontend compatibility
             cmd = (data.get("command") or data.get("cmd") or "").strip()
+            
+            if cmd == "__ping__":
+                await websocket.send_text("__pong__")
+                continue
+                
             history = data.get("history", [])
             mode = data.get("mode", "nexus")
             context = data.get("context", "")
