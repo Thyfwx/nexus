@@ -40,20 +40,34 @@ window.onerror = function(msg, url, line, col, error) {
             btn.disabled = true;
             btn.textContent = 'TRANSMITTING...';
             try {
+                // ── 1. Dispatch to Backend Hub ─────────────
                 const res = await fetch(`${API_BASE}/api/report`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ report: reportData })
                 });
+
+                // ── 2. Dispatch to Discord (Immediate Alert) ─────────────
+                await postToDiscord({
+                    embeds: [{
+                        title: '🛑 NEXUS CRITICAL FAILURE',
+                        color: 0xff0000,
+                        description: `\`\`\`\n${reportData.slice(0, 1900)}\n\`\`\``,
+                        timestamp: new Date().toISOString()
+                    }]
+                }, discordThreadId || null);
+
                 if (res.ok) {
-                    status.textContent = '✔ Report transmitted to Nexus Command (xavier@thyfwxit.com).';
+                    status.textContent = '✔ Report transmitted to Nexus Command and Discord Uplink.';
+                    status.style.color = '#0f0';
                     btn.textContent = 'REPORT SENT';
-                } else { 
+                } else {
                     throw new Error("Backend response failed");
                 }
             } catch(e) {
                 console.error("[REPORT ERROR]", e);
-                status.textContent = '✖ Transmission failed. Nexus Command is unreachable.';
+                status.textContent = '✖ Partial transmission failure. Verify neural links.';
+                status.style.color = '#f55';
                 btn.textContent = 'SEND FAILED';
                 btn.disabled = false;
             }
