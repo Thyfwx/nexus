@@ -158,21 +158,38 @@ async def update_config(request: Request):
 
 @app.post("/api/report")
 async def report_error(request: Request):
+    """Log crash reports and diagnostic data securely on the backend."""
     try:
         data = await request.json()
         report = data.get("report", "No report data")
         user   = _get_session(request)
         user_name = user["name"] if user else "Anonymous"
-        
-        print(f"\n[DIAGNOSTIC REPORT] From: {user_name}")
-        print(f"Destination: xavier@thyfwxit.com")
-        print(f"--- START ---\n{report}\n--- END ---\n")
-        
+        ip = request.client.host
+        ts = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
+
+        log_entry = (
+            f"--- DIAGNOSTIC REPORT ---\n"
+            f"TIMESTAMP:   {ts}\n"
+            f"IDENTITY:    {user_name}\n"
+            f"SOURCE_IP:   {ip}\n"
+            f"DESTINATION: xavier@thyfwxit.com\n"
+            f"DATA:\n{report}\n"
+            f"------------------------\n\n"
+        )
+
+        # 1. Print to Render Console (Live visibility)
+        print(f"\n{log_entry}")
+
+        # 2. Append to persistent log file
+        try:
+            with open("crash_reports.log", "a") as f:
+                f.write(log_entry)
+        except: pass # Silently fail if disk is read-only
+
         return {"ok": True, "message": "Diagnostic transmitted to Nexus Command."}
     except Exception as e:
         print(f"[ERROR] Reporting failed: {e}")
         return _JSONResponse({"error": "Transmission failure"}, status_code=500)
-
 @app.post("/api/chat")
 async def api_chat(request: Request):
     """REST fallback for AI chat when WebSockets are unavailable."""
