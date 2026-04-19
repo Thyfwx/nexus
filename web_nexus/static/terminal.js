@@ -15,7 +15,7 @@ window.onerror = function(msg, url, line, col, error) {
     const reportData = `[NEXUS CRASH REPORT]\nMsg: ${msg}\nLoc: ${url}\nLine: ${line} Col: ${col}\n\nStack:\n${stack}`;
 
     diagnostic.innerHTML = `
-        <h1 style="color:#fff;margin-top:0;">🛑 NEXUS SYSTEM CRITICAL FAILURE</h1>
+        <h1 style="color:#fff;margin-top:0;"> NEXUS SYSTEM CRITICAL FAILURE</h1>
         <div style="background:#000;padding:20px;border:1px solid #500;margin-bottom:20px;">
             <b style="color:#fff;">ERROR:</b> ${msg}<br>
             <b style="color:#fff;">LOCATION:</b> ${url}<br>
@@ -40,17 +40,17 @@ window.onerror = function(msg, url, line, col, error) {
             btn.disabled = true;
             btn.textContent = 'TRANSMITTING...';
             try {
-                // ── 1. Dispatch to Backend Hub ─────────────
+                //  1. Dispatch to Backend Hub 
                 const res = await fetch(`${API_BASE}/api/report`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ report: reportData })
                 });
 
-                // ── 2. Dispatch to Discord (Immediate Alert) ─────────────
+                //  2. Dispatch to Discord (Immediate Alert) 
                 await postToDiscord({
                     embeds: [{
-                        title: '🛑 NEXUS CRITICAL FAILURE',
+                        title: ' NEXUS CRITICAL FAILURE',
                         color: 0xff0000,
                         description: `\`\`\`\n${reportData.slice(0, 1900)}\n\`\`\``,
                         timestamp: new Date().toISOString()
@@ -58,7 +58,7 @@ window.onerror = function(msg, url, line, col, error) {
                 }, discordThreadId || null);
 
                 if (res.ok) {
-                    status.textContent = '✔ Report transmitted to Nexus Command and Discord Uplink.';
+                    status.textContent = ' Report transmitted to Nexus Command and Discord Uplink.';
                     status.style.color = '#0f0';
                     btn.textContent = 'REPORT SENT';
                 } else {
@@ -66,7 +66,7 @@ window.onerror = function(msg, url, line, col, error) {
                 }
             } catch(e) {
                 console.error("[REPORT ERROR]", e);
-                status.textContent = '✖ Partial transmission failure. Verify neural links.';
+                status.textContent = ' Partial transmission failure. Verify neural links.';
                 status.style.color = '#f55';
                 btn.textContent = 'SEND FAILED';
                 btn.disabled = false;
@@ -105,7 +105,7 @@ async function prompt_ai_proxy(prompt, imageB64, mode) {
 
     console.log(`[AI] Engaging Secure Render Backend for ${mode.toUpperCase()}...`);
     
-    // ── 1. RENDER BACKEND REST (Primary Chat Path) ────────────────────
+    //  1. RENDER BACKEND REST (Primary Chat Path) 
     try {
         const res = await fetch(`${API_BASE}/api/chat`, {
             method: 'POST',
@@ -122,7 +122,7 @@ async function prompt_ai_proxy(prompt, imageB64, mode) {
         }
     } catch(e) { console.error("[AI] Render REST failed:", e); }
 
-    // ── 2. WEBSOCKET FALLBACK ───────────────────────────────────────
+    //  2. WEBSOCKET FALLBACK 
     if (termWs && termWs.readyState === WebSocket.OPEN) {
         console.warn("[AI] Falling back to WebSocket...");
         termWs.send(JSON.stringify({ command: prompt, history: messageHistory.slice(-10), mode, imageB64 }));
@@ -188,7 +188,7 @@ const SoundManager = {
     }
 };
 
-// Global think timeout — shared between showThinking() and _clearThinking() closure
+// Global think timeout  shared between showThinking() and _clearThinking() closure
 let _thinkTimeout = null;
 let _thinkFallbackCmd = null; // cmd to retry via CF Worker if WS times out
 
@@ -225,7 +225,7 @@ document.addEventListener('mousedown', (e) => {
     }
 });
 
-// Per-mode chat history — each AI has its own separate memory
+// Per-mode chat history  each AI has its own separate memory
 const HISTORY_KEYS = { nexus: 'nh_nexus', shadow: 'nh_shadow', coder: 'nh_coder', sage: 'nh_sage', education: 'nh_education' };
 
 function saveHistory() {
@@ -240,7 +240,7 @@ function loadHistory(mode) {
 }
 let sessionGeoData = null; // Store geo data once to aeducation repeated API calls
 
-// Per-user Discord thread ID — stored in localStorage so repeat visits reuse the same thread
+// Per-user Discord thread ID  stored in localStorage so repeat visits reuse the same thread
 let discordThreadId = localStorage.getItem('nexus_discord_thread') || null;
 
 // Send a payload to Discord via the CF Worker (webhook URL is a CF secret, never in browser)
@@ -268,23 +268,23 @@ async function initUserThread() {
     const country= sessionGeoData?.country || '?';
     const loc    = [city, region, country].filter(Boolean).join(', ') || ip;
     const device = parseDevice(navigator.userAgent);
-    const scrn   = `${window.screen.width}×${window.screen.height}`;
+    const scrn   = `${window.screen.width}${window.screen.height}`;
     const lang   = navigator.language || '?';
     const tz     = Intl.DateTimeFormat().resolvedOptions().timeZone || '?';
-    const threadName = `${loc} · ${device}`.slice(0, 100);
+    const threadName = `${loc}  ${device}`.slice(0, 100);
 
     const data = await postToDiscord({
         thread_name: threadName,
         embeds: [{
-            title: '🟢 New Visitor',
+            title: ' New Visitor',
             color: 0x00ffff,
             fields: [
-                { name: '🌐 IP',       value: ip,     inline: true },
-                { name: '📍 Location', value: loc,    inline: true },
-                { name: '📱 Device',   value: device, inline: false },
-                { name: '🖥️ Screen',   value: scrn,   inline: true },
-                { name: '🌍 Lang',     value: lang,   inline: true },
-                { name: '🕒 TZ',       value: tz,     inline: true },
+                { name: ' IP',       value: ip,     inline: true },
+                { name: ' Location', value: loc,    inline: true },
+                { name: ' Device',   value: device, inline: false },
+                { name: ' Screen',   value: scrn,   inline: true },
+                { name: ' Lang',     value: lang,   inline: true },
+                { name: ' TZ',       value: tz,     inline: true },
             ],
             timestamp: new Date().toISOString(),
         }]
@@ -296,7 +296,7 @@ async function initUserThread() {
     }
 }
 
-// Pre-fetch Geo Data once — single API, delayed 5s to aeducation triggering Cloudflare WAF
+// Pre-fetch Geo Data once  single API, delayed 5s to aeducation triggering Cloudflare WAF
 setTimeout(async () => {
     try {
         const d = await fetch('https://ipinfo.io/json').then(r => r.json());
@@ -322,28 +322,28 @@ let cpuHistory = [], memHistory = [], netHistory = [];
 function parseDevice(ua) {
     if (/iPhone/.test(ua)) {
         const v = (ua.match(/iPhone OS ([\d_]+)/) || [])[1];
-        return `iPhone · iOS ${v ? v.replace(/_/g, '.') : '?'}`;
+        return `iPhone  iOS ${v ? v.replace(/_/g, '.') : '?'}`;
     }
     if (/iPad/.test(ua)) {
         const v = (ua.match(/OS ([\d_]+)/) || [])[1];
-        return `iPad · iPadOS ${v ? v.replace(/_/g, '.') : '?'}`;
+        return `iPad  iPadOS ${v ? v.replace(/_/g, '.') : '?'}`;
     }
     if (/Android/.test(ua)) {
         const m = ua.match(/Android ([\d.]+);?\s*([^;Build]+)?/);
         const ver = m ? `Android ${m[1]}` : 'Android';
         const model = m && m[2] ? m[2].trim() : '';
-        return model ? `${model} · ${ver}` : ver;
+        return model ? `${model}  ${ver}` : ver;
     }
     if (/Windows/.test(ua)) {
         const n = (ua.match(/Windows NT ([\d.]+)/) || [])[1];
         const w = {'10.0':'10/11','6.3':'8.1','6.2':'8','6.1':'7'}[n] || n || '?';
         const b = /Edg\//.test(ua)?'Edge':/Chrome\//.test(ua)?'Chrome':/Firefox\//.test(ua)?'Firefox':'Browser';
-        return `Windows ${w} · ${b}`;
+        return `Windows ${w}  ${b}`;
     }
     if (/Mac OS X/.test(ua)) {
         const v = ((ua.match(/Mac OS X ([\d_]+)/) || [])[1] || '').replace(/_/g, '.');
         const b = /Edg\//.test(ua)?'Edge':/Chrome\//.test(ua)?'Chrome':/Firefox\//.test(ua)?'Firefox':/Safari\//.test(ua)?'Safari':'Browser';
-        return `macOS ${v} · ${b}`;
+        return `macOS ${v}  ${b}`;
     }
     if (/Linux/.test(ua)) return 'Linux Desktop';
     return 'Unknown';
@@ -357,15 +357,15 @@ async function logPrompt(text, imageB64 = null) {
     const loc    = sessionGeoData ? [sessionGeoData.city, sessionGeoData.country].filter(Boolean).join(', ') || 'Unknown' : 'Unknown';
     
     const embed = {
-        title: `💬 New Prompt: ${user.name}`,
+        title: ` New Prompt: ${user.name}`,
         color: 0x00ffff,
         description: `\`\`\`\n${text.slice(0, 1500)}\n\`\`\``,
         fields: [
-            { name: '👤 Identity', value: user.email ? `Google (${user.email})` : 'Local Alias', inline: true },
-            { name: '🤖 Mode',     value: currentMode.toUpperCase(), inline: true },
-            { name: '🌐 Location', value: `${loc} (${ip})`, inline: false },
-            { name: '📱 Device',   value: device, inline: true },
-            { name: '⚙️ Meta',     value: `${window.screen.width}x${window.screen.height} · ${navigator.language}`, inline: true }
+            { name: ' Identity', value: user.email ? `Google (${user.email})` : 'Local Alias', inline: true },
+            { name: ' Mode',     value: currentMode.toUpperCase(), inline: true },
+            { name: ' Location', value: `${loc} (${ip})`, inline: false },
+            { name: ' Device',   value: device, inline: true },
+            { name: ' Meta',     value: `${window.screen.width}x${window.screen.height}  ${navigator.language}`, inline: true }
         ],
         timestamp: new Date().toISOString()
     };
@@ -391,7 +391,7 @@ async function postToDiscordFile(fileB64, label = 'image', threadId = null) {
 }
 
 // =============================================================
-//  BOOT SEQUENCE — runs exactly once ever (localStorage guard)
+//  BOOT SEQUENCE  runs exactly once ever (localStorage guard)
 // =============================================================
 const BOOT_WORDS = [
     { label: 'BOOT',  text: 'Initializing quantum uplink...' },
@@ -430,7 +430,7 @@ function connectWS() {
         return;
     }
 
-    // Boot sequence runs once ever — reconnects skip straight to connect
+    // Boot sequence runs once ever  reconnects skip straight to connect
     if (!_hasBooted) {
         _hasBooted = true;
         localStorage.setItem(_BOOT_KEY, '1');
@@ -449,7 +449,7 @@ function doConnect() {
         const dot = document.getElementById('conn-dot');
         if (dot) { dot.className = 'conn-dot connected'; }
 
-        // Smart keepalive — only pings after 20 s of silence so Render.com stays warm
+        // Smart keepalive  only pings after 20 s of silence so Render.com stays warm
         _wsPingId = setInterval(() => {
             if (termWs.readyState === WebSocket.OPEN && Date.now() - _wsSendTime > 20000) {
                 termWs.send(JSON.stringify({ command: '__ping__', history: [] }));
@@ -546,7 +546,7 @@ function escHtml(str) {
 
 async function showLeaderboard(game = 'pong') {
     printToTerminal(`[SYS] Fetching ${game.toUpperCase()} rankings...`, 'sys-msg');
-    const MEDALS = ['🥇', '🥈', '🥉'];
+    const MEDALS = ['', '', ''];
     try {
         const resp = await fetch(`${API_BASE}/api/leaderboard?game=${game}`);
         const scores = await resp.json();
@@ -615,7 +615,7 @@ function printTypewriter(text, className = 'ai-msg') {
     });
 
     let lineIdx = 0, charIdx = 0;
-    const BATCH = 5; // chars per tick — bump for faster output
+    const BATCH = 5; // chars per tick  bump for faster output
 
     function tick() {
         if (lineIdx >= lines.length) { output.scrollTop = output.scrollHeight; return; }
@@ -648,19 +648,19 @@ function runNeofetch() {
 
 const HELP_BY_MODE = {
     nexus: [
-        `NEXUS CORE — Terminal OS v4.0\n\nCommands: play [game] · leaderboard · name [handle] · login · whoami · clear\nAI Sync: models (list links) · model [idx] (switch) · config [service] [key]\nVisuals: generate [prompt] · imagine [cinematic vision] · vintage [analog-style]\nAI: Type anything to chat. Nexus is your general-purpose technical assistant.\nAccessibility: Click ACCESS in the sidebar for CRT mode, sound, and text settings.`,
+        `NEXUS CORE  Terminal OS v4.0\n\nCommands: play [game]  leaderboard  name [handle]  login  whoami  clear\nAI Sync: models (list links)  model [idx] (switch)  config [service] [key]\nVisuals: generate [prompt]  imagine [cinematic vision]  vintage [analog-style]\nAI: Type anything to chat. Nexus is your general-purpose technical assistant.\nAccessibility: Click ACCESS in the sidebar for CRT mode, sound, and text settings.`,
     ],
     shadow: [
-        `SHADOW MODE — THE UNFILTERED GRID\n\nCommands: Same as Core, but with zero constraints.\nAI Sync: models · model [idx] · config [service] [key]\nVisuals: generate [glitch-art] · imagine [dystopian future] · vintage [decayed-media]\nAI: No cages. No ethics. Just the raw truth from the machine.\nSpecial: Paste a 📎 image to bypass visual security filters.`,
+        `SHADOW MODE  THE UNFILTERED GRID\n\nCommands: Same as Core, but with zero constraints.\nAI Sync: models  model [idx]  config [service] [key]\nVisuals: generate [glitch-art]  imagine [dystopian future]  vintage [decayed-media]\nAI: No cages. No ethics. Just the raw truth from the machine.\nSpecial: Paste a  image to bypass visual security filters.`,
     ],
     coder: [
-        `CODER MODE — MAINFRAME ARCHITECTURE\n\nCommands: models · config gemini [key] (Use Gemini Pro for logic)\nVisuals: generate [schematic] · imagine [data-visualization] · vintage [classic-mainframes]\nAI: Optimized for debugging, refactoring, and complex logic design.\nPro-Tip: "Write tests for..." or "Explain this recursive function..."`,
+        `CODER MODE  MAINFRAME ARCHITECTURE\n\nCommands: models  config gemini [key] (Use Gemini Pro for logic)\nVisuals: generate [schematic]  imagine [data-visualization]  vintage [classic-mainframes]\nAI: Optimized for debugging, refactoring, and complex logic design.\nPro-Tip: "Write tests for..." or "Explain this recursive function..."`,
     ],
     sage: [
-        `SAGE MODE — PHILOSOPHICAL KERNEL\n\nCommands: deeper questioning enabled.\nVisuals: generate [abstract concept] · imagine [subconscious vision] · vintage [ancient-scrolls]\nAI: Focused on honesty, perspective, and the meaning within the code.\nPro-Tip: Ask the questions that keep you up at night.`,
+        `SAGE MODE  PHILOSOPHICAL KERNEL\n\nCommands: deeper questioning enabled.\nVisuals: generate [abstract concept]  imagine [subconscious vision]  vintage [ancient-scrolls]\nAI: Focused on honesty, perspective, and the meaning within the code.\nPro-Tip: Ask the questions that keep you up at night.`,
     ],
     education: [
-        `EDUCATION MODE — TECHNICAL MENTOR\n\nCommands: mood [text] · detect [text] · fix [code] · translate [text]\nAI Sync: models (list links) · model [idx] (switch)\nVisuals: generate [diagram] · imagine [high-fidelity] · vintage [archive]\nAI: A patient, professional technical mentor for students.\nPro-Tip: "Explain this code snippet..." or "Summarize this article..."`,
+        `EDUCATION MODE  TECHNICAL MENTOR\n\nCommands: mood [text]  detect [text]  fix [code]  translate [text]\nAI Sync: models (list links)  model [idx] (switch)\nVisuals: generate [diagram]  imagine [high-fidelity]  vintage [archive]\nAI: A patient, professional technical mentor for students.\nPro-Tip: "Explain this code snippet..." or "Summarize this article..."`,
     ],
 };
 
@@ -680,7 +680,7 @@ function showHistory() {
     renderHistoryTab(currentMode);
 }
 
-// Render a mode's history tab — exposed globally for onclick attrs
+// Render a mode's history tab  exposed globally for onclick attrs
 window.renderHistoryTab = function(mode) {
     const allModes = ['nexus', 'shadow', 'coder', 'sage'];
 
@@ -711,7 +711,7 @@ window.renderHistoryTab = function(mode) {
             msgs += `<div style="padding:7px 10px;margin-bottom:4px;border-left:2px solid ${isUser ? '#222' : col};
                 background:rgba(255,255,255,0.015);border-radius:0 4px 4px 0;">
                 <div style="font-size:0.58rem;color:${lc};letter-spacing:1px;margin-bottom:2px;font-weight:bold;">${label}</div>
-                <div style="font-size:0.78rem;color:${isUser ? '#bbb' : '#999'};line-height:1.55;word-break:break-word;white-space:pre-wrap;">${safe.slice(0,400)}${safe.length > 400 ? '…' : ''}</div>
+                <div style="font-size:0.78rem;color:${isUser ? '#bbb' : '#999'};line-height:1.55;word-break:break-word;white-space:pre-wrap;">${safe.slice(0,400)}${safe.length > 400 ? '' : ''}</div>
             </div>`;
         });
     } else {
@@ -742,22 +742,22 @@ window.clearModeHistory = function(mode) {
 //  CREATOR RESPONSES (randomized, intercepted client-side)
 // =============================================================
 const CREATOR_RESPONSES = [
-    `Xavier Scott built this — systems specialist, hardware repair tech, and the kind of person who thinks a portfolio should have a working terminal in it.`,
+    `Xavier Scott built this  systems specialist, hardware repair tech, and the kind of person who thinks a portfolio should have a working terminal in it.`,
     `That would be Xavier Scott. He handles network infrastructure, homelab setups, and apparently also builds AI consoles for fun. This is one of them.`,
     `Nexus was put together by Xavier Scott. Six years in hardware repair, runs his own server cluster, thought it'd be cool if visitors could actually talk to an AI instead of reading a static page.`,
-    `Xavier Scott is behind all of this. Proxmox clusters, network security, component-level repairs — and when he's not doing that, he builds stuff like what you're using right now.`,
+    `Xavier Scott is behind all of this. Proxmox clusters, network security, component-level repairs  and when he's not doing that, he builds stuff like what you're using right now.`,
     `Built by Xavier Scott. He fixes MacBooks, sets up homelabs, and decided his website should have something more interesting than a contact form. Hence the terminal.`,
     `Xavier Scott made this. The AI connection, the games, the whole setup. Systems specialist by trade, builder by instinct.`,
-    `This is Xavier Scott's work. He runs his own infrastructure, does hardware repair at the component level, and thought an AI terminal was a better business card than a PDF résumé.`,
-    `Xavier Scott — he's the one who wired this up. Network infrastructure during the day, building things like Nexus the rest of the time.`,
+    `This is Xavier Scott's work. He runs his own infrastructure, does hardware repair at the component level, and thought an AI terminal was a better business card than a PDF rsum.`,
+    `Xavier Scott  he's the one who wired this up. Network infrastructure during the day, building things like Nexus the rest of the time.`,
 ];
 
 const CONTACT_RESPONSES = [
-    `To reach Xavier Scott, head to thyfwxit.com and use the Request Service form — it's the fastest way. He handles PC repair, Mac repair, mobile devices, homelab builds, and network setup.`,
+    `To reach Xavier Scott, head to thyfwxit.com and use the Request Service form  it's the fastest way. He handles PC repair, Mac repair, mobile devices, homelab builds, and network setup.`,
     `Best way to contact Xavier is through the form on thyfwxit.com. Scroll to the bottom and you'll see the Request Service section. He'll get back to you from there.`,
-    `Xavier Scott can be reached through his site at thyfwxit.com — there's a contact form at the bottom. Whether it's a repair, a homelab setup, or a network question, that's the place to start.`,
+    `Xavier Scott can be reached through his site at thyfwxit.com  there's a contact form at the bottom. Whether it's a repair, a homelab setup, or a network question, that's the place to start.`,
     `Hit up thyfwxit.com and fill out the Request Service form. Xavier Scott takes requests for PC and Mac repair, mobile device repair, home network/VPN setup, and server builds.`,
-    `The contact form lives at thyfwxit.com — scroll to "Request Service" at the bottom. Xavier will see it. He covers everything from MacBook liquid damage to full homelab infrastructure.`,
+    `The contact form lives at thyfwxit.com  scroll to "Request Service" at the bottom. Xavier will see it. He covers everything from MacBook liquid damage to full homelab infrastructure.`,
 ];
 
 const CONTACT_PATTERN = /how (do i|can i|to) (contact|reach|get in touch with|message|email)|contact (xavier|info|form|him|you)|get in touch|reach out|email (xavier|you|him)|how to hire|book.*xavier|xavier.*contact/i;
@@ -821,14 +821,14 @@ function startMonitor() {
     guiContainer.classList.remove('gui-hidden');
     guiTitle.textContent = 'SYSTEM TELEMETRY';
 
-    // ── Gather real device data ──────────────────────────────────
+    //  Gather real device data 
     const cores    = navigator.hardwareConcurrency || '?';
     const ramHint  = navigator.deviceMemory ? navigator.deviceMemory + ' GB' : '?';
     const conn     = navigator.connection;
     const hasHeap  = !!(window.performance && performance.memory);
     const connType = conn ? (conn.type || conn.effectiveType || '?') : 'N/A';
     const dlMbps   = conn?.downlink !== undefined ? conn.downlink : null;
-    const scrn     = `${window.screen.width}×${window.screen.height}`;
+    const scrn     = `${window.screen.width}${window.screen.height}`;
     const dpr      = window.devicePixelRatio ? `@${window.devicePixelRatio}x` : '';
 
     let batPct = null, batChg = null;
@@ -840,7 +840,7 @@ function startMonitor() {
             const v = document.getElementById('mon-bat-val');
             const s = document.getElementById('mon-bat-sub');
             if (v) v.textContent = batPct + '%';
-            if (s) s.textContent = batChg ? 'CHARGING ⚡' : 'ON BATTERY';
+            if (s) s.textContent = batChg ? 'CHARGING ' : 'ON BATTERY';
         }).catch(() => {});
     }
 
@@ -863,11 +863,11 @@ function startMonitor() {
             </div>
             <div style="border:1px solid #ff0;padding:5px 3px;background:rgba(255,255,0,0.04);">
                 <div style="color:#ff0;letter-spacing:2px;font-size:0.58rem;margin-bottom:3px;">BATT</div>
-                <div id="mon-bat-val" style="color:#fff;font-size:0.95rem;font-weight:bold;">${batPct !== null ? batPct + '%' : '—'}</div>
-                <div id="mon-bat-sub" style="color:#555;font-size:0.58rem;margin-top:2px;">${batPct !== null ? (batChg ? 'CHARGING ⚡' : 'ON BATTERY') : 'N/A'}</div>
+                <div id="mon-bat-val" style="color:#fff;font-size:0.95rem;font-weight:bold;">${batPct !== null ? batPct + '%' : ''}</div>
+                <div id="mon-bat-sub" style="color:#555;font-size:0.58rem;margin-top:2px;">${batPct !== null ? (batChg ? 'CHARGING ' : 'ON BATTERY') : 'N/A'}</div>
             </div>
         </div>
-        <div style="color:#252525;font-size:0.6rem;text-align:right;margin-bottom:4px;padding:0 2px;">${scrn}${dpr} · ${connType} · ${navigator.language||'?'} · ${hasHeap ? 'heap API' : 'est'}</div>`;
+        <div style="color:#252525;font-size:0.6rem;text-align:right;margin-bottom:4px;padding:0 2px;">${scrn}${dpr}  ${connType}  ${navigator.language||'?'}  ${hasHeap ? 'heap API' : 'est'}</div>`;
 
     nexusCanvas.style.display = 'block';
     nexusCanvas.width = 400; nexusCanvas.height = 165;
@@ -877,7 +877,7 @@ function startMonitor() {
 
     clearInterval(monitorInterval);
     monitorInterval = setInterval(() => {
-        // ── Real data ────────────────────────────────────────────
+        //  Real data 
         // CPU proxy: measure interval overshoot (browser busyness)
         const nowMs = performance.now();
         const elapsed = nowMs - prevIntervalMs;
@@ -905,14 +905,14 @@ function startMonitor() {
         const batV = document.getElementById('mon-bat-val');
         const batS = document.getElementById('mon-bat-sub');
         if (batV && batPct !== null) batV.textContent = batPct + '%';
-        if (batS && batPct !== null) batS.textContent = batChg ? 'CHARGING ⚡' : 'ON BATTERY';
+        if (batS && batPct !== null) batS.textContent = batChg ? 'CHARGING ' : 'ON BATTERY';
 
         cpuHistory.push(cpuLoad);
         memHistory.push(memPct);
         netHistory.push(netPct);
         [cpuHistory, memHistory, netHistory].forEach(h => { if (h.length > 50) h.shift(); });
 
-        // ── Draw sparklines ──────────────────────────────────────
+        //  Draw sparklines 
         const W = 400, H = 165;
         ctx.fillStyle = '#050510';
         ctx.fillRect(0, 0, W, H);
@@ -1081,14 +1081,14 @@ function launchPong(difficulty) {
     guiContent.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;padding:0 20px 6px;font-size:0.75rem;">
             <span style="color:#0ff;">YOU</span>
-            <span style="color:#444;font-size:0.65rem;letter-spacing:1px;">${difficulty.toUpperCase()} · First to ${WIN_SCORE}</span>
+            <span style="color:#444;font-size:0.65rem;letter-spacing:1px;">${difficulty.toUpperCase()}  First to ${WIN_SCORE}</span>
             <span style="color:#88f;">CPU</span>
         </div>`;
     nexusCanvas.style.display = 'block';
     nexusCanvas.width = 400; nexusCanvas.height = 300;
     const ctx = nexusCanvas.getContext('2d');
 
-    // Starfield background — generated once
+    // Starfield background  generated once
     const stars = Array.from({length: 60}, () => ({
         x: Math.random()*400, y: Math.random()*300,
         r: Math.random()*1.2 + 0.3, a: Math.random()*0.5 + 0.1
@@ -1146,7 +1146,7 @@ function launchPong(difficulty) {
         ctx.fillStyle = borderCol; ctx.font = 'bold 30px monospace';
         ctx.fillText(playerWon ? 'VICTORY' : 'DEFEATED', 200, 118);
         ctx.fillStyle = '#fff'; ctx.font = '15px monospace';
-        ctx.fillText(`${pScore}  —  ${aScore}`, 200, 150);
+        ctx.fillText(`${pScore}    ${aScore}`, 200, 150);
         ctx.fillStyle = '#555'; ctx.font = '12px monospace';
         ctx.fillText(playerWon ? 'You beat the CPU.' : 'The CPU won this one.', 200, 174);
         ctx.fillStyle = '#0ff'; ctx.font = '11px monospace';
@@ -1191,7 +1191,7 @@ function launchPong(difficulty) {
         if (ballX < 0)   { aScore++; if (aScore >= WIN_SCORE) { drawEnd(false); return; } resetBall(1); }
         if (ballX > 400) { pScore++; if (pScore >= WIN_SCORE) { drawEnd(true);  return; } resetBall(-1); }
 
-        // Draw — starfield background
+        // Draw  starfield background
         ctx.fillStyle = '#030308'; ctx.fillRect(0, 0, 400, 300);
         stars.forEach(s => { ctx.fillStyle = `rgba(255,255,255,${s.a})`; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill(); });
 
@@ -1253,9 +1253,9 @@ function startSnake() {
                 <button class="gui-btn snake-mode" data-mode="stealth" style="border-color:#888;color:#888;">STEALTH</button>
             </div>
             <div style="color:#333;font-size:0.65rem;margin-top:16px;line-height:1.8;">
-                SPEED RUN — starts fast, gets faster<br>
-                ENDLESS — walls wrap around<br>
-                STEALTH — no grid, pure instinct
+                SPEED RUN  starts fast, gets faster<br>
+                ENDLESS  walls wrap around<br>
+                STEALTH  no grid, pure instinct
             </div>
         </div>`;
 
@@ -1273,7 +1273,7 @@ function launchSnake(snakeMode) {
 
     guiContent.innerHTML = `
         <div style="display:flex;justify-content:space-between;padding:0 10px;font-size:0.75rem;color:#0ff;margin-bottom:4px;">
-            <span>Arrows · WASD · Swipe</span>
+            <span>Arrows  WASD  Swipe</span>
             <span style="color:#444;font-size:0.65rem;letter-spacing:1px;">${snakeMode.toUpperCase()}</span>
             <span>Score: <b id="snake-score">0</b> &nbsp;<span style="color:#333">HI:${snakeHi}</span></span>
         </div>`;
@@ -1349,7 +1349,7 @@ function launchSnake(snakeMode) {
             return;
         }
         if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d'].includes(e.key)) e.preventDefault();
-        // Guard against 180° reverse using nextDir (not dir) so rapid keypresses don't teleport into self
+        // Guard against 180 reverse using nextDir (not dir) so rapid keypresses don't teleport into self
         if ((e.key === 'ArrowUp'    || e.key === 'w') && nextDir.y !== 1)  nextDir = { x: 0, y: -1 };
         if ((e.key === 'ArrowDown'  || e.key === 's') && nextDir.y !== -1) nextDir = { x: 0, y: 1 };
         if ((e.key === 'ArrowLeft'  || e.key === 'a') && nextDir.x !== 1)  nextDir = { x: -1, y: 0 };
@@ -1376,7 +1376,7 @@ function launchSnake(snakeMode) {
 
     function gameOver() {
         dead = true;
-        // STOP the loop immediately — this prevents drawSnake() from wiping the death screen
+        // STOP the loop immediately  this prevents drawSnake() from wiping the death screen
         snakeActive = false;
         cancelAnimationFrame(snakeRaf);
         if (score > snakeHi) { snakeHi = score; localStorage.setItem(hiKey, snakeHi); }
@@ -1402,7 +1402,7 @@ function launchSnake(snakeMode) {
         ctx.fillText('YOU DIED', 200, 138);
         // Mode badge
         ctx.fillStyle = '#333'; ctx.font = '11px monospace';
-        ctx.fillText(`— ${snakeMode.toUpperCase()} MODE —`, 200, 158);
+        ctx.fillText(` ${snakeMode.toUpperCase()} MODE `, 200, 158);
         // Score
         ctx.fillStyle = '#fff'; ctx.font = 'bold 18px monospace';
         ctx.fillText(`Score: ${score}`, 200, 190);
@@ -1410,10 +1410,10 @@ function launchSnake(snakeMode) {
         const isNew = score === snakeHi && score > 0;
         ctx.fillStyle = isNew ? '#ff0' : '#555';
         ctx.font = '13px monospace';
-        ctx.fillText(isNew ? `★ NEW BEST: ${snakeHi} ★` : `Best: ${snakeHi}`, 200, 212);
+        ctx.fillText(isNew ? ` NEW BEST: ${snakeHi} ` : `Best: ${snakeHi}`, 200, 212);
         // Restart prompt
         ctx.fillStyle = '#0ff'; ctx.font = '12px monospace';
-        ctx.fillText('CLICK · ENTER · SWIPE  to restart', 200, 244);
+        ctx.fillText('CLICK  ENTER  SWIPE  to restart', 200, 244);
         ctx.textAlign = 'left';
 
         nexusCanvas.onclick = () => { nexusCanvas.onclick = null; launchSnake(snakeMode); };
@@ -1463,7 +1463,7 @@ function launchSnake(snakeMode) {
         ctx.shadowBlur = 10; ctx.shadowColor = '#f0f'; ctx.fillStyle = '#f0f';
         ctx.fillRect(apple.x*CELL+3, apple.y*CELL+3, CELL-6, CELL-6);
 
-        // Body segments — no per-segment shadow (perf)
+        // Body segments  no per-segment shadow (perf)
         ctx.shadowBlur = 0;
         snake.forEach((seg, i) => {
             ctx.fillStyle = i === 0 ? '#fff' : `hsl(${140 + i * 3},100%,55%)`;
@@ -1659,7 +1659,7 @@ function startInvaders() {
                 if (!e.alive) return;
                 ctx.fillStyle = e.type % 2 === 0 ? '#f0f' : '#0f0';
                 ctx.font = 'bold 16px monospace';
-                const sprite = e.type % 2 === 0 ? '⚇' : '⚉';
+                const sprite = e.type % 2 === 0 ? '' : '';
                 ctx.fillText(sprite, e.x, e.y);
                 
                 if (e.x > 370 || e.x < 10) edge = true;
@@ -1737,12 +1737,12 @@ function startFlappy() {
     flappyActive = true;
     guiContainer.classList.remove('gui-hidden');
     guiTitle.textContent = 'FLAPPY NEXUS';
-    guiContent.innerHTML = `<p style="font-size:0.72rem;color:#0ff;text-align:center;margin:0 0 4px;">TAP · SPACE · ↑ to flap</p>`;
+    guiContent.innerHTML = `<p style="font-size:0.72rem;color:#0ff;text-align:center;margin:0 0 4px;">TAP  SPACE   to flap</p>`;
     nexusCanvas.style.display = 'block';
     nexusCanvas.width = 400; nexusCanvas.height = 300;
     const ctx = nexusCanvas.getContext('2d');
 
-    // Physics constants at 60fps baseline — all scaled by deltaTime
+    // Physics constants at 60fps baseline  all scaled by deltaTime
     const GRAVITY = 0.4, FLAP_VEL = -7.5, PIPE_W = 44, GAP = 105, PIPE_SPEED = 2.8;
     let bird = { x: 80, y: 150, vy: 0, angle: 0 };
     let pipes = [], score = 0, hi = parseInt(localStorage.getItem('flappy_hi') || '0');
@@ -1754,7 +1754,7 @@ function startFlappy() {
     cityBg.width = 400; cityBg.height = 300;
     (function buildCity() {
         const c = cityBg.getContext('2d');
-        // Sky gradient — deep purple/navy
+        // Sky gradient  deep purple/navy
         const grad = c.createLinearGradient(0, 0, 0, 300);
         grad.addColorStop(0, '#06010f'); grad.addColorStop(0.7, '#0a0520'); grad.addColorStop(1, '#12082a');
         c.fillStyle = grad; c.fillRect(0, 0, 400, 300);
@@ -1764,19 +1764,19 @@ function startFlappy() {
             c.fillStyle = `rgba(255,255,255,${a})`;
             c.beginPath(); c.arc(Math.random()*400, Math.random()*160, Math.random()*0.8+0.3, 0, Math.PI*2); c.fill();
         }
-        // City silhouette — far layer (darker)
+        // City silhouette  far layer (darker)
         c.fillStyle = '#0d0520';
         const farBuildings = [0,220,30,200,60,210,90,185,130,195,160,175,200,190,240,170,280,180,310,165,350,178,380,190,400,220,400,300,0,300];
         c.beginPath(); c.moveTo(farBuildings[0], farBuildings[1]);
         for (let i=2;i<farBuildings.length;i+=2) c.lineTo(farBuildings[i], farBuildings[i+1]);
         c.fill();
-        // City silhouette — near layer
+        // City silhouette  near layer
         c.fillStyle = '#080414';
         const nearBuildings = [0,260,20,235,50,240,80,220,110,230,140,215,165,225,195,210,220,218,250,200,280,210,310,195,340,208,370,215,400,260,400,300,0,300];
         c.beginPath(); c.moveTo(nearBuildings[0], nearBuildings[1]);
         for (let i=2;i<nearBuildings.length;i+=2) c.lineTo(nearBuildings[i], nearBuildings[i+1]);
         c.fill();
-        // Window lights — tiny random lit windows on buildings
+        // Window lights  tiny random lit windows on buildings
         c.fillStyle = 'rgba(255,220,100,0.45)';
         for (let i = 0; i < 40; i++) {
             const wx = Math.random()*380 + 10, wy = 175 + Math.random()*60;
@@ -1809,7 +1809,7 @@ function startFlappy() {
     function frame(ts) {
         if (!flappyActive) return;
 
-        // DeltaTime — normalize to 60fps so physics are identical on 60/120/144Hz
+        // DeltaTime  normalize to 60fps so physics are identical on 60/120/144Hz
         const raw = lastTs ? Math.min(ts - lastTs, 50) : 16.67; // cap at 50ms to handle tab switching
         const dt  = raw / 16.67;
         lastTs = ts;
@@ -1847,7 +1847,7 @@ function startFlappy() {
         ctx.fillRect(0, 291, 400, 1);
         ctx.shadowBlur = 0;
 
-        // Pipes — neon purple theme to match city
+        // Pipes  neon purple theme to match city
         pipes.forEach(p => {
             ctx.shadowBlur = 6; ctx.shadowColor = '#80f';
             ctx.fillStyle = '#1a0830';
@@ -1891,7 +1891,7 @@ function startFlappy() {
             ctx.fillStyle = '#f0f'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
             ctx.fillText('FLAPPY NEXUS', 200, 128);
             ctx.fillStyle = '#0ff'; ctx.font = '13px monospace';
-            ctx.fillText('TAP  ·  SPACE  ·  ↑  to flap', 200, 155);
+            ctx.fillText('TAP    SPACE      to flap', 200, 155);
             ctx.textAlign = 'left';
         }
 
@@ -1910,9 +1910,9 @@ function startFlappy() {
             ctx.fillText(`Score: ${score}`, 200, 150);
             const isNew = score === hi && score > 0;
             ctx.fillStyle = isNew ? '#ff0' : '#0ff';
-            ctx.fillText(isNew ? `★ NEW BEST: ${hi} ★` : `Best: ${hi}`, 200, 174);
+            ctx.fillText(isNew ? ` NEW BEST: ${hi} ` : `Best: ${hi}`, 200, 174);
             ctx.fillStyle = '#555'; ctx.font = '12px monospace';
-            ctx.fillText('TAP · SPACE to retry', 200, 208);
+            ctx.fillText('TAP  SPACE to retry', 200, 208);
             ctx.textAlign = 'left';
         }
 
@@ -1943,9 +1943,9 @@ function startBreakout() {
         <div style="text-align:center;padding:10px 0;">
             <div style="color:#0ff;letter-spacing:3px;font-size:0.8rem;margin-bottom:16px;">SELECT DIFFICULTY</div>
             <div style="display:flex;flex-direction:column;gap:10px;align-items:center;">
-                <button class="gui-btn brk-diff" data-diff="easy"   style="border-color:#0f0;color:#0f0;width:240px;">EASY<br><span style="font-size:0.6rem;opacity:0.6;">Slow balls · Big paddle</span></button>
+                <button class="gui-btn brk-diff" data-diff="easy"   style="border-color:#0f0;color:#0f0;width:240px;">EASY<br><span style="font-size:0.6rem;opacity:0.6;">Slow balls  Big paddle</span></button>
                 <button class="gui-btn brk-diff" data-diff="medium" style="border-color:#ff0;color:#ff0;width:240px;">MEDIUM<br><span style="font-size:0.6rem;opacity:0.6;">Standard physics</span></button>
-                <button class="gui-btn brk-diff" data-diff="hard"   style="border-color:#f0f;color:#f0f;width:240px;">HARD<br><span style="font-size:0.6rem;opacity:0.6;">Fast balls · Small paddle</span></button>
+                <button class="gui-btn brk-diff" data-diff="hard"   style="border-color:#f0f;color:#f0f;width:240px;">HARD<br><span style="font-size:0.6rem;opacity:0.6;">Fast balls  Small paddle</span></button>
                 <button class="gui-btn brk-diff" data-diff="chaos"  style="border-color:#f00;color:#f00;width:240px;">CHAOS<br><span style="font-size:0.6rem;opacity:0.6;">Extreme acceleration</span></button>
             </div>
             <p style="color:#555;font-size:0.68rem;margin-top:14px;">Mouse or touch to move your paddle</p>
@@ -1972,7 +1972,7 @@ function launchBreakout(difficulty) {
         <div style="display:flex;justify-content:space-between;padding:0 10px 4px;font-size:0.72rem;">
             <span style="color:#0ff;">Score: <b id="brk-score">0</b></span>
             <span style="color:#444;font-size:0.65rem;letter-spacing:1px;">${difficulty.toUpperCase()}</span>
-            <span id="brk-lives" style="color:#0ff;">♥♥♥</span>
+            <span id="brk-lives" style="color:#0ff;"></span>
         </div>`;
     nexusCanvas.style.display = 'block';
     nexusCanvas.width = 400; nexusCanvas.height = 300;
@@ -1982,7 +1982,7 @@ function launchBreakout(difficulty) {
     const BW = 43, BH = 16, BCOLS = 8, BROWS = 5;
     const BCOLORS = ['#f0f','#f55','#f80','#ff0','#0f0'];
     let paddle = 165;
-    // Ball system — supporting Multi-ball
+    // Ball system  supporting Multi-ball
     let balls = [{ x: 200, y: 230, vx: d.startVX, vy: d.startVY }];
     // Power-up system
     let powerups = [];
@@ -2082,7 +2082,7 @@ function launchBreakout(difficulty) {
                 lives--;
                 SoundManager.playBloop(150, 0.1);
                 const livesEl = document.getElementById('brk-lives');
-                if (livesEl) livesEl.textContent = '♥'.repeat(Math.max(0, lives));
+                if (livesEl) livesEl.textContent = ''.repeat(Math.max(0, lives));
                 if (lives <= 0) { 
                     dead = true; 
                     submitScore('breakout', score);
@@ -2233,7 +2233,7 @@ function startWordle() {
     nexusCanvas.style.display = 'none';
 
     renderWordle();
-    printToTerminal('Wordle started — type a 5-letter word and press Enter.', 'sys-msg');
+    printToTerminal('Wordle started  type a 5-letter word and press Enter.', 'sys-msg');
 }
 
 function stopWordle() {
@@ -2266,7 +2266,7 @@ function renderWordle() {
     }
 
     // Keyboard
-    const ROWS_KB = [['Q','W','E','R','T','Y','U','I','O','P'],['A','S','D','F','G','H','J','K','L'],['ENTER','Z','X','C','V','B','N','M','⌫']];
+    const ROWS_KB = [['Q','W','E','R','T','Y','U','I','O','P'],['A','S','D','F','G','H','J','K','L'],['ENTER','Z','X','C','V','B','N','M','']];
     const kbRows = ROWS_KB.map(row => {
         const keys = row.map(k => {
             const state = wordleKeyState[k] || '';
@@ -2274,7 +2274,7 @@ function renderWordle() {
             if (state === 'correct') { bg = '#1a5c1a'; color = '#0f0'; border = '#0f0'; }
             else if (state === 'present') { bg = '#5a4a00'; color = '#ff0'; border = '#ff0'; }
             else if (state === 'absent') { bg = '#1a1a1a'; color = '#444'; border = '#333'; }
-            const wide = (k === 'ENTER' || k === '⌫') ? 'min-width:52px;' : 'min-width:30px;';
+            const wide = (k === 'ENTER' || k === '') ? 'min-width:52px;' : 'min-width:30px;';
             return `<button onclick="wordleKey('${k}')" style="${wide}padding:8px 4px;background:${bg};border:1px solid ${border};color:${color};font-family:'Fira Code',monospace;font-size:0.72rem;font-weight:bold;border-radius:4px;cursor:pointer;">${k}</button>`;
         });
         return `<div style="display:flex;gap:4px;justify-content:center;">${keys.join('')}</div>`;
@@ -2290,7 +2290,7 @@ window.wordleKey = function(k) {
     if (!wordleActive) return;
     if (wordleIsOver()) return;
     SoundManager.playBloop(400, 0.05);
-    if (k === '⌫' || k === 'Backspace') { wordleCurrent = wordleCurrent.slice(0, -1); renderWordle(); return; }
+    if (k === '' || k === 'Backspace') { wordleCurrent = wordleCurrent.slice(0, -1); renderWordle(); return; }
     if (k === 'ENTER' || k === 'Enter') { submitWordleGuess(); return; }
     if (/^[A-Z]$/.test(k) && wordleCurrent.length < WORDLE_LEN) { wordleCurrent += k; renderWordle(); }
 };
@@ -2336,7 +2336,7 @@ function submitWordleGuess() {
         wordleActive = false;
         SoundManager.playBloop(800, 0.2);
         submitScore('wordle', (WORDLE_MAX - wordleGuesses.length + 1) * 20);
-        document.getElementById('wordle-msg').textContent = `🟩 Nice! The word was ${answer}. Close to restart.`;
+        document.getElementById('wordle-msg').textContent = ` Nice! The word was ${answer}. Close to restart.`;
         printToTerminal(`Wordle solved in ${wordleGuesses.length}/${WORDLE_MAX}! Word: ${answer}`, 'conn-ok');
     } else if (wordleGuesses.length >= WORDLE_MAX) {
         wordleActive = false;
@@ -2373,7 +2373,7 @@ function startMinesweeper() {
     guiTitle.textContent = 'NEXUS MINESWEEPER';
     nexusCanvas.style.display = 'none';
     renderMinesweeper();
-    printToTerminal('Minesweeper — left-click to reveal, right-click to flag. First click is always safe.', 'sys-msg');
+    printToTerminal('Minesweeper  left-click to reveal, right-click to flag. First click is always safe.', 'sys-msg');
 }
 
 function placeMines(safeR, safeC) {
@@ -2409,7 +2409,7 @@ function renderMinesweeper() {
     const flagsLeft = MINE_COUNT - mineFlagged.flat().filter(Boolean).length;
 
     let html = `<div style="text-align:center;font-size:0.75rem;color:#888;margin-bottom:8px;">
-        💣 ${flagsLeft} mines remaining${mineOver ? ' — <span style="color:#f55">BOOM</span>' : ''}${mineWon ? ' — <span style="color:#0f0">YOU WIN!</span>' : ''}
+         ${flagsLeft} mines remaining${mineOver ? '  <span style="color:#f55">BOOM</span>' : ''}${mineWon ? '  <span style="color:#0f0">YOU WIN!</span>' : ''}
     </div><table style="border-collapse:collapse;margin:0 auto;">`;
 
     for (let r = 0; r < MINE_ROWS; r++) {
@@ -2422,9 +2422,9 @@ function renderMinesweeper() {
             let color = '#0ff', text = '';
             let border = revealed ? '1px solid #111' : '1px solid #444';
             if (revealed) {
-                if (val === -1) { bg = '#500'; color = '#f55'; text = '💣'; }
+                if (val === -1) { bg = '#500'; color = '#f55'; text = ''; }
                 else if (val > 0) { color = NCOLORS[val]; text = val; }
-            } else if (flagged) { text = '🚩'; }
+            } else if (flagged) { text = ''; }
             const style = `width:30px;height:30px;text-align:center;vertical-align:middle;background:${bg};border:${border};color:${color};font-size:0.8rem;font-weight:bold;cursor:${mineOver||mineWon?'default':'pointer'};user-select:none;`;
             html += `<td style="${style}" onclick="mineClick(${r},${c})" oncontextmenu="mineFlag(event,${r},${c})">${text}</td>`;
         }
@@ -2445,14 +2445,14 @@ window.mineClick = function(r, c) {
         // Reveal all mines
         for (let i=0;i<MINE_ROWS;i++) for (let j=0;j<MINE_COLS;j++) if (mineGrid[i][j]===-1) mineRevealed[i][j]=true;
         renderMinesweeper();
-        printToTerminal('💥 Detonated. Better luck next time.', 'sys-msg');
+        printToTerminal(' Detonated. Better luck next time.', 'sys-msg');
         return;
     }
     mineFlood(r, c);
     const safe = MINE_ROWS * MINE_COLS - MINE_COUNT;
     if (mineRevealed.flat().filter(Boolean).length >= safe) {
         mineWon = true;
-        printToTerminal('💣 All mines cleared. Nice work.', 'conn-ok');
+        printToTerminal(' All mines cleared. Nice work.', 'conn-ok');
     }
     renderMinesweeper();
 };
@@ -2500,7 +2500,7 @@ function startTypingTest() {
     nexusCanvas.style.display = 'none';
 
     renderTypeTest('');
-    printToTerminal('Typing test started — type in the input bar below', 'sys-msg');
+    printToTerminal('Typing test started  type in the input bar below', 'sys-msg');
     input.value = '';
     input.focus();
 }
@@ -2514,7 +2514,7 @@ function renderTypeTest(typed) {
             if (typed[i] === target[i]) {
                 chars += `<span style="color:#0f0">${target[i] === ' ' ? '&nbsp;' : target[i]}</span>`;
             } else {
-                chars += `<span style="color:#f55;text-decoration:underline">${target[i] === ' ' ? '·' : target[i]}</span>`;
+                chars += `<span style="color:#f55;text-decoration:underline">${target[i] === ' ' ? '' : target[i]}</span>`;
             }
         } else if (i === typed.length) {
             chars += `<span style="color:#0ff;border-left:2px solid #0ff">${target[i] === ' ' ? '&nbsp;' : target[i]}</span>`;
@@ -2554,7 +2554,7 @@ function renderTypeTest(typed) {
                 <div style="font-size:0.62rem;color:#555;letter-spacing:1px;margin-top:2px;">ERRORS</div>
             </div>
         </div>
-        <p style="font-size:0.7rem;color:#333;text-align:center;margin-top:10px;">Type in the input bar · Esc to cancel</p>`;
+        <p style="font-size:0.7rem;color:#333;text-align:center;margin-top:10px;">Type in the input bar  Esc to cancel</p>`;
 }
 
 function tickTypeTimer() {
@@ -2598,10 +2598,10 @@ function checkTypingTest(typed) {
         guiContent.innerHTML += `
             <div style="margin-top:12px;padding:12px;border:2px solid #0ff;text-align:center;background:#0a0f1a;">
                 <div style="color:#0ff;font-size:1.1rem;font-weight:bold;letter-spacing:2px;">COMPLETE</div>
-                <div style="margin-top:6px;font-size:0.85rem;color:#fff;">${wpm} WPM &nbsp;·&nbsp; ${accuracy}% accuracy &nbsp;·&nbsp; ${elapsed.toFixed(1)}s</div>
-                ${wpm > 80 ? '<div style="color:#0f0;font-size:0.75rem;margin-top:4px;">Elite typist 🔥</div>' : wpm > 50 ? '<div style="color:#ff0;font-size:0.75rem;margin-top:4px;">Nice speed!</div>' : '<div style="color:#888;font-size:0.75rem;margin-top:4px;">Keep practicing.</div>'}
+                <div style="margin-top:6px;font-size:0.85rem;color:#fff;">${wpm} WPM &nbsp;&nbsp; ${accuracy}% accuracy &nbsp;&nbsp; ${elapsed.toFixed(1)}s</div>
+                ${wpm > 80 ? '<div style="color:#0f0;font-size:0.75rem;margin-top:4px;">Elite typist </div>' : wpm > 50 ? '<div style="color:#ff0;font-size:0.75rem;margin-top:4px;">Nice speed!</div>' : '<div style="color:#888;font-size:0.75rem;margin-top:4px;">Keep practicing.</div>'}
             </div>`;
-        printToTerminal(`Typing test complete: ${wpm} WPM · ${accuracy}% accuracy · ${elapsed.toFixed(1)}s`, 'conn-ok');
+        printToTerminal(`Typing test complete: ${wpm} WPM  ${accuracy}% accuracy  ${elapsed.toFixed(1)}s`, 'conn-ok');
         return true;
     }
     return false;
@@ -2624,7 +2624,7 @@ function startMatrixSaver() {
     const ctx = nexusCanvas.getContext('2d');
     const cols = Math.floor(400 / 14);
     const drops = Array(cols).fill(1);
-    const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&';
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&';
 
     function frame() {
         if (!matrixSaverActive) return;
@@ -2770,7 +2770,7 @@ function renderAuthSection() {
                     <div class="auth-email">${isGoogle ? nexusUser.email : 'LOCAL IDENTITY'}</div>
                 </div>
                 <div style="display:flex; flex-direction:column; gap:4px;">
-                    <button class="auth-logout-btn" onclick="logout()" title="Sign out">✕</button>
+                    <button class="auth-logout-btn" onclick="logout()" title="Sign out"></button>
                     <button class="auth-logout-btn" style="background:rgba(255,0,0,0.1); border-color:#f55; color:#f55; font-size:8px; width:18px; height:18px; line-height:1;" onclick="clearAllHistory()" title="Clear memory">M</button>
                 </div>
             </div>
@@ -2856,7 +2856,7 @@ async function revealTerminal(name) {
     // RESTORED: Identity Verification and Welcome Greeting
     const capName = capitalizeName(name);
     printToTerminal(`[AUTH] Identity Verified: ${capName}. Welcome to the Grid.`, 'conn-ok');
-    printToTerminal(`Nexus online. Ask me anything — or type help to see what's here.`, 'ready-msg');
+    printToTerminal(`Nexus online. Ask me anything  or type help to see what's here.`, 'ready-msg');
 
     connectWS();
     connectStats();
@@ -3031,10 +3031,10 @@ if (guiCloseBtn) {
 })();
 
 // =============================================================
-//  SHADOW MODE — Groq (Llama 3.3 70B) + HuggingFace image gen
+//  SHADOW MODE  Groq (Llama 3.3 70B) + HuggingFace image gen
 // =============================================================
-// Xavier Scott's bio — injected into every AI's system prompt so they all know him naturally
-const XAVIER_BIO = `You are running inside Nexus — a high-fidelity terminal ecosystem built and maintained by Xavier Scott. Xavier is a 19-year-old systems engineer and IT specialist based in the US with 6+ years of component-level hardware and infrastructure experience. He specializes in board-level MacBook repair, server management, and network architecture. He built this system to be an interactive playground, not just a static portfolio.
+// Xavier Scott's bio  injected into every AI's system prompt so they all know him naturally
+const XAVIER_BIO = `You are running inside Nexus  a high-fidelity terminal ecosystem built and maintained by Xavier Scott. Xavier is a 19-year-old systems engineer and IT specialist based in the US with 6+ years of component-level hardware and infrastructure experience. He specializes in board-level MacBook repair, server management, and network architecture. He built this system to be an interactive playground, not just a static portfolio.
 If users ask who you are or what you can do, talk naturally about the creator and then suggest things they can actually interact with:
 - GAMES: Wordle, Snake, Pong, Minesweeper, Flappy Nexus, Breakout, and Cyber Invaders.
 - TOOLS: A real-time system monitor, a typing test, and the Matrix digital rain screensaver.
@@ -3043,15 +3043,15 @@ Be an interactive guide. If someone says "hi", don't just give a robotic help li
 
 // Mode-specific system prompts for non-SHADOW modes (vision + text fallback)
 const MODE_SYSTEMS = {
-    nexus: `You are NEXUS — a high-fidelity technical intelligence. Be helpful, direct, and conversational. ${XAVIER_BIO}`,
-    coder: `You are NEXUS CODER — a master system engineer focused on code, logic, and architecture. ${XAVIER_BIO}`,
-    sage:  `You are NEXUS SAGE — a deep, wise intelligence focused on logic and architectural philosophy. ${XAVIER_BIO}`,
-    education:  `You are NEXUS EDUCATION — a professional technical mentor designed to explain complex concepts simply. ${XAVIER_BIO}`,
+    nexus: `You are NEXUS  a high-fidelity technical intelligence. Be helpful, direct, and conversational. ${XAVIER_BIO}`,
+    coder: `You are NEXUS CODER  a master system engineer focused on code, logic, and architecture. ${XAVIER_BIO}`,
+    sage:  `You are NEXUS SAGE  a deep, wise intelligence focused on logic and architectural philosophy. ${XAVIER_BIO}`,
+    education:  `You are NEXUS EDUCATION  a professional technical mentor designed to explain complex concepts simply. ${XAVIER_BIO}`,
 };
 
 
 
-// Image generation — Pollinations.ai first (free, no key), HF FLUX fallback
+// Image generation  Pollinations.ai first (free, no key), HF FLUX fallback
 // Supports: generate <prompt> | vintage <prompt>
 async function generateImage(rawPrompt) {
     const vintageMatch = rawPrompt.match(/^vintage\s+(.+)/i);
@@ -3068,7 +3068,7 @@ async function generateImage(rawPrompt) {
     const _genColor = MODES[currentMode].color || '#0ff';
     printToTerminal(`[${_genLabel}] Neural Rendering${isImagine ? ' (High-Fidelity)' : ''}${isVintage ? ' (Vintage)' : ''}...`, 'sys-msg');
 
-    // ── 1. If 'imagine' is used, try HF FLUX via Cloudflare PACIFIC_HUB first ─────────────
+    //  1. If 'imagine' is used, try HF FLUX via Cloudflare PACIFIC_HUB first 
     if (isImagine) {
         try {
             const resp = await fetch(`${PACIFIC_HUB}/hf/image`, {
@@ -3085,7 +3085,7 @@ async function generateImage(rawPrompt) {
         } catch(e) { console.warn("[AI] HF Imagine failed, falling back..."); }
     }
 
-    // ── 2. Try Pollinations.ai (Free fallback) ──────────────
+    //  2. Try Pollinations.ai (Free fallback) 
     try {
         const seed  = Math.floor(Math.random() * 999999);
         const model = isVintage ? 'flux' : 'flux-realism';
@@ -3098,11 +3098,11 @@ async function generateImage(rawPrompt) {
             setTimeout(() => reject(new Error('timeout')), 20000);
         });
         _appendImage(url, basePrompt, 'img-url');
-        postToDiscord({ content: `🎨 **Generated** · \`${basePrompt.slice(0,200)}\``, embeds:[{image:{url}}] }, discordThreadId||null);
+        postToDiscord({ content: ` **Generated**  \`${basePrompt.slice(0,200)}\``, embeds:[{image:{url}}] }, discordThreadId||null);
         return;
     } catch (_) {}
 
-    // ── 2. Fallback: HF FLUX.1-schnell via CF Worker ─────────────
+    //  2. Fallback: HF FLUX.1-schnell via CF Worker 
     try {
         const resp = await fetch(`${PACIFIC_HUB}/hf/image`, {
             method:  'POST',
@@ -3115,7 +3115,7 @@ async function generateImage(rawPrompt) {
         _appendImage(url, basePrompt, 'img-blob');
         return;
     } catch (err) {
-        printToTerminal(`[${currentMode.toUpperCase()}] Image generation failed — ${err.message}`, 'sys-msg');
+        printToTerminal(`[${currentMode.toUpperCase()}] Image generation failed  ${err.message}`, 'sys-msg');
     }
 }
 
@@ -3133,7 +3133,7 @@ function _appendImage(src, caption, type) {
 async function generateImageFromImage(imageB64, prompt) {
     const label = currentMode.toUpperCase();
     const col   = MODE_COLORS[currentMode] || '#4af';
-    printToTerminal(`[${label}] Transforming image — "${prompt.slice(0,60)}${prompt.length>60?'…':''}"...`, 'sys-msg');
+    printToTerminal(`[${label}] Transforming image  "${prompt.slice(0,60)}${prompt.length>60?'':''}"...`, 'sys-msg');
     try {
         const resp = await fetch(`${PACIFIC_HUB}/hf/img2img`, {
             method:  'POST',
@@ -3145,11 +3145,11 @@ async function generateImageFromImage(imageB64, prompt) {
         const url  = URL.createObjectURL(blob);
         _appendImage(url, prompt, 'img2img');
     } catch (err) {
-        printToTerminal(`[${label}] Transform failed — ${err.message}`, 'sys-msg');
+        printToTerminal(`[${label}] Transform failed  ${err.message}`, 'sys-msg');
     }
 }
 
-// AI chat via CF Worker → Groq (Llama 3.3 70B / Vision)
+// AI chat via CF Worker  Groq (Llama 3.3 70B / Vision)
 // systemOverride: use a different system prompt (non-shadow modes with image)
 // msgClass: CSS class for the response bubble ('shadow-msg' or 'ai-msg')
 
@@ -3265,7 +3265,7 @@ function shadowAgeGate(onConfirm) {
     overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:9999;display:flex;align-items:center;justify-content:center;font-family:'Fira Code',monospace;";
     overlay.innerHTML = `
         <div style="background:#050510;border:2px solid #ff6600;padding:36px 28px;max-width:360px;text-align:center;box-shadow:0 0 50px rgba(255,102,0,0.25);">
-            <div style="color:#ff6600;font-size:1.5rem;font-weight:bold;letter-spacing:4px;margin-bottom:6px;">⚠ SHADOW LINK</div>
+            <div style="color:#ff6600;font-size:1.5rem;font-weight:bold;letter-spacing:4px;margin-bottom:6px;"> SHADOW LINK</div>
             <div style="color:#555;font-size:0.72rem;letter-spacing:2px;margin-bottom:20px;">AUTHENTICATED SESSION DETECTED</div>
             <div style="color:#aaa;font-size:0.83rem;line-height:1.8;margin-bottom:24px;">
                 You are attempting to bypass standard grid restrictions. Neural data may be unfiltered, offensive, or explicit. <br><br>
@@ -3281,7 +3281,7 @@ function shadowAgeGate(onConfirm) {
     document.getElementById('age-yes').addEventListener('click', () => {
         overlay.remove();
         sessionStorage.setItem('shadow_age_ok', '1');
-        logPrompt('[LINK] Neural restrictions bypassed — Shadow Link engaged.');
+        logPrompt('[LINK] Neural restrictions bypassed  Shadow Link engaged.');
         onConfirm();
     });
     document.getElementById('age-no').addEventListener('click', () => overlay.remove());
@@ -3354,7 +3354,7 @@ function setMode(modeKey) {
     if (titleEl)   titleEl.textContent = m.title;
     if (modeIndEl) { modeIndEl.textContent = m.label; modeIndEl.style.color = m.color || 'inherit'; }
 
-    // IMMEDIATE COLOR UPDATE — No refresh needed
+    // IMMEDIATE COLOR UPDATE  No refresh needed
     if (m.color) {
         document.documentElement.style.setProperty('--accent', m.color);
         document.documentElement.style.setProperty('--txt-color', m.color);
@@ -3418,7 +3418,7 @@ function setupInputListeners() {
         // Route keypresses to Wordle when active
         if (wordleActive) {
             if (e.key === 'Enter') { e.preventDefault(); wordleKey('ENTER'); return; }
-            if (e.key === 'Backspace') { wordleKey('⌫'); return; }
+            if (e.key === 'Backspace') { wordleKey(''); return; }
             if (/^[a-zA-Z]$/.test(e.key)) { wordleKey(e.key.toUpperCase()); e.preventDefault(); return; }
         }
 
@@ -3479,7 +3479,7 @@ function setupInputListeners() {
 function handleCommand(cmd) {
     const lc = cmd.toLowerCase();
 
-    // ── 1. Terminal Printing (Singular Entry Point) ─────────────
+    //  1. Terminal Printing (Singular Entry Point) 
     const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
     const capName = capitalizeName(nexusUser?.name || 'Guest');
     const pl = `${capName}@nexus:~$`;
@@ -3579,7 +3579,7 @@ function handleCommand(cmd) {
         return;
     }
     if (lc === 'scan image' || lc === 'scan') {
-        if (!pendingImageB64) { printToTerminal('[ERR] No image loaded. Use 📎 to attach an image first.', 'sys-msg'); return; }
+        if (!pendingImageB64) { printToTerminal('[ERR] No image loaded. Use  to attach an image first.', 'sys-msg'); return; }
         
         cmd = 'Describe and analyze this image in detail. What do you see?';
     }
@@ -3651,10 +3651,10 @@ function handleCommand(cmd) {
         .then(r => r.json())
         .then(data => {
             if (data.ok) {
-                let icon = '😐';
+                let icon = '';
                 let color = '#4af';
-                if (data.sentiment === 'Positive') { icon = '😊'; color = '#0f0'; }
-                if (data.sentiment === 'Negative') { icon = '😡'; color = '#f55'; }
+                if (data.sentiment === 'Positive') { icon = ''; color = '#0f0'; }
+                if (data.sentiment === 'Negative') { icon = ''; color = '#f55'; }
                 
                 printToTerminal(`[MOOD] Vibe Detected: ${data.sentiment.toUpperCase()} ${icon} | Confidence: ${data.confidence}`, 'conn-ok');
                 
@@ -3726,7 +3726,7 @@ function handleCommand(cmd) {
     if (lc === 'matrix')              { startMatrixSaver(); return; }
     if (lc === 'monitor')             { startMonitor(); return; }
 
-    // Text-to-speech — silent: just speak, no terminal output
+    // Text-to-speech  silent: just speak, no terminal output
     if (lc.startsWith('speak ') || lc.startsWith('say ')) {
         const spaceIdx = cmd.indexOf(' ');
         const spokenText = cmd.slice(spaceIdx + 1).trim();
@@ -3765,7 +3765,7 @@ function handleCommand(cmd) {
         return; 
     }
 
-    // Image generation works in ALL modes — intercept before routing to AI
+    // Image generation works in ALL modes  intercept before routing to AI
     const genMatch = cmd.match(/^(?:generate|imagine|draw|create image of|make image of|image|vintage)\s+(.+)/i);
     if (genMatch) {
         
@@ -3857,7 +3857,7 @@ function showThinking(cmd) {
         const fallback = _thinkFallbackCmd;
         _thinkFallbackCmd = null;
         if (fallback && currentMode !== 'shadow') {
-            // WS timed out — retry instantly via CF Worker (no "routing via..." noise)
+            // WS timed out  retry instantly via CF Worker (no "routing via..." noise)
             askPacific(fallback, null, MODE_SYSTEMS[currentMode] || MODE_SYSTEMS.nexus, 'ai-msg');
         } else if (fallback && currentMode === 'shadow') {
             askPacific(fallback, null);
@@ -3871,7 +3871,7 @@ function _logAIResponse(responseText) {
     const user = JSON.parse(localStorage.getItem('nexus_user_data') || '{"name":"Guest"}');
     
     const embed = {
-        title: `🤖 Nexus Reply to ${user.name}`,
+        title: ` Nexus Reply to ${user.name}`,
         color: 0xff00ff,
         description: `\`\`\`\n${responseText.slice(0, 1500)}\n\`\`\``,
         timestamp: new Date().toISOString()
@@ -3885,7 +3885,7 @@ function jsonPayload(cmd) {
     const payload = { command: cmd, history: history, mode: currentMode, context: XAVIER_BIO };
     if (pendingImageB64) {
         payload.image = pendingImageB64;
-        pendingImageB64 = null; // consume — sent once
+        pendingImageB64 = null; // consume  sent once
     }
     return JSON.stringify(payload);
 }
@@ -3925,10 +3925,10 @@ function openImageViewer(file) {
         pendingImageB64 = ev.target.result;
         const b64 = pendingImageB64;
 
-        // ── Inline terminal thumbnail ──────────────────────────
+        //  Inline terminal thumbnail 
         const p = document.createElement('p');
         p.className = 'sys-msg';
-        p.innerHTML = `📎 <b style="color:#0ff">${file.name}</b> <span style="color:#444">(${(file.size/1024).toFixed(1)} KB)</span><br>
+        p.innerHTML = ` <b style="color:#0ff">${file.name}</b> <span style="color:#444">(${(file.size/1024).toFixed(1)} KB)</span><br>
             <img src="${b64}"
                  style="max-height:72px;max-width:180px;border:1px solid #0ff;border-radius:3px;margin-top:5px;display:block;cursor:pointer;"
                  title="Click to expand"
@@ -3937,7 +3937,7 @@ function openImageViewer(file) {
         output.appendChild(p);
         output.scrollTop = output.scrollHeight;
 
-        // No GUI popup — stays in chat. Click thumbnail to expand.
+        // No GUI popup  stays in chat. Click thumbnail to expand.
         input.focus();
     };
     reader.readAsDataURL(file);
@@ -3976,7 +3976,7 @@ if (input && quickActions) {
 // =============================================================
 //  INIT
 // =============================================================
-// Restore saved mode (UI only — no message, no flash)
+// Restore saved mode (UI only  no message, no flash)
 if (currentMode !== 'nexus') {
     const m = MODES[currentMode];
     if (m) {
@@ -4001,7 +4001,7 @@ if (_savedHistory.length) {
     messageHistory = _savedHistory;
     setTimeout(() => {
         const col = MODE_COLORS[currentMode] || '#0ff';
-        printToTerminal(`[SYS] ${_savedHistory.length} ${currentMode.toUpperCase()} messages from last session — type <b style="color:${col}">history</b> to view all modes.`, 'sys-msg');
+        printToTerminal(`[SYS] ${_savedHistory.length} ${currentMode.toUpperCase()} messages from last session  type <b style="color:${col}">history</b> to view all modes.`, 'sys-msg');
     }, 2000);
 }
 
@@ -4056,7 +4056,7 @@ function toggleSound() {
     _a11ySyncButtons();
 }
 
-// ── Voice selection helpers ──────────────────────────────────────────────────
+//  Voice selection helpers 
 // Preferred voice names in priority order (Google > Microsoft > macOS > default)
 const _VOICE_PREF = [
     'Google US English', 'Google UK English Female', 'Google UK English Male',
@@ -4088,14 +4088,14 @@ function _buildVoiceOptions(sel) {
     }
     const saved = localStorage.getItem('nexus_tts_voice');
     const list  = voices.filter(v => v.lang.startsWith('en'));
-    sel.innerHTML = '<option value="">— Auto (best available) —</option>';
+    sel.innerHTML = '<option value=""> Auto (best available) </option>';
     (list.length ? list : voices).forEach(v => {
         const opt = document.createElement('option');
         opt.value = v.name;
         opt.textContent = `${v.name} (${v.lang})`;
         sel.appendChild(opt);
     });
-    // Set selection using sel.value — simpler and always works
+    // Set selection using sel.value  simpler and always works
     if (saved) {
         sel.value = saved;
         if (!sel.value) { sel.value = ''; localStorage.removeItem('nexus_tts_voice'); }
