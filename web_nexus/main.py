@@ -411,6 +411,20 @@ MODELS = [
 ]
 current_model_idx = 0
 
+def call_hf_specialized(model_id: str, payload: dict) -> dict:
+    """Specialized HF caller for non-chat tasks like classification."""
+    api_key = _key("HF_API_KEY")
+    if not api_key: raise ValueError("HF_API_KEY missing")
+    url = f"https://api-inference.huggingface.co/models/{model_id}"
+    resp = req_lib.post(
+        url,
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json=payload,
+        timeout=30
+    )
+    if resp.status_code != 200: raise Exception(f"HF Error: {resp.status_code}")
+    return resp.json()
+
 def call_hf(model_id: str, prompt: str, history: list | None, system: str) -> str:
     api_key = _key("HF_API_KEY")
     if not api_key: raise ValueError("HF_API_KEY missing")
@@ -458,13 +472,42 @@ async def test_ai_link():
             res = req_lib.post("https://api.groq.com/openai/v1/chat/completions", headers={"Authorization":f"Bearer {gk}","Content-Type":"application/json"}, json={"model":"llama-3.1-8b-instant","messages":[{"role":"user","content":"hi"}],"max_tokens":1}, timeout=5)
             results["groq"] = "ONLINE" if res.status_code == 200 else f"OFFLINE ({res.status_code})"
         else: results["groq"] = "KEY_MISSING"
+        
         gemk = _key("GEMINI_API_KEY")
         if gemk:
-            res = req_lib.post(f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemk}", headers={"Content-Type":"application/json"}, json={"contents":[{"parts":[{"text":"hi"}]}]}, timeout=5)
+            payload = {"contents": [{"parts": [{"text": "hi"}]}]}
+            res = req_lib.post(f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemk}", headers={"Content-Type":"application/json"}, json=payload, timeout=5)
             results["gemini"] = "ONLINE" if res.status_code == 200 else f"OFFLINE ({res.status_code})"
         else: results["gemini"] = "KEY_MISSING"
+
+        hfk = _key("HF_API_KEY")
+        if hfk:
+            res = req_lib.get("https://api-inference.huggingface.co/models/google/gemma-2b", headers={"Authorization": f"Bearer {hfk}"}, timeout=5)
+            results["hf"] = "ONLINE" if res.status_code == 200 else f"OFFLINE ({res.status_code})"
+        else: results["hf"] = "KEY_MISSING"
+
     except Exception as e: return {"error": str(e)}
     return results
+
+@app.post("/api/tools/detect")
+async def tool_detect(request: Request):
+    """Zero-shot classification using Hugging Face."""
+    try:
+        data = await request.json()
+        text = data.get("text", "")
+        if not text: return _JSONResponse({"error": "Empty text"}, status_code=400)
+        
+        payload = {
+            "inputs": text,
+            "parameters": {"candidate_labels": ["code", "educational", "conversation", "system log", "spam"]}
+        }
+        result = await asyncio.get_running_loop().run_in_executor(None, call_hf_specialized, "facebook/bart-large-mnli", payload)
+        
+        label = result.get("labels", ["Unknown"])[0]
+        score = result.get("scores", [0])[0]
+        return {"ok": True, "label": label, "confidence": f"{score*100:.1f}%"}
+    except Exception as e:
+        return _JSONResponse({"error": str(e)}, status_code=500)
 
 def prompt_ai(prompt: str, history: list | None = None, mode: str = "nexus", context: str = "", force_idx: int | None = None) -> dict:
     global current_model_idx
