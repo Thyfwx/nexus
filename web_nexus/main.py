@@ -100,7 +100,10 @@ app.add_middleware(
 async def ping(): return {"ok": True}
 
 @app.get("/api/config")
-async def get_config(): return {"google_client_id": _key("GOOGLE_CLIENT_ID")}
+async def get_config():
+    kid = _key("GOOGLE_CLIENT_ID")
+    print(f"[DEBUG] Config Request: GOOGLE_CLIENT_ID='{kid}'")
+    return {"google_client_id": kid}
 
 @app.post("/api/config/update")
 async def update_config(request: Request):
@@ -215,8 +218,10 @@ async def api_chat(request: Request):
 @app.post("/login/google/authorized")
 async def auth_google(request: Request):
     raw_id = _key("GOOGLE_CLIENT_ID")
+    print(f"[DEBUG] Raw Google ID: '{raw_id}'")
     match = re.search(r"[0-9-]+[a-z0-9]+\.apps\.googleusercontent\.com", raw_id)
     client_id = match.group(0) if match else raw_id.split(',')[0].strip()
+    print(f"[DEBUG] Extracted Client ID: '{client_id}'")
     
     if not client_id: return _JSONResponse({"error": "Google auth not configured"}, status_code=503)
 
