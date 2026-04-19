@@ -77,7 +77,7 @@ async def add_security_headers(request: Request, call_next):
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; "
         "img-src 'self' data: https://*.googleusercontent.com https://*.agilebits.com; "
-        "connect-src 'self' https://nexus-terminalnexus.onrender.com wss://nexus-terminalnexus.onrender.com https://api.groq.com https://router.huggingface.co https://nexus-evil-proxy.xavierscott300.workers.dev; "
+        "connect-src 'self' https://nexus-terminalnexus.onrender.com wss://nexus-terminalnexus.onrender.com https://api.groq.com https://router.huggingface.co https://nexus-evil-proxy.xavierscott300.workers.dev https://ipinfo.io; "
         "frame-src https://accounts.google.com;"
     )
     response.headers["Content-Security-Policy"] = csp
@@ -601,4 +601,4 @@ async def tool_test_discord(request: Request):
         return {"ok": True, "message": "Test transmitted."}
     except Exception as e: return _JSONResponse({"error": str(e)}, status_code=500)
 
-@app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
+app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
