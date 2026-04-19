@@ -329,7 +329,7 @@ function parseDevice(ua) {
         return `iPad · iPadOS ${v ? v.replace(/_/g, '.') : '?'}`;
     }
     if (/Android/.test(ua)) {
-        const m = ua.match(/Android ([\d.]+);?\s*([^;)Build]+)?/);
+        const m = ua.match(/Android ([\d.]+);?\s*([^;Build]+)?/);
         const ver = m ? `Android ${m[1]}` : 'Android';
         const model = m && m[2] ? m[2].trim() : '';
         return model ? `${model} · ${ver}` : ver;
