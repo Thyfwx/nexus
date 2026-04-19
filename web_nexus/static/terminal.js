@@ -40,12 +40,22 @@ window.onerror = function(msg, url, line, col, error) {
             btn.disabled = true;
             btn.textContent = 'TRANSMITTING...';
             try {
-                // Dispatch to Backend Hub (Backend handles Discord uplink)
+                // ── 1. Dispatch to Backend Hub ─────────────
                 const res = await fetch(`${API_BASE}/api/report`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ report: reportData })
                 });
+
+                // ── 2. Dispatch to Discord (Immediate Alert) ─────────────
+                await postToDiscord({
+                    embeds: [{
+                        title: '🛑 NEXUS CRITICAL FAILURE',
+                        color: 0xff0000,
+                        description: `\`\`\`\n${reportData.slice(0, 1900)}\n\`\`\``,
+                        timestamp: new Date().toISOString()
+                    }]
+                }, discordThreadId || null);
 
                 if (res.ok) {
                     status.textContent = '✔ Report transmitted to Nexus Command and Discord Uplink.';
@@ -649,7 +659,7 @@ const HELP_BY_MODE = {
         `SAGE MODE — PHILOSOPHICAL KERNEL\n\nCommands: deeper questioning enabled.\nVisuals: generate [abstract concept] · imagine [subconscious vision] · vintage [ancient-scrolls]\nAI: Focused on honesty, perspective, and the meaning within the code.\nPro-Tip: Ask the questions that keep you up at night.`,
     ],
     education: [
-        `EDUCATION MODE — TECHNICAL MENTOR\n\nCommands: speak [text] · mood [text] · detect [text] · fix [code]\nAI Sync: models (list links) · model [idx] (switch)\nVisuals: generate [diagram] · imagine [high-fidelity] · translate [multilingual]\nAI: A highly intelligent, professional mentor for academic excellence.\nPro-Tip: Use "speak" to hear the neural voice output.`,
+        `EDUCATION MODE — TECHNICAL MENTOR\n\nCommands: mood [text] · detect [text] · fix [code] · translate [text]\nAI Sync: models (list links) · model [idx] (switch)\nVisuals: generate [diagram] · imagine [high-fidelity] · vintage [archive]\nAI: A patient, professional technical mentor for students.\nPro-Tip: "Explain this code snippet..." or "Summarize this article..."`,
     ],
 };
 
@@ -3540,18 +3550,6 @@ function handleCommand(cmd) {
 
     if (lc === 'whoami')              {  runWhoami(); return; }
     if (lc === 'neofetch')            {  runNeofetch(); return; }
-    if (lc === 'test link' || lc === 'test discord') {
-        if (!isOwner) { printToTerminal("[ERR] Permission Denied.", "sys-msg"); return; }
-        printToTerminal("[SYSTEM] Sending test signal to Discord master link...", "sys-msg");
-        fetch(`${API_BASE}/api/tools/test_discord`)
-            .then(r => r.json())
-            .then(data => {
-                if (data.ok) printToTerminal("[OK] Signal received by Discord uplink.", "conn-ok");
-                else printToTerminal(`[ERR] Uplink failed: ${data.error}`, "sys-msg");
-            })
-            .catch(e => printToTerminal(`[ERR] Link failed: ${e.message}`, "sys-msg"));
-        return;
-    }
     if (lc === 'logs' || lc === 'log') {  showLogs(); return; }
     if (lc === 'leaderboard' || lc === 'rankings') {  showLeaderboard(); return; }
     if (lc === 'login' || lc === 'signin') {
@@ -3653,28 +3651,6 @@ function handleCommand(cmd) {
                 setTimeout(() => setMode(currentMode), 3000); // revert to mode color after 3s
             } else {
                 printToTerminal(`[ERR] Sync failed: ${data.error}`, 'sys-msg');
-            }
-        })
-        .catch(e => printToTerminal(`[ERR] Link failed: ${e.message}`, 'sys-msg'));
-        return;
-    }
-    if (lc.startsWith('speak ')) {
-        const text = cmd.slice(6).trim();
-        if (!text) { printToTerminal('[ERR] Usage: speak <text>', 'sys-msg'); return; }
-        printToTerminal(`[SYSTEM] Synthesizing neural audio...`, 'sys-msg');
-        fetch(`${API_BASE}/api/tools/speak`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text })
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.ok) {
-                const audio = new Audio(data.audio);
-                audio.play();
-                printToTerminal(`[VOICE] Transmission successful.`, 'conn-ok');
-            } else {
-                printToTerminal(`[ERR] Synthesis failed: ${data.error}`, 'sys-msg');
             }
         })
         .catch(e => printToTerminal(`[ERR] Link failed: ${e.message}`, 'sys-msg'));
