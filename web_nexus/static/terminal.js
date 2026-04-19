@@ -4174,6 +4174,7 @@ function toggleA11yPanel() {
     document.querySelector('.glass-panel').appendChild(el);
     _a11ySyncButtons();
 
+    // Populate voice picker — voices load async in Chrome
     const sel = el.querySelector('#a11y-voice-sel');
     const doPopulate = () => _buildVoiceOptions(sel);
     if (window.speechSynthesis.getVoices().length) {
