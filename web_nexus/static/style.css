@@ -325,6 +325,14 @@ body {
     color: #000;
 }
 
+/* Education mode active */
+.mode-btn[data-mode="education"].active {
+    background: #00ffcc;
+    border-color: #00ffcc;
+    box-shadow: 0 0 8px #00ffcc;
+    color: #000;
+}
+
 /* Sidebar hide when mobile keyboard is open */
 @media (max-width: 700px) {
     .quick-actions.kb-hidden { display: none !important; }

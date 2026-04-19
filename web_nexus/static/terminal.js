@@ -196,7 +196,8 @@ const MODE_THEMES = {
     nexus: { title: 'NEXUS // Terminal', color: '#4af' },
     shadow:  { title: 'SHADOW // Unfiltered', color: '#ff6600' },
     coder: { title: 'CODER // Mainframe', color: '#0f0' },
-    sage:  { title: 'SAGE // Reflection', color: '#a06fff' }
+    sage:  { title: 'SAGE // Reflection', color: '#a06fff' },
+    education: { title: 'EDUCATION // Mentor', color: '#00ffcc' }
 };
 
 function updateTabIdentity() {
@@ -668,7 +669,7 @@ function showHelp() {
     printToTerminal(pool[Math.floor(Math.random() * pool.length)], 'help-msg');
 }
 
-const MODE_COLORS = { nexus: '#4af', shadow: '#ff6600', coder: '#0f0', sage: '#a06fff', education: '#ff00ff' };
+const MODE_COLORS = { nexus: '#4af', shadow: '#ff6600', coder: '#0f0', sage: '#a06fff', education: '#00ffcc' };
 
 // Open the history GUI panel
 function showHistory() {
@@ -4004,11 +4005,6 @@ if (_savedHistory.length) {
     }, 2000);
 }
 
-connectWS();
-connectStats();
-updateClientStats();
-setInterval(updateClientStats, 5000);
-
 // =============================================================
 //  ACCESSIBILITY
 // =============================================================
@@ -4136,7 +4132,7 @@ function toggleA11yPanel() {
     el.innerHTML = `
         <div class="a11y-panel-header">
             <span>[ ACCESSIBILITY ]</span>
-            <button onclick="document.getElementById('a11y-panel').classList.remove('a11y-panel-open')" class="a11y-close">✕</button>
+            <button onclick="document.getElementById('a11y-panel').classList.remove('a11y-panel-open')" class="a11y-close">X</button>
         </div>
 
         <div class="a11y-section-label">VISUALS</div>
@@ -4172,7 +4168,7 @@ function toggleA11yPanel() {
 
         <div class="a11y-section-label">VOICE (speak command)</div>
         <select id="a11y-voice-sel" class="a11y-voice-sel">
-            <option value="">Loading voices…</option>
+            <option value="">Loading voices...</option>
         </select>
 
         <div class="a11y-tip">All settings saved automatically.</div>

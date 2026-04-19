@@ -74,12 +74,13 @@ async def add_security_headers(request: Request, call_next):
     csp = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://static.cloudflareinsights.com; "
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; "
         "font-src 'self' https://fonts.gstatic.com; "
-        "img-src 'self' data: https://*.googleusercontent.com https://*.agilebits.com; "
-        "connect-src 'self' https://nexus-terminalnexus.onrender.com wss://nexus-terminalnexus.onrender.com https://api.groq.com https://router.huggingface.co https://nexus-evil-proxy.xavierscott300.workers.dev https://ipinfo.io; "
+        "img-src 'self' data: https://*.googleusercontent.com https://*.agilebits.com https://thyfwxit.com; "
+        "connect-src 'self' https://nexus-terminalnexus.onrender.com wss://nexus-terminalnexus.onrender.com https://api.groq.com https://router.huggingface.co https://nexus-evil-proxy.xavierscott300.workers.dev; "
         "frame-src https://accounts.google.com;"
     )
+
     response.headers["Content-Security-Policy"] = csp
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
