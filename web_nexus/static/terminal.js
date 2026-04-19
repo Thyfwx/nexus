@@ -2962,12 +2962,15 @@ function updateUserIdentity(name) {
 // =============================================================
 //  GUI CLOSE
 // =============================================================
-document.getElementById('gui-close').addEventListener('click', () => {
-    stopAllGames();
-    guiContainer.classList.add('gui-hidden');
-    nexusCanvas.style.display = 'none';
-    input.focus();
-});
+const guiCloseBtn = document.getElementById('gui-close');
+if (guiCloseBtn) {
+    guiCloseBtn.addEventListener('click', () => {
+        stopAllGames();
+        if (guiContainer) guiContainer.classList.add('gui-hidden');
+        if (nexusCanvas) nexusCanvas.style.display = 'none';
+        if (input) input.focus();
+    });
+}
 
 // =============================================================
 //  DRAGGABLE GUI WINDOW
@@ -3498,7 +3501,7 @@ function handleCommand(cmd) {
     const isOwner = nexusUser?.name?.toLowerCase().includes('xavier');
 
     // PACIFIC SHIELD: Access Control (Elite Commands Restricted to Owner)
-    const restricted = ['config ', 'model', 'models', 'logs', 'log', 'translate ', 'summarize ', 'detect ', 'fix '];
+    const restricted = ['config ', 'model', 'models', 'logs', 'log', 'translate ', 'summarize ', 'detect ', 'fix ', 'mood ', 'speak ', 'test link', 'test discord'];
     if (restricted.some(r => lc.startsWith(r)) || restricted.includes(lc)) {
         if (!isOwner) {
             printToTerminal("[ERR] Permission Denied: Elite technical modules restricted to System Owner.", "sys-msg");
@@ -3547,6 +3550,17 @@ function handleCommand(cmd) {
 
     if (lc === 'whoami')              {  runWhoami(); return; }
     if (lc === 'neofetch')            {  runNeofetch(); return; }
+    if (lc === 'test link' || lc === 'test discord') {
+        printToTerminal("[SYSTEM] Sending test signal to Discord master link...", "sys-msg");
+        fetch(`${API_BASE}/api/tools/test_discord`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) printToTerminal("[OK] Signal received by Discord uplink.", "conn-ok");
+                else printToTerminal(`[ERR] Uplink failed: ${data.error}`, "sys-msg");
+            })
+            .catch(e => printToTerminal(`[ERR] Link failed: ${e.message}`, "sys-msg"));
+        return;
+    }
     if (lc === 'logs' || lc === 'log') {  showLogs(); return; }
     if (lc === 'leaderboard' || lc === 'rankings') {  showLeaderboard(); return; }
     if (lc === 'login' || lc === 'signin') {
@@ -3648,6 +3662,28 @@ function handleCommand(cmd) {
                 setTimeout(() => setMode(currentMode), 3000); // revert to mode color after 3s
             } else {
                 printToTerminal(`[ERR] Sync failed: ${data.error}`, 'sys-msg');
+            }
+        })
+        .catch(e => printToTerminal(`[ERR] Link failed: ${e.message}`, 'sys-msg'));
+        return;
+    }
+    if (lc.startsWith('speak ')) {
+        const text = cmd.slice(6).trim();
+        if (!text) { printToTerminal('[ERR] Usage: speak <text>', 'sys-msg'); return; }
+        printToTerminal(`[SYSTEM] Synthesizing neural audio...`, 'sys-msg');
+        fetch(`${API_BASE}/api/tools/speak`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                const audio = new Audio(data.audio);
+                audio.play();
+                printToTerminal(`[VOICE] Transmission successful.`, 'conn-ok');
+            } else {
+                printToTerminal(`[ERR] Synthesis failed: ${data.error}`, 'sys-msg');
             }
         })
         .catch(e => printToTerminal(`[ERR] Link failed: ${e.message}`, 'sys-msg'));
