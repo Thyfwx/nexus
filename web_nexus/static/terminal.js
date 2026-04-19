@@ -2845,8 +2845,16 @@ async function revealTerminal(name) {
     if (name) updateUserIdentity(name);
     renderAuthSection();
 
+    // PACIFIC SHIELD: Show owner-restricted tools
+    const isOwner = name?.toLowerCase().includes('xavier');
+    const logsBtn = document.getElementById('btn-logs');
+    if (logsBtn && isOwner) {
+        logsBtn.style.display = 'block';
+    }
+
     // RESTORED: Identity Verification and Welcome Greeting
-    printToTerminal(`[AUTH] Identity Verified: ${name}. Welcome to the Grid.`, 'conn-ok');
+    const capName = capitalizeName(name);
+    printToTerminal(`[AUTH] Identity Verified: ${capName}. Welcome to the Grid.`, 'conn-ok');
     printToTerminal(`Nexus online. Ask me anything — or type help to see what's here.`, 'ready-msg');
 
     connectWS();
@@ -3240,6 +3248,12 @@ async function askPacific(cmd, imageB64 = null, systemOverride = null, msgClass 
 //  SHADOW AGE GATE
 // =============================================================
 function shadowAgeGate(onConfirm) {
+    const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+    if (!nexusUser || nexusUser.email === 'guest@local') {
+        printToTerminal("[AUTH] Error: Persistent uplink required for Shadow Link. Please sign in via Google.", "sys-msg");
+        return;
+    }
+
     if (sessionStorage.getItem('shadow_age_ok')) { onConfirm(); return; }
 
     const overlay = document.createElement('div');
@@ -3247,23 +3261,23 @@ function shadowAgeGate(onConfirm) {
     overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:9999;display:flex;align-items:center;justify-content:center;font-family:'Fira Code',monospace;";
     overlay.innerHTML = `
         <div style="background:#050510;border:2px solid #ff6600;padding:36px 28px;max-width:360px;text-align:center;box-shadow:0 0 50px rgba(255,102,0,0.25);">
-            <div style="color:#ff6600;font-size:1.5rem;font-weight:bold;letter-spacing:4px;margin-bottom:6px;">⚠ SHADOW MODE</div>
-            <div style="color:#555;font-size:0.72rem;letter-spacing:2px;margin-bottom:20px;">18+ RESTRICTED</div>
+            <div style="color:#ff6600;font-size:1.5rem;font-weight:bold;letter-spacing:4px;margin-bottom:6px;">⚠ SHADOW LINK</div>
+            <div style="color:#555;font-size:0.72rem;letter-spacing:2px;margin-bottom:20px;">AUTHENTICATED SESSION DETECTED</div>
             <div style="color:#aaa;font-size:0.83rem;line-height:1.8;margin-bottom:24px;">
-                This mode contains explicit content, unfiltered language, and adult themes.<br>You must be 18 or older to proceed.
+                You are attempting to bypass standard grid restrictions. Neural data may be unfiltered, offensive, or explicit. <br><br>
+                Proceed with caution.
             </div>
             <div style="display:flex;gap:12px;justify-content:center;">
-                <button id="age-yes" style="background:#ff6600;border:2px solid #ff6600;color:#000;padding:11px 28px;font-family:inherit;font-weight:bold;font-size:0.9rem;cursor:pointer;letter-spacing:2px;">I AM 18+</button>
-                <button id="age-no"  style="background:transparent;border:2px solid #444;color:#555;padding:11px 22px;font-family:inherit;font-weight:bold;font-size:0.9rem;cursor:pointer;letter-spacing:1px;">BACK</button>
+                <button id="age-yes" style="background:#ff6600;color:#000;border:none;padding:10px 24px;font-family:inherit;font-weight:bold;cursor:pointer;letter-spacing:1px;">ENGAGE</button>
+                <button id="age-no" style="background:transparent;color:#555;border:1px solid #333;padding:10px 24px;font-family:inherit;cursor:pointer;">ABORT</button>
             </div>
-            <div style="color:#2a2a2a;font-size:0.62rem;margin-top:18px;">Access is logged.</div>
         </div>`;
     document.body.appendChild(overlay);
 
     document.getElementById('age-yes').addEventListener('click', () => {
         overlay.remove();
         sessionStorage.setItem('shadow_age_ok', '1');
-        logPrompt('[AGE GATE] Confirmed 18+ — entered SHADOW mode.');
+        logPrompt('[LINK] Neural restrictions bypassed — Shadow Link engaged.');
         onConfirm();
     });
     document.getElementById('age-no').addEventListener('click', () => overlay.remove());
@@ -3347,8 +3361,13 @@ function setMode(modeKey) {
     });
 
     SoundManager.playBloop(300, 0.05);
-    
-    // SILENCED: printToTerminal(m.msg, m.msgCls);
+
+    // PACIFIC UI: Automatic Mood Sync on transition
+    if (modeKey === 'shadow') {
+        printToTerminal(`[SYSTEM] Syncing Shadow Mood...`, 'sys-msg');
+        document.documentElement.style.setProperty('--accent', '#ff0000');
+        setTimeout(() => document.documentElement.style.setProperty('--accent', m.color), 1500);
+    }
 }
 
 // Wire up mode picker buttons
