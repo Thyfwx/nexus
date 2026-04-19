@@ -1,5 +1,0 @@
-# GitGuardian configuration file
-version: 1
-gitguardian:
-  ignored-hashes:
-    - 6d83a9798b22b83c84221f1761db1c84f4abe8e1ac4be4923c4ab5cc4922167f
