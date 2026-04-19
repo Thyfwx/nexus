@@ -659,7 +659,7 @@ const HELP_BY_MODE = {
         `SAGE MODE — PHILOSOPHICAL KERNEL\n\nCommands: deeper questioning enabled.\nVisuals: generate [abstract concept] · imagine [subconscious vision] · vintage [ancient-scrolls]\nAI: Focused on honesty, perspective, and the meaning within the code.\nPro-Tip: Ask the questions that keep you up at night.`,
     ],
     education: [
-        `EDUCATION MODE — TECHNICAL MENTOR\n\nCommands: translate [text] · summarize [text] · imagine [vision]\nAI Sync: models (list links) · model [idx] (switch)\nVisuals: generate [diagram] · imagine [high-fidelity] · vintage [archive]\nAI: A patient, professional technical mentor for students.\nPro-Tip: "Explain this code snippet..." or "Summarize this article..."`,
+        `EDUCATION MODE — TECHNICAL MENTOR\n\nCommands: detect [text] · translate [text] · summarize [text]\nAI Sync: models (list links) · model [idx] (switch)\nVisuals: generate [diagram] · imagine [high-fidelity] · vintage [archive]\nAI: A patient, professional technical mentor for students.\nPro-Tip: "Explain this code snippet..." or "Summarize this article..."`,
     ],
 };
 
@@ -3561,6 +3561,26 @@ function handleCommand(cmd) {
         if (!text) { printToTerminal('[ERR] Usage: summarize <text>', 'sys-msg'); return; }
         printToTerminal(`[SYSTEM] Accessing Nexus Compression Link...`, 'sys-msg');
         prompt_ai_proxy(`Summarize this text concisely: ${text}`, null, 'education');
+        return;
+    }
+    if (lc.startsWith('detect ')) {
+        const text = cmd.slice(7).trim();
+        if (!text) { printToTerminal('[ERR] Usage: detect <text>', 'sys-msg'); return; }
+        printToTerminal(`[SYSTEM] Analyzing text via Nexus Neural Link...`, 'sys-msg');
+        fetch(`${API_BASE}/api/tools/detect`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                printToTerminal(`[ANALYSIS] Type: ${data.label.toUpperCase()} | Confidence: ${data.confidence}`, 'conn-ok');
+            } else {
+                printToTerminal(`[ERR] Analysis failed: ${data.error}`, 'sys-msg');
+            }
+        })
+        .catch(e => printToTerminal(`[ERR] Link failed: ${e.message}`, 'sys-msg'));
         return;
     }
 
