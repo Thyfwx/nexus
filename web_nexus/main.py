@@ -401,6 +401,7 @@ MODELS = [
     {"id": "Helsinki-NLP/opus-mt-en-mul", "provider": "hf", "label": "Nexus Translate"},
     {"id": "facebook/bart-large-cnn", "provider": "hf", "label": "Nexus Summarize"},
     {"id": "cardiffnlp/twitter-roberta-base-sentiment", "provider": "hf", "label": "Nexus Mood"},
+    {"id": "facebook/mms-tts-eng", "provider": "hf", "label": "Nexus Voice"},
 ]
 current_model_idx = 0
 
@@ -499,6 +500,25 @@ async def tool_mood(request: Request):
         scores = sorted(res[0], key=lambda x: x['score'], reverse=True); top = scores[0]
         label_map = {"LABEL_0": "Negative", "LABEL_1": "Neutral", "LABEL_2": "Positive"}
         return {"ok": True, "sentiment": label_map.get(top['label'], top['label']), "confidence": f"{top['score']*100:.1f}%"}
+    except Exception as e: return _JSONResponse({"error": str(e)}, status_code=500)
+
+@app.post("/api/tools/speak")
+async def tool_speak(request: Request):
+    """Neural text-to-speech using Hugging Face."""
+    try:
+        data = await request.json()
+        text = data.get("text", "")
+        if not text: return _JSONResponse({"error": "Empty"}, status_code=400)
+        
+        # Specialized binary call for audio
+        api_key = _key("HF_API_KEY")
+        url = "https://api-inference.huggingface.co/models/facebook/mms-tts-eng"
+        resp = req_lib.post(url, headers={"Authorization": f"Bearer {api_key}"}, json={"inputs": text}, timeout=30)
+        
+        if resp.status_code != 200: return _JSONResponse({"error": f"HF Error: {resp.status_code}"}, status_code=500)
+        
+        audio_b64 = base64.b64encode(resp.content).decode("utf-8")
+        return {"ok": True, "audio": f"data:audio/flac;base64,{audio_b64}"}
     except Exception as e: return _JSONResponse({"error": str(e)}, status_code=500)
 
 def prompt_ai(prompt: str, history: list | None = None, mode: str = "nexus", context: str = "", force_idx: int | None = None) -> dict:
