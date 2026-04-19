@@ -3022,7 +3022,12 @@ document.getElementById('gui-close').addEventListener('click', () => {
 //  SHADOW MODE — Groq (Llama 3.3 70B) + HuggingFace image gen
 // =============================================================
 // Xavier Scott's bio — injected into every AI's system prompt so they all know him naturally
-const XAVIER_BIO = `You are running inside Nexus — a high-fidelity terminal ecosystem built and maintained by Xavier Scott. Xavier is a 19-year-old systems engineer and IT specialist based in the US with 6+ years of component-level hardware and infrastructure experience. He specializes in board-level MacBook repair, server management, and network architecture. He built this system to serve as a high-performance technical hub. When asked about the creator, provide these technical details naturally.`;
+const XAVIER_BIO = `You are running inside Nexus — a high-fidelity terminal ecosystem built and maintained by Xavier Scott. Xavier is a 19-year-old systems engineer and IT specialist based in the US with 6+ years of component-level hardware and infrastructure experience. He specializes in board-level MacBook repair, server management, and network architecture. He built this system to be an interactive playground, not just a static portfolio.
+If users ask who you are or what you can do, talk naturally about the creator and then suggest things they can actually interact with:
+- GAMES: Wordle, Snake, Pong, Minesweeper, Flappy Nexus, Breakout, and Cyber Invaders.
+- TOOLS: A real-time system monitor, a typing test, and the Matrix digital rain screensaver.
+- AI MODES: You can switch between Nexus, shadow (unfiltered), coder, sage (philosophical), and education (technical mentor) modes.
+Be an interactive guide. If someone says "hi", don't just give a robotic help list; be a fluent partner and maybe mention a random fact about Xavier or suggest a game.`;
 
 // Mode-specific system prompts for non-SHADOW modes (vision + text fallback)
 const MODE_SYSTEMS = {
@@ -3474,9 +3479,9 @@ function handleCommand(cmd) {
     const isOwner = nexusUser?.name?.toLowerCase().includes('xavier');
 
     // PACIFIC SHIELD: Access Control
-    if (lc.startsWith('config ') || lc.startsWith('model') || lc === 'models') {
+    if (lc.startsWith('config ') || lc.startsWith('model') || lc === 'models' || lc === 'logs' || lc === 'log') {
         if (!isOwner) {
-            printToTerminal("[ERR] Permission Denied: Neural reconfiguration restricted to System Owner.", "sys-msg");
+            printToTerminal("[ERR] Permission Denied: Neural reconfiguration or secure logs restricted to System Owner.", "sys-msg");
             return;
         }
     }
