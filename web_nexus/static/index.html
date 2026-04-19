@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>NEXUS // TERMINAL</title>
-    <link rel="stylesheet" href="style.css?v=4.0.41">
+    <link rel="stylesheet" href="style.css?v=4.0.42">
     <link rel="icon" type="image/png" href="https://thyfwxit.com/favicon.png">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -12,78 +12,82 @@
     <div class="monitor" id="main-monitor" style="display:none;">
         <div class="screen">
             <div class="screen-glare"></div>
-            <header class="status-bar">
-                <div class="status-item status-title" id="status-title">PACIFIC // KERNEL</div>
-                <div class="status-item status-mode" id="mode-indicator">NEXUS</div>
-                <div class="status-item status-conn">
-                    <span class="conn-dot" id="conn-dot"></span>
-                    <span id="conn-text">SECURE UPLINK</span>
-                </div>
-            </header>
+            
+            <!-- PACIFIC GRID CONTAINER -->
+            <div class="glass-panel">
+                <header class="status-bar">
+                    <div class="status-item status-title" id="status-title">PACIFIC // KERNEL</div>
+                    <div class="status-item status-mode" id="mode-indicator">NEXUS</div>
+                    <div class="status-item status-conn">
+                        <span class="conn-dot" id="conn-dot"></span>
+                        <span id="conn-text">SECURE UPLINK</span>
+                    </div>
+                </header>
 
-            <main class="terminal-container" id="terminal-container">
-                <div class="terminal-output" id="terminal-output"></div>
-                <div class="terminal-input-wrapper">
-                    <span class="prompt" id="prompt-label">guest@nexus:~$</span>
-                    <input type="text" id="terminal-input" autocomplete="off" autofocus spellcheck="false">
-                    <label class="attach-btn" title="Attach image for AI scan">
-                        📎
-                        <input type="file" id="img-input" accept="image/*" style="display:none;">
-                    </label>
-                </div>
-            </main>
+                <main class="terminal-container" id="terminal-container">
+                    <div class="terminal-output" id="terminal-output"></div>
+                    <div class="terminal-input-wrapper">
+                        <span class="prompt" id="prompt-label">guest@nexus:~$</span>
+                        <input type="text" id="terminal-input" autocomplete="off" autofocus spellcheck="false">
+                        <label class="attach-btn" title="Attach image for AI scan">
+                            📎
+                            <input type="file" id="img-input" accept="image/*" style="display:none;">
+                        </label>
+                    </div>
+                </main>
 
-            <aside class="sidebar">
-                <div id="auth-section" class="auth-section">
-                    <!-- Auth UI injected by JS -->
-                </div>
-                
-                <div class="aside-header">GAMES</div>
-                <div class="quick-actions">
-                    <button class="action-btn" data-cmd="play wordle">Wordle</button>
-                    <button class="action-btn" data-cmd="play snake">Snake</button>
-                    <button class="action-btn" data-cmd="play pong">Pong</button>
-                    <button class="action-btn" data-cmd="play mines">Mines</button>
-                    <button class="action-btn" data-cmd="play flappy">Flappy</button>
-                    <button class="action-btn" data-cmd="play breakout">Breakout</button>
-                    <button class="action-btn" data-cmd="play invaders">Invaders</button>
-                </div>
+                <aside class="sidebar">
+                    <div id="auth-section" class="auth-section">
+                        <!-- Auth UI injected by JS -->
+                    </div>
+                    
+                    <div class="aside-header">GAMES</div>
+                    <div class="quick-actions">
+                        <button class="action-btn" data-cmd="play wordle">Wordle</button>
+                        <button class="action-btn" data-cmd="play snake">Snake</button>
+                        <button class="action-btn" data-cmd="play pong">Pong</button>
+                        <button class="action-btn" data-cmd="play mines">Mines</button>
+                        <button class="action-btn" data-cmd="play flappy">Flappy</button>
+                        <button class="action-btn" data-cmd="play breakout">Breakout</button>
+                        <button class="action-btn" data-cmd="play invaders">Invaders</button>
+                    </div>
 
-                <div class="aside-header" style="margin-top:10px;">TOOLS</div>
-                <div class="quick-actions">
-                    <button class="action-btn" id="btn-logs" data-cmd="logs" style="display:none;">Logs</button>
-                    <button class="action-btn" data-cmd="leaderboard">Rankings</button>
-                    <button class="action-btn" data-cmd="type test">Type Test</button>
-                    <button class="action-btn" data-cmd="matrix">Matrix</button>
-                    <button class="action-btn" data-cmd="monitor">Monitor</button>
-                    <button class="action-btn" data-cmd="help">Help</button>
-                    <button class="action-btn" data-cmd="clear">Clear</button>
-                </div>
+                    <div class="aside-header" style="margin-top:10px;">TOOLS</div>
+                    <div class="quick-actions">
+                        <button class="action-btn" id="btn-logs" data-cmd="logs" style="display:none;">Logs</button>
+                        <button class="action-btn" data-cmd="leaderboard">Rankings</button>
+                        <button class="action-btn" data-cmd="type test">Type Test</button>
+                        <button class="action-btn" data-cmd="matrix">Matrix</button>
+                        <button class="action-btn" data-cmd="monitor">Monitor</button>
+                        <button class="action-btn" data-cmd="help">Help</button>
+                        <button class="action-btn" data-cmd="clear">Clear</button>
+                    </div>
 
-                <div class="aside-header" style="margin-top:10px;">NEURAL LINKS</div>
-                <div class="mode-picker">
-                    <button class="mode-btn active" data-mode="nexus" title="Standard Interface">Nexus</button>
-                    <button class="mode-btn" data-mode="shadow" title="Shadow Link (Unfiltered)">Shadow</button>
-                    <button class="mode-btn" data-mode="coder" title="Architect Mode (Code)">Coder</button>
-                    <button class="mode-btn" data-mode="sage" title="Oracle Mode (Philosophy)">Sage</button>
-                    <button class="mode-btn" data-mode="education" title="Mentor Mode (Instructional)">Education</button>
-                </div>
-                
-                <button class="a11y-open-btn" onclick="toggleA11yPanel()" title="Accessibility settings">
-                    A11Y
-                </button>
-            </aside>
+                    <div class="aside-header" style="margin-top:10px;">NEURAL LINKS</div>
+                    <div class="mode-picker">
+                        <button class="mode-btn active" data-mode="nexus" title="Standard Interface">Nexus</button>
+                        <button class="mode-btn" data-mode="shadow" title="Shadow Link (Unfiltered)">Shadow</button>
+                        <button class="mode-btn" data-mode="coder" title="Architect Mode (Code)">Coder</button>
+                        <button class="mode-btn" data-mode="sage" title="Oracle Mode (Philosophy)">Sage</button>
+                        <button class="mode-btn" data-mode="education" title="Mentor Mode (Instructional)">Education</button>
+                    </div>
+                    
+                    <button class="a11y-open-btn" onclick="toggleA11yPanel()" title="Accessibility settings">
+                        A11Y
+                    </button>
+                </aside>
 
-            <div id="game-gui-container" class="gui-hidden">
-                <div id="gui-header">
-                    <span id="gui-title">SYSTEM</span>
-                    <button id="gui-close">X</button>
+                <div id="game-gui-container" class="gui-hidden">
+                    <div id="gui-header">
+                        <span id="gui-title">SYSTEM</span>
+                        <button id="gui-close">X</button>
+                    </div>
+                    <div id="gui-content-wrapper">
+                        <div id="gui-content"></div>
+                        <canvas id="nexus-canvas" width="400" height="360" style="display:none;"></canvas>
+                    </div>
                 </div>
-                <div id="gui-content-wrapper">
-                    <div id="gui-content"></div>
-                    <canvas id="nexus-canvas" width="400" height="360" style="display:none;"></canvas>
-                </div>
-            </div>
+            </div> <!-- End glass-panel -->
         </div>
     </div>
 
@@ -100,6 +104,6 @@
     </div>
 
     <!-- Term and Identity Script -->
-    <script src="terminal.js?fix=115"></script>
+    <script src="terminal.js?fix=117"></script>
 </body>
 </html>
