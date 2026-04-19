@@ -1,11 +1,20 @@
-# Gemini Project Workspace
+# Nexus // Domain Project - Orientation Guide
 
-This is the local workspace for Gemini CLI projects in `~/Documents/gemini-projects`.
+## Current Objective
+Build and maintain the **Nexus Terminal** ecosystem, focusing on high-speed system monitoring, AI integration, and domain identity synchronization.
 
-## Workspace Rules
-- **Local Only:** Do not sync with external GitHub repositories unless specifically requested.
-- **Project Focus:** This directory is for experimental code and local tools.
-- **Structure:** Maintain a clean, modular structure for different sub-projects.
+## 🌊 Pacific Mandates (STRICT)
+- **Technical Rigor:** Quality over speed. Exhaustive testing is the law.
+- **Deep Research:** Every task begins with `rg` and `fd` to map the architecture.
+- **No Interaction:** Never run interactive shell commands or menus. The user cannot input data into shell prompts.
+- **Evidence First:** Never claim a task is complete without first running `npm run build` or `python3 -m build` and verifying the output.
 
-## Active Projects
-- **tmc (Terminal Mission Control):** A Python-based real-time system dashboard using `rich` and `psutil`.
+## 🔑 Critical Infrastructure
+- **API Keys:** Stored in `web_nexus/.env`.
+- **Primary Node:** Proxmox at `192.168.6.240`.
+- **Gateway:** Nginx Proxy Manager (CT 108).
+
+## 👁️ Visual Law (Dyslexia Friendly)
+- Use large headers and heavy spacing between sections.
+- Group all questions into a single section at the bottom.
+- Be direct and avoid dense blocks of text.
