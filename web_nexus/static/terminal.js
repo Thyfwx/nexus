@@ -3478,10 +3478,11 @@ function handleCommand(cmd) {
 
     const isOwner = nexusUser?.name?.toLowerCase().includes('xavier');
 
-    // PACIFIC SHIELD: Access Control
-    if (lc.startsWith('config ') || lc.startsWith('model') || lc === 'models' || lc === 'logs' || lc === 'log') {
+    // PACIFIC SHIELD: Access Control (Elite Commands Restricted to Owner)
+    const restricted = ['config ', 'model', 'models', 'logs', 'log', 'translate ', 'summarize ', 'detect ', 'fix '];
+    if (restricted.some(r => lc.startsWith(r)) || restricted.includes(lc)) {
         if (!isOwner) {
-            printToTerminal("[ERR] Permission Denied: Neural reconfiguration or secure logs restricted to System Owner.", "sys-msg");
+            printToTerminal("[ERR] Permission Denied: Elite technical modules restricted to System Owner.", "sys-msg");
             return;
         }
     }
