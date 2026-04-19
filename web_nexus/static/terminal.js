@@ -4118,7 +4118,6 @@ function toggleA11yPanel() {
     const panel = document.getElementById('a11y-panel');
     if (panel) {
         panel.classList.toggle('a11y-panel-open');
-        // Re-populate voices each open (Chrome loads them async after first gesture)
         if (panel.classList.contains('a11y-panel-open')) {
             const sel = panel.querySelector('#a11y-voice-sel');
             if (sel) _buildVoiceOptions(sel);
@@ -4136,7 +4135,6 @@ function toggleA11yPanel() {
         </div>
 
         <div class="a11y-section-label">VISUALS</div>
-
         <div class="a11y-row">
             <button class="a11y-toggle" data-class="crt-mode" onclick="toggleA11yClass('crt-mode')">CRT Mode</button>
             <button class="a11y-toggle" id="sound-toggle" onclick="toggleSound()">Sound Effects</button>
@@ -4176,7 +4174,6 @@ function toggleA11yPanel() {
     document.querySelector('.glass-panel').appendChild(el);
     _a11ySyncButtons();
 
-    // Populate voice picker — voices load async in Chrome
     const sel = el.querySelector('#a11y-voice-sel');
     const doPopulate = () => _buildVoiceOptions(sel);
     if (window.speechSynthesis.getVoices().length) {

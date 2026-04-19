@@ -140,6 +140,7 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    min-height: 0;
 }
 
 .terminal-output {
@@ -165,21 +166,24 @@ body {
 
 /* Unified AI Message Styling (Side Border Aesthetic) */
 .ai-msg { 
-    line-height: 1.6; 
+    line-height: 1.7; 
     padding-bottom: 4px; 
     padding-left: 12px; 
     margin-left: 2px;
     border-left: 2px solid var(--accent);
     color: var(--accent);
     filter: brightness(1.2);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.95rem;
+    letter-spacing: 0.2px;
 }
 
 /* Explicit Mode Color Overrides (if needed) */
-.shadow-msg    { color: #ffaa55; border-left-color: #ff6600; }
-.nexus-msg     { color: #77ccff; border-left-color: #44aaff; }
-.coder-msg     { color: #77ff77; border-left-color: #00ff00; }
-.sage-msg      { color: #b08fff; border-left-color: #a06fff; }
-.education-msg { color: #55ffdd; border-left-color: #00ffcc; }
+.shadow-msg    { color: #ffaa55; border-left-color: #ff6600; font-family: 'Inter', sans-serif; }
+.nexus-msg     { color: #77ccff; border-left-color: #44aaff; font-family: 'Inter', sans-serif; }
+.coder-msg     { color: #77ff77; border-left-color: #00ff00; font-family: 'Inter', sans-serif; }
+.sage-msg      { color: #b08fff; border-left-color: #a06fff; font-family: 'Inter', sans-serif; }
+.education-msg { color: #55ffdd; border-left-color: #00ffcc; font-family: 'Inter', sans-serif; }
 
 .terminal-input-wrapper {
     display: flex;
@@ -187,6 +191,7 @@ body {
     border-top: 1px solid rgba(0, 255, 255, 0.15);
     padding-top: 10px;
     gap: 6px;
+    flex-shrink: 0;
 }
 
 .prompt {
