@@ -7,6 +7,7 @@
 
 * {
     box-sizing: border-box;
+    font-family: var(--font-main) !important;
 }
 
 html {
@@ -141,14 +142,16 @@ body {
     flex-direction: column;
     overflow: hidden;
     min-height: 0;
+    height: calc(100vh - 80px); /* Explicit constraint for scrolling */
 }
 
 .terminal-output {
     flex-grow: 1;
-    overflow-y: auto;
+    overflow-y: scroll !important; /* Force scrollbar visibility */
     margin-bottom: 10px;
     padding-right: 6px;
-    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: var(--txt-color) transparent;
 }
 
 .terminal-output p {
