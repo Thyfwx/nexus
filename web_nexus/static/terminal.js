@@ -659,7 +659,7 @@ const HELP_BY_MODE = {
         `SAGE MODE — PHILOSOPHICAL KERNEL\n\nCommands: deeper questioning enabled.\nVisuals: generate [abstract concept] · imagine [subconscious vision] · vintage [ancient-scrolls]\nAI: Focused on honesty, perspective, and the meaning within the code.\nPro-Tip: Ask the questions that keep you up at night.`,
     ],
     education: [
-        `EDUCATION MODE — TECHNICAL MENTOR\n\nCommands: detect [text] · fix [code] · translate [text] · summarize [text]\nAI Sync: models (list links) · model [idx] (switch)\nVisuals: generate [diagram] · imagine [high-fidelity] · vintage [archive]\nAI: A patient, professional technical mentor for students.\nPro-Tip: "Explain this code snippet..." or "Summarize this article..."`,
+        `EDUCATION MODE — TECHNICAL MENTOR\n\nCommands: mood [text] · detect [text] · fix [code] · translate [text]\nAI Sync: models (list links) · model [idx] (switch)\nVisuals: generate [diagram] · imagine [high-fidelity] · vintage [archive]\nAI: A patient, professional technical mentor for students.\nPro-Tip: "Explain this code snippet..." or "Summarize this article..."`,
     ],
 };
 
@@ -3600,6 +3600,35 @@ function handleCommand(cmd) {
                 printToTerminal(data.fixed_code, 'ai-msg');
             } else {
                 printToTerminal(`[ERR] Repair failed: ${data.error}`, 'sys-msg');
+            }
+        })
+        .catch(e => printToTerminal(`[ERR] Link failed: ${e.message}`, 'sys-msg'));
+        return;
+    }
+    if (lc.startsWith('mood ')) {
+        const text = cmd.slice(5).trim();
+        if (!text) { printToTerminal('[ERR] Usage: mood <text>', 'sys-msg'); return; }
+        printToTerminal(`[SYSTEM] Synchronizing neural feelings...`, 'sys-msg');
+        fetch(`${API_BASE}/api/tools/mood`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                let icon = '😐';
+                let color = '#4af';
+                if (data.sentiment === 'Positive') { icon = '😊'; color = '#0f0'; }
+                if (data.sentiment === 'Negative') { icon = '😡'; color = '#f55'; }
+                
+                printToTerminal(`[MOOD] Vibe Detected: ${data.sentiment.toUpperCase()} ${icon} | Confidence: ${data.confidence}`, 'conn-ok');
+                
+                // Visual Sync: Shift accent color briefly to match vibe
+                document.documentElement.style.setProperty('--accent', color);
+                setTimeout(() => setMode(currentMode), 3000); // revert to mode color after 3s
+            } else {
+                printToTerminal(`[ERR] Sync failed: ${data.error}`, 'sys-msg');
             }
         })
         .catch(e => printToTerminal(`[ERR] Link failed: ${e.message}`, 'sys-msg'));
