@@ -3284,7 +3284,7 @@ const MODES = {
     shadow: {
         prompt:  'shadow@nexus:~$',
         color:   '#ff6600',
-        title:   'NEXUS UNFILTERED',
+        title:   'NEXUS SHADOW',
         label:   'SHADOW',
         msg:     '',
         msgCls:  'conn-ok',
