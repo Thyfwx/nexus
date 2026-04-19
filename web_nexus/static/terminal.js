@@ -2962,15 +2962,12 @@ function updateUserIdentity(name) {
 // =============================================================
 //  GUI CLOSE
 // =============================================================
-const guiCloseBtn = document.getElementById('gui-close');
-if (guiCloseBtn) {
-    guiCloseBtn.addEventListener('click', () => {
-        stopAllGames();
-        if (guiContainer) guiContainer.classList.add('gui-hidden');
-        if (nexusCanvas) nexusCanvas.style.display = 'none';
-        if (input) input.focus();
-    });
-}
+document.getElementById('gui-close').addEventListener('click', () => {
+    stopAllGames();
+    guiContainer.classList.add('gui-hidden');
+    nexusCanvas.style.display = 'none';
+    input.focus();
+});
 
 // =============================================================
 //  DRAGGABLE GUI WINDOW

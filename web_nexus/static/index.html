@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>NEXUS // TERMINAL</title>
-    <link rel="stylesheet" href="style.css?v=4.0.42">
+    <link rel="stylesheet" href="style.css?v=4.0.43">
     <link rel="icon" type="image/png" href="https://thyfwxit.com/favicon.png">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -13,15 +13,12 @@
         <div class="screen">
             <div class="screen-glare"></div>
             
-            <!-- PACIFIC GRID CONTAINER -->
             <div class="glass-panel">
                 <header class="status-bar">
+                    <div class="status-item"><div id="conn-dot" class="conn-dot"></div> <span class="stat-label">CPU</span> <span id="cpu-stat">--</span></div>
+                    <div class="status-item"><span class="stat-label">MEM</span> <span id="mem-stat">--</span></div>
                     <div class="status-item status-title" id="status-title">PACIFIC // KERNEL</div>
-                    <div class="status-item status-mode" id="mode-indicator">NEXUS</div>
-                    <div class="status-item status-conn">
-                        <span class="conn-dot" id="conn-dot"></span>
-                        <span id="conn-text">SECURE UPLINK</span>
-                    </div>
+                    <div class="status-item"><span class="stat-label">MODE</span> <span id="mode-indicator">NEXUS</span></div>
                 </header>
 
                 <main class="terminal-container" id="terminal-container">
@@ -36,32 +33,19 @@
                     </div>
                 </main>
 
-                <aside class="sidebar">
+                <aside class="quick-actions">
                     <div id="auth-section" class="auth-section">
                         <!-- Auth UI injected by JS -->
                     </div>
                     
                     <div class="aside-header">GAMES</div>
-                    <div class="quick-actions">
-                        <button class="action-btn" data-cmd="play wordle">Wordle</button>
-                        <button class="action-btn" data-cmd="play snake">Snake</button>
-                        <button class="action-btn" data-cmd="play pong">Pong</button>
-                        <button class="action-btn" data-cmd="play mines">Mines</button>
-                        <button class="action-btn" data-cmd="play flappy">Flappy</button>
-                        <button class="action-btn" data-cmd="play breakout">Breakout</button>
-                        <button class="action-btn" data-cmd="play invaders">Invaders</button>
-                    </div>
-
-                    <div class="aside-header" style="margin-top:10px;">TOOLS</div>
-                    <div class="quick-actions">
-                        <button class="action-btn" id="btn-logs" data-cmd="logs" style="display:none;">Logs</button>
-                        <button class="action-btn" data-cmd="leaderboard">Rankings</button>
-                        <button class="action-btn" data-cmd="type test">Type Test</button>
-                        <button class="action-btn" data-cmd="matrix">Matrix</button>
-                        <button class="action-btn" data-cmd="monitor">Monitor</button>
-                        <button class="action-btn" data-cmd="help">Help</button>
-                        <button class="action-btn" data-cmd="clear">Clear</button>
-                    </div>
+                    <button class="action-btn" data-cmd="play wordle">Wordle</button>
+                    <button class="action-btn" data-cmd="play snake">Snake</button>
+                    <button class="action-btn" data-cmd="play pong">Pong</button>
+                    <button class="action-btn" data-cmd="play mines">Mines</button>
+                    <button class="action-btn" data-cmd="play flappy">Flappy</button>
+                    <button class="action-btn" data-cmd="play breakout">Breakout</button>
+                    <button class="action-btn" data-cmd="play invaders">Invaders</button>
 
                     <div class="aside-header" style="margin-top:10px;">NEURAL LINKS</div>
                     <div class="mode-picker">
@@ -69,8 +53,17 @@
                         <button class="mode-btn" data-mode="shadow" title="Shadow Link (Unfiltered)">Shadow</button>
                         <button class="mode-btn" data-mode="coder" title="Architect Mode (Code)">Coder</button>
                         <button class="mode-btn" data-mode="sage" title="Oracle Mode (Philosophy)">Sage</button>
-                        <button class="mode-btn" data-mode="education" title="Mentor Mode (Instructional)">Education</button>
+                        <button class="mode-btn" data-mode="education" title="Mentor Mode (Instructional)" style="grid-column: span 2; border-color:#00ffcc; color:#00ffcc;">Education</button>
                     </div>
+
+                    <div class="aside-header" style="margin-top:10px;">TOOLS</div>
+                    <button class="action-btn" id="btn-logs" data-cmd="logs" style="display:none;">Logs</button>
+                    <button class="action-btn" id="btn-rankings" data-cmd="leaderboard">Rankings</button>
+                    <button class="action-btn" data-cmd="type test">Type Test</button>
+                    <button class="action-btn" data-cmd="matrix">Matrix</button>
+                    <button class="action-btn" data-cmd="monitor">Monitor</button>
+                    <button class="action-btn" data-cmd="help">Help</button>
+                    <button class="action-btn" data-cmd="clear">Clear</button>
                     
                     <button class="a11y-open-btn" onclick="toggleA11yPanel()" title="Accessibility settings">
                         A11Y
@@ -91,19 +84,44 @@
         </div>
     </div>
 
-    <!-- Auth Initializer Overlay -->
+    <!-- Login Wall Overlay -->
     <div id="auth-screen" class="auth-overlay">
-        <div class="auth-card">
-            <h1>NEXUS // CORE</h1>
-            <p>Identity synchronization required.</p>
-            <div id="main-g_id_signin"></div>
-            <div class="auth-divider">OR</div>
-            <button class="guest-btn" onclick="submitGuestAuth()">CONTINUE AS GUEST</button>
-            <p id="guest-error" style="color:#f55; font-size:0.7rem; margin-top:10px;"></p>
+        <div class="auth-box">
+            <div class="auth-header">NEXUS // CORE</div>
+            <p class="auth-desc">Identity synchronization required.</p>
+            <div class="auth-sub-section">
+                <div class="auth-label">GOOGLE UPLINK</div>
+                <div id="main-g_id_signin" style="display:flex; justify-content:center; min-height:44px; align-items:center;"></div>
+            </div>
+            <div class="auth-divider"><span>OR</span></div>
+            <div class="auth-sub-section">
+                <div class="auth-label">GUEST ACCESS</div>
+                <button class="gui-btn" onclick="submitGuestAuth()" style="width:100%; padding:10px;">CONTINUE AS GUEST</button>
+            </div>
+            <div class="auth-footer">Security Level: Grade A // 256-bit Encrypted</div>
         </div>
     </div>
 
-    <!-- Term and Identity Script -->
-    <script src="terminal.js?fix=117"></script>
+    <!-- Terms Modal -->
+    <div id="terms-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-box">
+            <h3>NEXUS PROTOCOL // TERMS</h3>
+            <div class="modal-body">
+                1. LOGGING: Activity is recorded for system security.<br><br>
+                2. AI: Neural links are processed externally.<br><br>
+                3. GUEST: Sessions are non-persistent.
+                <div style="display:flex; align-items:center; gap:10px; margin-top:15px;">
+                    <input type="checkbox" id="terms-check" onclick="document.getElementById('agree-btn').disabled = !this.checked">
+                    <label for="terms-check" style="font-size:0.75rem; color:#aaa; cursor:pointer;">I acknowledge the protocol.</label>
+                </div>
+            </div>
+            <div style="display:flex; gap:10px; justify-content:center;">
+                <button id="agree-btn" class="gui-btn" onclick="revealTerminal('Guest')" disabled>ENTER</button>
+                <button class="gui-btn" style="border-color:#444; color:#555;" onclick="document.getElementById('terms-modal').style.display='none'">CANCEL</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="terminal.js?fix=118"></script>
 </body>
 </html>
