@@ -659,7 +659,7 @@ const HELP_BY_MODE = {
         `SAGE MODE — PHILOSOPHICAL KERNEL\n\nCommands: deeper questioning enabled.\nVisuals: generate [abstract concept] · imagine [subconscious vision] · vintage [ancient-scrolls]\nAI: Focused on honesty, perspective, and the meaning within the code.\nPro-Tip: Ask the questions that keep you up at night.`,
     ],
     education: [
-        `EDUCATION MODE — TECHNICAL MENTOR\n\nCommands: detect [text] · translate [text] · summarize [text]\nAI Sync: models (list links) · model [idx] (switch)\nVisuals: generate [diagram] · imagine [high-fidelity] · vintage [archive]\nAI: A patient, professional technical mentor for students.\nPro-Tip: "Explain this code snippet..." or "Summarize this article..."`,
+        `EDUCATION MODE — TECHNICAL MENTOR\n\nCommands: detect [text] · fix [code] · translate [text] · summarize [text]\nAI Sync: models (list links) · model [idx] (switch)\nVisuals: generate [diagram] · imagine [high-fidelity] · vintage [archive]\nAI: A patient, professional technical mentor for students.\nPro-Tip: "Explain this code snippet..." or "Summarize this article..."`,
     ],
 };
 
@@ -3578,6 +3578,27 @@ function handleCommand(cmd) {
                 printToTerminal(`[ANALYSIS] Type: ${data.label.toUpperCase()} | Confidence: ${data.confidence}`, 'conn-ok');
             } else {
                 printToTerminal(`[ERR] Analysis failed: ${data.error}`, 'sys-msg');
+            }
+        })
+        .catch(e => printToTerminal(`[ERR] Link failed: ${e.message}`, 'sys-msg'));
+        return;
+    }
+    if (lc.startsWith('fix ')) {
+        const code = cmd.slice(4).trim();
+        if (!code) { printToTerminal('[ERR] Usage: fix <code>', 'sys-msg'); return; }
+        printToTerminal(`[SYSTEM] Repairing code via Nexus Debugger...`, 'sys-msg');
+        fetch(`${API_BASE}/api/tools/fix`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                printToTerminal(`[REPAIR] Fix Identified:`, 'conn-ok');
+                printToTerminal(data.fixed_code, 'ai-msg');
+            } else {
+                printToTerminal(`[ERR] Repair failed: ${data.error}`, 'sys-msg');
             }
         })
         .catch(e => printToTerminal(`[ERR] Link failed: ${e.message}`, 'sys-msg'));
