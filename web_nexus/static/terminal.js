@@ -3333,14 +3333,19 @@ const MODES = {
     },
 };
 
+let _modeTimer = null;
+
 function setMode(modeKey) {
     if (!MODES[modeKey]) return;
     saveHistory();
-    
+
+    // Clear any pending visual sync timers (Fixes Shadow Mode sticking)
+    if (_modeTimer) { clearTimeout(_modeTimer); _modeTimer = null; }
+
     // Apply mode-specific body class for overload effects
     Object.keys(MODES).forEach(m => document.body.classList.remove(`mode-${m}`));
     document.body.classList.add(`mode-${modeKey}`);
-    
+
     currentMode = modeKey;
     localStorage.setItem('nexus_mode', modeKey);
     messageHistory = loadHistory(modeKey);
@@ -3370,10 +3375,14 @@ function setMode(modeKey) {
     if (modeKey === 'shadow') {
         printToTerminal(`[SYSTEM] Syncing Shadow Mood...`, 'sys-msg');
         document.documentElement.style.setProperty('--accent', '#ff0000');
-        setTimeout(() => document.documentElement.style.setProperty('--accent', m.color), 1500);
+        _modeTimer = setTimeout(() => {
+            if (currentMode === 'shadow') {
+                document.documentElement.style.setProperty('--accent', m.color);
+            }
+            _modeTimer = null;
+        }, 1500);
     }
 }
-
 // Wire up mode picker buttons
 document.querySelectorAll('.mode-btn').forEach(btn => {
     btn.addEventListener('click', () => {
