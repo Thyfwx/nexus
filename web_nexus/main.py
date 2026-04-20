@@ -198,19 +198,25 @@ async def api_chat(request: Request):
                 res += f"[{i+1}] {m['label']}{' [ACTIVE]' if i == current_model_idx else ''}\n"
             return {"ok": True, "text": res, "label": "SYSTEM", "id": current_model_idx}
 
-        if cmd.startswith("model "):
-            try:
-                idx = int(cmd.split()[-1]) - 1
-                if 0 <= idx < len(MODELS):
-                    current_model_idx = idx
-                    return {"ok": True, "text": f"[SYSTEM] Neural link locked to: {MODELS[idx]['label']}", "label": MODELS[idx]['label'], "id": idx}
-            except: pass
-            return {"ok": True, "text": "[ERROR] Invalid link index.", "label": "ERROR"}
-
         result = await asyncio.wait_for(
             asyncio.get_running_loop().run_in_executor(None, prompt_ai, cmd, history, mode, context, f_idx),
             timeout=45.0
         )
+        
+        # NEURAL LOGGING: Record user interaction
+        try:
+            user = _get_session(request); user_name = user["name"] if user else "Anonymous"
+            log_entry = {
+                "timestamp": datetime.now(UTC).isoformat(),
+                "user": user_name,
+                "input": cmd,
+                "output": result["text"][:200] + "...",
+                "mode": mode
+            }
+            with open("neural_logs.json", "a") as f:
+                f.write(json.dumps(log_entry) + "\n")
+        except: pass
+
         return {"ok": True, "text": result["text"], "label": result["label"], "id": result.get("id")}
     except Exception as e:
         return _JSONResponse({"error": str(e)}, status_code=500)
