@@ -236,8 +236,9 @@ body {
     padding: 20px 14px;
     background: rgba(0,0,0,0.3);
     gap: 12px;
-    overflow-y: scroll !important; /* Force scrollbar visibility on sidebar */
-    min-height: 0; /* Critical for grid children to scroll */
+    overflow-y: auto !important;
+    height: 100%; /* Constrain to grid cell */
+    max-height: calc(100vh - 44px); /* Ensure it doesn't push the footer out */
     scrollbar-width: thin;
     scrollbar-color: var(--accent) transparent;
 }
