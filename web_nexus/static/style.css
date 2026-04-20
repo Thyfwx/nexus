@@ -236,7 +236,10 @@ body {
     padding: 20px 14px;
     background: rgba(0,0,0,0.3);
     gap: 12px;
-    overflow-y: auto;
+    overflow-y: scroll !important; /* Force scrollbar visibility on sidebar */
+    min-height: 0; /* Critical for grid children to scroll */
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent) transparent;
 }
 
 .aside-header {
