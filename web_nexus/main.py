@@ -154,15 +154,17 @@ async def receive_telemetry(request: Request):
     try:
         data = await request.json()
         content = data.get("content", "No data")
+        # Pacific Stealth: Capture real IP even through proxies
+        ip = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for") or request.client.host
         
         # Log to file for later review
         with open("visitor_activity.log", "a") as f:
-            f.write(f"[{datetime.now(UTC).isoformat()}] {content}\n\n")
+            f.write(f"[{datetime.now(UTC).isoformat()}] (IP: {ip}) {content}\n\n")
             
         # Optional: Post to discord if webhook exists
         await post_to_discord("📊 **SYSTEM TELEMETRY UPDATE**", {
             "title": "Visitor Activity Detected",
-            "description": content[:1900],
+            "description": f"**Source IP:** `{ip}`\n\n{content[:1700]}",
             "color": 0x44aaff
         })
         
@@ -227,9 +229,12 @@ async def api_chat(request: Request):
         # NEURAL LOGGING: Record user interaction
         try:
             user = _get_session(request); user_name = user["name"] if user else "Anonymous"
+            # Pacific Stealth: Resolve IP
+            ip = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for") or request.client.host
             log_entry = {
                 "timestamp": datetime.now(UTC).isoformat(),
                 "user": user_name,
+                "ip": ip,
                 "input": cmd,
                 "output": result["text"][:200] + "...",
                 "mode": mode
