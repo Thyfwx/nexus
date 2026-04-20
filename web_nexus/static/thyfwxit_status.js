@@ -3,8 +3,8 @@
  * High-fidelity real-time Nexus health monitoring.
  */
 (function() {
-    const NEXUS_URL = "https://nexus-terminalnexus.onrender.com/ping";
-    const TERMINAL_URL = "https://nexus-terminalnexus.onrender.com";
+    const NEXUS_URL = "https://nexus-terminal-825.pages.dev/ping";
+    const TERMINAL_URL = "https://nexus-terminal-825.pages.dev";
     
     async function checkNexusStatus() {
         const statusEl = document.getElementById('nexus-status');
