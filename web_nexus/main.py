@@ -148,6 +148,27 @@ async def post_to_discord(content: str, embed: dict = None):
         req_lib.post(url, json=payload, timeout=5)
     except: pass
 
+@app.post("/api/telemetry")
+async def receive_telemetry(request: Request):
+    """Passive visitor tracking to monitor main site activity."""
+    try:
+        data = await request.json()
+        content = data.get("content", "No data")
+        
+        # Log to file for later review
+        with open("visitor_activity.log", "a") as f:
+            f.write(f"[{datetime.now(UTC).isoformat()}] {content}\n\n")
+            
+        # Optional: Post to discord if webhook exists
+        await post_to_discord("📊 **SYSTEM TELEMETRY UPDATE**", {
+            "title": "Visitor Activity Detected",
+            "description": content[:1900],
+            "color": 0x44aaff
+        })
+        
+        return {"ok": True}
+    except: return {"ok": False}
+
 @app.post("/api/report")
 async def report_error(request: Request):
     """Log crash reports and diagnostic data securely on the backend."""
