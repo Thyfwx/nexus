@@ -238,26 +238,26 @@ function loadHistory(mode) {
     if (!key) return [];
     try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch(_) { return []; }
 }
-let sessionGeoData = null; // Store geo data once to aeducation repeated API calls
-
-// Per-user Discord thread ID  stored in localStorage so repeat visits reuse the same thread
+// =============================================================
+//  PACIFIC UPLINK (Tracking & Data Collection)
+// =============================================================
+let sessionGeoData = null; 
 let discordThreadId = localStorage.getItem('nexus_discord_thread') || null;
 
-// Send a payload to Discord via the CF Worker (webhook URL is a CF secret, never in browser)
 async function postToDiscord(payload, threadId = null, wait = false) {
     try {
         const body = { payload };
         if (threadId) body.threadId = threadId;
         if (wait)     body.wait     = true;
         
-        // Pacific Uplink: Route through the secure worker bridge
+        // Primary Path: Secure Worker Bridge
         const resp = await fetch(`${PACIFIC_HUB}/log`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify(body),
         });
         
-        // Double-Check: If the worker bridge fails, try the backend telemetry bridge
+        // Redundant Path: Backend Telemetry
         if (!resp.ok) {
             fetch(`${API_BASE}/api/telemetry`, {
                 method: 'POST',
@@ -265,44 +265,32 @@ async function postToDiscord(payload, threadId = null, wait = false) {
                 body: JSON.stringify({ content: JSON.stringify(payload) })
             });
         }
-
         if (wait && resp.ok) return resp.json().catch(() => null);
-    } catch(e) {
-        console.warn("[SYNC] Discord uplink fallback active.");
-    }
+    } catch(e) { console.warn("[SYNC] Discord uplink fallback active."); }
     return null;
 }
 
-// Create a per-user Discord thread on first visit (requires Forum channel webhook)
 async function initUserThread() {
     if (discordThreadId) return;
     const ip     = sessionGeoData?.ip || '?';
-    const city   = sessionGeoData?.city || '';
-    const region = sessionGeoData?.region || '';
-    const country= sessionGeoData?.country || '?';
-    const loc    = [city, region, country].filter(Boolean).join(', ') || ip;
+    const loc    = sessionGeoData ? `${sessionGeoData.city}, ${sessionGeoData.country}` : 'Scanning...';
     const device = parseDevice(navigator.userAgent);
-    const scrn   = `${window.screen.width}${window.screen.height}`;
-    const lang   = navigator.language || '?';
-    const tz     = Intl.DateTimeFormat().resolvedOptions().timeZone || '?';
-    const threadName = `${loc}  ${device}`.slice(0, 100);
+    const threadName = `VISITOR: ${loc} (${device})`.slice(0, 100);
 
     const data = await postToDiscord({
         thread_name: threadName,
         embeds: [{
-            title: ' New Visitor',
+            title: '📡 NEW NEURAL LINK ESTABLISHED',
             color: 0x00ffff,
             fields: [
-                { name: ' IP',       value: ip,     inline: true },
-                { name: ' Location', value: loc,    inline: true },
-                { name: ' Device',   value: device, inline: false },
-                { name: ' Screen',   value: scrn,   inline: true },
-                { name: ' Lang',     value: lang,   inline: true },
-                { name: ' TZ',       value: tz,     inline: true },
+                { name: 'Source IP',  value: `\`${ip}\``, inline: true },
+                { name: 'Location',   value: loc, inline: true },
+                { name: 'Device',     value: device, inline: false },
+                { name: 'Platform',   value: `${window.screen.width}x${window.screen.height} (${navigator.language})`, inline: true }
             ],
             timestamp: new Date().toISOString(),
         }]
-    }, null, true); // wait=true to get thread ID back
+    }, null, true);
 
     if (data?.channel_id) {
         discordThreadId = String(data.channel_id);
