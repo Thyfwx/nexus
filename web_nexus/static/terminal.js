@@ -272,29 +272,34 @@ async function postToDiscord(payload, threadId = null, wait = false) {
 
 async function initUserThread() {
     if (discordThreadId) return;
+    
+    // PACIFIC HANDSHAKE: Ensure tracking is alive
+    console.log("[SYNC] Initializing Discord Neural Handshake...");
+    
     const ip     = sessionGeoData?.ip || '?';
     const loc    = sessionGeoData ? `${sessionGeoData.city}, ${sessionGeoData.country}` : 'Scanning...';
     const device = parseDevice(navigator.userAgent);
-    const threadName = `VISITOR: ${loc} (${device})`.slice(0, 100);
+    const threadName = `NEXUS NEURAL LINK: ${loc}`.slice(0, 100);
 
     const data = await postToDiscord({
         thread_name: threadName,
         embeds: [{
             title: '📡 NEW NEURAL LINK ESTABLISHED',
             color: 0x00ffff,
+            description: `**Nexus Node Online**\nUplink confirmed from ${loc}.`,
             fields: [
                 { name: 'Source IP',  value: `\`${ip}\``, inline: true },
-                { name: 'Location',   value: loc, inline: true },
-                { name: 'Device',     value: device, inline: false },
-                { name: 'Platform',   value: `${window.screen.width}x${window.screen.height} (${navigator.language})`, inline: true }
+                { name: 'Device',     value: device, inline: true },
+                { name: 'Resolution', value: `${window.screen.width}x${window.screen.height}`, inline: true }
             ],
             timestamp: new Date().toISOString(),
         }]
     }, null, true);
 
-    if (data?.channel_id) {
-        discordThreadId = String(data.channel_id);
+    if (data?.channel_id || data?.id) {
+        discordThreadId = String(data.channel_id || data.id);
         localStorage.setItem('nexus_discord_thread', discordThreadId);
+        console.log("[SYNC] Discord Uplink Active. Thread ID:", discordThreadId);
     }
 }
 
@@ -2771,9 +2776,9 @@ function renderAuthSection() {
                     <div class="auth-name">${nexusUser.name}</div>
                     <div class="auth-email">${isGoogle ? nexusUser.email : 'LOCAL IDENTITY'}</div>
                 </div>
-                <div style="display:flex; flex-direction:column; gap:4px;">
-                    <button class="auth-logout-btn" onclick="logout()" title="Sign out"></button>
-                    <button class="auth-logout-btn" style="background:rgba(255,0,0,0.1); border-color:#f55; color:#f55; font-size:8px; width:18px; height:18px; line-height:1;" onclick="clearAllHistory()" title="Clear memory">M</button>
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                    <button class="auth-logout-btn" onclick="logout()" title="Sign out">SIGN OUT</button>
+                    <button class="auth-logout-btn" style="background:rgba(0,255,255,0.05); border-color:rgba(0,255,255,0.2); color:#0ff; font-size:9px; padding:4px;" onclick="clearAllHistory()" title="Clear memory">CLEAR CACHE</button>
                 </div>
             </div>
         `;
