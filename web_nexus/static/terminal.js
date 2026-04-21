@@ -2770,16 +2770,13 @@ function renderAuthSection() {
             : `<div class="auth-avatar-initials">${nexusUser.name[0].toUpperCase()}</div>`;
             
         authSection.innerHTML = `
-            <div class="auth-user-card">
+            <div class="auth-user-card" style="display:flex; align-items:center; gap:10px; padding:10px; border-bottom:1px solid rgba(0,255,255,0.1);">
                 ${avatarHtml}
-                <div class="auth-info">
-                    <div class="auth-name">${nexusUser.name}</div>
-                    <div class="auth-email">${isGoogle ? nexusUser.email : 'LOCAL IDENTITY'}</div>
+                <div class="auth-info" style="flex:1; min-width:0;">
+                    <div class="auth-name" style="color:#0ff; font-size:0.75rem; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${nexusUser.name}</div>
+                    <div class="auth-email" style="color:#444; font-size:0.6rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${isGoogle ? nexusUser.email : 'LOCAL'}</div>
                 </div>
-                <div style="display:flex; flex-direction:column; gap:6px;">
-                    <button class="auth-logout-btn" onclick="logout()" title="Sign out">SIGN OUT</button>
-                    <button class="auth-logout-btn" style="background:rgba(0,255,255,0.05); border-color:rgba(0,255,255,0.2); color:#0ff; font-size:9px; padding:4px;" onclick="clearAllHistory()" title="Clear memory">CLEAR CACHE</button>
-                </div>
+                <button class="auth-logout-btn" onclick="logout()" title="Sign out" style="background:none; border:1px solid #f55; color:#f55; cursor:pointer; width:22px; height:22px; display:flex; align-items:center; justify-content:center; border-radius:3px; font-size:16px; line-height:1; transition:0.2s;">×</button>
             </div>
         `;
     } else {
