@@ -153,7 +153,12 @@ async def post_to_discord(content: str, embed: dict = None):
         res = await loop.run_in_executor(None, lambda: req_lib.post(url, json=payload, timeout=8))
         
         if res.status_code >= 400:
-            print(f"[ERROR] Discord Link Failed: {res.status_code} - {res.text}")
+            err_msg = f"[ERROR] Discord Link Failed: {res.status_code} - {res.text}"
+            print(err_msg)
+            try:
+                with open("discord_errors.log", "a") as f:
+                    f.write(f"[{datetime.now(UTC).isoformat()}] {err_msg}\n")
+            except: pass
     except Exception as e:
         print(f"[ERROR] Discord Exception: {e}")
 
