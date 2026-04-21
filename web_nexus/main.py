@@ -141,12 +141,21 @@ async def update_config(request: Request):
 async def post_to_discord(content: str, embed: dict = None):
     """Internal helper to dispatch activity to the Discord master link."""
     url = _key("DISCORD_WEBHOOK")
-    if not url: return
+    if not url:
+        print("[WARN] Discord Webhook missing from .env")
+        return
     try:
         payload = {"content": content}
         if embed: payload["embeds"] = [embed]
-        req_lib.post(url, json=payload, timeout=5)
-    except: pass
+        
+        # Pacific Uplink: Async dispatch to prevent blocking the AI
+        loop = asyncio.get_running_loop()
+        res = await loop.run_in_executor(None, lambda: req_lib.post(url, json=payload, timeout=8))
+        
+        if res.status_code >= 400:
+            print(f"[ERROR] Discord Link Failed: {res.status_code} - {res.text}")
+    except Exception as e:
+        print(f"[ERROR] Discord Exception: {e}")
 
 @app.post("/api/telemetry")
 async def receive_telemetry(request: Request):
