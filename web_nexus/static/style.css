@@ -201,17 +201,17 @@ body {
     border-left: 2px solid var(--accent);
     color: var(--accent);
     filter: brightness(1.2);
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-main) !important;
     font-size: 0.95rem;
     letter-spacing: 0.2px;
 }
 
 /* Explicit Mode Color Overrides (if needed) */
-.shadow-msg    { color: #ffaa55; border-left-color: #ff6600; font-family: 'Inter', sans-serif; }
-.nexus-msg     { color: #77ccff; border-left-color: #44aaff; font-family: 'Inter', sans-serif; }
-.coder-msg     { color: #77ff77; border-left-color: #00ff00; font-family: 'Inter', sans-serif; }
-.sage-msg      { color: #b08fff; border-left-color: #a06fff; font-family: 'Inter', sans-serif; }
-.education-msg { color: #55ffdd; border-left-color: #00ffcc; font-family: 'Inter', sans-serif; }
+.shadow-msg    { color: #ffaa55; border-left-color: #ff6600; font-family: var(--font-main) !important; }
+.nexus-msg     { color: #77ccff; border-left-color: #44aaff; font-family: var(--font-main) !important; }
+.coder-msg     { color: #77ff77; border-left-color: #00ff00; font-family: var(--font-main) !important; }
+.sage-msg      { color: #b08fff; border-left-color: #a06fff; font-family: var(--font-main) !important; }
+.education-msg { color: #55ffdd; border-left-color: #00ffcc; font-family: var(--font-main) !important; }
 
 .terminal-input-wrapper {
     display: flex;
