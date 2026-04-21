@@ -142,7 +142,6 @@ body {
     flex-direction: column;
     overflow: hidden;
     min-height: 0;
-    height: calc(100vh - 80px); /* Explicit constraint for scrolling */
 }
 
 .terminal-output {
@@ -152,7 +151,6 @@ body {
     padding-right: 6px;
     scrollbar-width: thin;
     scrollbar-color: var(--txt-color) transparent;
-    scroll-behavior: smooth;
 }
 
 .terminal-output p {
@@ -160,6 +158,7 @@ body {
     animation: fadeIn 0.2s ease-in;
     line-height: 1.6;
     word-break: break-word;
+    font-family: var(--font-main) !important;
 }
 
 .sys-msg      { color: #88f; }
@@ -169,7 +168,7 @@ body {
 .user-cmd     { color: #fff; font-weight: 600; margin-top: 16px !important; }
 
 /* Unified AI Message Styling (Side Border Aesthetic) */
-.ai-msg { 
+.ai-msg, .shadow-msg, .coder-msg, .sage-msg, .education-msg { 
     line-height: 1.7; 
     padding-bottom: 4px; 
     padding-left: 12px; 
@@ -181,13 +180,6 @@ body {
     font-size: 0.95rem;
     letter-spacing: 0.2px;
 }
-
-/* Explicit Mode Color Overrides (if needed) */
-.shadow-msg    { color: #ffaa55; border-left-color: #ff6600; font-family: var(--font-main) !important; }
-.nexus-msg     { color: #77ccff; border-left-color: #44aaff; font-family: var(--font-main) !important; }
-.coder-msg     { color: #77ff77; border-left-color: #00ff00; font-family: var(--font-main) !important; }
-.sage-msg      { color: #b08fff; border-left-color: #a06fff; font-family: var(--font-main) !important; }
-.education-msg { color: #55ffdd; border-left-color: #00ffcc; font-family: var(--font-main) !important; }
 
 .terminal-input-wrapper {
     display: flex;
@@ -237,8 +229,8 @@ body {
     padding: 20px 14px;
     background: rgba(0,0,0,0.3);
     gap: 12px;
-    overflow-y: auto;
-    scroll-behavior: smooth;
+    overflow-y: auto !important;
+    max-height: 100%;
 }
 
 .aside-header {
@@ -957,9 +949,9 @@ body.mode-void .terminal-output p {
 .auth-email { color: #333; font-size: 0.55rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .auth-logout-btn {
     background: none; border: 1px solid #f55; color: #f55 !important; cursor: pointer;
-    font-size: 1.2rem; line-height: 1; flex-shrink: 0; transition: 0.2s;
-    width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
-    border-radius: 3px;
+    font-size: 1.1rem; line-height: 1; flex-shrink: 0; transition: 0.2s;
+    width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+    border-radius: 3px; font-weight: bold;
 }
 .auth-logout-btn:hover { background: rgba(255,0,0,0.1); color: #fff !important; }
 
