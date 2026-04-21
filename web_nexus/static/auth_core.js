@@ -111,6 +111,7 @@ async function handleCredentialResponse(response) {
         const data = await res.json();
         if (data.ok) {
             localStorage.setItem('nexus_user_data', JSON.stringify(data));
+            window.hideTerms();
             revealTerminal(data.name);
             renderAuthSection();
         } else {
@@ -208,6 +209,7 @@ async function submitGuestAuth() {
         console.log(`[AUTH] Response data:`, data);
         if (data.ok) {
             localStorage.setItem('nexus_user_data', JSON.stringify(data));
+            window.hideTerms();
             revealTerminal(data.name);
             renderAuthSection();
         } else {
