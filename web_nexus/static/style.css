@@ -600,29 +600,57 @@ body.auth-locked .monitor { display: none !important; }
 .a11y-voice-sel option { background: #0a0a14; color: #7af; }
 
 /* ── Redesigned accessibility open button ────────────────────────── */
+/* --- Pacific-Class Scrollbars --- */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.1);
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(0, 255, 255, 0.2);
+    border-radius: 10px;
+    transition: background 0.3s;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 255, 255, 0.5);
+}
+
+/* Sidebar scrollbar specific */
+.quick-actions::-webkit-scrollbar-thumb {
+    background: rgba(255, 0, 255, 0.2);
+}
+.quick-actions::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 0, 255, 0.5);
+}
+
 .a11y-open-btn {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
     width: 100%;
-    margin-top: 12px;
-    padding: 8px 0;
-    background: linear-gradient(135deg, rgba(0,255,255,0.04) 0%, rgba(100,0,255,0.06) 100%);
-    border: 1px solid rgba(0,255,255,0.2);
+    margin-top: 20px;
+    padding: 10px 0;
+    background: rgba(0, 255, 255, 0.05);
+    border: 1px solid rgba(0, 255, 255, 0.3);
     border-radius: 6px;
-    color: rgba(0,255,255,0.6);
+    color: #0ff;
     font-family: inherit;
-    font-size: 0.62rem;
+    font-size: 0.7rem;
+    font-weight: bold;
     letter-spacing: 2px;
     cursor: pointer;
-    transition: border-color 0.2s, color 0.2s, background 0.2s, box-shadow 0.2s;
+    transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 5px rgba(0, 255, 255, 0.1);
 }
+
 .a11y-open-btn:hover {
-    border-color: rgba(0,255,255,0.6);
-    color: #0ff;
-    background: rgba(0,255,255,0.07);
-    box-shadow: 0 0 10px rgba(0,255,255,0.12);
+    border-color: #0ff;
+    background: rgba(0, 255, 255, 0.15);
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+    transform: translateY(-1px);
 }
 .a11y-badge {
     display: inline-flex;
