@@ -1,3 +1,31 @@
+/** 
+ * NEXUS MASTER TYPE DEFINITIONS
+ * @typedef {Object} NexusUser
+ * @property {string} name
+ * @property {string} [email]
+ * @property {string} [picture]
+ */
+
+/** @type {number} */
+window.NEXUS_BOOT_START = window.NEXUS_BOOT_START || Date.now();
+
+// Extend Global Interfaces
+/** @interface */
+window.showLeaderboard = window.showLeaderboard || function(){};
+window.renderHistoryTab = window.renderHistoryTab || function(){};
+window.clearModeHistory = window.clearModeHistory || function(){};
+window.wordleKey = window.wordleKey || function(){};
+window.mineClick = window.mineClick || function(){};
+window.mineFlag = window.mineFlag || function(){};
+window.handleCredentialResponse = window.handleCredentialResponse || function(){};
+window.revealTerminal = window.revealTerminal || function(){};
+window.logout = window.logout || function(){};
+window.submitGuestAuth = window.submitGuestAuth || function(){};
+window.showTerms = window.showTerms || function(){};
+window.showTermsFromWall = window.showTermsFromWall || function(){};
+window.hideTerms = window.hideTerms || function(){};
+window.nexusExpandImg = window.nexusExpandImg || function(){};
+
 // =============================================================
 //  NEXUS TERMINAL v4.0
 // =============================================================
@@ -2770,13 +2798,13 @@ function renderAuthSection() {
             : `<div class="auth-avatar-initials">${nexusUser.name[0].toUpperCase()}</div>`;
             
         authSection.innerHTML = `
-            <div class="auth-user-card" style="display:flex; align-items:center; gap:8px; padding:8px 2px 10px; border-bottom:1px solid #0d0d1a; margin-bottom:10px;">
+            <div class="auth-user-card" style="display:flex; align-items:center; gap:6px; padding:4px 2px 6px; border-bottom:1px solid #0d0d1a; margin-bottom:6px;">
                 ${avatarHtml}
                 <div class="auth-info" style="flex:1; min-width:0;">
                     <div class="auth-name" style="color:#ccc; font-size:0.66rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${nexusUser.name}</div>
                     <div class="auth-email" style="color:#333; font-size:0.55rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${isGoogle ? nexusUser.email : 'LOCAL'}</div>
                 </div>
-                <div style="display:flex; gap:6px; align-items:center;">
+                <div style="display:flex; flex-direction:row; gap:4px; align-items:center;">
                     <button class="auth-logout-btn" style="background:rgba(0,255,255,0.05); border:1px solid rgba(0,255,255,0.2); color:#0ff; font-size:9px; width:22px; height:22px; padding:0; display:flex; align-items:center; justify-content:center; cursor:pointer;" onclick="clearAllHistory()" title="Clear cache">M</button>
                     <button class="auth-logout-btn" onclick="logout()" title="Sign out" style="background:none; border:1px solid #f55; color:#f55 !important; cursor:pointer; width:22px; height:22px; display:flex; align-items:center; justify-content:center; border-radius:3px; font-size:16px; line-height:1; font-weight:bold;">×</button>
                 </div>
@@ -4120,6 +4148,19 @@ window.onload = async () => {
 
         console.log("[BOOT] Initializing Neural Uplink...");
         
+        // Add SYNCING NEURAL LINK... bar
+        const syncOverlay = document.createElement('div');
+        syncOverlay.id = 'sync-neural-link-overlay';
+        syncOverlay.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(5,5,10,0.95);z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Fira Code',monospace;";
+        syncOverlay.innerHTML = `
+            <div style="color:#0ff;font-size:1.2rem;letter-spacing:2px;margin-bottom:15px;text-shadow:0 0 10px #0ff;">SYNCING NEURAL LINK...</div>
+            <div style="width:300px;height:4px;background:#111;border-radius:2px;overflow:hidden;box-shadow:0 0 5px rgba(0,255,255,0.2);">
+                <div id="sync-progress-bar" style="width:0%;height:100%;background:#0ff;box-shadow:0 0 10px #0ff;transition:width 1s linear;"></div>
+            </div>
+            <div id="sync-time-text" style="color:#555;font-size:0.75rem;margin-top:10px;">0 / 30s</div>
+        `;
+        document.body.appendChild(syncOverlay);
+        
         while (Date.now() - startWake < MAX_WAKE_TIME) {
             try {
                 const controller = new AbortController();
@@ -4129,10 +4170,20 @@ window.onload = async () => {
                 if (pingRes.ok) { isBackendOnline = true; break; }
             } catch (e) {}
             
+            const elapsed = Math.round((Date.now() - startWake) / 1000);
+            const pct = Math.min(100, (elapsed / 30) * 100);
+            const bar = document.getElementById('sync-progress-bar');
+            const txt = document.getElementById('sync-time-text');
+            if (bar) bar.style.width = pct + '%';
+            if (txt) txt.textContent = elapsed + ' / 30s';
+            
             // Pulse loading state if terminal revealed or in console
-            console.log(`[BOOT] Syncing... ${Math.round((Date.now() - startWake)/1000)}s`);
+            console.log(`[BOOT] Syncing... ${elapsed}s`);
             await new Promise(r => setTimeout(r, 1000));
         }
+        
+        // Remove overlay
+        if (syncOverlay.parentNode) syncOverlay.parentNode.removeChild(syncOverlay);
 
         if (!isBackendOnline) {
             const maint = document.createElement("div");
