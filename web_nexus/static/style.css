@@ -1,4 +1,4 @@
-/* ── PACIFIC MASTER CORE v4.0.73 ────────────────────────────────────────────── */
+/* ── PACIFIC MASTER CORE v4.0.75 ────────────────────────────────────────────── */
 
 :root {
     --bg-color: #050510;
@@ -16,22 +16,23 @@ html, body {
     color: var(--txt-color);
     font-family: var(--font-main) !important;
     margin: 0;
-    height: 100dvh;
+    padding: 0;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
-    overflow: hidden;
-    scroll-behavior: smooth;
+    overflow: auto; /* ALLOW GLOBAL SCROLL AS FALLBACK */
 }
 
 .monitor {
     position: relative;
     width: 98vw;
     height: 96vh;
+    max-height: 900px;
     background: radial-gradient(circle, #1a1a2e 0%, #000 100%);
     border-radius: 12px;
     box-shadow: 0 0 50px rgba(0, 255, 255, 0.15);
-    overflow: hidden;
+    overflow: hidden; /* KEEP INTERNAL CONTENT CONTAINED */
     display: flex;
     flex-direction: column;
 }
@@ -68,7 +69,6 @@ html, body {
     height: 100%;
     background: rgba(5, 5, 16, 0.97);
     border: 1px solid rgba(0, 255, 255, 0.1);
-    transform: translateZ(0);
 }
 
 .status-bar {
@@ -78,24 +78,9 @@ html, body {
     align-items: center;
     border-bottom: 2px solid var(--accent);
     background: rgba(0,0,0,0.6);
-    font-weight: 600;
-    font-size: 0.8rem;
     padding: 0 10px;
-    gap: 8px;
+    z-index: 20;
 }
-
-.status-item {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-    white-space: nowrap;
-}
-
-.conn-dot {
-    width: 8px; height: 8px; border-radius: 50%; background: #555;
-    box-shadow: 0 0 5px rgba(0,0,0,0.5); transition: background 0.3s;
-}
-.conn-dot.connected { background: #0f0; box-shadow: 0 0 8px #0f0; }
 
 .terminal-container {
     grid-area: main;
@@ -103,7 +88,7 @@ html, body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    min-height: 0;
+    height: 100%;
 }
 
 .terminal-output {
@@ -113,130 +98,86 @@ html, body {
     padding-right: 8px;
     scrollbar-width: thin;
     scrollbar-color: var(--txt-color) rgba(0,0,0,0.2);
+    /* Fix the 'Code Line' bug */
+    white-space: pre-wrap; 
+    word-wrap: break-word;
 }
 
 .terminal-output p {
-    margin: 8px 0;
+    margin: 10px 0;
     animation: fadeIn 0.2s ease-in;
     line-height: 1.6;
-    word-break: break-word;
     font-family: var(--font-main) !important;
 }
 
-/* AI Message Styling (Forced Font) */
+/* AI Message Styling (Forced Font + Wrapping) */
 .ai-msg, .shadow-msg, .coder-msg, .sage-msg, .education-msg { 
+    display: block;
+    width: 100%;
     line-height: 1.7; 
-    padding-bottom: 4px; 
     padding-left: 12px; 
     margin-left: 2px;
     border-left: 2px solid var(--accent);
     color: var(--accent);
-    filter: brightness(1.2);
     font-family: var(--font-main) !important;
-    font-size: 0.95rem;
-    letter-spacing: 0.2px;
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 
-.user-cmd     { color: #fff; font-weight: 600; margin-top: 16px !important; }
-
-.terminal-input-wrapper {
-    display: flex;
-    align-items: center;
-    border-top: 1px solid rgba(0, 255, 255, 0.15);
-    padding-top: 10px;
-    gap: 6px;
-    flex-shrink: 0;
-}
-
-.prompt { color: var(--accent); margin-right: 6px; white-space: nowrap; font-size: 0.9rem; }
-
-#terminal-input {
-    background: transparent; border: none; color: var(--txt-color);
-    font-family: inherit; font-size: 16px; flex-grow: 1; outline: none;
-    caret-color: var(--txt-color); width: 0; min-width: 0;
-}
 .quick-actions {
     grid-area: aside;
     border-left: 1px solid rgba(0, 255, 255, 0.2);
     display: flex;
     flex-direction: column;
-    padding: 20px 14px 40px;
+    padding: 20px 14px;
     background: rgba(0,0,0,0.4);
     gap: 12px;
-    overflow-y: auto !important;
-    min-height: 0;
+    overflow-y: auto !important; /* ENABLE SIDEBAR SCROLL */
     scrollbar-width: thin;
-    scrollbar-color: var(--accent) rgba(0,0,0,0.2);
-    transition: background 0.3s ease;
 }
 
-.aside-header { font-size: 0.72rem; color: var(--accent); margin-bottom: 4px; letter-spacing: 2px; }
-
-.action-btn {
-    background: transparent; border: 1px solid var(--txt-color); color: var(--txt-color);
-    padding: 9px 10px; cursor: pointer; transition: 0.2s;
-    text-transform: uppercase; font-size: 0.8rem; border-radius: 3px;
+/* Compact Identity Styling */
+.auth-user-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(0, 255, 255, 0.1);
+    margin-bottom: 10px;
 }
-.action-btn:hover { background: var(--txt-color); color: #000; box-shadow: 0 0 6px var(--txt-color); }
-
-.mode-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
-.mode-btn {
-    background: transparent; border: 1px solid #333; color: #555;
-    font-family: inherit; font-size: 0.68rem; font-weight: 600; padding: 7px 4px;
-    cursor: pointer; border-radius: 3px; transition: 0.15s;
+.auth-avatar {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 50%;
+    border: 1px solid var(--accent);
 }
-.mode-btn:hover { border-color: var(--txt-color); color: var(--txt-color); }
-.mode-btn.active { background: var(--txt-color); color: #000; box-shadow: 0 0 8px var(--txt-color); }
+.auth-name { font-size: 0.7rem; color: #fff; font-weight: bold; }
 
 .auth-logout-btn {
-    background: none; border: 1px solid #f55; color: #f55 !important; cursor: pointer;
-    font-size: 1.1rem; line-height: 1; flex-shrink: 0; transition: 0.2s;
-    width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
-    border-radius: 3px; font-weight: bold;
+    background: none; border: 1px solid #f55; color: #f55 !important;
+    width: 24px; height: 24px; border-radius: 3px; cursor: pointer;
+    font-weight: bold; display: flex; align-items: center; justify-content: center;
 }
-.auth-logout-btn:hover { background: rgba(255,0,0,0.1); color: #fff !important; }
 
 .a11y-open-btn {
     display: flex; align-items: center; justify-content: center; gap: 8px;
     width: 100%; padding: 12px 0; background: rgba(0, 255, 255, 0.08);
     border: 1px solid rgba(0, 255, 255, 0.4); border-radius: 8px;
-    color: #0ff; font-family: inherit; font-size: 0.75rem; font-weight: bold;
-    cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    margin-top: auto;
-}
-.a11y-open-btn:hover { background: rgba(0, 255, 255, 0.15); border-color: #0ff; transform: translateY(-1px); }
-
-@media (max-width: 700px) {
-    .monitor { width: 100vw; height: 100%; border-radius: 0; }
-    .glass-panel { grid-template-columns: 1fr; grid-template-rows: 40px 1fr auto; grid-template-areas: "header" "main" "aside"; }
-    .quick-actions { flex-direction: row; flex-wrap: wrap; padding: 10px; border-left: none; border-top: 1px solid rgba(0,255,255,0.2); height: auto; }
+    color: #0ff; cursor: pointer; margin-top: auto;
 }
 
-@keyframes fadeIn { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: translateX(0); } }
-
-/* ============================================================
-   AUTH & GUI OVERLAYS
-   ============================================================ */
+/* Login Wall Overlays */
 .auth-overlay {
     position: fixed; inset: 0; background: #050510; z-index: 10000;
     display: flex; align-items: center; justify-content: center;
 }
 .auth-box {
-    background: rgba(10, 10, 30, 0.8); border: 2px solid var(--accent);
-    padding: 40px; width: 100%; max-width: 400px; text-align: center;
-    box-shadow: 0 0 40px rgba(0, 255, 255, 0.15);
+    background: rgba(10, 10, 30, 0.95); border: 2px solid var(--accent);
+    padding: 40px; width: 90%; max-width: 400px; text-align: center;
 }
-.auth-header { color: var(--accent); font-size: 1.4rem; font-weight: 600; letter-spacing: 4px; margin-bottom: 15px; }
-.auth-desc { color: #888; font-size: 0.9rem; margin-bottom: 25px; }
-.auth-sub-section { margin-bottom: 20px; }
-.auth-label { color: var(--accent); font-size: 0.65rem; letter-spacing: 2px; margin-bottom: 10px; }
-.auth-divider { position: relative; margin: 25px 0; border-bottom: 1px solid #1a1a3a; }
-.auth-divider span { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #050510; padding: 0 10px; color: #444; font-size: 0.7rem; }
-.auth-footer { color: #333; font-size: 0.6rem; letter-spacing: 1px; margin-top: 20px; }
-
 .gui-btn {
     background: transparent; border: 1px solid var(--accent); color: var(--accent);
-    cursor: pointer; font-family: inherit; font-weight: bold; letter-spacing: 2px;
-    transition: all 0.2s ease;
+    padding: 12px; cursor: pointer; width: 100%; font-weight: bold;
 }
-.gui-btn:hover { background: var(--accent); color: #000; box-shadow: 0 0 15px var(--accent); }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: translateX(0); } }
