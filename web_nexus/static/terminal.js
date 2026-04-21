@@ -4099,71 +4099,67 @@ function toggleA11yPanel() {
 }
 
 // =============================================================
+// =============================================================
 //  RESTORE & BOOT
 // =============================================================
 
-// Global Boot
 window.onload = async () => {
     try {
-        // Initialize DOM references
-        cpuStat      = document.getElementById('cpu-stat');
-        memStat      = document.getElementById('mem-stat');
-        output       = document.getElementById('terminal-output');
-        input        = document.getElementById('terminal-input');
-        guiContainer = document.getElementById('game-gui-container');
-        guiContent   = document.getElementById('gui-content');
-        guiTitle     = document.getElementById('gui-title');
-        nexusCanvas  = document.getElementById('nexus-canvas');
+        cpuStat      = document.getElementById("cpu-stat");
+        memStat      = document.getElementById("mem-stat");
+        output       = document.getElementById("terminal-output");
+        input        = document.getElementById("terminal-input");
+        guiContainer = document.getElementById("game-gui-container");
+        guiContent   = document.getElementById("gui-content");
+        guiTitle     = document.getElementById("gui-title");
+        nexusCanvas  = document.getElementById("nexus-canvas");
 
-        // PRE-BOOT HEALTH CHECK (Vital for Render free tier sleep)
         let isBackendOnline = false;
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000); // Wait 8s for Render wake
-            const pingRes = await fetch(`${API_BASE}/ping`, { signal: controller.signal });
-            clearTimeout(timeoutId);
-            if (pingRes.ok) isBackendOnline = true;
-        } catch (e) {
-            console.warn("[BOOT] Health check failed. Backend may be offline.");
+        const startWake = Date.now();
+        const MAX_WAKE_TIME = 30000; // Pacific Patience: 30 seconds
+
+        console.log("[BOOT] Initializing Neural Uplink...");
+        
+        while (Date.now() - startWake < MAX_WAKE_TIME) {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 2000);
+                const pingRes = await fetch(`${API_BASE}/ping`, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (pingRes.ok) { isBackendOnline = true; break; }
+            } catch (e) {}
+            
+            // Pulse loading state if terminal revealed or in console
+            console.log(`[BOOT] Syncing... ${Math.round((Date.now() - startWake)/1000)}s`);
+            await new Promise(r => setTimeout(r, 1000));
         }
 
         if (!isBackendOnline) {
-            const maint = document.createElement('div');
+            const maint = document.createElement("div");
             maint.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(10,10,15,0.98);color:#f55;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Fira Code',monospace;text-align:center;padding:20px;";
             maint.innerHTML = `
                 <div style="width:12px;height:12px;background:#f55;border-radius:50%;margin-bottom:15px;box-shadow:0 0 10px #f55;animation:pulse 2s infinite;"></div>
                 <h1 style="color:#fff;font-size:1.5rem;letter-spacing:2px;margin:0 0 10px 0;">SYSTEM OFFLINE</h1>
-                <p style="color:#aaa;max-width:400px;line-height:1.6;font-size:0.85rem;">
-                    "This is my creation."<br>
-                    The Nexus Core is currently undergoing maintenance or entering a sleep cycle. Neural uplinks are severed.
-                </p>
+                <p style="color:#aaa;max-width:400px;line-height:1.6;font-size:0.85rem;">The Nexus Core is currently undergoing maintenance. Neural uplinks are severed.</p>
                 <button onclick="location.reload()" style="margin-top:20px;background:none;border:1px solid #555;color:#888;padding:8px 16px;cursor:pointer;font-family:monospace;transition:0.2s;">[ INITIATE PING REFRESH ]</button>
             `;
             document.body.appendChild(maint);
-            return; // Halt boot sequence entirely
+            return; 
         }
 
-        // Check for existing session on server (handles redirect return)
         let authedName = null;
         try {
             const meRes = await fetch(`${API_BASE}/api/me`);
             const meData = await meRes.json();
-            if (meData.ok) {
-                localStorage.setItem('nexus_user_data', JSON.stringify(meData));
-                authedName = meData.name;
-            }
+            if (meData.authenticated) authedName = meData.name;
         } catch(e) {}
 
-        // Fallback to local storage if server check failed
         if (!authedName) {
-            const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+            const nexusUser = JSON.parse(localStorage.getItem("nexus_user_data") || "null");
             if (nexusUser && nexusUser.name) authedName = nexusUser.name;
         }
 
-        // Load history for the current mode on boot
         messageHistory = loadHistory(currentMode);
-
-        // Start auth in background (non-blocking)
         initGoogleAuth();
 
         if (authedName) {
@@ -4174,7 +4170,5 @@ window.onload = async () => {
         console.log(`[NEXUS] Boot sequence complete in ${Date.now() - window.NEXUS_BOOT_START}ms`);
     } catch (e) {
         console.error("[CRITICAL] Boot sequence failed:", e);
-        // Ensure diagnostic reporter catches this if it's a hard crash
-        throw e; 
     }
 };
