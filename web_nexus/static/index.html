@@ -98,7 +98,7 @@
             
             <div class="auth-divider"><span>OR</span></div>
             
-            <button class="gui-btn" onclick="submitGuestAuth()">GUEST UPLINK</button>
+            <button class="gui-btn" onclick="window.showTermsFromWall()">GUEST UPLINK</button>
             
             <div class="auth-footer">SEC_LEVEL: GRADE_A // 256_BIT_ENC</div>
         </div>
@@ -118,7 +118,7 @@
                 </div>
             </div>
             <div style="display:flex; gap:10px; justify-content:center;">
-                <button id="agree-btn" class="gui-btn" onclick="revealTerminal('Guest')" disabled>ENTER</button>
+                <button id="agree-btn" class="gui-btn" onclick="submitGuestAuth()" disabled>ENTER</button>
                 <button class="gui-btn" style="border-color:#444; color:#555;" onclick="document.getElementById('terms-modal').style.display='none'">CANCEL</button>
             </div>
         </div>
