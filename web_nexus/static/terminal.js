@@ -3943,7 +3943,7 @@ function openImageViewer(file) {
             <img src="${b64}"
                  style="max-height:72px;max-width:180px;border:1px solid #0ff;border-radius:3px;margin-top:5px;display:block;cursor:pointer;"
                  title="Click to expand"
-                 onclick="nexusExpandImg('${b64.slice(0,32)}')">
+                 onclick="nexusExpandImg('${b64}')">
             <span style="font-size:0.7rem;color:#555;">Ask a question or type <b style="color:#0ff;">scan image</b> to analyze</span>`;
         output.appendChild(p);
         output.scrollTop = output.scrollHeight;

@@ -1,3 +1,7 @@
+* {
+    box-sizing: border-box;
+}
+
 :root {
     --bg-color: #050510;
     --txt-color: #0ff;
@@ -5,14 +9,10 @@
     --font-main: 'Fira Code', monospace;
 }
 
-* {
-    box-sizing: border-box;
-    font-family: var(--font-main) !important;
-}
-
 html {
     height: 100%;
     height: -webkit-fill-available;
+    scroll-behavior: smooth;
 }
 
 body {
@@ -20,24 +20,47 @@ body {
     color: var(--txt-color);
     font-family: var(--font-main);
     margin: 0;
-    height: 100%;
     height: 100dvh;
     display: flex;
     justify-content: center;
     align-items: center;
     overflow: hidden;
+    scroll-behavior: smooth;
 }
 
 .monitor {
     position: relative;
     width: 95vw;
-    height: 95%;
+    height: 92vh; /* Use vh for more consistent results */
     background: radial-gradient(circle, #1a1a2e 0%, #000 100%);
     border-radius: 12px;
     box-shadow: 0 0 50px rgba(0, 255, 255, 0.15);
     overflow: hidden;
+}
+
+.screen {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
+}
+
+.glass-panel {
+    display: grid;
+    grid-template-columns: 1fr 240px; /* Widen for button clarity */
+    grid-template-rows: 44px 1fr;
+    grid-template-areas:
+        "header header"
+        "main aside";
+    width: 100%;
+    height: 100%;
+    background: rgba(5, 5, 16, 0.97);
+    border: 1px solid rgba(0, 255, 255, 0.1);
+    transform: translateZ(0);
+    will-change: transform;
+    overflow: hidden; /* Contain the scrollable children */
 }
 
 /* CRT Scanlines Overlay */
@@ -140,17 +163,20 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    height: 100%; /* Fill the grid cell */
     min-height: 0;
 }
 
 .terminal-output {
-    flex-grow: 1;
+    flex: 1;
     overflow-y: auto !important;
     margin-bottom: 10px;
     padding-right: 8px;
     scrollbar-width: thin;
-    scrollbar-color: var(--txt-color) rgba(0,0,0,0.2);
+    scrollbar-color: var(--txt-color) rgba(0,0,0,0.1);
     scroll-behavior: smooth;
+    display: flex;
+    flex-direction: column;
 }
 
 .terminal-output p {
@@ -236,9 +262,10 @@ body {
     background: rgba(0,0,0,0.4);
     gap: 12px;
     overflow-y: auto !important;
+    height: 100%;
     min-height: 0;
     scrollbar-width: thin;
-    scrollbar-color: var(--accent) rgba(0,0,0,0.2);
+    scrollbar-color: var(--accent) rgba(0,0,0,0.1);
     transition: background 0.3s ease;
 }
 
