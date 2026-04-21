@@ -42,6 +42,10 @@ def _key(name: str) -> str:
     
     val = os.environ.get(name, '').strip().strip('"').strip("'").strip()
     
+    if name == "DISCORD_WEBHOOK":
+        if val: print(f"[DEBUG] DISCORD_WEBHOOK found (length: {len(val)})")
+        else: print("[DEBUG] DISCORD_WEBHOOK is MISSING from environment")
+    
     if name == "GROQ_API_KEY" and val.startswith("gsk_"):
         parts = val.split("gsk_")
         if len(parts) > 1 and parts[1]: return "gsk_" + parts[1]
