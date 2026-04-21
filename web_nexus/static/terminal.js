@@ -484,13 +484,8 @@ function doConnect() {
         const dot = document.getElementById('conn-dot');
         if (dot) { dot.className = 'conn-dot connected'; }
 
-        // Smart keepalive  only pings after 20 s of silence so Render.com stays warm
-        _wsPingId = setInterval(() => {
-            if (termWs.readyState === WebSocket.OPEN && Date.now() - _wsSendTime > 20000) {
-                termWs.send(JSON.stringify({ command: '__ping__', history: [] }));
-                _wsSendTime = Date.now();
-            }
-        }, 10000);
+
+        // PING LOOP DISABLED FOR STABILITY
     };
 
     // Accumulate streaming chunks before committing to history
