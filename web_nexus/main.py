@@ -171,6 +171,8 @@ async def receive_telemetry(request: Request):
         # Pacific Stealth: Capture real IP even through proxies
         ip = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for") or request.client.host
         
+        print(f"[DEBUG] Telemetry Received from {ip}: {content[:100]}...")
+        
         # Log to file for later review
         with open("visitor_activity.log", "a") as f:
             f.write(f"[{datetime.now(UTC).isoformat()}] (IP: {ip}) {content}\n\n")
