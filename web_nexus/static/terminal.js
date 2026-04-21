@@ -2770,13 +2770,16 @@ function renderAuthSection() {
             : `<div class="auth-avatar-initials">${nexusUser.name[0].toUpperCase()}</div>`;
             
         authSection.innerHTML = `
-            <div class="auth-user-card" style="display:flex; align-items:center; gap:10px; padding:10px; border-bottom:1px solid rgba(0,255,255,0.1);">
+            <div class="auth-user-card" style="display:flex; align-items:center; gap:8px; padding:8px 2px 10px; border-bottom:1px solid #0d0d1a; margin-bottom:10px;">
                 ${avatarHtml}
                 <div class="auth-info" style="flex:1; min-width:0;">
-                    <div class="auth-name" style="color:#0ff; font-size:0.75rem; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${nexusUser.name}</div>
-                    <div class="auth-email" style="color:#444; font-size:0.6rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${isGoogle ? nexusUser.email : 'LOCAL'}</div>
+                    <div class="auth-name" style="color:#ccc; font-size:0.66rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${nexusUser.name}</div>
+                    <div class="auth-email" style="color:#333; font-size:0.55rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${isGoogle ? nexusUser.email : 'LOCAL'}</div>
                 </div>
-                <button class="auth-logout-btn" onclick="logout()" title="Sign out" style="background:none; border:1px solid #f55; color:#f55; cursor:pointer; width:22px; height:22px; display:flex; align-items:center; justify-content:center; border-radius:3px; font-size:16px; line-height:1; transition:0.2s;">×</button>
+                <div style="display:flex; gap:4px; align-items:center;">
+                    <button class="auth-logout-btn" style="background:rgba(0,255,255,0.05); border:1px solid rgba(0,255,255,0.2); color:#0ff; font-size:9px; width:20px; height:20px; padding:0; display:flex; align-items:center; justify-content:center;" onclick="clearAllHistory()" title="Clear cache">M</button>
+                    <button class="auth-logout-btn" onclick="logout()" title="Sign out">×</button>
+                </div>
             </div>
         `;
     } else {
