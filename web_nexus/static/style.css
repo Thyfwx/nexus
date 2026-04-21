@@ -63,18 +63,17 @@ body {
 
 .glass-panel {
     display: grid;
-    grid-template-columns: 1fr 200px;
+    grid-template-columns: 1fr 220px;
     grid-template-rows: 44px 1fr;
     grid-template-areas:
         "header header"
         "main aside";
     height: 100%;
-    /* backdrop-filter removed — causes Chrome input lag / compositing storm over canvas */
     background: rgba(5, 5, 16, 0.97);
     border: 1px solid rgba(0, 255, 255, 0.1);
-    /* Force own GPU layer so children (canvas games) don't trigger full repaint */
     transform: translateZ(0);
     will-change: transform;
+    overflow: hidden;
 }
 
 .status-bar {
@@ -142,16 +141,16 @@ body {
     flex-direction: column;
     overflow: hidden;
     min-height: 0;
-    height: calc(100vh - 80px); /* Explicit constraint for scrolling */
 }
 
 .terminal-output {
     flex-grow: 1;
-    overflow-y: scroll !important; /* Force scrollbar visibility */
+    overflow-y: auto !important;
     margin-bottom: 10px;
-    padding-right: 6px;
+    padding-right: 8px;
     scrollbar-width: thin;
-    scrollbar-color: var(--txt-color) transparent;
+    scrollbar-color: var(--txt-color) rgba(0,0,0,0.2);
+    scroll-behavior: smooth;
 }
 
 .terminal-output p {
@@ -234,13 +233,17 @@ body {
     display: flex;
     flex-direction: column;
     padding: 20px 14px;
-    background: rgba(0,0,0,0.3);
+    background: rgba(0,0,0,0.4);
     gap: 12px;
     overflow-y: auto !important;
-    height: 100%; /* Constrain to grid cell */
-    max-height: calc(100vh - 44px); /* Ensure it doesn't push the footer out */
+    min-height: 0;
     scrollbar-width: thin;
-    scrollbar-color: var(--accent) transparent;
+    scrollbar-color: var(--accent) rgba(0,0,0,0.2);
+    transition: background 0.3s ease;
+}
+
+.quick-actions:hover {
+    background: rgba(0,0,0,0.5);
 }
 
 .aside-header {
@@ -629,21 +632,23 @@ body.auth-locked .monitor { display: none !important; }
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 8px;
     width: 100%;
-    margin-top: 20px;
-    padding: 10px 0;
-    background: rgba(0, 255, 255, 0.05);
-    border: 1px solid rgba(0, 255, 255, 0.3);
-    border-radius: 6px;
+    margin-top: auto;
+    padding: 12px 0;
+    background: rgba(0, 255, 255, 0.08);
+    border: 1px solid rgba(0, 255, 255, 0.4);
+    border-radius: 8px;
     color: #0ff;
     font-family: inherit;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: bold;
     letter-spacing: 2px;
     cursor: pointer;
-    transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 0 5px rgba(0, 255, 255, 0.1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.1);
+    flex-shrink: 0;
+    margin-bottom: 5px;
 }
 
 .a11y-open-btn:hover {
