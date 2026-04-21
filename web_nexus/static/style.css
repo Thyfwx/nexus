@@ -1,4 +1,4 @@
-/* ── PACIFIC MASTER CORE v4.0.77 ────────────────────────────────────────────── */
+/* ── PACIFIC MASTER CORE v4.0.82 ────────────────────────────────────────────── */
 
 :root {
     --bg-color: #050510;
@@ -9,14 +9,17 @@
 
 * { box-sizing: border-box; }
 
+/* ============================================================
+   MODULE: GLOBAL SHELL
+   ============================================================ */
 html, body {
     background-color: var(--bg-color);
     color: var(--txt-color);
     font-family: var(--font-main) !important;
     margin: 0; padding: 0;
-    height: 100dvh;
+    height: 100dvh; width: 100vw;
     display: flex; justify-content: center; align-items: center;
-    overflow: hidden; /* LOCK GLOBAL SCROLL */
+    overflow: hidden;
 }
 
 .monitor {
@@ -29,12 +32,12 @@ html, body {
     display: flex; flex-direction: column;
 }
 
-/* CRT Scanlines */
+/* CRT Scanlines Layer */
 .monitor::after {
     content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
     background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
                 linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 255, 255, 0.06));
-    z-index: 100; background-size: 100% 4px, 3px 100%; pointer-events: none; opacity: 0.1;
+    z-index: 100; background-size: 100% 4px, 3px 100%; pointer-events: none; opacity: 0.08;
 }
 
 .glass-panel {
@@ -47,15 +50,9 @@ html, body {
     border: 1px solid rgba(0, 255, 255, 0.1);
 }
 
-.status-bar {
-    grid-area: header;
-    display: flex; justify-content: space-around; align-items: center;
-    border-bottom: 2px solid var(--accent);
-    background: rgba(0,0,0,0.8);
-    font-weight: 600; font-size: 0.8rem; padding: 0 10px;
-    z-index: 50;
-}
-
+/* ============================================================
+   MODULE: TERMINAL & AI LOGIC
+   ============================================================ */
 .terminal-container {
     grid-area: main;
     padding: 20px;
@@ -66,17 +63,19 @@ html, body {
 .terminal-output {
     flex-grow: 1;
     overflow-y: auto !important;
-    margin-bottom: 15px; padding-right: 10px;
+    margin-bottom: 15px; padding-right: 12px;
     scrollbar-width: thin; scrollbar-color: var(--txt-color) transparent;
-    white-space: pre-wrap; word-break: break-word;
 }
 
 .terminal-output p {
-    margin: 12px 0; line-height: 1.6;
-    animation: fadeIn 0.2s ease-in;
+    margin: 12px 0;
+    line-height: 1.65;
+    white-space: pre-wrap; 
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    font-family: var(--font-main) !important;
 }
 
-/* AI Message Styling */
 .ai-msg, .shadow-msg, .coder-msg, .sage-msg, .education-msg { 
     display: block; width: 100%;
     line-height: 1.7; padding-left: 14px; margin-left: 2px;
@@ -85,37 +84,47 @@ html, body {
     font-family: var(--font-main) !important;
 }
 
+/* --- Terminal Command Input --- */
+.terminal-input-wrapper {
+    display: flex; align-items: center;
+    border-top: 1px solid rgba(0, 255, 255, 0.2);
+    padding: 15px 5px 5px; gap: 12px; flex-shrink: 0;
+}
+.prompt { color: var(--accent); font-weight: bold; font-size: 1rem; white-space: nowrap; }
+#terminal-input {
+    background: transparent; border: none; color: var(--txt-color);
+    font-family: var(--font-main) !important; font-size: 1.1rem;
+    flex-grow: 1; outline: none; caret-color: var(--txt-color);
+}
+
+/* ============================================================
+   MODULE: SIDEBAR & NAVIGATION
+   ============================================================ */
 .quick-actions {
     grid-area: aside;
     border-left: 1px solid rgba(0, 255, 255, 0.2);
     display: flex; flex-direction: column;
-    padding: 20px 14px; background: rgba(0,0,0,0.5);
-    gap: 12px; overflow-y: auto !important; height: 100%;
+    padding: 16px 14px; background: rgba(0,0,0,0.5);
+    gap: 10px; overflow-y: auto !important; height: 100%;
     scrollbar-width: thin; scrollbar-color: var(--accent) transparent;
 }
 
-.aside-header { font-size: 0.75rem; color: var(--accent); margin-bottom: 4px; letter-spacing: 2px; }
-
-/* ACTION BUTTONS (The 'Plain White' Fix) */
 .action-btn {
     background: transparent; border: 1px solid var(--txt-color); color: var(--txt-color);
-    padding: 10px; cursor: pointer; transition: 0.2s;
-    text-transform: uppercase; font-size: 0.8rem; border-radius: 4px;
-    font-family: inherit; font-weight: bold;
+    padding: 8px 10px; cursor: pointer; transition: all 0.2s ease;
+    text-transform: uppercase; font-size: 0.75rem; border-radius: 4px;
+    font-family: var(--font-main) !important; font-weight: bold;
 }
 .action-btn:hover { background: var(--txt-color); color: #000; box-shadow: 0 0 10px var(--txt-color); }
 
-/* MODE PICKER */
-.mode-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .mode-btn {
-    background: transparent; border: 1px solid #333; color: #666;
-    font-family: inherit; font-size: 0.7rem; font-weight: bold; padding: 8px 4px;
+    background: transparent; border: 1px solid #333; color: #555;
+    font-family: var(--font-main) !important; font-size: 0.65rem; font-weight: bold; padding: 7px 4px;
     cursor: pointer; border-radius: 4px; transition: 0.2s;
 }
-.mode-btn:hover { border-color: var(--txt-color); color: var(--txt-color); }
-.mode-btn.active { background: var(--txt-color); color: #000; box-shadow: 0 0 12px var(--txt-color); border-color: var(--txt-color); }
+.mode-btn.active { background: var(--txt-color); color: #000; border-color: var(--txt-color); box-shadow: 0 0 12px var(--txt-color); }
 
-/* IDENTITY CARD (Huge Profile Fix) */
+/* Identity Card */
 .auth-user-card {
     display: flex; align-items: center; gap: 10px; padding: 10px 0;
     border-bottom: 1px solid rgba(0, 255, 255, 0.1); margin-bottom: 12px;
@@ -124,44 +133,66 @@ html, body {
     width: 32px !important; height: 32px !important;
     border-radius: 50%; border: 1px solid var(--accent); flex-shrink: 0;
 }
-.auth-name { font-size: 0.72rem; color: #fff; font-weight: bold; overflow: hidden; text-overflow: ellipsis; }
 
-.auth-logout-btn {
-    background: none; border: 1px solid #f55; color: #f55 !important;
-    width: 24px; height: 24px; border-radius: 4px; cursor: pointer;
-    font-weight: bold; display: flex; align-items: center; justify-content: center;
-}
-.auth-logout-btn:hover { background: #f55; color: #000 !important; }
-
-/* ACCESSIBILITY BUTTON */
-.a11y-open-btn {
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    width: 100%; padding: 14px 0; background: rgba(0, 255, 255, 0.1);
-    border: 1px solid rgba(0, 255, 255, 0.5); border-radius: 8px;
-    color: #0ff; font-family: inherit; font-weight: bold; font-size: 0.75rem;
-    cursor: pointer; transition: 0.3s; margin-top: auto;
-}
-.a11y-open-btn:hover { background: #0ff; color: #000; }
-
-/* LOGIN WALL (Font & Size Fix) */
+/* ============================================================
+   MODULE: THE HERO LOGIN HUD [v4.0.82]
+   ============================================================ */
 .auth-overlay {
     position: fixed; inset: 0; background: #050510; z-index: 10000;
     display: flex; align-items: center; justify-content: center;
+    background-image: radial-gradient(circle at center, #101030 0%, #050510 100%);
 }
+
 .auth-box {
-    background: rgba(10, 10, 30, 0.98); border: 2px solid var(--accent);
-    padding: 50px 40px; width: 95%; max-width: 420px; text-align: center;
-    box-shadow: 0 0 60px rgba(0, 255, 255, 0.2);
+    background: rgba(10, 10, 30, 0.85);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--txt-color);
+    border-top: 4px solid var(--accent); /* VOID MAGENTA TOP ACCENT */
+    padding: 40px; width: 95%; max-width: 420px;
+    text-align: center;
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+    position: relative;
 }
-.auth-header { font-size: 1.5rem; letter-spacing: 5px; color: var(--accent); margin-bottom: 20px; }
+
+/* High-Tech Corners */
+.auth-box::before {
+    content: ""; position: absolute; top: -1px; left: -1px; width: 20px; height: 20px;
+    border-top: 2px solid var(--accent); border-left: 2px solid var(--accent);
+}
+.auth-box::after {
+    content: ""; position: absolute; bottom: -1px; right: -1px; width: 20px; height: 20px;
+    border-bottom: 2px solid var(--accent); border-right: 2px solid var(--accent);
+}
+
+.auth-header { 
+    font-size: 1.6rem; letter-spacing: 6px; color: #fff; margin-bottom: 8px; 
+    font-family: var(--font-main) !important; font-weight: 600;
+    text-shadow: 0 0 10px var(--txt-color);
+}
+
+.auth-desc {
+    color: #444; font-size: 0.75rem; letter-spacing: 2px; margin-bottom: 30px;
+    text-transform: uppercase;
+}
+
+.auth-divider {
+    position: relative; margin: 30px 0; border-bottom: 1px solid #1a1a3a;
+}
+.auth-divider span {
+    position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+    background: #0d0d26; padding: 0 15px; color: #555; font-size: 0.65rem;
+}
+
 .gui-btn {
-    background: transparent; border: 1px solid var(--accent); color: var(--accent);
-    padding: 14px; width: 100%; cursor: pointer; font-family: inherit; font-weight: bold;
-    text-transform: uppercase; letter-spacing: 2px; transition: 0.2s;
+    background: rgba(0, 255, 255, 0.05); border: 1px solid var(--txt-color); color: var(--txt-color);
+    padding: 14px; width: 100%; cursor: pointer; font-family: var(--font-main) !important; 
+    font-weight: bold; text-transform: uppercase; letter-spacing: 3px; transition: 0.3s;
 }
-.gui-btn:hover { background: var(--accent); color: #000; box-shadow: 0 0 20px var(--accent); }
+.gui-btn:hover { background: var(--txt-color); color: #000; box-shadow: 0 0 20px var(--txt-color); }
+
+.auth-footer {
+    color: #222; font-size: 0.55rem; letter-spacing: 2px; margin-top: 30px;
+    font-weight: bold;
+}
 
 @keyframes fadeIn { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: translateX(0); } }
-
-/* Fix Sidebar Scroll geometry */
-.quick-actions > *:last-child { margin-bottom: 30px; }
