@@ -249,13 +249,27 @@ async function postToDiscord(payload, threadId = null, wait = false) {
         const body = { payload };
         if (threadId) body.threadId = threadId;
         if (wait)     body.wait     = true;
+        
+        // Pacific Uplink: Route through the secure worker bridge
         const resp = await fetch(`${PACIFIC_HUB}/log`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify(body),
         });
+        
+        // Double-Check: If the worker bridge fails, try the backend telemetry bridge
+        if (!resp.ok) {
+            fetch(`${API_BASE}/api/telemetry`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: JSON.stringify(payload) })
+            });
+        }
+
         if (wait && resp.ok) return resp.json().catch(() => null);
-    } catch(_) {}
+    } catch(e) {
+        console.warn("[SYNC] Discord uplink fallback active.");
+    }
     return null;
 }
 
