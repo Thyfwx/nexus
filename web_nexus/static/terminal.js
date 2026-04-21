@@ -2776,9 +2776,9 @@ function renderAuthSection() {
                     <div class="auth-name" style="color:#ccc; font-size:0.66rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${nexusUser.name}</div>
                     <div class="auth-email" style="color:#333; font-size:0.55rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${isGoogle ? nexusUser.email : 'LOCAL'}</div>
                 </div>
-                <div style="display:flex; gap:4px; align-items:center;">
-                    <button class="auth-logout-btn" style="background:rgba(0,255,255,0.05); border:1px solid rgba(0,255,255,0.2); color:#0ff; font-size:9px; width:20px; height:20px; padding:0; display:flex; align-items:center; justify-content:center;" onclick="clearAllHistory()" title="Clear cache">M</button>
-                    <button class="auth-logout-btn" onclick="logout()" title="Sign out">×</button>
+                <div style="display:flex; gap:6px; align-items:center;">
+                    <button class="auth-logout-btn" style="background:rgba(0,255,255,0.05); border:1px solid rgba(0,255,255,0.2); color:#0ff; font-size:9px; width:22px; height:22px; padding:0; display:flex; align-items:center; justify-content:center; cursor:pointer;" onclick="clearAllHistory()" title="Clear cache">M</button>
+                    <button class="auth-logout-btn" onclick="logout()" title="Sign out" style="background:none; border:1px solid #f55; color:#f55 !important; cursor:pointer; width:22px; height:22px; display:flex; align-items:center; justify-content:center; border-radius:3px; font-size:16px; line-height:1; font-weight:bold;">×</button>
                 </div>
             </div>
         `;
@@ -4022,113 +4022,6 @@ if (_savedHistory.length) {
 }
 
 // =============================================================
-//  ACCESSIBILITY
-// =============================================================
-
-const A11Y_CLASSES = ['a11y-large', 'a11y-xl', 'a11y-high-contrast', 'a11y-reduce-motion', 'a11y-dyslexic', 'a11y-wide-spacing', 'a11y-bold', 'a11y-dim', 'crt-mode'];
-
-function _a11ySave() {
-    const active = A11Y_CLASSES.filter(c => document.body.classList.contains(c));
-    localStorage.setItem('nexus_a11y', JSON.stringify(active));
-    localStorage.setItem('nexus_sound', SoundManager.enabled ? '1' : '0');
-}
-
-function toggleSound() {
-    SoundManager.enabled = !SoundManager.enabled;
-    if (SoundManager.enabled) SoundManager.playBloop(600, 0.05);
-    _a11ySave();
-    _a11ySyncButtons();
-}
-
-function clearAllHistory() {
-    if (!confirm("Wipe ALL conversation memory across ALL modes?")) return;
-    Object.values(HISTORY_KEYS).forEach(key => localStorage.removeItem(key));
-    messageHistory = [];
-    printToTerminal("[SYSTEM] Global memory wiped. All modes reset.", "sys-msg");
-    const p = document.getElementById('a11y-panel');
-    if (p) p.classList.remove('a11y-panel-open');
-}
-
-function _a11ySyncButtons() {
-    document.querySelectorAll('.a11y-toggle').forEach(btn => {
-        const cls = btn.dataset.class;
-        if (cls) btn.classList.toggle('on', document.body.classList.contains(cls));
-        if (btn.id === 'sound-toggle') btn.classList.toggle('on', SoundManager.enabled);
-    });
-}
-
-function toggleA11yClass(cls) {
-    document.body.classList.toggle(cls);
-    if (cls === 'a11y-large' && document.body.classList.contains(cls))  document.body.classList.remove('a11y-xl');
-    if (cls === 'a11y-xl'    && document.body.classList.contains(cls))  document.body.classList.remove('a11y-large');
-    _a11ySave();
-    _a11ySyncButtons();
-}
-
-function toggleSound() {
-    SoundManager.enabled = !SoundManager.enabled;
-    if (SoundManager.enabled) SoundManager.playBloop(600, 0.05);
-    _a11ySave();
-    _a11ySyncButtons();
-}
-
-//  Voice selection helpers 
-// Preferred voice names in priority order (Google > Microsoft > macOS > default)
-const _VOICE_PREF = [
-    'Google US English', 'Google UK English Female', 'Google UK English Male',
-    'Microsoft Aria Online (Natural) - English (United States)',
-    'Microsoft Jenny Online (Natural) - English (United States)',
-    'Microsoft Guy Online (Natural) - English (United States)',
-    'Microsoft Zira - English (United States)',
-    'Microsoft David - English (United States)',
-    'Samantha', 'Alex', 'Karen', 'Daniel',
-];
-
-function _pickBestVoice(voices) {
-    // Try ranked preferences first
-    for (const name of _VOICE_PREF) {
-        const v = voices.find(v => v.name === name);
-        if (v) return v;
-    }
-    // Fall back to any en-US voice, then any English voice
-    return voices.find(v => v.lang === 'en-US')
-        || voices.find(v => v.lang.startsWith('en'))
-        || voices[0];
-}
-
-function _buildVoiceOptions(sel) {
-    const voices = window.speechSynthesis.getVoices();
-    if (!voices.length) {
-        sel.innerHTML = '<option value="">No voices available</option>';
-        return;
-    }
-    const saved = localStorage.getItem('nexus_tts_voice');
-    const list  = voices.filter(v => v.lang.startsWith('en'));
-    sel.innerHTML = '<option value=""> Auto (best available) </option>';
-    (list.length ? list : voices).forEach(v => {
-        const opt = document.createElement('option');
-        opt.value = v.name;
-        opt.textContent = `${v.name} (${v.lang})`;
-        sel.appendChild(opt);
-    });
-    // Set selection using sel.value  simpler and always works
-    if (saved) {
-        sel.value = saved;
-        if (!sel.value) { sel.value = ''; localStorage.removeItem('nexus_tts_voice'); }
-    } else {
-        const best = _pickBestVoice(list.length ? list : voices);
-        if (best) sel.value = best.name;
-    }
-}
-
-function clearAllHistory() {
-    if (!confirm("Wipe ALL conversation memory across ALL modes?")) return;
-    Object.values(HISTORY_KEYS).forEach(key => localStorage.removeItem(key));
-    messageHistory = [];
-    printToTerminal("[SYSTEM] Global memory wiped. All modes reset.", "sys-msg");
-    const p = document.getElementById('a11y-panel');
-    if (p) p.classList.remove('a11y-panel-open');
-}
 
 function toggleA11yPanel() {
     const panel = document.getElementById('a11y-panel');
