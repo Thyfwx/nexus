@@ -3,7 +3,7 @@
 // =============================================================
 const SoundManager = {
     ctx: null,
-    enabled: localStorage.getItem('nexus_sound') !== '0', 
+    enabled: localStorage.getItem('nexus_sound') !== '0', // Default to ON
     init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); },
 
     playClick() {
