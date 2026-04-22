@@ -73,6 +73,11 @@ html, body {
 }
 
 .terminal-input-wrapper {
+    position: absolute;
+    bottom: 0;
+    left: 20px;
+    right: 20px;
+    background: var(--bg-color) !important;
     display: flex; align-items: center;
     background: rgba(5, 5, 16, 0.95);
     border-top: 1px solid rgba(0, 255, 255, 0.3);
