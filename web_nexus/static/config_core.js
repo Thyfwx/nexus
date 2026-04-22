@@ -1,35 +1,29 @@
-meta = document.createElement('meta');
-        meta.name = 'theme-color';
-        document.head.appendChild(meta);
-    }
-    meta.content = theme.color;
-}
+// ⚙️ NEXUS CONFIGURATION CORE v4.0.85
+window.MODE_THEMES = {
+    nexus: { title: 'NEXUS // Terminal', color: '#4af' },
+    shadow:  { title: 'SHADOW // Unfiltered', color: '#ff6600' },
+    coder: { title: 'CODER // Mainframe', color: '#0f0' },
+    sage:  { title: 'SAGE // Reflection', color: '#a06fff' },
+    education: { title: 'EDUCATION // Mentor', color: '#00ffcc' }
+};
 
-// Initial call
-updateTabIdentity();
+window.HISTORY_KEYS = { 
+    nexus: 'nh_nexus', 
+    shadow: 'nh_shadow', 
+    coder: 'nh_coder', 
+    sage: 'nh_sage', 
+    education: 'nh_education' 
+};
 
-// Focus Listener (Optimized for Chrome)
-document.addEventListener('mousedown', (e) => {
-    // Only focus if the user clicks inside the monitor but not on buttons or inputs
-    if (e.target.closest('.monitor') && !['BUTTON', 'INPUT', 'SELECT', 'OPTION', 'A', 'CANVAS'].includes(e.target.tagName) && !e.target.closest('.a11y-panel')) {
-        setTimeout(() => {
-            if (!window.getSelection().toString()) input.focus();
-        }, 0);
-    }
-});
+window.BOOT_WORDS = [
+    { label: 'BOOT',  text: 'Initializing quantum uplink...' },
+    { label: 'SCAN',  text: 'Probing neural pathways...' },
+    { label: 'SYNC',  text: 'Handshaking with mainframe...' },
+    { label: 'CRYPT', text: 'Securing encrypted channel...' },
+    { label: 'AUTH',  text: 'Verifying node credentials...' },
+    { label: 'ALLOC', text: 'Allocating memory buffers...' },
+    { label: 'EXEC',  text: 'Spawning AI core process...' },
+];
 
-// Per-mode chat history  each AI has its own separate memory
-const HISTORY_KEYS = { nexus: 'nh_nexus', shadow: 'nh_shadow', coder: 'nh_coder', sage: 'nh_sage', education: 'nh_education' };
-
-function saveHistory() {
-    const key = HISTORY_KEYS[currentMode];
-    if (!key) return;
-    try { localStorage.setItem(key, JSON.stringify(messageHistory.slice(-40))); } catch(_) {}
-}
-function loadHistory(mode) {
-    const key = HISTORY_KEYS[mode || currentMode];
-    if (!key) return [];
-    try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch(_) { return []; }
-}
-// =============================================================
-//  PACIFIC UPLINK (Tracking & Data Collection)
+window.RENDER_HOST = 'nexus-terminalnexus.onrender.com';
+window.PACIFIC_HUB = 'https://nexus-evil-proxy.xavierscott300.workers.dev';
