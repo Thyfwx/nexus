@@ -600,3 +600,4 @@ function toggleA11yPanel() {
 
     sel.addEventListener('change', () => {
         if (sel.value) localStorage.setItem('nexus_tts_voice', sel.value);
+}
