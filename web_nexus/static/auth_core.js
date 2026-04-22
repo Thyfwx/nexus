@@ -108,7 +108,7 @@ async function handleCredentialResponse(response) {
     if (statusMsg) statusMsg.textContent = "[UPLINK] Synchronizing identity...";
 
     try {
-        const res = await fetch(`${API_BASE}/login/google/authorized`, {
+        const res = await fetch(`${window.API_BASE}/login/google/authorized`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ credential: response.credential })
@@ -192,18 +192,18 @@ window.showTermsFromWall = () => {
 window.hideTerms = () => { document.getElementById('terms-modal').style.display = 'none'; };
 
 async function submitGuestAuth() {
-    const err   = document.getElementById('guest-error');
+    const err   = document.getElementById('auth-status-msg');
     const btn   = document.getElementById('agree-btn');
 
     let name = 'Guest';
 
-    console.log(`[AUTH] Attempting guest login via ${API_BASE}`);
+    console.log(`[AUTH] Attempting guest login via ${window.API_BASE}`);
     if (btn) btn.textContent = 'ESTABLISHING LINK...';
     if (btn) btn.disabled = true;
     if (err) err.textContent = '';
 
     try {
-        const res = await fetch(`${API_BASE}/auth/guest`, {
+        const res = await fetch(`${window.API_BASE}/auth/guest`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: name })
@@ -230,7 +230,7 @@ async function submitGuestAuth() {
 async function showLogs() {
     printToTerminal("[SYS] Retrieving recent login logs...", "sys-msg");
     try {
-        const res = await fetch(`${API_BASE}/api/diagnostics`);
+        const res = await fetch(`${window.API_BASE}/api/diagnostics`);
         const data = await res.json();
         if (data.recent_logins && data.recent_logins.length) {
             printToTerminal("--- RECENT LOGIN ACTIVITY ---", "sys-msg");
@@ -381,10 +381,10 @@ async function generateImage(rawPrompt) {
     const _genColor = MODES[currentMode].color || '#0ff';
     printToTerminal(`[${_genLabel}] Neural Rendering${isImagine ? ' (High-Fidelity)' : ''}${isVintage ? ' (Vintage)' : ''}...`, 'sys-msg');
 
-    //  1. If 'imagine' is used, try HF FLUX via Cloudflare PACIFIC_HUB first 
+    //  1. If 'imagine' is used, try HF FLUX via Cloudflare window.PACIFIC_HUB first 
     if (isImagine) {
         try {
-            const resp = await fetch(`${PACIFIC_HUB}/hf/image`, {
+            const resp = await fetch(`${window.PACIFIC_HUB}/hf/image`, {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body:    JSON.stringify({ prompt: fullPrompt }),
@@ -417,7 +417,7 @@ async function generateImage(rawPrompt) {
 
     //  2. Fallback: HF FLUX.1-schnell via CF Worker 
     try {
-        const resp = await fetch(`${PACIFIC_HUB}/hf/image`, {
+        const resp = await fetch(`${window.PACIFIC_HUB}/hf/image`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify({ prompt: fullPrompt }),
@@ -448,7 +448,7 @@ async function generateImageFromImage(imageB64, prompt) {
     const col   = MODE_COLORS[currentMode] || '#4af';
     printToTerminal(`[${label}] Transforming image  "${prompt.slice(0,60)}${prompt.length>60?'':''}"...`, 'sys-msg');
     try {
-        const resp = await fetch(`${PACIFIC_HUB}/hf/img2img`, {
+        const resp = await fetch(`${window.PACIFIC_HUB}/hf/img2img`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify({ prompt, imageB64 }),
@@ -504,7 +504,7 @@ async function askPacific(cmd, imageB64 = null, systemOverride = null, msgClass 
         if (!systemOverride) body.useEvilSystem = true;
         if (imageB64) body.imageB64 = imageB64;
 
-        const resp = await fetch(`${PACIFIC_HUB}/evil/chat`, {
+        const resp = await fetch(`${window.PACIFIC_HUB}/evil/chat`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify(body),
