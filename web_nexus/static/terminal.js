@@ -1,3 +1,8 @@
+
+window.setNexusState = (state) => {
+    console.log('[SYSTEM] State Transition:', state);
+    document.body.setAttribute('data-nexus-state', state);
+};
 /** 
  * NEXUS MASTER TYPE DEFINITIONS
  * @typedef {Object} NexusUser
@@ -3718,6 +3723,7 @@ window.onload = async () => {
         // Remove overlay
         if (syncOverlay.parentNode) syncOverlay.parentNode.removeChild(syncOverlay);
 
+        window.setNexusState('BOOT');
         if (!isBackendOnline) {
             const maint = document.createElement("div");
             maint.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(10,10,15,0.98);color:#f55;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Fira Code',monospace;text-align:center;padding:20px;";
