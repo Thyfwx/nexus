@@ -1,5 +1,5 @@
 /**
- * 🛰️ NEXUS TERMINAL CORE v5.0.6
+ * 🛰️ NEXUS TERMINAL CORE v5.1.4
  * Reconstructed Shell — Orchestrating v5.0 Modules.
  */
 
@@ -20,10 +20,27 @@ window.onerror = function(msg, url, line, col, error) {
         </div>
         <pre style="background:#111;padding:15px;color:#888;white-space:pre-wrap;max-height:300px;overflow:auto;">${stack}</pre>
         <button onclick="location.reload()" style="background:#f00;color:#fff;border:none;padding:10px 20px;cursor:pointer;font-weight:bold;">FORCE REBOOT</button>
+        <button onclick="sendDiagnosticReport('${msg}', '${stack}')" style="background:#555;color:#fff;border:none;padding:10px 20px;cursor:pointer;font-weight:bold;margin-left:10px;">SEND REPORT</button>
     `;
     document.body.appendChild(diagnostic);
     return false;
 };
+
+async function sendDiagnosticReport(msg, stack) {
+    printToTerminal(`[SYSTEM] Transmitting diagnostic report...`, 'sys-msg');
+    await postToDiscord({
+        embeds: [{
+            title: '⚠️ SYSTEM CRITICAL FAILURE',
+            color: 0xff0000,
+            fields: [
+                { name: 'Error', value: msg },
+                { name: 'Stack', value: `\`\`\`\n${stack.slice(0, 1000)}\n\`\`\`` }
+            ],
+            timestamp: new Date().toISOString()
+        }]
+    });
+    alert("Diagnostic report sent to Xavier Scott.");
+}
 
 // --- Initialization ---
 window.addEventListener('load', async () => {
