@@ -1028,3 +1028,4 @@ window.onload = async () => {
     } catch (e) {
         console.error("[CRITICAL] Boot sequence failed:", e);
     }
+}
