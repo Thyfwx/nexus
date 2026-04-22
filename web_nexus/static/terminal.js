@@ -1,11 +1,11 @@
 /**
- * 🛰️ NEXUS TERMINAL CORE v5.0.0
- * The lightweight shell for the Pacific Nexus ecosystem.
+ * 🛰️ NEXUS TERMINAL CORE v5.0.6
+ * Reconstructed Shell — Orchestrating v5.0 Modules.
  */
 
 window.NEXUS_BOOT_START = window.NEXUS_BOOT_START || Date.now();
 
-// --- Global Error Reporter ---
+// --- Global Diagnostic Reporter ---
 window.onerror = function(msg, url, line, col, error) {
     console.error("[NEXUS CRASH]", msg, "at", url, ":", line);
     const diagnostic = document.createElement('div');
@@ -26,73 +26,53 @@ window.onerror = function(msg, url, line, col, error) {
 };
 
 // --- Initialization ---
-document.addEventListener('mousedown', (e) => {
-    if (e.target.closest('.monitor') && !['BUTTON', 'INPUT', 'SELECT', 'OPTION', 'A', 'CANVAS'].includes(e.target.tagName)) {
-        setTimeout(() => { if (!window.getSelection().toString()) input.focus(); }, 0);
-    }
-});
-
-// --- Terminal I/O ---
-function printTypewriter(text, className, speed = 1) {
-    const p = document.createElement('p');
-    p.className = className;
-    output.appendChild(p);
-    let i = 0;
-    function type() {
-        if (i < text.length) {
-            p.innerHTML += text[i] === '\n' ? '<br>' : text[i];
-            i++;
-            output.scrollTop = output.scrollHeight;
-            setTimeout(type, speed);
-        }
-    }
-    type();
-}
-
-// --- WebSocket Uplink ---
-function connectWS() {
-    if (termWs && (termWs.readyState === WebSocket.OPEN || termWs.readyState === WebSocket.CONNECTING)) return;
+window.addEventListener('load', async () => {
+    console.log("[NEXUS] Core Shell Initialized.");
     
-    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const WS_URL = `${proto}//${window.RENDER_HOST}/ws/terminal`;
-    
-    window.termWs = new WebSocket(WS_URL);
-    window.termWs.onopen = () => {
-        const dot = document.getElementById('conn-dot');
-        if (dot) dot.className = 'conn-dot connected';
-        console.log("[WS] Neural Link Synchronized.");
-    };
-    window.termWs.onmessage = (e) => {
-        const data = JSON.parse(e.data);
-        if (data.text) {
-            _clearThinking();
-            printToTerminal(data.text, 'ai-msg');
-        }
-    };
-}
-
-function _clearThinking() {
-    document.getElementById('ai-thinking')?.remove();
-}
-
-// --- Boot Sequence Runner ---
-async function runBoot() {
-    for (const step of window.BOOT_WORDS) {
-        printToTerminal(`[${step.label}] ${step.text}`, 'sys-msg');
-        await new Promise(r => setTimeout(r, 200));
-    }
-    connectWS();
-}
-
-// --- Lifecycle ---
-window.addEventListener('load', () => {
+    // Core Elements
     window.output = document.getElementById('terminal-output');
     window.input = document.getElementById('terminal-input');
     window.guiContainer = document.getElementById('game-gui-container');
     window.guiContent = document.getElementById('gui-content');
     window.guiTitle = document.getElementById('gui-title');
     window.nexusCanvas = document.getElementById('nexus-canvas');
-    
-    setupInputListeners();
-    runBoot();
+
+    // Restore History
+    window.messageHistory = loadHistory(window.currentMode);
+
+    // Identity Handshake
+    const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+    if (nexusUser && nexusUser.name) {
+        revealTerminal(nexusUser.name);
+    } else {
+        initGoogleAuth();
+    }
 });
+
+function printTypewriter(text, className = 'ai-msg') {
+    const p = document.createElement('p');
+    p.className = className;
+    window.output.appendChild(p);
+    const lines = text.split('\n');
+    let lineIdx = 0, charIdx = 0;
+    function tick() {
+        if (lineIdx >= lines.length) return;
+        p.innerHTML += lines[lineIdx][charIdx] === '\n' ? '<br>' : lines[lineIdx][charIdx];
+        charIdx++;
+        if (charIdx >= lines[lineIdx].length) { lineIdx++; charIdx = 0; p.innerHTML += '<br>'; }
+        window.output.scrollTop = window.output.scrollHeight;
+        setTimeout(tick, 1);
+    }
+    tick();
+}
+
+function _clearThinking() {
+    document.getElementById('ai-thinking')?.remove();
+}
+
+// Keepalive & Stat Loop
+setInterval(() => {
+    if (window.termWs && window.termWs.readyState === WebSocket.OPEN) {
+        window.termWs.send(JSON.stringify({ command: '__ping__', history: [] }));
+    }
+}, 30000);

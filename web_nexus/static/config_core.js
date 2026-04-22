@@ -1,19 +1,5 @@
-// ⚙️ NEXUS CONFIGURATION CORE v4.0.85
-window.MODE_THEMES = {
-    nexus: { title: 'NEXUS // Terminal', color: '#4af' },
-    shadow:  { title: 'SHADOW // Unfiltered', color: '#ff6600' },
-    coder: { title: 'CODER // Mainframe', color: '#0f0' },
-    sage:  { title: 'SAGE // Reflection', color: '#a06fff' },
-    education: { title: 'EDUCATION // Mentor', color: '#00ffcc' }
-};
-
-window.HISTORY_KEYS = { 
-    nexus: 'nh_nexus', 
-    shadow: 'nh_shadow', 
-    coder: 'nh_coder', 
-    sage: 'nh_sage', 
-    education: 'nh_education' 
-};
+// ⚙️ NEXUS CONFIGURATION CORE v5.0.6
+window.HISTORY_KEYS = { nexus: 'nh_nexus', shadow: 'nh_shadow', coder: 'nh_coder', sage: 'nh_sage', education: 'nh_education' };
 
 window.BOOT_WORDS = [
     { label: 'BOOT',  text: 'Initializing quantum uplink...' },
@@ -25,5 +11,4 @@ window.BOOT_WORDS = [
     { label: 'EXEC',  text: 'Spawning AI core process...' },
 ];
 
-window.RENDER_HOST = 'nexus-terminalnexus.onrender.com';
-window.PACIFIC_HUB = 'https://nexus-evil-proxy.xavierscott300.workers.dev';
+window.XAVIER_BIO = `Xavier Scott is a 19-year-old systems engineer and master technical architect. He specializes in network security, Proxmox clustering, and hardware forensics. Nexus is his interactive neural bridge.`;

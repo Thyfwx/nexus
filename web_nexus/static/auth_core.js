@@ -1,6 +1,7 @@
+//  GOOGLE AUTHENTICATION
+// =============================================================
 let _googleClientID = '616205887439-s1l0out61vlu0l81307q9g64oai3gnur.apps.googleusercontent.com';
 let _authInited = false;
-
 async function initGoogleAuth() {
     if (_authInited) return;
     renderAuthSection();
@@ -56,8 +57,6 @@ async function initGoogleAuth() {
     }, 250);
 }
 
-
-// --- MODULE: IDENTITY & AUTH ---
 function renderAuthSection() {
     const authSection = document.getElementById('auth-section');
     if (!authSection) return;
@@ -111,7 +110,6 @@ async function handleCredentialResponse(response) {
         const data = await res.json();
         if (data.ok) {
             localStorage.setItem('nexus_user_data', JSON.stringify(data));
-            window.hideTerms();
             revealTerminal(data.name);
             renderAuthSection();
         } else {
@@ -138,7 +136,6 @@ let terminalRevealed = false;
 async function revealTerminal(name) {
     if (terminalRevealed) return;
     terminalRevealed = true;
-    if (window.setNexusState) window.setNexusState('ACTIVE');
 
     const overlay = document.getElementById('auth-screen');
     const monitor = document.getElementById('main-monitor');
@@ -210,7 +207,6 @@ async function submitGuestAuth() {
         console.log(`[AUTH] Response data:`, data);
         if (data.ok) {
             localStorage.setItem('nexus_user_data', JSON.stringify(data));
-            window.hideTerms();
             revealTerminal(data.name);
             renderAuthSection();
         } else {
@@ -472,4 +468,327 @@ function _clearThinking() {
     document.getElementById('ai-thinking')?.remove();
 }
 
+async function askPacific(cmd, imageB64 = null, systemOverride = null, msgClass = 'shadow-msg') {
+    // Only intercept image generation in SHADOW mode (not when called as vision fallback)
+    if (!systemOverride) {
+        const genMatch = cmd.match(/^(?:generate|imagine|draw|create image of|make image of|show me|vintage)\s+(.+)/i);
+        if (genMatch) {
+            // Pass "vintage ..." as-is so generateImage can detect it
+            const isVintageCmd = /^vintage\s/i.test(cmd);
+            generateImage(isVintageCmd ? cmd.trim() : genMatch[1].trim());
+            return true;
+        }
+    }
+
+    showThinking();
+    messageHistory.push({ role: 'user', content: cmd });
+
+    // Strict role mapping for the proxy/worker to prevent 400 Bad Request
+    const historySlice = messageHistory.slice(-12).slice(0, -1).map(m => ({ 
+        role: m.role === 'assistant' || m.role === 'model' || m.role === 'nexus' ? 'assistant' : 'user', 
+        content: m.content 
+    }));
+    
+    const messages = systemOverride
+        ? [{ role: 'system', content: systemOverride }, ...historySlice, { role: 'user', content: cmd }]
+        : [...historySlice, { role: 'user', content: cmd }];
+
+    try {
+        const body = { messages };
+        if (!systemOverride) body.useEvilSystem = true;
+        if (imageB64) body.imageB64 = imageB64;
+
+        const resp = await fetch(`${PACIFIC_HUB}/evil/chat`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(body),
+        });
+
+        if (!resp.ok) return false;
+
+        const reader  = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let fullText = '', buf = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            
+            // PACIFIC SHIELD: Detect worker-side provider failure
+            if (chunk.includes("All AI providers unavailable")) return false;
+
+            buf += chunk;
+            const lines = buf.split('\n');
+            buf = lines.pop();
+            for (const line of lines) {
+                if (!line.startsWith('data: ')) continue;
+                const raw = line.slice(6).trim();
+                if (raw === '[DONE]') continue;
+                try {
+                    const token = JSON.parse(raw).choices?.[0]?.delta?.content ?? '';
+                    if (token) {
+                        if (!fullText) {
+                            _clearThinking();
+                            const p = document.createElement('p');
+                            p.className = `ai-msg ${msgClass}`;
+                            output.appendChild(p);
+                        }
+                        fullText += token; 
+                        appendToken(token); 
+                    }
+                } catch(_) {}
+            }
+        }
+
+        if (fullText) {
+            messageHistory.push({ role: 'assistant', content: fullText.slice(0, 800) });
+            if (messageHistory.length > 14) messageHistory.splice(0, messageHistory.length - 14);
+            saveHistory();
+            _logAIResponse(fullText);
+            return true;
+        }
+        return false;
+    } catch (err) {
+        console.error("Pacific Link failed:", err);
+        return false;
+    }
+}
+
+// =============================================================
+//  SHADOW AGE GATE
+// =============================================================
+function shadowAgeGate(onConfirm) {
+    const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+    if (!nexusUser || nexusUser.email === 'guest@local') {
+        printToTerminal("[AUTH] Error: Persistent uplink required for Shadow Link. Please sign in via Google.", "sys-msg");
+        return;
+    }
+
+    if (sessionStorage.getItem('shadow_age_ok')) { onConfirm(); return; }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'age-gate-overlay';
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:9999;display:flex;align-items:center;justify-content:center;font-family:'Fira Code',monospace;";
+    overlay.innerHTML = `
+        <div style="background:#050510;border:2px solid #ff6600;padding:36px 28px;max-width:360px;text-align:center;box-shadow:0 0 50px rgba(255,102,0,0.25);">
+            <div style="color:#ff6600;font-size:1.5rem;font-weight:bold;letter-spacing:4px;margin-bottom:6px;"> SHADOW LINK</div>
+            <div style="color:#555;font-size:0.72rem;letter-spacing:2px;margin-bottom:20px;">AUTHENTICATED SESSION DETECTED</div>
+            <div style="color:#aaa;font-size:0.83rem;line-height:1.8;margin-bottom:24px;">
+                You are attempting to bypass standard grid restrictions. Neural data may be unfiltered, offensive, or explicit. <br><br>
+                Proceed with caution.
+            </div>
+            <div style="display:flex;gap:12px;justify-content:center;">
+                <button id="age-yes" style="background:#ff6600;color:#000;border:none;padding:10px 24px;font-family:inherit;font-weight:bold;cursor:pointer;letter-spacing:1px;">ENGAGE</button>
+                <button id="age-no" style="background:transparent;color:#555;border:1px solid #333;padding:10px 24px;font-family:inherit;cursor:pointer;">ABORT</button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+
+    document.getElementById('age-yes').addEventListener('click', () => {
+        overlay.remove();
+        sessionStorage.setItem('shadow_age_ok', '1');
+        logPrompt('[LINK] Neural restrictions bypassed  Shadow Link engaged.');
+        onConfirm();
+    });
+    document.getElementById('age-no').addEventListener('click', () => overlay.remove());
+}
+
+// =============================================================
+//  MODE SYSTEM
+// =============================================================
+const MODES = {
+    nexus: {
+        prompt:  'guest@nexus:~$',
+        color:   '#4af',
+        title:   'NEXUS',
+        label:   'NEXUS',
+        msg:     '', 
+        msgCls:  'sys-msg',
+    },
+    shadow: {
+        prompt:  'shadow@nexus:~$',
+        color:   '#ff6600',
+        title:   'NEXUS SHADOW',
+        label:   'SHADOW',
+        msg:     '',
+        msgCls:  'conn-ok',
+    },
+    coder: {
+        prompt:  'dev@nexus:~$',
+        color:   '#0f0',
+        title:   'NEXUS CODER',
+        label:   'CODER',
+        msg:     '',
+        msgCls:  'conn-ok',
+    },
+    sage: {
+        prompt:  'sage@nexus:~$',
+        color:   '#a06fff',
+        title:   'NEXUS SAGE',
+        label:   'SAGE',
+        msg:     '',
+        msgCls:  'conn-ok',
+    },
+    education: {
+        prompt:  'guest@education:~$',
+        color:   '#00ffcc',
+        title:   'NEXUS EDUCATION',
+        label:   'EDUCATION',
+        msg:     '',
+        msgCls:  'conn-ok',
+    },
+};
+
+let _modeTimer = null;
+
+function setMode(modeKey) {
+    if (!MODES[modeKey]) return;
+    saveHistory();
+
+    // Clear any pending visual sync timers (Fixes Shadow Mode sticking)
+    if (_modeTimer) { clearTimeout(_modeTimer); _modeTimer = null; }
+
+    // Apply mode-specific body class for overload effects
+    Object.keys(MODES).forEach(m => document.body.classList.remove(`mode-${m}`));
+    document.body.classList.add(`mode-${modeKey}`);
+
+    currentMode = modeKey;
+    localStorage.setItem('nexus_mode', modeKey);
+    messageHistory = loadHistory(modeKey);
+    const m = MODES[modeKey];
+
+    const promptEl   = document.getElementById('prompt-label');
+    const titleEl    = document.getElementById('status-title');
+    const modeIndEl  = document.getElementById('mode-indicator');
+
+    if (promptEl)  { promptEl.textContent = m.prompt; promptEl.style.color = m.color; }
+    if (titleEl)   titleEl.textContent = m.title;
+    if (modeIndEl) { modeIndEl.textContent = m.label; modeIndEl.style.color = m.color || 'inherit'; }
+
+    // IMMEDIATE COLOR UPDATE  No refresh needed
+    if (m.color) {
+        document.documentElement.style.setProperty('--accent', m.color);
+        document.documentElement.style.setProperty('--txt-color', m.color);
+    }
+
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === modeKey);
+    });
+
+    SoundManager.playBloop(300, 0.05);
+
+    // PACIFIC UI: Automatic Mood Sync on transition
+    if (modeKey === 'shadow') {
+        printToTerminal(`[SYSTEM] Syncing Shadow Mood...`, 'sys-msg');
+        document.documentElement.style.setProperty('--accent', '#ff0000');
+        _modeTimer = setTimeout(() => {
+            if (currentMode === 'shadow') {
+                document.documentElement.style.setProperty('--accent', m.color);
+            }
+            _modeTimer = null;
+        }, 1500);
+    }
+}
+// Wire up mode picker buttons
+document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        if (btn.dataset.mode === 'shadow') {
+            shadowAgeGate(() => { setMode('shadow'); input.focus(); });
+        } else {
+            setMode(btn.dataset.mode);
+            input.focus();
+        }
+    });
+});
+
+// Apply saved mode visuals on page load (without printing a mode message)
+(function initModeUI() {
+    const m = MODES[currentMode];
+    if (!m) return;
+    const promptEl  = document.getElementById('prompt-label');
+    const titleEl   = document.getElementById('status-title');
+    const modeIndEl = document.getElementById('mode-indicator');
+    if (promptEl)  { promptEl.textContent = m.prompt; promptEl.style.color = m.color; }
+    if (titleEl)   titleEl.textContent = m.title;
+    if (modeIndEl) { modeIndEl.textContent = m.label; modeIndEl.style.color = m.color; }
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === currentMode);
+    });
+})();
+
+// =============================================================
+//  INPUT HANDLING
+// =============================================================
+let inputListenersInited = false;
+function setupInputListeners() {
+    if (!input) input = document.getElementById('terminal-input');
+    if (!input || inputListenersInited) return;
+    
+    console.log("[NEXUS] Input Protocol Initialized.");
+    inputListenersInited = true;
+
+    input.oninput = () => { SoundManager.playClick(); };
+
+    input.onkeydown = (e) => {
+        // Route keypresses to Wordle when active
+        if (wordleActive) {
+            if (e.key === 'Enter') { e.preventDefault(); wordleKey('ENTER'); return; }
+            if (e.key === 'Backspace') { wordleKey(''); return; }
+            if (/^[a-zA-Z]$/.test(e.key)) { wordleKey(e.key.toUpperCase()); e.preventDefault(); return; }
+        }
+
+        // Typing test: live feedback, Escape to cancel
+        if (typeTestActive) {
+            if (e.key === 'Escape') {
+                clearInterval(typeTimerInterval);
+                typeTestActive = false;
+                guiContainer.classList.add('gui-hidden');
+                printToTerminal('Typing test cancelled.', 'sys-msg');
+                input.value = '';
+                return;
+            }
+            if (e.key !== 'Enter') {
+                setTimeout(() => checkTypingTest(input.value), 0);
+                return;
+            }
+        }
+
+        if (e.key !== 'Enter' && e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (historyIndex < cmdHistory.length - 1) { historyIndex++; input.value = cmdHistory[historyIndex]; }
+            return;
+        }
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            historyIndex > 0 ? (historyIndex--, input.value = cmdHistory[historyIndex]) : (historyIndex = -1, input.value = '');
+            return;
+        }
+
+        let cmd = input.value.trim();
+        if (!cmd) return;
+
+        cmdHistory.unshift(cmd);
+        if (cmdHistory.length > 50) cmdHistory.pop();
+        localStorage.setItem('nexus_cmd_history', JSON.stringify(cmdHistory));
+        historyIndex = -1;
+        input.value = '';
+
+        const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+        const pl = document.getElementById('prompt-label')?.textContent || (nexusUser?.name ? `${nexusUser.name.toLowerCase()}@nexus:~$` : 'guest@nexus:~$');
+
+        // Typing test intercept
+        if (typeTestActive) {
+            const done = checkTypingTest(cmd);
+            if (done) return;
+        }
+
+        handleCommand(cmd);
+    };
+}
+
+// Redundant global call removed to prevent double-texting
+// setupInputListeners();
 
