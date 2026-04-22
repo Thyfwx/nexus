@@ -20,14 +20,14 @@ html, body {
     min-height: 100vh; width: 100vw;
     display: flex; justify-content: center; align-items: center;
     overflow-x: hidden;
-    overflow-y: auto; /* ALLOW SCROLL TO REACH BOTTOM */
+    overflow: hidden !important;
 }
 
 .monitor {
     position: relative;
     width: 98vw; 
     /* Remove fixed height to prevent cutting off the bottom */
-    min-height: 95vh;
+    height: 92vh;
     margin: 10px 0;
     background: radial-gradient(circle, #1a1a2e 0%, #000 100%);
     border-radius: 12px;
