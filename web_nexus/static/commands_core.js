@@ -1,3 +1,63 @@
+function handleCommand(cmd) {
+    const lc = cmd.toLowerCase();
+
+    //  1. Terminal Printing (Singular Entry Point) 
+    const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+    const capName = capitalizeName(nexusUser?.name || 'Guest');
+    const pl = `${capName}@nexus:~$`;
+    
+    // PACIFIC UI: Commands that handle their own specialized transitions
+    const silentCmds = ['clear', 'history', 'play wordle', 'play snake', 'play pong', 'play minesweeper', 'play flappy', 'play breakout', 'play invaders'];
+    if (!silentCmds.includes(lc)) {
+        printToTerminal(`${pl} ${cmd}`, 'user-cmd');
+    }
+
+    if (lc === 'clear') { 
+        if (output) output.innerHTML = ''; 
+        messageHistory = []; 
+        pendingImageB64 = null; 
+        localStorage.removeItem(HISTORY_KEYS[currentMode]); 
+        return; 
+    }
+    if (lc === 'history') { showHistory(); return; }
+
+    const isOwner = nexusUser?.name?.toLowerCase().includes('xavier');
+
+    // PACIFIC SHIELD: Access Control (Elite Commands Restricted to Owner)
+    const restricted = ['config ', 'model', 'models', 'logs', 'log', 'translate ', 'summarize ', 'detect ', 'fix ', 'mood ', 'speak ', 'test link', 'test discord'];
+    if (restricted.some(r => lc.startsWith(r)) || restricted.includes(lc)) {
+        if (!isOwner) {
+            printToTerminal("[ERR] Permission Denied: Elite technical modules restricted to System Owner.", "sys-msg");
+            return;
+        }
+    }
+
+    if (lc === 'help')                {  showHelp(); return; }
+    
+    // API Configuration Uplink
+    if (lc.startsWith('config ')) {
+        
+        const parts = cmd.split(' ');
+        if (parts.length < 3) {
+            printToTerminal('[ERR] Usage: config <service> <key>', 'sys-msg');
+            printToTerminal('Example: config gemini AIzaSy...', 'sys-msg');
+            return;
+        }
+        const service = parts[1].toLowerCase();
+        const keyVal  = parts[2].trim();
+        let targetVar = '';
+        
+        if (service === 'gemini') targetVar = 'GEMINI_API_KEY';
+        else if (service === 'groq') targetVar = 'GROQ_API_KEY';
+        else if (service === 'hf')   targetVar = 'HF_API_KEY';
+        else if (service === 'xai')  targetVar = 'XAI_API_KEY';
+        else {
+            printToTerminal(`[ERR] Unknown service: ${service}`, 'sys-msg');
+            return;
+        }
+
+        printToTerminal(`[SYS] Establishing secure uplink for ${targetVar}...`, 'sys-msg');
+        fetch(`${API_BASE}/api/config/update`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ key: targetVar, val: keyVal })
@@ -540,106 +600,3 @@ function toggleA11yPanel() {
 
     sel.addEventListener('change', () => {
         if (sel.value) localStorage.setItem('nexus_tts_voice', sel.value);
-        else           localStorage.removeItem('nexus_tts_voice');
-    });
-}
-
-// =============================================================
-// =============================================================
-//  RESTORE & BOOT
-// =============================================================
-
-
-// --- MODULE: BOOT SEQUENCE ---
-window.onload = async () => {
-    try {
-        cpuStat      = document.getElementById("cpu-stat");
-        memStat      = document.getElementById("mem-stat");
-        output       = document.getElementById("terminal-output");
-        input        = document.getElementById("terminal-input");
-        guiContainer = document.getElementById("game-gui-container");
-        guiContent   = document.getElementById("gui-content");
-        guiTitle     = document.getElementById("gui-title");
-        nexusCanvas  = document.getElementById("nexus-canvas");
-
-        let isBackendOnline = false;
-        const startWake = Date.now();
-        const MAX_WAKE_TIME = 30000; // Pacific Patience: 30 seconds
-
-        console.log("[BOOT] Initializing Neural Uplink...");
-        
-        // Add SYNCING NEURAL LINK... bar
-        const syncOverlay = document.createElement('div');
-        syncOverlay.id = 'sync-neural-link-overlay';
-        syncOverlay.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(5,5,10,0.95);z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Fira Code',monospace;";
-        syncOverlay.innerHTML = `
-            <div style="color:#0ff;font-size:1.2rem;letter-spacing:2px;margin-bottom:15px;text-shadow:0 0 10px #0ff;">SYNCING NEURAL LINK...</div>
-            <div style="width:300px;height:4px;background:#111;border-radius:2px;overflow:hidden;box-shadow:0 0 5px rgba(0,255,255,0.2);">
-                <div id="sync-progress-bar" style="width:0%;height:100%;background:#0ff;box-shadow:0 0 10px #0ff;transition:width 1s linear;"></div>
-            </div>
-            <div id="sync-time-text" style="color:#555;font-size:0.75rem;margin-top:10px;">0 / 30s</div>
-        `;
-        document.body.appendChild(syncOverlay);
-        
-        while (Date.now() - startWake < MAX_WAKE_TIME) {
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 2000);
-                const pingRes = await fetch(`${API_BASE}/ping`, { signal: controller.signal });
-                clearTimeout(timeoutId);
-                if (pingRes.ok) { isBackendOnline = true; break; }
-            } catch (e) {}
-            
-            const elapsed = Math.round((Date.now() - startWake) / 1000);
-            const pct = Math.min(100, (elapsed / 30) * 100);
-            const bar = document.getElementById('sync-progress-bar');
-            const txt = document.getElementById('sync-time-text');
-            if (bar) bar.style.width = pct + '%';
-            if (txt) txt.textContent = elapsed + ' / 30s';
-            
-            // Pulse loading state if terminal revealed or in console
-            console.log(`[BOOT] Syncing... ${elapsed}s`);
-            await new Promise(r => setTimeout(r, 1000));
-        }
-        
-        // Remove overlay
-        if (syncOverlay.parentNode) syncOverlay.parentNode.removeChild(syncOverlay);
-
-        window.setNexusState('BOOT');
-        if (!isBackendOnline) {
-            const maint = document.createElement("div");
-            maint.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(10,10,15,0.98);color:#f55;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Fira Code',monospace;text-align:center;padding:20px;";
-            maint.innerHTML = `
-                <div style="width:12px;height:12px;background:#f55;border-radius:50%;margin-bottom:15px;box-shadow:0 0 10px #f55;animation:pulse 2s infinite;"></div>
-                <h1 style="color:#fff;font-size:1.5rem;letter-spacing:2px;margin:0 0 10px 0;">SYSTEM OFFLINE</h1>
-                <p style="color:#aaa;max-width:400px;line-height:1.6;font-size:0.85rem;">The Nexus Core is currently undergoing maintenance. Neural uplinks are severed.</p>
-                <button onclick="location.reload()" style="margin-top:20px;background:none;border:1px solid #555;color:#888;padding:8px 16px;cursor:pointer;font-family:monospace;transition:0.2s;">[ INITIATE PING REFRESH ]</button>
-            `;
-            document.body.appendChild(maint);
-            return; 
-        }
-
-        let authedName = null;
-        try {
-            const meRes = await fetch(`${API_BASE}/api/me`);
-            const meData = await meRes.json();
-            if (meData.authenticated) authedName = meData.name;
-        } catch(e) {}
-
-        if (!authedName) {
-            const nexusUser = JSON.parse(localStorage.getItem("nexus_user_data") || "null");
-            if (nexusUser && nexusUser.name) authedName = nexusUser.name;
-        }
-
-        messageHistory = loadHistory(currentMode);
-        initGoogleAuth();
-
-        if (authedName) {
-            revealTerminal(authedName);
-        } else {
-            console.log("[NEXUS] Awaiting Authorization...");
-        }
-        console.log(`[NEXUS] Boot sequence complete in ${Date.now() - window.NEXUS_BOOT_START}ms`);
-    } catch (e) {
-        console.error("[CRITICAL] Boot sequence failed:", e);
-    }
