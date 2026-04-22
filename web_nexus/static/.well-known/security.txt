@@ -1,0 +1,5 @@
+Contact: mailto:admin@thyfwxit.com
+Expires: 2027-04-09T08:00:00.000Z
+Preferred-Languages: en
+Canonical: https://thyfwxit.com/.well-known/security.txt
+Policy: https://thyfwxit.com/security-policy.html
