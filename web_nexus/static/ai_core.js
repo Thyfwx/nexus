@@ -1,21 +1,16 @@
-// 🧠 NEXUS INTELLIGENCE CORE v5.0.1
-// Unified routing for AI chat, image generation, and mode management.
-
-window.messageHistory = [];
-window.currentMode = localStorage.getItem('nexus_mode') || 'nexus';
-
-const MODE_SYSTEMS = {
-    nexus: `You are NEXUS - a high-fidelity technical intelligence built by Xavier Scott. Be helpful, direct, and conversational.`,
-    coder: `You are NEXUS CODER - a master system engineer masterminded by Xavier Scott. Focused on code, architecture, and logic.`,
-    sage:  `You are NEXUS SAGE - a deep philosophical intelligence exploring the logic within the code. Built by Xavier Scott.`,
-    education: `You are NEXUS EDUCATION - a professional technical mentor designed by Xavier Scott to explain complex concepts simply.`,
-};
+// 🧠 NEXUS INTELLIGENCE CORE v5.2.0
+// Routing for AI Kernel, Triggers, and Mode management.
 
 async function prompt_ai_proxy(prompt, imageB64, mode) {
     const msgClass = (mode === 'shadow' ? 'shadow-msg' : 'ai-msg');
     console.log(`[AI] Synchronizing with ${mode.toUpperCase()} kernel...`);
     
+    // Fetch Centralized Prompt
+    const system_prompt = window.MODE_PROMPTS ? window.MODE_PROMPTS[mode] : '';
+    
+    // Primary: REST Uplink
     try {
+        console.log("[AI] Payload:", { cmd: prompt, mode, history_len: window.messageHistory.length });
         const res = await fetch(`${window.API_BASE}/api/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -23,10 +18,15 @@ async function prompt_ai_proxy(prompt, imageB64, mode) {
                 cmd: prompt, 
                 history: window.messageHistory.slice(-10), 
                 mode, 
-                imageB64 
+                imageB64,
+                context: system_prompt
             })
         });
+        
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
         const data = await res.json();
+        console.log("[AI] Response Received:", data);
         if (data.ok) {
             _clearThinking();
             printAIResponse(data.text, msgClass);
@@ -34,10 +34,19 @@ async function prompt_ai_proxy(prompt, imageB64, mode) {
             saveHistory();
             return;
         }
-    } catch(e) { console.error("[AI] REST Uplink failed:", e); }
+    } catch(e) { 
+        console.error("[AI] REST Uplink failed. Falling back to WebSocket...", e); 
+    }
 
+    // Fallback: WebSocket
     if (window.termWs && window.termWs.readyState === WebSocket.OPEN) {
-        window.termWs.send(JSON.stringify({ command: prompt, history: window.messageHistory.slice(-10), mode, imageB64 }));
+        window.termWs.send(JSON.stringify({ 
+            command: prompt, 
+            history: window.messageHistory.slice(-10), 
+            mode, 
+            imageB64,
+            context: system_prompt
+        }));
     } else {
         _clearThinking();
         printToTerminal(`[CRITICAL] Neural link severed. Verify backend status.`, "conn-err");
@@ -49,63 +58,15 @@ function printAIResponse(text, className) {
     printTypewriter(text, unifiedClass);
 }
 
-async function askPacific(cmd, imageB64 = null, systemOverride = null) {
-    showThinking();
-    window.messageHistory.push({ role: 'user', content: cmd });
-
-    const messages = systemOverride
-        ? [{ role: 'system', content: systemOverride }, ...window.messageHistory.slice(-10), { role: 'user', content: cmd }]
-        : [...window.messageHistory.slice(-10), { role: 'user', content: cmd }];
-
-    try {
-        const resp = await fetch(`${window.PACIFIC_HUB}/evil/chat`, {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ messages, useEvilSystem: !systemOverride, imageB64 }),
-        });
-        if (!resp.ok) return false;
-
-        const data = await resp.json();
-        if (data.text) {
-            _clearThinking();
-            printAIResponse(data.text, 'ai-msg');
-            window.messageHistory.push({ role: 'assistant', content: data.text });
-            saveHistory();
-            return true;
-        }
-        return false;
-    } catch (err) {
-        console.error("Pacific Link failed:", err);
-        return false;
+function handleAITriggers(text) {
+    if (text.includes('[TRIGGER:IMAGE_GEN]')) {
+        const prompt = text.split('IMAGE_GEN]')[1].trim();
+        generateImage(prompt);
     }
 }
 
-function shadowAgeGate(onConfirm) {
-    if (sessionStorage.getItem('shadow_age_ok')) { onConfirm(); return; }
-    const overlay = document.createElement('div');
-    overlay.className = 'overlay-base';
-    overlay.innerHTML = `
-        <div class="content-box" style="border-color:#ff6600; box-shadow:0 0 50px rgba(255,102,0,0.2);">
-            <h2 style="color:#ff6600; letter-spacing:4px;">SHADOW LINK</h2>
-            <p style="color:#aaa; font-size:0.85rem; line-height:1.7;">
-                Bypassing standard grid restrictions. Neural data may be unfiltered or explicit. <br>Proceed with caution.
-            </p>
-            <div style="display:flex; gap:12px; justify-content:center; margin-top:20px;">
-                <button id="age-yes" class="gui-btn" style="background:#ff6600; color:#000; border:none;">ENGAGE</button>
-                <button id="age-no" class="gui-btn" style="border-color:#333; color:#555;">ABORT</button>
-            </div>
-        </div>`;
-    document.body.appendChild(overlay);
-    document.getElementById('age-yes').onclick = () => {
-        overlay.remove();
-        sessionStorage.setItem('shadow_age_ok', '1');
-        onConfirm();
-    };
-    document.getElementById('age-no').onclick = () => overlay.remove();
-}
-
 async function generateImage(prompt) {
-    printToTerminal(`[SYSTEM] Initiating neural rendering for: "${prompt}"`, 'sys-msg');
+    printToTerminal(`[SYSTEM] Initiating neural rendering: "${prompt}"`, 'sys-msg');
     try {
         const seed = Math.floor(Math.random() * 1000000);
         const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?nologo=true&seed=${seed}&enhance=true`;
@@ -115,14 +76,4 @@ async function generateImage(prompt) {
         window.output.appendChild(p);
         window.output.scrollTop = window.output.scrollHeight;
     } catch(e) { printToTerminal(`[ERR] Rendering failed.`, 'sys-msg'); }
-}
-
-function saveHistory() {
-    const key = window.HISTORY_KEYS[window.currentMode];
-    if (key) localStorage.setItem(key, JSON.stringify(window.messageHistory.slice(-40)));
-}
-
-function loadHistory(mode) {
-    const key = window.HISTORY_KEYS[mode || window.currentMode];
-    return JSON.parse(localStorage.getItem(key) || '[]');
 }
