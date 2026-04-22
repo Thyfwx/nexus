@@ -14,7 +14,7 @@
    ============================================================ */
 /* By default, hide all primary screens */
 #auth-screen, #main-monitor, #terms-modal, #sync-neural-link-overlay {
-    display: none !important;
+    display: none;
 }
 
 /* Force visibility based on Body State */

@@ -138,6 +138,7 @@ let terminalRevealed = false;
 async function revealTerminal(name) {
     if (terminalRevealed) return;
     terminalRevealed = true;
+    if (window.setNexusState) window.setNexusState('ACTIVE');
 
     const overlay = document.getElementById('auth-screen');
     const monitor = document.getElementById('main-monitor');
