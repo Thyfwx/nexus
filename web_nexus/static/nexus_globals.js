@@ -1,5 +1,5 @@
 // 🛰️ NEXUS GLOBAL COMMAND CENTER v5.0.6
-window.NEXUS_VERSION = 'v5.0.6';
+window.NEXUS_VERSION = 'v5.2.0';
 
 // Shared UI Elements
 window.cpuStat = null;
@@ -20,6 +20,12 @@ window.currentMode = localStorage.getItem('nexus_mode') || 'nexus';
 window.isBackendOnline = false;
 window.sessionGeoData = null;
 window.discordThreadId = localStorage.getItem('nexus_discord_thread') || null;
+
+window.updateStatusLed = (state) => {
+    const led = document.getElementById('status-led');
+    if (!led) return;
+    led.className = `status-led ${state}`;
+};
 
 // Routing Constants
 const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';

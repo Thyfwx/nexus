@@ -34,8 +34,6 @@ function parseDevice(ua) {
     return 'Unknown';
 }
 
-async function logPrompt(text, imageB64 = null) {
-    const ts     = new Date().toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
     const user   = JSON.parse(localStorage.getItem('nexus_user_data') || '{"name":"Guest"}');
     const device = parseDevice(navigator.userAgent);
     const ip     = sessionGeoData?.ip || '?';

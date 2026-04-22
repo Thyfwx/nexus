@@ -26,20 +26,81 @@ window.onerror = function(msg, url, line, col, error) {
     return false;
 };
 
+// --- Keyboard Hooks ---
+let _keyBuf = "";
+let _isPinEntry = false;
+let _pinCallback = null;
+let _pinBuffer = "";
+
+document.addEventListener('keydown', (e) => {
+    if (_isPinEntry) {
+        e.preventDefault();
+        if (e.key === 'Enter') {
+            const cb = _pinCallback;
+            const val = _pinBuffer;
+            _isPinEntry = false; _pinBuffer = ""; _pinCallback = null;
+            if (cb) cb(val);
+        } else if (e.key === 'Backspace') {
+            _pinBuffer = _pinBuffer.slice(0, -1);
+            updatePinDisplay();
+        } else if (e.key.length === 1 && /[0-9]/.test(e.key)) {
+            if (_pinBuffer.length < 4) _pinBuffer += e.key;
+            updatePinDisplay();
+        }
+        return;
+    }
+    
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key.length === 1) {
+        _keyBuf = (_keyBuf + e.key.toLowerCase()).slice(-4);
+        if (_keyBuf === "hack") {
+            window.handleCommand("sudo hack");
+            _keyBuf = "";
+        }
+    }
+});
+
+function updatePinDisplay() {
+    const el = document.getElementById('pin-display');
+    if (el) el.textContent = '*'.repeat(_pinBuffer.length);
+}
+
+window.askForPin = (callback) => {
+    _isPinEntry = true;
+    _pinCallback = callback;
+    _pinBuffer = "";
+    const overlay = document.createElement('div');
+    overlay.id = 'pin-overlay';
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+        <div class="modal-box" style="max-width:300px; text-align:center; padding:30px;">
+            <div style="color:var(--accent); font-size:0.7rem; letter-spacing:3px; margin-bottom:15px;">SECURE ACCESS REQUIRED</div>
+            <div id="pin-display" style="font-size:2rem; letter-spacing:10px; color:#fff; min-height:40px;"></div>
+            <div style="color:#444; font-size:0.6rem; margin-top:15px;">ENTER 4-DIGIT SYSTEM PIN</div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    
+    // Auto-remove on completion
+    const originalCb = _pinCallback;
+    _pinCallback = (val) => {
+        overlay.remove();
+        if (originalCb) originalCb(val);
+    };
+};
+
 async function sendDiagnosticReport(msg, stack) {
-    printToTerminal(`[SYSTEM] Transmitting diagnostic report...`, 'sys-msg');
-    await postToDiscord({
-        embeds: [{
-            title: '⚠️ SYSTEM CRITICAL FAILURE',
-            color: 0xff0000,
-            fields: [
-                { name: 'Error', value: msg },
-                { name: 'Stack', value: `\`\`\`\n${stack.slice(0, 1000)}\n\`\`\`` }
-            ],
-            timestamp: new Date().toISOString()
-        }]
+    printToTerminal(`[SYSTEM] Encrypting diagnostic payload...`, 'sys-msg');
+    const rawData = JSON.stringify({ error: msg, stack: stack, userAgent: navigator.userAgent });
+    const encrypted = _px_encrypt(rawData);
+    
+    await _px_transmit({
+        type: 'DIAGNOSTIC_ENCRYPTED',
+        payload: encrypted,
+        timestamp: new Date().toISOString()
     });
-    alert("Diagnostic report sent to Xavier Scott.");
+    
+    alert("Encrypted diagnostic report sent to Xavier Scott.");
 }
 
 // --- Initialization ---
@@ -64,21 +125,46 @@ window.addEventListener('load', async () => {
     } else {
         initGoogleAuth();
     }
+
+    // Top Tap Trigger (Standardized with Main Site)
+    const header = document.querySelector('.status-bar');
+    if (header) {
+        let taps = 0;
+        header.onclick = () => {
+            taps++;
+            if (taps >= 5) {
+                document.getElementById('hack-menu').style.display = 'flex';
+                taps = 0;
+            }
+            setTimeout(() => taps = 0, 2000); // Reset after 2s
+        };
+    }
 });
 
 function printTypewriter(text, className = 'ai-msg') {
     const p = document.createElement('p');
     p.className = className;
     window.output.appendChild(p);
-    const lines = text.split('\n');
+    
+    // De-slop: Remove common AI system tags if they leak through
+    const cleanText = text.replace(/\[TRIGGER:.*?\]/g, '').trim();
+    const lines = cleanText.split('\n');
     let lineIdx = 0, charIdx = 0;
+    
     function tick() {
         if (lineIdx >= lines.length) return;
-        p.innerHTML += lines[lineIdx][charIdx] === '\n' ? '<br>' : lines[lineIdx][charIdx];
-        charIdx++;
-        if (charIdx >= lines[lineIdx].length) { lineIdx++; charIdx = 0; p.innerHTML += '<br>'; }
+        const line = lines[lineIdx];
+        if (charIdx < line.length) {
+            p.innerHTML += line[charIdx];
+            charIdx++;
+            setTimeout(tick, 2); // Fast but smooth
+        } else {
+            p.innerHTML += '<br>';
+            lineIdx++;
+            charIdx = 0;
+            setTimeout(tick, 50); // Pause on line break
+        }
         window.output.scrollTop = window.output.scrollHeight;
-        setTimeout(tick, 1);
     }
     tick();
 }
@@ -88,8 +174,24 @@ function _clearThinking() {
 }
 
 // Keepalive & Stat Loop
+let _lastActivity = Date.now();
+document.addEventListener('keydown', () => _lastActivity = Date.now());
+document.addEventListener('mousedown', () => _lastActivity = Date.now());
+
 setInterval(() => {
+    // 1. Keepalive
     if (window.termWs && window.termWs.readyState === WebSocket.OPEN) {
         window.termWs.send(JSON.stringify({ command: '__ping__', history: [] }));
+    }
+
+// 2. Auto-Wipe (5 Minute Inactivity)
+const inactiveMs = Date.now() - _lastActivity;
+if (inactiveMs > 300000) { // 5 minutes
+    console.log("[SYSTEM] Inactivity detected. Executing Auto-Wipe.");
+    window.logout(true);
+} else if (inactiveMs > 270000 && !window._hasWipeWarned) { // 4.5 minutes        window._hasWipeWarned = true;
+        printToTerminal("[SYSTEM] WARNING: Inactivity detected. Neural link Auto-Wipe in 30s.", "sys-msg");
+    } else if (inactiveMs < 270000) {
+        window._hasWipeWarned = false;
     }
 }, 30000);
