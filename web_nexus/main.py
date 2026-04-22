@@ -80,7 +80,13 @@ async def add_security_headers(request: Request, call_next):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://thyfwxit.com", "https://nexus-terminalnexus.onrender.com"],
+    allow_origins=[
+        "https://thyfwxit.com", 
+        "https://nexus-terminalnexus.onrender.com",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "http://localhost:5173"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
@@ -209,21 +215,23 @@ async def auth_google(request: Request):
     if not credential:
         return _JSONResponse({"error": "No credential"}, status_code=400)
 
-    try:
-        # Diagnostic: Print IDs (masked) to compare
-        expected_id = client_id
-        print(f"[AUTH] Verifying token. Expected Audience: {expected_id[:15]}...")
+    try {
+        print(f"[AUTH] Verifying token for Client ID: {client_id[:15]}...")
+        idinfo = id_token.verify_oauth2_token(credential, g_req.Request(), client_id)
         
-        idinfo = id_token.verify_oauth2_token(credential, g_req.Request(), expected_id)
-        
-        # Verify the audience matches exactly
-        if idinfo['aud'] != expected_id:
-            print(f"[ERROR] Audience mismatch! Token aud: {idinfo['aud']} vs Expected: {expected_id}")
+        # Explicit Audience Check
+        if idinfo['aud'] != client_id:
+            print(f"[AUTH ERROR] Audience mismatch! Token aud: {idinfo['aud']} vs Expected: {client_id}")
             return _JSONResponse({"error": "Identity mismatch: Audience error"}, status_code=401)
             
+        print(f"[AUTH SUCCESS] Verified user: {idinfo.get('email')}")
+            
     except Exception as e:
-        print(f"[ERROR] Token validation failed: {str(e)}")
-        return _JSONResponse({"error": f"Token invalid: {str(e)[:100]}"}, status_code=401)
+        print(f"[AUTH ERROR] Token validation failed: {str(e)}")
+        # Check if it's an audience error in the exception msg
+        if "Wrong number of segments" in str(e):
+            print("[AUTH ERROR] Malformed token received.")
+        return _JSONResponse({"error": f"Identity verification failed: {str(e)[:100]}"}, status_code=401)
 
     payload = {
         "sub":     idinfo["sub"],
