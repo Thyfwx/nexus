@@ -230,10 +230,6 @@ html, body {
     backdrop-filter: blur(15px) !important;
     overflow: hidden;
 }
-
-
-    100% { top: 100%; }
-}
 .enc-badge {
     display: flex; align-items: center; justify-content: center; gap: 8px;
     margin-top: 30px; font-size: 0.58rem; letter-spacing: 2px;
