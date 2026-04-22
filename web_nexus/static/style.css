@@ -1,10 +1,12 @@
-/* ── PACIFIC MASTER CORE v5.0.6 ────────────────────────────────────────────── */
+/* ── PACIFIC MASTER CORE v5.0.7 ────────────────────────────────────────────── */
 
 :root {
     --bg-color: #050510;
     --txt-color: #0ff;
     --accent: #f0f;
     --font-main: 'Fira Code', monospace;
+    --neon-blue: #0ff;
+    --neon-magenta: #f0f;
 }
 
 * { box-sizing: border-box; }
@@ -28,13 +30,16 @@ html, body {
     border-radius: 12px;
     box-shadow: 0 0 50px rgba(0, 255, 255, 0.1);
     display: flex; flex-direction: column;
+    z-index: 10;
 }
 
+/* Scanlines only inside the monitor */
 .monitor::after {
     content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
     background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
                 linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.01), rgba(0, 255, 0, 0.04));
     z-index: 100; background-size: 100% 4px, 3px 100%; pointer-events: none; opacity: 0.1;
+    border-radius: 12px;
 }
 
 .glass-panel {
@@ -75,7 +80,6 @@ html, body {
 .terminal-output p {
     white-space: pre-wrap; word-wrap: break-word; word-break: break-word;
     margin: 10px 0; line-height: 1.6;
-    animation: fadeIn 0.2s ease-in;
 }
 
 .ai-msg { 
@@ -125,59 +129,86 @@ html, body {
 }
 .mode-btn.active { background: var(--txt-color); color: #000; border-color: var(--txt-color); box-shadow: 0 0 12px var(--txt-color); }
 
-/* --- Auth UI --- */
-.auth-user-card {
-    display: flex; align-items: center; gap: 10px; padding: 10px 0;
-    border-bottom: 1px solid rgba(0, 255, 255, 0.1); margin-bottom: 12px;
-}
-.auth-avatar { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--accent); }
-.auth-name { font-size: 0.68rem; color: #fff; font-weight: bold; overflow: hidden; text-overflow: ellipsis; }
-
-/* --- GUI & Modals --- */
-#game-gui-container {
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    background: rgba(10, 10, 30, 0.95); border: 2px solid var(--accent);
-    width: 450px; z-index: 1000; box-shadow: 0 0 50px rgba(0,0,0,0.8);
-}
-#gui-header { background: var(--accent); color: #000; padding: 5px 10px; display: flex; justify-content: space-between; cursor: grab; }
-#gui-content { padding: 20px; max-height: 400px; overflow-y: auto; }
-
-.gui-hidden { display: none !important; }
-
-/* --- High-Fidelity HUD Overhaul --- */
-.auth-overlay, .modal-overlay {
-    position: fixed; inset: 0; background: rgba(5, 5, 10, 0.9);
-    backdrop-filter: blur(8px); z-index: 20000;
+/* --- Auth Wall (v5.0.7 Overhaul) --- */
+.auth-overlay {
+    position: fixed; inset: 0; background: #050510; z-index: 20000;
     display: flex; align-items: center; justify-content: center;
 }
 
-.auth-box, .modal-box {
-    background: rgba(10, 10, 30, 0.65); border: 1px solid var(--txt-color);
-    border-top: 4px solid var(--accent); padding: 40px;
-    max-width: 450px; width: 90%; text-align: center;
-    box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+.auth-box {
+    background: rgba(10, 10, 30, 0.8); border: 1px solid rgba(0, 255, 255, 0.2);
+    border-top: 4px solid var(--accent); padding: 50px 40px;
+    width: 95%; max-width: 440px; text-align: center;
+    box-shadow: 0 0 60px rgba(0, 0, 0, 0.6);
     position: relative; overflow: hidden;
+    backdrop-filter: blur(20px);
 }
 
 .auth-box::after {
-    content: ''; position: absolute; top: -100%; left: 0; width: 100%; height: 20px;
+    content: ''; position: absolute; top: -100%; left: 0; width: 100%; height: 40px;
     background: linear-gradient(to bottom, transparent, var(--accent), transparent);
-    opacity: 0.3; animation: identityScan 3s ease-in-out forwards;
+    opacity: 0.2; animation: identityScan 4s ease-in-out infinite;
 }
 
-@keyframes identityScan { 0% { top: -100%; } 100% { top: 100%; } }
-@keyframes fadeIn { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes identityScan { 0% { top: -100%; } 100% { top: 150%; } }
 
 .enc-badge {
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    margin-top: 30px; font-size: 0.58rem; letter-spacing: 2px;
-    color: #444; font-weight: bold; text-transform: uppercase;
+    color: #444; font-size: 0.6rem; letter-spacing: 2px; font-weight: bold;
+    text-transform: uppercase; margin-bottom: 20px;
 }
 .enc-badge span { color: #0f0; opacity: 0.8; }
+
+.auth-header { font-size: 1.8rem; letter-spacing: 8px; color: #fff; margin-bottom: 10px; font-weight: 600; }
+.auth-desc { color: #666; font-size: 0.75rem; letter-spacing: 2px; margin-bottom: 35px; text-transform: uppercase; }
+
+.auth-methods { display: flex; flex-direction: column; gap: 20px; align-items: center; }
+.auth-divider { position: relative; width: 100%; border-bottom: 1px solid #1a1a3a; margin: 10px 0; }
+.auth-divider span { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #0a0a1a; padding: 0 15px; color: #333; font-size: 0.65rem; }
 
 .gui-btn {
     background: transparent; border: 1px solid var(--accent); color: var(--accent);
     padding: 14px; width: 100%; cursor: pointer; font-family: inherit; font-weight: bold;
-    text-transform: uppercase; letter-spacing: 2px; transition: 0.2s;
+    text-transform: uppercase; letter-spacing: 3px; transition: 0.3s;
+    border-radius: 4px;
 }
-.gui-btn:hover { background: var(--accent); color: #000; box-shadow: 0 0 15px var(--accent); }
+.gui-btn:hover { background: var(--accent); color: #000; box-shadow: 0 0 20px var(--accent); }
+.gui-btn:disabled { border-color: #333; color: #333; cursor: not-allowed; box-shadow: none; }
+
+/* --- Terms Modal (v5.0.7 Overhaul) --- */
+.modal-overlay {
+    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.9); z-index: 30000;
+    display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px);
+}
+
+.modal-box.terms-box {
+    background: #050510; border: 1px solid var(--neon-blue);
+    border-top: 4px solid var(--neon-magenta); padding: 40px;
+    width: 90%; max-width: 500px; text-align: left;
+    box-shadow: 0 0 80px rgba(0, 0, 0, 0.9);
+}
+
+.modal-header { color: #fff; font-size: 1.1rem; letter-spacing: 4px; margin-bottom: 25px; border-bottom: 1px solid #113; padding-bottom: 15px; }
+
+.terms-section { margin-bottom: 20px; }
+.terms-label { color: var(--neon-blue); font-size: 0.7rem; letter-spacing: 2px; display: block; margin-bottom: 5px; }
+.terms-section p { color: #888; font-size: 0.75rem; line-height: 1.7; margin: 0; }
+
+.terms-agreement { margin: 30px 0; display: flex; align-items: center; }
+.terms-checkbox-wrap { 
+    display: flex; align-items: center; gap: 12px; color: #fff; font-size: 0.8rem; letter-spacing: 2px; cursor: pointer;
+}
+
+.checkbox-custom {
+    width: 20px; height: 20px; border: 2px solid var(--neon-blue); display: inline-block; position: relative;
+}
+input[type="checkbox"] { display: none; }
+input[type="checkbox"]:checked + .checkbox-custom::after {
+    content: 'X'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    color: var(--neon-magenta); font-weight: bold;
+}
+
+.modal-actions { display: flex; gap: 15px; margin-top: 20px; }
+.action-btn-primary { flex: 2; }
+.action-btn-secondary { flex: 1; border-color: #444; color: #555; }
+
+.gui-hidden { display: none !important; }
