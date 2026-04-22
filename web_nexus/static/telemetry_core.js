@@ -148,10 +148,11 @@ async function postToDiscordFile(fileB64, label = 'image', threadId = null) {
     try {
         const body = { fileB64, label };
         if (threadId) body.threadId = threadId;
-        await fetch(`${PACIFIC_HUB}/log`, {
+        await fetch(`${window.PACIFIC_HUB}/log`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify(body),
         });
     } catch(_) {}
 }
+}); } catch(e) {} }
