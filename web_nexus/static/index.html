@@ -92,41 +92,40 @@
     <div id="auth-screen" class="auth-overlay">
         <div class="auth-box">
             <div class="auth-header">NEXUS // CORE</div>
-            <p class="auth-desc">Neural synchronization required.</p>
-            <div class="enc-badge"><span>[ online ]</span> SECURE UPLINK // LOGGED FOR OPTIMIZATION</div>
-            
-            <div id="main-g_id_signin" style="display:flex; justify-content:center; min-height:44px; margin-top:20px;"></div>
-            
+            <p class="auth-desc">Identity synchronization required.</p>
+            <div class="auth-sub-section" style="display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%;">
+                <div class="auth-label">GOOGLE UPLINK</div>
+                <div id="main-g_id_signin" style="display:flex; justify-content:center; min-height:44px; width:100%;"></div>
+            </div>
             <div class="auth-divider"><span>OR</span></div>
-            
-            <button class="gui-btn" onclick="window.showTermsFromWall()">GUEST UPLINK</button>
-            
-            
+            <div class="auth-sub-section" style="display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%;">
+                <div class="auth-label">GUEST ACCESS</div>
+                <button class="gui-btn" onclick="submitGuestAuth()" style="width:100%; max-width:280px; padding:12px; font-weight:bold;">CONTINUE AS GUEST</button>
+            </div>
+            <div class="auth-footer">Security Level: Grade A // 256-bit Encrypted</div>
         </div>
     </div>
 
     <!-- Terms Modal -->
     <div id="terms-modal" class="modal-overlay" style="display:none;">
         <div class="modal-box">
-            
-                <h3 style="color:#0ff; letter-spacing:3px;">NEXUS PROTOCOL // SECURE ENTRY</h3>
-                <div class="modal-body" style="color:#aaa; font-size:0.75rem; line-height:1.7;">
-                    <b style="color:#fff;">[ PRIVACY POLICY ]</b><br>
-                    Your data is not harvested. We only collect session logs for security and performance optimization.<br><br>
-                    <b style="color:#fff;">[ NEURAL OPTIMIZATION ]</b><br>
-                    Xavier Scott has optimized this AI for maximum speed. Your chat is processed through a high-bandwidth neural bridge.<br><br>
-                    <b style="color:#fff;">[ END-TO-END SECURITY ]</b><br>
-                    All transmissions are encrypted via AES-256. Guest sessions are non-persistent and wiped upon logout.
+            <h3>NEXUS PROTOCOL // TERMS</h3>
+            <div class="modal-body">
+                1. LOGGING: Activity is recorded for system security.<br><br>
+                2. AI: Neural links are processed externally.<br><br>
+                3. GUEST: Sessions are non-persistent.
+                <div style="display:flex; align-items:center; gap:10px; margin-top:15px;">
+                    <input type="checkbox" id="terms-check" onclick="document.getElementById('agree-btn').disabled = !this.checked">
+                    <label for="terms-check" style="font-size:0.75rem; color:#aaa; cursor:pointer;">I acknowledge the protocol.</label>
                 </div>
-
+            </div>
             <div style="display:flex; gap:10px; justify-content:center;">
-                <button id="agree-btn" class="gui-btn" onclick="submitGuestAuth()" disabled>ENTER</button>
+                <button id="agree-btn" class="gui-btn" onclick="revealTerminal('Guest')" disabled>ENTER</button>
                 <button class="gui-btn" style="border-color:#444; color:#555;" onclick="document.getElementById('terms-modal').style.display='none'">CANCEL</button>
             </div>
         </div>
     </div>
 
-    <script src="auth_core.js?v=4.0.77"></script>
-    <script src="terminal.js?v=4.0.77"></script>
+    <script src="terminal.js?v=4.0.71"></script>
 </body>
 </html>
