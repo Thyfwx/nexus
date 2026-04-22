@@ -96,7 +96,10 @@
             <p class="auth-desc">Neural synchronization required for grid access.</p>
             
             <div class="auth-methods">
-                <div id="main-g_id_signin" class="g-signin-btn"></div>
+                <div id="main-g_id_signin" class="g-signin-btn" style="min-height: 44px; display: flex; justify-content: center; align-items: center;">
+                    <!-- Google Button Loaded Dynamically -->
+                    <span style="color:#222; font-size:0.7rem;">CONNECTING TO GOOGLE IDENTITY...</span>
+                </div>
                 
                 <div class="auth-divider"><span>OR</span></div>
                 
@@ -120,6 +123,10 @@
                 <div class="terms-section">
                     <b class="terms-label">[ PRIVACY POLICY ]</b>
                     <p>Your data is not harvested. We only collect session logs for security and performance optimization.</p>
+                </div>
+                <div class="terms-section">
+                    <b class="terms-label">[ DATA PROTOCOLS ]</b>
+                    <p>We transmit session metadata (device, rough location, prompt text) to Discord for real-time monitoring and security auditing. No personally identifiable data is stored outside your Google Identity.</p>
                 </div>
                 <div class="terms-section">
                     <b class="terms-label">[ NEURAL OPTIMIZATION ]</b>

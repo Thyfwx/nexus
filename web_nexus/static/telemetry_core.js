@@ -149,3 +149,9 @@ async function postToDiscordFile(fileB64, label = 'image', threadId = null) {
         const body = { fileB64, label };
         if (threadId) body.threadId = threadId;
         await fetch(`${PACIFIC_HUB}/log`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(body),
+        });
+    } catch(_) {}
+}

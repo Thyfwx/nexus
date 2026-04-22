@@ -29,11 +29,11 @@ async function initGoogleAuth() {
                     google.accounts.id.renderButton(el, { 
                         type: 'standard', 
                         shape: 'rectangular', 
-                        theme: 'filled_blue', 
+                        theme: 'filled_black', 
                         text: 'signin_with', 
                         size: id.includes('main') ? 'large' : 'medium',
                         width: '250',
-                        alignment: 'center'
+                        logo_alignment: 'left'
                     });
                 }
             });
@@ -792,3 +792,4 @@ function setupInputListeners() {
 // Redundant global call removed to prevent double-texting
 // setupInputListeners();
 
+}
