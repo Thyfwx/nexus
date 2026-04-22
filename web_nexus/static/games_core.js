@@ -1,11 +1,3 @@
-let pongRaf, flappyFrame, breakoutRaf, invadersRaf;
-let breachActive = false, _breachClick = null;
-let snakeRaf, snakeActive = false, _snakeTS = null, _snakeTE = null, _snakeKey = null;
-let wordleActive = false, wordleAnswer = "", wordleGuesses = [], wordleCurrent = "", wordleKeyState = {};
-let mineActive = false, mineGrid = [], mineRevealed = [], mineFlagged = [], mineOver = false, mineWon = false, mineFirst = true;
-let typeTestActive = false, typePhrase = "", typeStart = 0, typeTimerInterval = null, typeErrors = 0, typeCharsTyped = 0;
-let matrixSaverActive = false, matrixSaverFrame;
-
 function startPong() {
     stopAllGames();
     guiContainer.classList.remove('gui-hidden');
@@ -1647,3 +1639,4 @@ function stopAllGames() {
 
     // Clear any active game intervals/frames not caught by sub-functions
     cancelAnimationFrame(pongRaf);
+}
