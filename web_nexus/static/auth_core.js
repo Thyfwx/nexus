@@ -798,4 +798,3 @@ function setupInputListeners() {
 // Redundant global call removed to prevent double-texting
 // setupInputListeners();
 
-}
