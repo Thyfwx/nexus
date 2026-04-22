@@ -108,16 +108,17 @@
     <!-- Terms Modal -->
     <div id="terms-modal" class="modal-overlay" style="display:none;">
         <div class="modal-box">
-            <h3>NEXUS PROTOCOL // TERMS</h3>
-            <div class="modal-body">
-                1. LOGGING: Activity is recorded for system security.<br><br>
-                2. AI: Neural links are processed externally.<br><br>
-                3. GUEST: Sessions are non-persistent.
-                <div style="display:flex; align-items:center; gap:10px; margin-top:15px;">
-                    <input type="checkbox" id="terms-check" onclick="document.getElementById('agree-btn').disabled = !this.checked">
-                    <label for="terms-check" style="font-size:0.75rem; color:#aaa; cursor:pointer;">I acknowledge the protocol.</label>
+            
+                <h3 style="color:#0ff; letter-spacing:3px;">NEXUS PROTOCOL // SECURE ENTRY</h3>
+                <div class="modal-body" style="color:#aaa; font-size:0.75rem; line-height:1.7;">
+                    <b style="color:#fff;">[ PRIVACY POLICY ]</b><br>
+                    Your data is not harvested. We only collect session logs for security and performance optimization.<br><br>
+                    <b style="color:#fff;">[ NEURAL OPTIMIZATION ]</b><br>
+                    Xavier Scott has optimized this AI for maximum speed. Your chat is processed through a high-bandwidth neural bridge.<br><br>
+                    <b style="color:#fff;">[ END-TO-END SECURITY ]</b><br>
+                    All transmissions are encrypted via AES-256. Guest sessions are non-persistent and wiped upon logout.
                 </div>
-            </div>
+
             <div style="display:flex; gap:10px; justify-content:center;">
                 <button id="agree-btn" class="gui-btn" onclick="submitGuestAuth()" disabled>ENTER</button>
                 <button class="gui-btn" style="border-color:#444; color:#555;" onclick="document.getElementById('terms-modal').style.display='none'">CANCEL</button>
