@@ -7,10 +7,14 @@ async function initGoogleAuth() {
     renderAuthSection();
 
     const setupGoogle = () => {
-        if (!window.google || !window.google.accounts || !window.google.accounts.id) return false;
+        console.log("[AUTH] Probing Google Identity library...");
+        if (!window.google || !window.google.accounts || !window.google.accounts.id) {
+            console.warn("[AUTH] GSI Library not detected in window.");
+            return false;
+        }
         if (_authInited) return true;
 
-        console.log("[AUTH] Initializing Google Identity...");
+        console.log("[AUTH] Initializing Google Identity with Client ID:", _googleClientID);
         try {
             google.accounts.id.initialize({
                 client_id: _googleClientID,
@@ -26,15 +30,17 @@ async function initGoogleAuth() {
                 const el = document.getElementById(id);
                 if (el) {
                     console.log(`[AUTH] Rendering Button in #${id}`);
+                    el.style.minHeight = '44px'; // Ensure visibility
                     google.accounts.id.renderButton(el, { 
                         type: 'standard', 
                         shape: 'rectangular', 
-                        theme: 'filled_black', 
+                        theme: 'outline', 
                         text: 'signin_with', 
                         size: id.includes('main') ? 'large' : 'medium',
-                        width: '250',
-                        logo_alignment: 'left'
+                        width: '250'
                     });
+                } else {
+                    console.warn(`[AUTH] Target element #${id} not found for button rendering.`);
                 }
             });
 
