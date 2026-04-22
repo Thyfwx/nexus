@@ -1,17 +1,16 @@
-/* ── PACIFIC MASTER CORE v4.0.84 ────────────────────────────────────────────── */
+/* ── PACIFIC MASTER CORE v5.1.0 ────────────────────────────────────────────── */
 
 :root {
     --bg-color: #050510;
     --txt-color: #0ff;
     --accent: #f0f;
     --font-main: 'Fira Code', monospace;
+    --neon-blue: #0ff;
+    --neon-magenta: #f0f;
 }
 
 * { box-sizing: border-box; }
 
-/* ============================================================
-   MODULE: GLOBAL SHELL
-   ============================================================ */
 html, body {
     background-color: var(--bg-color);
     color: var(--txt-color);
@@ -19,28 +18,27 @@ html, body {
     margin: 0; padding: 0;
     min-height: 100vh; width: 100vw;
     display: flex; justify-content: center; align-items: center;
-    overflow-x: hidden;
     overflow: hidden !important;
 }
 
+/* --- CRT & Scanner Effects --- */
 .monitor {
     position: relative;
-    width: 98vw; 
-    /* Remove fixed height to prevent cutting off the bottom */
-    height: 92vh;
+    width: 98vw; height: 92vh;
     margin: 10px 0;
     background: radial-gradient(circle, #1a1a2e 0%, #000 100%);
     border-radius: 12px;
     box-shadow: 0 0 50px rgba(0, 255, 255, 0.1);
     display: flex; flex-direction: column;
+    z-index: 10;
 }
 
-/* CRT Scanlines Layer */
 .monitor::after {
     content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
     background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
                 linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.01), rgba(0, 255, 0, 0.04));
     z-index: 100; background-size: 100% 4px, 3px 100%; pointer-events: none; opacity: 0.1;
+    border-radius: 12px;
 }
 
 .glass-panel {
@@ -51,6 +49,7 @@ html, body {
     width: 100%; flex-grow: 1;
     background: rgba(5, 5, 16, 0.98);
     border: 1px solid rgba(0, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
 }
 
 .status-bar {
@@ -62,33 +61,27 @@ html, body {
     z-index: 50;
 }
 
-/* ============================================================
-   MODULE: TERMINAL & AI LOGIC
-   ============================================================ */
-.terminal-container {
-    grid-area: main;
-    padding: 20px;
-    display: flex; flex-direction: column;
-    height: 100%;
+.conn-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #555;
+    box-shadow: 0 0 5px rgba(0,0,0,0.5); transition: background 0.3s;
 }
+.conn-dot.connected { background: #0f0; box-shadow: 0 0 8px #0f0; }
+
+/* --- Terminal & AI --- */
+.terminal-container { grid-area: main; padding: 20px; display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 
 .terminal-output {
-    flex-grow: 1;
-    overflow-y: auto !important;
+    flex-grow: 1; overflow-y: auto !important;
     margin-bottom: 15px; padding-right: 12px;
     scrollbar-width: thin; scrollbar-color: var(--txt-color) transparent;
 }
 
 .terminal-output p {
-    white-space: pre-wrap;
-    word-wrap: break-word;
+    white-space: pre-wrap; word-wrap: break-word; word-break: break-word;
     margin: 10px 0; line-height: 1.6;
-    white-space: pre-wrap; word-break: break-word;
-    animation: fadeIn 0.2s ease-in;
 }
 
-/* AI Message Styling */
-.ai-msg, .shadow-msg, .coder-msg, .sage-msg, .education-msg { 
+.ai-msg { 
     display: block; width: 100%;
     line-height: 1.7; padding-left: 14px; margin-left: 2px;
     border-left: 3px solid var(--accent);
@@ -96,15 +89,9 @@ html, body {
 }
 
 .terminal-input-wrapper {
-    position: sticky;
-    bottom: 0;
     background: rgba(5,5,16,0.95);
-    padding: 15px 10px;
-    border-top: 1px solid var(--accent);
-    box-shadow: 0 -5px 15px rgba(255, 0, 255, 0.1);
-    display: flex; align-items: center;
-    border-top: 1px solid rgba(0, 255, 255, 0.2);
-    padding: 15px 5px; gap: 12px; flex-shrink: 0;
+    padding: 15px 5px; gap: 12px; display: flex; align-items: center;
+    border-top: 1px solid rgba(0, 255, 255, 0.2); flex-shrink: 0;
 }
 
 .prompt { color: var(--accent); font-weight: bold; font-size: 1rem; white-space: nowrap; }
@@ -115,16 +102,12 @@ html, body {
     flex-grow: 1; outline: none; caret-color: var(--txt-color);
 }
 
-/* ============================================================
-   MODULE: SIDEBAR & NAVIGATION
-   ============================================================ */
+/* --- Sidebar --- */
 .quick-actions {
-    grid-area: aside;
-    border-left: 1px solid rgba(0, 255, 255, 0.2);
+    grid-area: aside; border-left: 1px solid rgba(0, 255, 255, 0.2);
     display: flex; flex-direction: column;
     padding: 16px 14px; background: rgba(0,0,0,0.6);
     gap: 12px; overflow-y: auto; height: 100%;
-    scrollbar-width: thin; scrollbar-color: var(--accent) transparent;
 }
 
 .aside-header { font-size: 0.72rem; color: var(--accent); margin-bottom: 4px; letter-spacing: 2px; text-transform: uppercase; }
@@ -145,75 +128,66 @@ html, body {
 }
 .mode-btn.active { background: var(--txt-color); color: #000; border-color: var(--txt-color); box-shadow: 0 0 12px var(--txt-color); }
 
-/* Identity & Auth Card */
-.auth-user-card {
-    display: flex; align-items: center; gap: 10px; padding: 10px 0;
-    border-bottom: 1px solid rgba(0, 255, 255, 0.1); margin-bottom: 12px;
-}
-.auth-avatar {
-    width: 32px !important; height: 32px !important;
-    border-radius: 50%; border: 1px solid var(--accent); flex-shrink: 0;
-}
-.auth-name { font-size: 0.68rem; color: #fff; font-weight: bold; overflow: hidden; text-overflow: ellipsis; }
-
-.auth-logout-btn {
-    background: none; border: 1px solid #f55; color: #f55 !important;
-    width: 24px; height: 24px; border-radius: 4px; cursor: pointer;
-    font-weight: bold; display: flex; align-items: center; justify-content: center;
-}
-
-.a11y-open-btn {
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    width: 100%; padding: 14px 0; background: rgba(0, 255, 255, 0.1);
-    border: 1px solid rgba(0, 255, 255, 0.4); border-radius: 8px;
-    color: #0ff; font-family: inherit; font-weight: bold; font-size: 0.75rem;
-    cursor: pointer; margin-top: auto;
-}
-
-/* ============================================================
-   MODULE: AUTH WALL & MODALS
-   ============================================================ */
+/* --- Auth Wall (v5.1.0 High-Fidelity) --- */
 .auth-overlay {
-    position: fixed; inset: 0; background: #050510; z-index: 10000;
+    position: fixed; inset: 0; background: #050510; z-index: 20000;
     display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle at center, #0a0a20 0%, #050510 100%);
 }
 
+.auth-box {
+    background: rgba(10, 10, 30, 0.6); border: 1px solid rgba(0, 255, 255, 0.3);
+    padding: 60px 40px; width: 95%; max-width: 480px; text-align: center;
+    box-shadow: 0 0 100px rgba(0, 255, 255, 0.1), inset 0 0 30px rgba(0, 255, 255, 0.05);
+    position: relative; overflow: hidden;
+    backdrop-filter: blur(20px); border-radius: 12px;
+}
 
-.auth-header { font-size: 1.4rem; letter-spacing: 5px; color: #fff; margin-bottom: 10px; font-weight: 600; }
-.auth-desc { color: #444; font-size: 0.7rem; letter-spacing: 2px; margin-bottom: 25px; text-transform: uppercase; }
+.auth-box::after {
+    content: ''; position: absolute; top: -100%; left: 0; width: 100%; height: 60px;
+    background: linear-gradient(to bottom, transparent, rgba(0, 255, 255, 0.15), transparent);
+    opacity: 0.3; animation: identityScan 5s ease-in-out infinite;
+}
 
-.auth-divider { position: relative; margin: 25px 0; border-bottom: 1px solid #1a1a3a; }
-.auth-divider span { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #0a0a1a; padding: 0 10px; color: #333; font-size: 0.6rem; }
+@keyframes identityScan { 0% { top: -100%; } 100% { top: 200%; } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+.enc-badge {
+    color: #444; font-size: 0.6rem; letter-spacing: 3px; font-weight: bold;
+    text-transform: uppercase; margin-bottom: 25px;
+}
+.enc-badge span { color: #0f0; text-shadow: 0 0 8px #0f0; }
+
+.auth-header { font-size: 2rem; letter-spacing: 10px; color: #fff; margin-bottom: 12px; font-weight: 600; }
+.auth-desc { color: #555; font-size: 0.75rem; letter-spacing: 3px; margin-bottom: 45px; text-transform: uppercase; }
+
+.auth-methods { display: flex; flex-direction: column; gap: 25px; align-items: center; width: 100%; }
+.g-signin-btn { min-height: 44px; width: 100%; display: flex; justify-content: center; }
+
+.auth-divider { position: relative; width: 100%; border-bottom: 1px solid #1a1a3a; margin: 15px 0; }
+.auth-divider span { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #08081a; padding: 0 20px; color: #222; font-size: 0.6rem; letter-spacing: 2px; }
 
 .gui-btn {
-    background: transparent; border: 1px solid var(--accent); color: var(--accent);
-    padding: 14px; width: 100%; cursor: pointer; font-family: inherit; font-weight: bold;
-    text-transform: uppercase; letter-spacing: 2px; transition: 0.2s;
+    background: rgba(0, 255, 255, 0.05); border: 1px solid var(--neon-blue); color: var(--neon-blue);
+    padding: 16px; width: 100%; cursor: pointer; font-family: inherit; font-weight: bold;
+    text-transform: uppercase; letter-spacing: 4px; transition: 0.3s;
+    border-radius: 4px; outline: none;
 }
-.gui-btn:hover { background: var(--accent); color: #000; box-shadow: 0 0 15px var(--accent); }
+.gui-btn:hover:not(:disabled) { background: var(--neon-blue); color: #000; box-shadow: 0 0 25px var(--neon-blue); }
+.gui-btn:disabled { border-color: #222; color: #222; cursor: not-allowed; opacity: 0.5; }
 
+.auth-footer { margin-top: 40px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 20px; }
+.main-site-link { color: #333; text-decoration: none; font-size: 0.6rem; letter-spacing: 2px; transition: 0.2s; }
+.main-site-link:hover { color: var(--neon-blue); text-shadow: 0 0 10px var(--neon-blue); }
+
+/* --- Modal Overlays --- */
 .modal-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 20000;
-    display: flex; align-items: center; justify-content: center;
+    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.95); z-index: 30000;
+    display: flex; align-items: center; justify-content: center; backdrop-filter: blur(15px);
 }
-/* --- High-Fidelity HUD Overhaul v5.0.5 --- */
-.auth-box {
-    background: rgba(10, 10, 30, 0.65) !important; /* GHOST TRANSPARENCY */
-    backdrop-filter: blur(15px) !important;
-    overflow: hidden;
+.modal-box {
+    background: #050510; border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 40px; width: 90%; max-width: 500px; text-align: center;
+    box-shadow: 0 0 100px rgba(0, 0, 0, 1);
 }
-.auth-box::after {
-    content: ''; position: absolute; top: -100%; left: 0; width: 100%; height: 20px;
-    background: linear-gradient(to bottom, transparent, var(--accent), transparent);
-    opacity: 0.3; animation: identityScan 3s ease-in-out forwards;
-}
-@keyframes identityScan {
-    0% { top: -100%; }
-    100% { top: 100%; }
-}
-.enc-badge {
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    margin-top: 30px; font-size: 0.58rem; letter-spacing: 2px;
-    color: #444; font-weight: bold; text-transform: uppercase;
-}
-.enc-badge span { color: #0f0; opacity: 0.8; } /* GREEN PADLOCK SIMULATION */
+.gui-hidden { display: none !important; }
