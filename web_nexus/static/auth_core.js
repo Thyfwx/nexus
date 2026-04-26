@@ -1,7 +1,8 @@
-//  GOOGLE AUTHENTICATION v5.2.0
+//  GOOGLE AUTHENTICATION v5.2.6
 // =============================================================
 let _googleClientID = '616205887439-s1l0out61vlu0l81307q9g64oai3gnur.apps.googleusercontent.com';
 let _authInited = false;
+let _termsScrolled = false;
 
 async function initGoogleAuth() {
     if (_authInited) return;
@@ -35,7 +36,7 @@ async function initGoogleAuth() {
                         theme: 'filled_blue', 
                         text: 'signin_with', 
                         size: id.includes('main') ? 'large' : 'medium',
-                        width: id.includes('main') ? '300' : '200'
+                        width: id.includes('main') ? '280' : '200'
                     });
                 }
             };
@@ -68,14 +69,21 @@ function renderAuthSection() {
 
     const user = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
     if (user && user.name) {
+        const isGoogle = !!user.email && user.email !== 'guest@local';
+        const avatarHtml = user.picture 
+            ? `<img src="${user.picture}" class="auth-avatar" style="width:32px; height:32px; border-radius:50%; border:1px solid var(--accent); flex-shrink:0;" alt="User">`
+            : `<div class="auth-avatar-initials" style="width:32px; height:32px; border-radius:50%; background:#111; border:1px solid var(--accent); display:flex; align-items:center; justify-content:center; font-size:0.6rem; color:var(--accent); flex-shrink:0;">${user.name[0].toUpperCase()}</div>`;
+            
         authSection.innerHTML = `
-            <div class="auth-user-card">
-                <img src="${user.picture || 'https://thyfwxit.com/avatar.png'}" class="auth-avatar" alt="User">
-                <div class="auth-info">
-                    <div class="auth-name">${user.name}</div>
-                    <div style="font-size:0.5rem; color:#555;">[ AUTHENTICATED ]</div>
+            <div class="auth-user-card" style="display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid rgba(0,255,255,0.1); margin-bottom:15px;">
+                ${avatarHtml}
+                <div class="auth-info" style="flex:1; min-width:0;">
+                    <div class="auth-name" style="color:#fff; font-size:0.65rem; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${user.name}</div>
+                    <div style="font-size:0.5rem; color:#555;">[ ${isGoogle ? 'VERIFIED' : 'GUEST'} ]</div>
                 </div>
-                <button onclick="window.logout()" class="auth-logout-btn" title="Logout">X</button>
+                <div style="display:flex; gap:5px;">
+                    <button onclick="window.logout()" class="auth-logout-btn" title="Logout" style="background:none; border:1px solid #f55; color:#f55 !important; width:22px; height:22px; border-radius:4px; cursor:pointer; font-weight:bold; display:flex; align-items:center; justify-content:center;">X</button>
+                </div>
             </div>
         `;
     } else {
@@ -131,11 +139,14 @@ async function revealTerminal(name) {
     const monitor = document.getElementById('main-monitor');
     const terms   = document.getElementById('terms-modal');
     
-    if (overlay) overlay.style.display = 'none';
+    if (overlay) overlay.classList.add('fade-out');
     if (terms)   terms.style.display   = 'none';
+    
+    // Show monitor slightly after fade starts
     if (monitor) {
         monitor.style.display = 'flex';
-        monitor.offsetHeight; 
+        monitor.style.opacity = '0';
+        setTimeout(() => monitor.style.opacity = '1', 100);
     }
     
     document.body.classList.remove('auth-locked');
@@ -144,21 +155,89 @@ async function revealTerminal(name) {
     window.output = document.getElementById('terminal-output');
     window.input = document.getElementById('terminal-input');
 
-    printToTerminal(`[AUTH] Identity Verified: ${name}.`, 'conn-ok');
+    printToTerminal(`[AUTH] Identity Verified: ${name}. Welcome to the Grid.`, 'conn-ok');
     printToTerminal(`Nexus online. Type 'help' for command manifest.`, 'sys-msg');
 }
 
 window.showTermsFromWall = () => {
-    document.getElementById('terms-modal').style.display = 'flex';
+    const modal = document.getElementById('terms-modal');
+    modal.style.display = 'flex';
+    setupTermsInteraction();
 };
 
 window.hideTerms = () => {
     document.getElementById('terms-modal').style.display = 'none';
 };
 
+function setupTermsInteraction() {
+    const content = document.getElementById('terms-content');
+    const check = document.getElementById('terms-check');
+    const area = document.getElementById('terms-agreement-area');
+    const box = document.getElementById('terms-box');
+
+    if (!content || !check || !area || !box) return;
+
+    // Reset state
+    _termsScrolled = false;
+    check.checked = false;
+    area.classList.remove('active');
+
+    // Scroll Monitoring
+    content.onscroll = () => {
+        if (_termsScrolled) return;
+        const pad = 20;
+        if (content.scrollTop + content.clientHeight >= content.scrollHeight - pad) {
+            console.log("[TERMS] Bottom reached. Unlocking gate.");
+            _termsScrolled = true;
+            area.classList.add('active');
+        }
+    };
+
+    // Capture clicks ONLY on the actual checkbox box
+    check.onclick = (e) => {
+        if (!_termsScrolled) {
+            e.preventDefault();
+            showScrollError();
+        }
+    };
+    
+    // Explicitly prevent the label from triggering the checkbox or the error
+    area.onclick = (e) => {
+        if (!_termsScrolled && e.target.tagName === 'LABEL') {
+            e.preventDefault();
+        }
+    };
+}
+
+function showScrollError() {
+    const el = document.getElementById('terms-error-msg');
+    if (!el) return;
+
+    el.classList.add('active');
+    setTimeout(() => el.classList.remove('active'), 3000);
+}
+
 async function submitGuestAuth() {
+    if (!_termsScrolled) {
+        console.warn("[AUTH] Gate Locked: Terms not fully read.");
+        showScrollError();
+        return;
+    }
+
+    const check = document.getElementById('terms-check');
+    if (!check || !check.checked) {
+        // If they scrolled but didn't check, show the error as well
+        showScrollError();
+        return;
+    }
+
     const btn = document.getElementById('agree-btn');
-    if (btn) btn.textContent = 'LINKING...';
+    if (btn) {
+        btn.textContent = 'LINKING...';
+        btn.style.borderColor = 'var(--accent)';
+    }
+    // No more manual disabled here to allow the click-error logic to remain active if somehow reverted
+    // Actually, keep it for the linking state
     if (btn) btn.disabled = true;
 
     // Minimal delay for feedback
@@ -181,12 +260,16 @@ async function submitGuestAuth() {
                 renderAuthSection();
             }, 500);
         } else {
-            if (btn) btn.textContent = 'RETRY';
-            if (btn) btn.disabled = false;
+            if (btn) {
+                btn.textContent = 'RETRY';
+                btn.disabled = false;
+            }
         }
     } catch(e) {
-        if (btn) btn.textContent = 'ERROR';
-        if (btn) btn.disabled = false;
+        if (btn) {
+            btn.textContent = 'ERROR';
+            btn.disabled = false;
+        }
     }
 }
 

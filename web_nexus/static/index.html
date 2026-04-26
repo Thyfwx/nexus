@@ -5,12 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>NEXUS AI // TERMINAL</title>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=5.2.2">
+    <link rel="stylesheet" href="style.css?v=5.2.5">
     <link rel="icon" type="image/png" href="https://thyfwxit.com/favicon.png">
     <script src="https://accounts.google.com/gsi/client" async defer onload="window.initGoogleAuth()"></script>
 </head>
-<body class="auth-locked">
+<body class="auth-locked crt-mode">
     <div class="monitor" id="main-monitor" style="display:none;">
+        <div class="screen-glare"></div>
         <div class="glass-panel">
             <header class="status-bar">
                 <div class="status-item"><div id="conn-dot" class="conn-dot"></div> <span class="stat-label">CPU</span> <span id="cpu-stat">--</span></div>
@@ -29,13 +30,42 @@
 
             <aside class="quick-actions">
                 <div id="auth-section" class="auth-section"></div>
+                
                 <div class="aside-header">GAMES</div>
                 <button class="action-btn" data-cmd="play wordle">Wordle</button>
                 <button class="action-btn" data-cmd="play snake">Snake</button>
                 <button class="action-btn" data-cmd="play pong">Pong</button>
-                <div class="aside-header" style="margin-top:10px;">TOOLS</div>
+                <button class="action-btn" data-cmd="play mines">Mines</button>
+                <button class="action-btn" data-cmd="play flappy">Flappy</button>
+                <button class="action-btn" data-cmd="play breakout">Breakout</button>
+                <button class="action-btn" data-cmd="play invaders">Invaders</button>
+
+                <div class="aside-header" style="margin-top:15px;">NEURAL LINKS</div>
+                <div class="mode-picker">
+                    <button class="mode-btn active" data-mode="nexus" title="Standard Interface">Nexus</button>
+                    <button class="mode-btn" data-mode="shadow" title="Shadow Link (Unfiltered)">Shadow</button>
+                    <button class="mode-btn" data-mode="coder" title="Architect Mode (Code)">Coder</button>
+                    <button class="mode-btn" data-mode="sage" title="Oracle Mode (Philosophy)">Sage</button>
+                    <button class="mode-btn" data-mode="education" title="Mentor Mode (Instructional)" style="grid-column: span 2; border-color:#00ffcc; color:#00ffcc;">Education</button>
+                </div>
+
+                <div class="aside-header" style="margin-top:15px;">TOOLS</div>
+                <button class="action-btn" onclick="startMaintenanceHub()">Maintenance Hub</button>
+                <button class="action-btn" onclick="startSpeedTest()">Speed Test</button>
+                <button class="action-btn" id="btn-logs" data-cmd="logs" style="display:none;">Logs</button>
+                <button class="action-btn" id="btn-rankings" data-cmd="leaderboard">Rankings</button>
+                <button class="action-btn" data-cmd="type test">Type Test</button>
+                <button class="action-btn" data-cmd="matrix">Matrix</button>
+                <button class="action-btn" data-cmd="monitor">Monitor</button>
                 <button class="action-btn" data-cmd="help">Help</button>
                 <button class="action-btn" data-cmd="clear">Clear</button>
+                
+                <button class="a11y-open-btn" onclick="toggleA11yPanel()" title="Accessibility settings" style="margin-top:auto;">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="margin-right:4px;">
+                        <path d="M12 2c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zm9 7h-6v13h-2v-6h-2v6H9V9H3V7h18v2z"/>
+                    </svg>
+                    ACCESSIBILITY
+                </button>
             </aside>
 
             <div id="game-gui-container" class="gui-hidden">
@@ -63,31 +93,37 @@
             <p id="auth-status-msg"></p>
 
             <div class="auth-footer">
-                <a href="https://thyfwxit.com" class="main-site-link">← RETURN TO THYFWXIT.COM</a>
+                <a href="https://thyfwxit.com" class="main-site-link">← RETURN TO MAIN HUB</a>
             </div>
         </div>
     </div>
 
-    <!-- Terms Modal (Restored Structure) -->
+    <!-- Terms Modal (High-Fidelity) -->
     <div id="terms-modal" class="modal-overlay" style="display:none;">
-        <div class="modal-box">
+        <div class="modal-box" id="terms-box">
             <h3 class="modal-header">TERMS AND CONDITIONS</h3>
-            <div class="modal-body">
-                <b style="color:var(--neon-blue);">[ DATA PROTECTION ]</b><br>
-                Nexus operates on a Zero-Harvest principle. We analyze session telemetry in real-time to harden security and optimize performance. No personally identifiable data is stored.<br><br>
-                <b style="color:var(--neon-blue);">[ ARCHITECTURAL OVERRIDE ]</b><br>
-                This instance is hyper-tuned by Xavier Scott for sub-millisecond reasoning. All queries bypass standard consumer-grade throttling.<br><br>
-                <b style="color:var(--neon-blue);">[ SECURE TRANSMISSION ]</b><br>
-                All communications are encrypted via SSL/TLS during transit. Session logs are transmitted to a secure external node for threat detection by Xavier Scott.
+            <div class="modal-body" id="terms-content">
+                <b style="color:var(--neon-blue);">[ 01: DATA ANALYTICS ]</b><br>
+                Nexus analyzes session metadata and prompt text in real-time. These logs are audited by Xavier Scott to optimize neural response latency and harden node security.<br><br>
+                <b style="color:var(--neon-blue);">[ 02: NEURAL ARCHITECTURE ]</b><br>
+                This instance is hyper-tuned by Xavier Scott for sub-millisecond reasoning. All queries bypass standard consumer-grade throttling via a direct high-fidelity bridge.<br><br>
+                <b style="color:var(--neon-blue);">[ 03: SECURE TRANSMISSION ]</b><br>
+                All communications are protected via standard SSL/TLS encryption. Session metadata is transmitted to a secure external node for real-time monitoring.<br><br>
+                <b style="color:var(--neon-blue);">[ 04: PERSISTENCE ]</b><br>
+                Guest sessions are strictly non-persistent. All temporary neural data is purged upon termination of the session link. Xavier Scott does not store identifiable biological signatures.<br><br>
+                <b style="color:var(--neon-blue);">[ 05: NODE SECURITY ]</b><br>
+                Any attempt to bypass standard neural filters or reverse-engineer the core architecture will result in immediate termination of the node uplink.
             </div>
 
-            <div class="terms-agreement">
+            <div id="terms-error-msg" class="terms-error-msg">SCROLL DOWN TO AGREE TO THE TERMS</div>
+
+            <div class="terms-agreement" id="terms-agreement-area">
                 <input type="checkbox" id="terms-check" onchange="document.getElementById('agree-btn').disabled = !this.checked">
                 <label for="terms-check">I AGREE TO THE TERMS</label>
             </div>
 
             <div class="modal-actions">
-                <button id="agree-btn" class="gui-btn action-btn-primary" onclick="submitGuestAuth()" disabled>ACCEPT & ENTER</button>
+                <button id="agree-btn" class="gui-btn action-btn-primary" onclick="submitGuestAuth()">ENTER</button>
                 <button class="gui-btn action-btn-secondary" onclick="window.hideTerms()">ABORT</button>
             </div>
         </div>
@@ -115,15 +151,18 @@
         </div>
     </div>
 
-    <script src="nexus_globals.js?v=5.2.0"></script>
-    <script src="config_core.js?v=5.2.2"></script>
-    <script src="uplink_core.js?v=5.2.2"></script>
-    <script src="stats_core.js?v=5.2.2"></script>
-    <script src="audio_core.js?v=5.2.2"></script>
-    <script src="games_core.js?v=5.2.2"></script>
-    <script src="auth_core.js?v=5.2.2"></script>
-    <script src="ai_core.js?v=5.2.2"></script>
-    <script src="commands_core.js?v=5.2.2"></script>
-    <script src="terminal.js?v=5.2.2"></script>
+    <script src="nexus_globals.js?v=5.3.0"></script>
+    <script src="nexus_brain.js?v=5.3.0"></script>
+    <script src="config_core.js?v=5.3.0"></script>
+    <script src="modules/speedtest_logic.js?v=5.3.0"></script>
+    <script src="modules/hardware_logic.js?v=5.3.0"></script>
+    <script src="uplink_core.js?v=5.3.0"></script>
+    <script src="stats_core.js?v=5.3.0"></script>
+    <script src="audio_core.js?v=5.3.0"></script>
+    <script src="games_core.js?v=5.3.0"></script>
+    <script src="auth_core.js?v=5.3.0"></script>
+    <script src="ai_core.js?v=5.3.0"></script>
+    <script src="commands_core.js?v=5.3.0"></script>
+    <script src="terminal.js?v=5.3.0"></script>
 </body>
 </html>

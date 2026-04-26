@@ -1,16 +1,14 @@
-// 🧠 NEXUS INTELLIGENCE CORE v5.2.0
+// 🧠 NEXUS INTELLIGENCE CORE v5.3.0
 // Routing for AI Kernel, Triggers, and Mode management.
 
 async function prompt_ai_proxy(prompt, imageB64, mode) {
     const msgClass = (mode === 'shadow' ? 'shadow-msg' : 'ai-msg');
     console.log(`[AI] Synchronizing with ${mode.toUpperCase()} kernel...`);
     
-    // Fetch Centralized Prompt
-    const system_prompt = window.MODE_PROMPTS ? window.MODE_PROMPTS[mode] : '';
+    window.showThinking();
     
     // Primary: REST Uplink
     try {
-        console.log("[AI] Payload:", { cmd: prompt, mode, history_len: window.messageHistory.length });
         const res = await fetch(`${window.API_BASE}/api/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -18,25 +16,18 @@ async function prompt_ai_proxy(prompt, imageB64, mode) {
                 cmd: prompt, 
                 history: window.messageHistory.slice(-10), 
                 mode, 
-                imageB64,
-                context: system_prompt
+                imageB64
             })
         });
         
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        
         const data = await res.json();
-        console.log("[AI] Response Received:", data);
         if (data.ok) {
-            _clearThinking();
+            window._clearThinking();
             printAIResponse(data.text, msgClass);
             window.messageHistory.push({ role: 'assistant', content: data.text });
-            saveHistory();
             return;
         }
-    } catch(e) { 
-        console.error("[AI] REST Uplink failed. Falling back to WebSocket...", e); 
-    }
+    } catch(e) { console.warn("[AI] REST Link unstable. Checking WebSocket..."); }
 
     // Fallback: WebSocket
     if (window.termWs && window.termWs.readyState === WebSocket.OPEN) {
@@ -44,11 +35,10 @@ async function prompt_ai_proxy(prompt, imageB64, mode) {
             command: prompt, 
             history: window.messageHistory.slice(-10), 
             mode, 
-            imageB64,
-            context: system_prompt
+            imageB64 
         }));
     } else {
-        _clearThinking();
+        window._clearThinking();
         printToTerminal(`[CRITICAL] Neural link severed. Verify backend status.`, "conn-err");
     }
 }
@@ -59,10 +49,15 @@ function printAIResponse(text, className) {
 }
 
 function handleAITriggers(text) {
-    if (text.includes('[TRIGGER:IMAGE_GEN]')) {
-        const prompt = text.split('IMAGE_GEN]')[1].trim();
-        generateImage(prompt);
+    // Check for game triggers or special tags from AI
+    const tags = ['pong', 'snake', 'wordle', 'mines', 'flappy', 'breakout', 'invaders', 'monitor', 'clear', 'accessibility'];
+    for (const tag of tags) {
+        if (text.includes(`[TRIGGER:${tag}]`)) {
+            window.handleCommand(`play ${tag}`);
+            return true;
+        }
     }
+    return false;
 }
 
 async function generateImage(prompt) {
