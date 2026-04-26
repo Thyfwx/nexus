@@ -7,6 +7,7 @@ __pycache__/
 scores.json
 logins.json
 web_nexus/logins.json
+web_nexus/server.log
 web_nexus/static/secrets.js
 venv/
 node_modules/
