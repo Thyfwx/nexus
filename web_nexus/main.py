@@ -459,7 +459,7 @@ async def post_score(request: Request):
     save_scores(all_scores)
     return {"ok": True}
 
-from .prompts import CORE_RULES, MODE_PROMPTS
+from prompts import CORE_RULES, MODE_PROMPTS
 
 def get_system_prompt(mode="nexus", context=""):
     # Map 'shadow' to 'unfiltered' for prompt lookup
