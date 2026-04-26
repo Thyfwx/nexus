@@ -179,7 +179,7 @@ async function initiateBootSequence() {
 
     // Not logged in — send to login page
     if (!nexusUser || !nexusUser.name) {
-        window.location.href = '/login.html';
+        window.location.replace('./login.html');
         return;
     }
 
