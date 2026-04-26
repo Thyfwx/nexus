@@ -126,37 +126,18 @@ async function handleCredentialResponse(response) {
 function logout(force = false) {
     if (!force && !confirm("Terminate session?")) return;
     localStorage.removeItem('nexus_user_data');
-    location.reload();
+    window.location.href = './login.html';
 }
 
-let terminalRevealed = false;
 async function revealTerminal(name) {
-    console.log("[AUTH] Revealing Terminal for:", name);
-    if (terminalRevealed) return;
-    terminalRevealed = true;
-
-    const overlay = document.getElementById('auth-screen');
-    const monitor = document.getElementById('main-monitor');
-    const terms   = document.getElementById('terms-modal');
-    
-    if (overlay) overlay.classList.add('fade-out');
-    if (terms)   terms.style.display   = 'none';
-    
-    // Show monitor slightly after fade starts
-    if (monitor) {
-        monitor.style.display = 'flex';
-        monitor.style.opacity = '0';
-        setTimeout(() => monitor.style.opacity = '1', 100);
+    console.log("[AUTH] Neural link established for:", name);
+    // On login.html — redirect to terminal
+    if (document.getElementById('auth-screen')) {
+        window.location.href = './';
+        return;
     }
-    
-    document.body.classList.remove('auth-locked');
-    
-    // Ensure core references are captured
-    window.output = document.getElementById('terminal-output');
-    window.input = document.getElementById('terminal-input');
-
-    printToTerminal(`[AUTH] Identity Verified: ${name}. Welcome to the Grid.`, 'conn-ok');
-    printToTerminal(`Nexus online. Type 'help' for command manifest.`, 'sys-msg');
+    // On terminal page — just refresh the sidebar user card
+    renderAuthSection();
 }
 
 window.showTermsFromWall = () => {

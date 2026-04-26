@@ -7,6 +7,7 @@ window.isLocal = (function() {
     return h === 'localhost' || h === '127.0.0.1' || h.startsWith('192.168.') || h.startsWith('10.') || h.startsWith('172.');
 })();
 window.RENDER_HOST = 'nexus-terminalnexus.onrender.com';
+window.PACIFIC_HUB = 'https://nexus-evil-proxy.xavierscott300.workers.dev';
 window.isRender = window.location.hostname.includes('onrender.com');
 window.proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 window.BACKEND_URL = (window.isLocal || window.isRender) ? window.location.host : window.RENDER_HOST;
