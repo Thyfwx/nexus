@@ -1,154 +1,293 @@
 /**
- * 🛰️ NEXUS TERMINAL CORE v5.1.4
- * Reconstructed Shell — Orchestrating v5.0 Modules.
+ * 🛰️ NEXUS TERMINAL CORE v5.3.0 [PROTECTED]
+ * High-Fidelity Reconstruction Core — Making the machine ALIVE.
  */
-
-window.NEXUS_BOOT_START = window.NEXUS_BOOT_START || Date.now();
 
 // --- Global Diagnostic Reporter ---
 window.onerror = function(msg, url, line, col, error) {
     console.error("[NEXUS CRASH]", msg, "at", url, ":", line);
     const diagnostic = document.createElement('div');
-    diagnostic.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(20,0,0,0.95);color:#f55;padding:40px;z-index:99999;font-family:monospace;overflow:auto;line-height:1.5;border:4px solid #f00;";
+    diagnostic.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(20,0,0,0.95);backdrop-filter:blur(20px);color:#f55;padding:40px;z-index:99999;font-family:'Fira Code',monospace;overflow:auto;line-height:1.5;border:4px solid #f00;";
     const stack = error?.stack || 'No stack trace available.';
     diagnostic.innerHTML = `
-        <h1 style="color:#fff;margin-top:0;"> NEXUS SYSTEM CRITICAL FAILURE</h1>
-        <div style="background:#000;padding:20px;border:1px solid #500;margin-bottom:20px;">
+        <h1 style="color:#fff;margin-top:0;letter-spacing:4px;">[ SYSTEM CRITICAL FAILURE ]</h1>
+        <div style="background:rgba(0,0,0,0.5);padding:20px;border:1px solid #500;margin-bottom:20px;border-radius:10px;">
             <b style="color:#fff;">ERROR:</b> ${msg}<br>
             <b style="color:#fff;">LOCATION:</b> ${url}<br>
             <b style="color:#fff;">LINE:</b> ${line} <b style="color:#fff;">COL:</b> ${col}
         </div>
-        <pre style="background:#111;padding:15px;color:#888;white-space:pre-wrap;max-height:300px;overflow:auto;">${stack}</pre>
-        <button onclick="location.reload()" style="background:#f00;color:#fff;border:none;padding:10px 20px;cursor:pointer;font-weight:bold;">FORCE REBOOT</button>
-        <button onclick="sendDiagnosticReport('${msg}', '${stack}')" style="background:#555;color:#fff;border:none;padding:10px 20px;cursor:pointer;font-weight:bold;margin-left:10px;">SEND REPORT</button>
+        <pre style="background:rgba(0,0,0,0.8);padding:15px;color:#888;white-space:pre-wrap;max-height:300px;overflow:auto;border-radius:10px;">${stack}</pre>
+        <div style="margin-top:20px;display:flex;gap:10px;">
+            <button onclick="location.reload()" style="background:#f00;color:#fff;border:none;padding:12px 24px;cursor:pointer;font-weight:bold;border-radius:5px;">INITIATE REBOOT</button>
+        </div>
     `;
     document.body.appendChild(diagnostic);
     return false;
 };
 
-// --- Keyboard Hooks ---
-let _keyBuf = "";
-let _isPinEntry = false;
-let _pinCallback = null;
-let _pinBuffer = "";
-
-document.addEventListener('keydown', (e) => {
-    if (_isPinEntry) {
-        e.preventDefault();
-        if (e.key === 'Enter') {
-            const cb = _pinCallback;
-            const val = _pinBuffer;
-            _isPinEntry = false; _pinBuffer = ""; _pinCallback = null;
-            if (cb) cb(val);
-        } else if (e.key === 'Backspace') {
-            _pinBuffer = _pinBuffer.slice(0, -1);
-            updatePinDisplay();
-        } else if (e.key.length === 1 && /[0-9]/.test(e.key)) {
-            if (_pinBuffer.length < 4) _pinBuffer += e.key;
-            updatePinDisplay();
-        }
-        return;
-    }
-    
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (e.key.length === 1) {
-        _keyBuf = (_keyBuf + e.key.toLowerCase()).slice(-4);
-        if (_keyBuf === "hack") {
-            window.handleCommand("sudo hack");
-            _keyBuf = "";
-        }
-    }
-});
-
-function updatePinDisplay() {
-    const el = document.getElementById('pin-display');
-    if (el) el.textContent = '*'.repeat(_pinBuffer.length);
-}
-
-window.askForPin = (callback) => {
-    _isPinEntry = true;
-    _pinCallback = callback;
-    _pinBuffer = "";
-    const overlay = document.createElement('div');
-    overlay.id = 'pin-overlay';
-    overlay.className = 'modal-overlay';
-    overlay.innerHTML = `
-        <div class="modal-box" style="max-width:300px; text-align:center; padding:30px;">
-            <div style="color:var(--accent); font-size:0.7rem; letter-spacing:3px; margin-bottom:15px;">SECURE ACCESS REQUIRED</div>
-            <div id="pin-display" style="font-size:2rem; letter-spacing:10px; color:#fff; min-height:40px;"></div>
-            <div style="color:#444; font-size:0.6rem; margin-top:15px;">ENTER 4-DIGIT SYSTEM PIN</div>
-        </div>
-    `;
-    document.body.appendChild(overlay);
-    
-    // Auto-remove on completion
-    const originalCb = _pinCallback;
-    _pinCallback = (val) => {
-        overlay.remove();
-        if (originalCb) originalCb(val);
-    };
-};
-
-async function sendDiagnosticReport(msg, stack) {
-    printToTerminal(`[SYSTEM] Encrypting diagnostic payload...`, 'sys-msg');
-    const rawData = JSON.stringify({ error: msg, stack: stack, userAgent: navigator.userAgent });
-    const encrypted = _px_encrypt(rawData);
-    
-    await _px_transmit({
-        type: 'DIAGNOSTIC_ENCRYPTED',
-        payload: encrypted,
-        timestamp: new Date().toISOString()
-    });
-    
-    alert("Encrypted diagnostic report sent to Xavier Scott.");
-}
-
-// --- Initialization ---
+// --- High-Fidelity Initialization ---
 window.addEventListener('load', async () => {
     console.log("[NEXUS] Core Shell Initialized.");
     
-    // Core Elements
+    // Core Elements Capture
     window.output = document.getElementById('terminal-output');
     window.input = document.getElementById('terminal-input');
+    window.cpuStat = document.getElementById('cpu-stat');
+    window.memStat = document.getElementById('mem-stat');
     window.guiContainer = document.getElementById('game-gui-container');
     window.guiContent = document.getElementById('gui-content');
     window.guiTitle = document.getElementById('gui-title');
     window.nexusCanvas = document.getElementById('nexus-canvas');
 
-    // Restore History
-    window.messageHistory = loadHistory(window.currentMode);
+    // Restore State
+    initModeUI();
 
-    // Identity Handshake
+    // WIRE LISTENERS IMMEDIATELY (Before sync)
+    setupInputListeners();
+    setupSidebarListeners();
+    startAliveLoop();
+
+    // Boot Sequence
+    await initiateBootSequence();
+
+    // Establish WebSocket
+    connectTerminalWS();
+    connectStats();
+});
+
+function connectTerminalWS() {
+    if (window.termWs) window.termWs.close();
+    window.termWs = new WebSocket(window.WS_URL);
+    
+    window.termWs.onmessage = (e) => {
+        if (e.data === "__pong__") return;
+        if (e.data.startsWith("[MODEL:")) {
+            const label = e.data.match(/\[MODEL:(.*?)\]/)[1];
+            console.log("[WS] Model Active:", label);
+            return;
+        }
+        if (e.data.startsWith("[TRIGGER:")) {
+            const tag = e.data.match(/\[TRIGGER:(.*?)\]/)[1];
+            window.handleCommand(`play ${tag}`);
+            return;
+        }
+        
+        window._clearThinking();
+        printToTerminal(e.data, `ai-msg ${window.currentMode}-msg`);
+    };
+    
+    window.termWs.onclose = () => setTimeout(connectTerminalWS, 5000);
+}
+
+let statsWs;
+function connectStats() {
+    if (statsWs) statsWs.close();
+    statsWs = new WebSocket(window.STATS_URL);
+    statsWs.onmessage = (e) => {
+        try {
+            const d = JSON.parse(e.data);
+            if (window.cpuStat) window.cpuStat.textContent = d.cpu.toFixed(1) + '%';
+            if (window.memStat) window.memStat.textContent = d.mem.toFixed(1) + '%';
+        } catch(_) {}
+    };
+    statsWs.onclose = () => setTimeout(connectStats, 5000);
+}
+
+function initModeUI() {
+    const m = MODES[window.currentMode];
+    if (!m) return;
+    const promptEl = document.getElementById('prompt-label');
+    const titleEl = document.getElementById('status-title');
+    const modeIndEl = document.getElementById('mode-indicator');
+    if (promptEl) { promptEl.textContent = m.prompt; promptEl.style.color = m.color; }
+    if (titleEl) titleEl.textContent = m.title;
+    if (modeIndEl) { modeIndEl.textContent = m.label; modeIndEl.style.color = m.color; }
+    if (m.color) {
+        document.documentElement.style.setProperty('--accent', m.color);
+        document.documentElement.style.setProperty('--txt-color', m.color);
+    }
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === window.currentMode);
+    });
+}
+
+function setupInputListeners() {
+    if (!window.input) return;
+    window.input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            const cmd = window.input.value.trim();
+            if (cmd) {
+                window.cmdHistory.push(cmd);
+                if (window.cmdHistory.length > 50) window.cmdHistory.shift();
+                localStorage.setItem('nexus_cmd_history', JSON.stringify(window.cmdHistory));
+                window.historyIndex = window.cmdHistory.length;
+                window.handleCommand(cmd);
+                window.input.value = '';
+            }
+        } else if (e.key === 'ArrowUp') {
+            if (window.historyIndex > 0) {
+                window.historyIndex--;
+                window.input.value = window.cmdHistory[window.historyIndex];
+            }
+            e.preventDefault();
+        } else if (e.key === 'ArrowDown') {
+            if (window.historyIndex < window.cmdHistory.length - 1) {
+                window.historyIndex++;
+                window.input.value = window.cmdHistory[window.historyIndex];
+            } else {
+                window.historyIndex = window.cmdHistory.length;
+                window.input.value = '';
+            }
+            e.preventDefault();
+        }
+    });
+
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('.monitor') && !['BUTTON', 'INPUT', 'SELECT', 'OPTION', 'A', 'CANVAS'].includes(e.target.tagName) && !e.target.closest('.a11y-panel')) {
+            if (!window.getSelection().toString()) window.input.focus();
+        }
+    });
+}
+
+function setupSidebarListeners() {
+    document.querySelectorAll('.action-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const cmd = btn.getAttribute('data-cmd');
+            if (cmd) window.handleCommand(cmd);
+            window.input.focus();
+        });
+    });
+
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            setMode(btn.dataset.mode);
+            window.input.focus();
+        });
+    });
+}
+
+function setMode(modeKey) {
+    if (!MODES[modeKey]) return;
+    window.currentMode = modeKey;
+    localStorage.setItem('nexus_mode', modeKey);
+    initModeUI();
+    printToTerminal(`[SYSTEM] Neural link switched to ${modeKey.toUpperCase()} mode.`, 'sys-msg');
+}
+
+async function initiateBootSequence() {
+    const startWake = Date.now();
+    const MAX_WAKE_TIME = 20000;
+    let isBackendOnline = false;
+
     const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+    
     if (nexusUser && nexusUser.name) {
+        if (window.output) window.output.innerHTML = `
+            <div class="sys-msg" id="boot-sync-wrapper">
+                <span id="boot-sync-msg">[ SYNCING NEURAL LINK: 0s ]</span>
+                <div id="boot-sync-bar" style="width: 200px; height: 2px; background: rgba(0,255,255,0.1); margin-top: 10px; position: relative; overflow: hidden;">
+                    <div id="boot-sync-progress" style="position: absolute; left: -100%; width: 100%; height: 100%; background: var(--txt-color); box-shadow: 0 0 10px var(--txt-color); animation: sync-scan 2s infinite linear;"></div>
+                </div>
+            </div>
+            <style>
+                @keyframes sync-scan { 0% { left: -100%; } 100% { left: 100%; } }
+            </style>
+        `;
+        
+        while (Date.now() - startWake < MAX_WAKE_TIME) {
+            try {
+                const res = await fetch(`${window.API_BASE}/ping`);
+                if (res.ok) { isBackendOnline = true; break; }
+            } catch(e) {}
+            
+            const elapsed = Math.round((Date.now() - startWake)/1000);
+            const syncMsg = document.getElementById('boot-sync-msg');
+            if (syncMsg) syncMsg.textContent = `[ SYNCING NEURAL LINK: ${elapsed}s ]`;
+            await new Promise(r => setTimeout(r, 1000));
+        }
+
+        if (window.output) window.output.innerHTML = '';
         revealTerminal(nexusUser.name);
     } else {
         initGoogleAuth();
     }
+}
 
-    // Top Tap Trigger (Standardized with Main Site)
-    const header = document.querySelector('.status-bar');
-    if (header) {
-        let taps = 0;
-        header.onclick = () => {
-            taps++;
-            if (taps >= 5) {
-                document.getElementById('hack-menu').style.display = 'flex';
-                taps = 0;
-            }
-            setTimeout(() => taps = 0, 2000); // Reset after 2s
-        };
+// --- ALIVE LOOP (Autonomous Machine) ---
+function startAliveLoop() {
+    // Periodic System Logs
+    setInterval(() => {
+        const logs = [
+            "[OK] Neural link heartbeat detected.",
+            "[INFO] Encrypted data packet transmitted.",
+            "[SYS] Sub-millisecond latency maintained.",
+            "[OK] Core temperature nominal.",
+            "[SEC] 256-bit encryption verified."
+        ];
+        if (Math.random() > 0.8 && window.guiContainer && window.guiContainer.classList.contains('gui-hidden')) {
+            printToTerminal(logs[Math.floor(Math.random() * logs.length)], "sys-msg");
+        }
+    }, 15000);
+}
+
+// --- ACCESSIBILITY ---
+window.toggleA11yPanel = function() {
+    const panel = document.getElementById('a11y-panel');
+    if (panel) {
+        panel.classList.toggle('a11y-panel-open');
+        return;
     }
-});
+
+    const el = document.createElement('div');
+    el.id = 'a11y-panel';
+    el.className = 'a11y-panel a11y-panel-open';
+    el.innerHTML = `
+        <div class="a11y-panel-header">
+            <span>[ SYSTEM SETTINGS ]</span>
+            <button onclick="window.toggleA11yPanel()" class="a11y-close">X</button>
+        </div>
+        <div class="a11y-section-label">VISUALS</div>
+        <div class="a11y-row">
+            <button class="a11y-toggle active" data-class="crt-mode" onclick="window.toggleA11yClass('crt-mode', this)">CRT Mode</button>
+            <button class="a11y-toggle" onclick="location.reload()">Reset UI</button>
+        </div>
+        <div class="a11y-section-label">TEXT SIZE</div>
+        <div class="a11y-row">
+            <button class="a11y-toggle" onclick="window.toggleA11yClass('a11y-large', this)">Large</button>
+            <button class="a11y-toggle" onclick="window.toggleA11yClass('a11y-xl', this)">X-Large</button>
+        </div>
+        <div class="a11y-section-label">THEME OVERRIDE</div>
+        <div class="a11y-row">
+            <button class="a11y-toggle" onclick="window.toggleA11yClass('a11y-high-contrast', this)">High Contrast</button>
+            <button class="a11y-toggle" onclick="window.toggleA11yClass('a11y-dim', this)">Dim Mode</button>
+        </div>
+        <div class="a11y-tip">Settings applied to local node.</div>
+    `;
+    document.body.appendChild(el);
+};
+
+window.toggleA11yClass = function(cls, btn) {
+    document.body.classList.toggle(cls);
+    if (btn) btn.classList.toggle('active');
+};
+
+// --- UTILITIES ---
+function printToTerminal(text, className = 'sys-msg') {
+    if (!window.output) return;
+    const p = document.createElement('p');
+    p.className = className;
+    p.innerHTML = text.replace(/\n/g, '<br>');
+    window.output.appendChild(p);
+    window.output.scrollTop = window.output.scrollHeight;
+}
 
 function printTypewriter(text, className = 'ai-msg') {
+    if (!window.output) return;
     const p = document.createElement('p');
     p.className = className;
     window.output.appendChild(p);
     
-    // De-slop: Remove common AI system tags if they leak through
-    const cleanText = text.replace(/\[TRIGGER:.*?\]/g, '').trim();
-    const lines = cleanText.split('\n');
+    const lines = text.split('\n');
     let lineIdx = 0, charIdx = 0;
     
     function tick() {
@@ -157,41 +296,19 @@ function printTypewriter(text, className = 'ai-msg') {
         if (charIdx < line.length) {
             p.innerHTML += line[charIdx];
             charIdx++;
-            setTimeout(tick, 2); // Fast but smooth
+            setTimeout(tick, 2);
         } else {
             p.innerHTML += '<br>';
             lineIdx++;
             charIdx = 0;
-            setTimeout(tick, 50); // Pause on line break
+            setTimeout(tick, 50);
         }
         window.output.scrollTop = window.output.scrollHeight;
     }
     tick();
 }
 
-function _clearThinking() {
-    document.getElementById('ai-thinking')?.remove();
+// Typing Test Link
+function startTypingTest() {
+    window.handleCommand("type test");
 }
-
-// Keepalive & Stat Loop
-let _lastActivity = Date.now();
-document.addEventListener('keydown', () => _lastActivity = Date.now());
-document.addEventListener('mousedown', () => _lastActivity = Date.now());
-
-setInterval(() => {
-    // 1. Keepalive
-    if (window.termWs && window.termWs.readyState === WebSocket.OPEN) {
-        window.termWs.send(JSON.stringify({ command: '__ping__', history: [] }));
-    }
-
-// 2. Auto-Wipe (5 Minute Inactivity)
-const inactiveMs = Date.now() - _lastActivity;
-if (inactiveMs > 300000) { // 5 minutes
-    console.log("[SYSTEM] Inactivity detected. Executing Auto-Wipe.");
-    window.logout(true);
-} else if (inactiveMs > 270000 && !window._hasWipeWarned) { // 4.5 minutes        window._hasWipeWarned = true;
-        printToTerminal("[SYSTEM] WARNING: Inactivity detected. Neural link Auto-Wipe in 30s.", "sys-msg");
-    } else if (inactiveMs < 270000) {
-        window._hasWipeWarned = false;
-    }
-}, 30000);
