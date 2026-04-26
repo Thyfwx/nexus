@@ -1,3 +1,79 @@
+        });
+    }, 400);
+}
+
+// =============================================================
+//  BREACH PROTOCOL (Hacking Game)
+// =============================================================
+let breachActive = false, _breachClick = null;
+
+function startBreach() {
+    stopAllGames();
+    breachActive = true;
+    guiContainer.classList.remove('gui-hidden');
+    guiTitle.textContent = 'BREACH PROTOCOL';
+    
+    const hexCodes = ['E9', '1C', '55', 'BD', '7A', 'FF', 'F0'];
+    const grid = [];
+    for(let i=0; i<25; i++) grid.push(hexCodes[Math.floor(Math.random() * hexCodes.length)]);
+    
+    const sequence = [];
+    for(let i=0; i<3; i++) sequence.push(grid[Math.floor(Math.random() * grid.length)]);
+    
+    let currentInput = [];
+    let timeLeft = 30;
+    
+    guiContent.innerHTML = `
+        <div style="text-align:center;">
+            <div style="color:#0f0;font-size:0.75rem;margin-bottom:8px;">REQUIRED SEQUENCE: <b style="color:#fff;letter-spacing:2px;">${sequence.join(' ')}</b></div>
+            <div id="breach-grid" style="display:grid;grid-template-columns:repeat(5, 1fr);gap:8px;max-width:250px;margin:0 auto;">
+                ${grid.map((hex, i) => `<button class="gui-btn breach-tile" data-idx="${i}" style="margin:0;padding:8px;font-size:0.8rem;border-color:#333;">${hex}</button>`).join('')}
+            </div>
+            <div id="breach-timer" style="margin-top:12px;color:#f00;font-weight:bold;">${timeLeft}s</div>
+        </div>`;
+    
+    const timer = setInterval(() => {
+        if (!breachActive) { clearInterval(timer); return; }
+        timeLeft--;
+        const el = document.getElementById('breach-timer');
+        if (el) el.textContent = timeLeft + 's';
+        if (timeLeft <= 0) {
+            clearInterval(timer);
+            if (breachActive) {
+                printToTerminal('[FAIL] Breach Timeout. ICE reset.', 'sys-msg');
+                stopAllGames();
+                guiContainer.classList.add('gui-hidden');
+            }
+        }
+    }, 1000);
+
+    guiContent.querySelectorAll('.breach-tile').forEach(btn => {
+        btn.onclick = () => {
+            const hex = btn.textContent;
+            btn.style.borderColor = '#0f0';
+            btn.style.color = '#0f0';
+            btn.disabled = true;
+            currentInput.push(hex);
+            
+            // Check sequence
+            const match = currentInput.every((h, idx) => h === sequence[idx]);
+            if (!match) {
+                printToTerminal('[FAIL] Sequence Mismatch. Alarm Triggered.', 'sys-msg');
+                stopAllGames();
+                guiContainer.classList.add('gui-hidden');
+            } else if (currentInput.length === sequence.length) {
+                printToTerminal('[OK] Neural link established. Admin access granted.', 'conn-ok');
+                clearInterval(timer);
+                breachActive = false;
+                guiContent.innerHTML = '<h2 style="color:#0f0;">ACCESS GRANTED</h2><p style="color:#888;">System bypassed successfully.</p>';
+            }
+        };
+    });
+}
+
+// =============================================================
+//  PONG
+// =============================================================
 function startPong() {
     stopAllGames();
     guiContainer.classList.remove('gui-hidden');
@@ -467,153 +543,6 @@ function startInvaders() {
             const sx = 50 + i * 100;
             for (let r = 0; r < 3; r++) {
                 for (let c = 0; c < 4; c++) {
-                    shields.push({ x: sx + c * 10, y: 280 + r * 10, hp: 3 });
-                }
-            }
-        }
-    }
-
-    function initEnemies() {
-        enemies = [];
-        const rows = Math.min(6, 3 + Math.floor(wave / 2));
-        for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < 8; c++) {
-                enemies.push({ x: 40 + c * 40, y: 60 + r * 30, alive: true, type: r, hp: 1 });
-            }
-        }
-    }
-
-    function spawnBoss() {
-        boss = { x: 150, y: -50, targetY: 60, hp: 50 + (wave * 10), maxHp: 50 + (wave * 10), moveDir: 1 };
-        SoundManager.playBloop(100, 0.3);
-    }
-
-    function createExplosion(x, y, color) {
-        for (let i = 0; i < 8; i++) {
-            particles.push({
-                x, y, 
-                vx: (Math.random() - 0.5) * 6, 
-                vy: (Math.random() - 0.5) * 6, 
-                life: 1.0, 
-                color
-            });
-        }
-    }
-
-    if (wave % 5 === 0) spawnBoss(); else initEnemies();
-    initShields();
-
-    const movePlayer = (x) => {
-        const rect = nexusCanvas.getBoundingClientRect();
-        playerX = ((x - rect.left) / rect.width) * 400 - 20;
-        playerX = Math.max(0, Math.min(360, playerX));
-    };
-    nexusCanvas.onmousemove = (e) => movePlayer(e.clientX);
-    nexusCanvas.ontouchmove = (e) => { e.preventDefault(); movePlayer(e.touches[0].clientX); };
-    nexusCanvas.onclick = () => {
-        if (gameOver) { startInvaders(); return; }
-        if (bullets.length < 4) {
-            bullets.push({ x: playerX + 18, y: 330 });
-            SoundManager.playBloop(600, 0.03);
-        }
-    };
-
-    function tick(ts) {
-        if (!invadersActive) return;
-        
-        ctx.save();
-        if (shake > 0) {
-            ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake);
-            shake *= 0.9;
-        }
-
-        ctx.fillStyle = '#050510'; ctx.fillRect(0, 0, 400, 360);
-        
-        // Scanlines background
-        ctx.fillStyle = 'rgba(0, 255, 255, 0.03)';
-        for (let i = 0; i < 360; i += 4) ctx.fillRect(0, i, 400, 1);
-
-        if (!gameOver) {
-            // Player
-            ctx.fillStyle = '#0ff';
-            ctx.shadowBlur = 10; ctx.shadowColor = '#0ff';
-            ctx.fillRect(playerX, 330, 40, 10);
-            ctx.fillRect(playerX + 15, 320, 10, 10);
-            ctx.shadowBlur = 0;
-
-            // Bullets
-            bullets.forEach((b, i) => {
-                b.y -= 6; // SLOWER bullets for classic feel
-                ctx.fillStyle = '#fff'; ctx.fillRect(b.x, b.y, 3, 12);
-                
-                // Shield collision
-                shields.forEach((s, si) => {
-                    if (s.hp > 0 && b.x > s.x && b.x < s.x + 10 && b.y > s.y && b.y < s.y + 10) {
-                        s.hp--; bullets.splice(i, 1);
-                        SoundManager.playBloop(100, 0.02);
-                    }
-                });
-
-                if (b.y < 0) bullets.splice(i, 1);
-            });
-
-            // Shields
-            shields.forEach(s => {
-                if (s.hp <= 0) return;
-                ctx.fillStyle = `rgba(0, 255, 255, ${s.hp / 3})`;
-                ctx.fillRect(s.x, s.y, 9, 9);
-            });
-
-            // Particles
-            particles.forEach((p, i) => {
-                p.x += p.vx; p.y += p.vy; p.life -= 0.02;
-                ctx.fillStyle = p.color; ctx.globalAlpha = p.life;
-                ctx.fillRect(p.x, p.y, 3, 3);
-                if (p.life <= 0) particles.splice(i, 1);
-            });
-            ctx.globalAlpha = 1.0;
-
-            // Boss Logic
-            if (boss) {
-                if (boss.y < boss.targetY) boss.y += 1;
-                boss.x += boss.moveDir * 2;
-                if (boss.x > 300 || boss.x < 20) boss.moveDir *= -1;
-
-                // Boss health bar
-                ctx.fillStyle = '#333'; ctx.fillRect(100, 10, 200, 6);
-                ctx.fillStyle = '#f0f'; ctx.fillRect(100, 10, (boss.hp / boss.maxHp) * 200, 6);
-                
-                // Draw Boss
-                ctx.fillStyle = '#f0f'; ctx.font = 'bold 24px monospace';
-                ctx.fillText('[ FIREWALL ]', boss.x, boss.y);
-
-                // Bullet collision with Boss
-                bullets.forEach((b, bi) => {
-                    if (b.x > boss.x && b.x < boss.x + 120 && b.y > boss.y - 20 && b.y < boss.y) {
-                        boss.hp--; bullets.splice(bi, 1);
-                        createExplosion(b.x, b.y, '#f0f');
-                        shake = 4;
-                        SoundManager.playBloop(150, 0.02);
-                    }
-                });
-
-                if (boss.hp <= 0) {
-                    score += 500;
-                    createExplosion(boss.x + 60, boss.y, '#fff');
-                    boss = null;
-                    wave++;
-                    SoundManager.playBloop(800, 0.2);
-                    if (wave % 5 !== 0) initEnemies(); else spawnBoss();
-                }
-            }
-
-            // Regular Enemies
-            let edge = false;
-            enemies.forEach(e => {
-                if (!e.alive) return;
-                ctx.fillStyle = e.type % 2 === 0 ? '#f0f' : '#0f0';
-                ctx.font = 'bold 16px monospace';
-                const sprite = e.type % 2 === 0 ? '' : '';
                 ctx.fillText(sprite, e.x, e.y);
                 
                 if (e.x > 370 || e.x < 10) edge = true;
@@ -1639,4 +1568,11 @@ function stopAllGames() {
 
     // Clear any active game intervals/frames not caught by sub-functions
     cancelAnimationFrame(pongRaf);
+    cancelAnimationFrame(flappyFrame);
+    cancelAnimationFrame(breakoutRaf);
+    cancelAnimationFrame(invadersRaf);
 }
+
+// =============================================================
+//  GOOGLE AUTHENTICATION
+// =============================================================

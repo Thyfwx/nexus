@@ -1,4 +1,4 @@
-// 🛠️ NEXUS COMMAND CORE v5.2.0
+// 🛠️ NEXUS COMMAND CORE v5.3.0
 // Logic for terminal commands, processing, and routing.
 
 function handleCommand(cmd) {
@@ -7,7 +7,7 @@ function handleCommand(cmd) {
     const pl = `${nexusUser.name.toLowerCase()}@nexus:~$`;
 
     // 1. Silent UI Commands
-    const silent = ['clear', 'history', 'sudo hack', 'sudo override', 'play wordle', 'play snake', 'play pong'];
+    const silent = ['clear', 'history', 'sudo hack', 'sudo override', 'play wordle', 'play snake', 'play pong', 'play mines', 'play flappy', 'play breakout', 'play invaders', 'matrix', 'monitor', 'type test'];
     if (!silent.includes(lc)) {
         printToTerminal(`${pl} ${cmd}`, 'user-cmd');
     }
@@ -36,11 +36,20 @@ function handleCommand(cmd) {
     if (lc === 'whoami') { runWhoami(); return; }
     if (lc === 'neofetch') { runNeofetch(); return; }
     if (lc === 'logout') { window.logout(); return; }
+    if (lc === 'maint' || lc === 'maintenance' || lc === 'hub') { window.startMaintenanceHub(); return; }
+    if (lc === 'speedtest' || lc === 'test') { window.startSpeedTest(); return; }
 
-    // 4. Games
-    if (lc === 'play wordle') { startWordle(); return; }
-    if (lc === 'play snake') { startSnake(); return; }
-    if (lc === 'play pong') { startPong(); return; }
+    // 4. Games & Tools
+    if (lc === 'play wordle')         { startWordle(); return; }
+    if (lc === 'play snake')          { startSnake(); return; }
+    if (lc === 'play pong')           { startPong(); return; }
+    if (lc === 'play mines')          { startMinesweeper(); return; }
+    if (lc === 'play flappy')         { startFlappy(); return; }
+    if (lc === 'play breakout')       { startBreakout(); return; }
+    if (lc === 'play invaders')       { startInvaders(); return; }
+    if (lc === 'matrix')              { startMatrixSaver(); return; }
+    if (lc === 'monitor')             { startMonitor(); return; }
+    if (lc === 'type test')           { startTypingTest(); return; }
 
     // 5. AI Routing
     prompt_ai_proxy(cmd, null, window.currentMode);
@@ -52,7 +61,8 @@ function showHelp() {
     printToTerminal(" clear      : Wipe terminal output", "sys-msg");
     printToTerminal(" whoami     : Display active identity", "sys-msg");
     printToTerminal(" neofetch   : Show system statistics", "sys-msg");
-    printToTerminal(" play <game>: wordle, snake, pong", "sys-msg");
+    printToTerminal(" play <game>: wordle, snake, pong, mines, flappy, breakout, invaders", "sys-msg");
+    printToTerminal(" tools      : matrix, monitor, type test", "sys-msg");
     printToTerminal(" logout     : Sever neural link", "sys-msg");
     printToTerminal("------------------------------", "sys-msg");
 }
@@ -72,9 +82,6 @@ function runNeofetch() {
     printToTerminal(`CPU: ${document.getElementById('cpu-stat')?.textContent || '--'}`, "sys-msg");
     printToTerminal(`MEM: ${document.getElementById('mem-stat')?.textContent || '--'}`, "sys-msg");
 }
-
-// Support functions
-function capitalizeName(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
 // Attach to window
 window.handleCommand = handleCommand;
