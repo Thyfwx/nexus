@@ -199,6 +199,7 @@ async function initiateBootSequence() {
                     const dot = document.getElementById('conn-dot');
                     if (dot) { dot.style.background = '#0f0'; dot.style.boxShadow = '0 0 6px #0f0'; }
                     online = true;
+                    window.backendReady = true;
                     break;
                 }
             } catch(e) {}
@@ -208,6 +209,7 @@ async function initiateBootSequence() {
             printToTerminal('[WARN] Backend cold-start timeout. AI may be unavailable; try again in 30s.', 'conn-err');
             const nodeEl = document.getElementById('node-display');
             if (nodeEl) nodeEl.textContent = 'DEGRADED';
+            window.backendReady = false;
         }
         connectTerminalWS();
         connectStats();

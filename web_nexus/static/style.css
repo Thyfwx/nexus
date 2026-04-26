@@ -99,13 +99,17 @@ html, body {
     animation: fadeIn 0.2s ease-in;
 }
 
-/* AI Message Styling */
-.ai-msg, .shadow-msg, .coder-msg, .sage-msg, .education-msg { 
+/* AI Message Styling — left bar color per mode */
+.ai-msg {
     display: block; width: 100%;
     line-height: 1.7; padding-left: 14px; margin-left: 2px;
     border-left: 3px solid var(--accent);
     color: var(--accent); filter: brightness(1.2);
 }
+.nexus-msg     { display:block; width:100%; line-height:1.7; padding-left:14px; margin-left:2px; border-left:3px solid #4af;    color:#4af;    filter:brightness(1.2); }
+.shadow-msg    { display:block; width:100%; line-height:1.7; padding-left:14px; margin-left:2px; border-left:3px solid #ff6600; color:#ff6600; filter:brightness(1.1); }
+.coder-msg     { display:block; width:100%; line-height:1.7; padding-left:14px; margin-left:2px; border-left:3px solid #0f0;    color:#0f0;    filter:brightness(1.1); }
+.education-msg { display:block; width:100%; line-height:1.7; padding-left:14px; margin-left:2px; border-left:3px solid #00ffcc; color:#00ffcc; filter:brightness(1.1); }
 
 .terminal-input-wrapper {
     position: sticky;
@@ -161,6 +165,15 @@ html, body {
 }
 .mode-btn:hover { border-color: var(--txt-color); color: #fff; }
 .mode-btn.active { background: var(--txt-color); color: #000; border-color: var(--txt-color); box-shadow: 0 0 12px var(--txt-color); }
+/* Per-mode button colors — hover shows that mode's color, active fills it */
+.mode-btn[data-mode="nexus"]:hover      { border-color:#4af;    color:#4af; }
+.mode-btn[data-mode="shadow"]:hover     { border-color:#ff6600; color:#ff6600; }
+.mode-btn[data-mode="coder"]:hover      { border-color:#0f0;    color:#0f0; }
+.mode-btn[data-mode="education"]:hover  { border-color:#00ffcc; color:#00ffcc; }
+.mode-btn[data-mode="nexus"].active     { background:#4af;    color:#000; border-color:#4af;    box-shadow:0 0 14px #4af; }
+.mode-btn[data-mode="shadow"].active    { background:#ff6600; color:#000; border-color:#ff6600; box-shadow:0 0 14px #ff6600; }
+.mode-btn[data-mode="coder"].active     { background:#0f0;    color:#000; border-color:#0f0;    box-shadow:0 0 14px #0f0; }
+.mode-btn[data-mode="education"].active { background:#00ffcc; color:#000; border-color:#00ffcc; box-shadow:0 0 14px #00ffcc; }
 
 /* Identity Card */
 .auth-user-card {

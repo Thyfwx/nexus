@@ -52,6 +52,10 @@ function handleCommand(cmd) {
     if (lc === 'type test')           { startTypingTest(); return; }
 
     // 5. AI Routing
+    if (!window.backendReady) {
+        printToTerminal('[SYS] Neural link warming up — backend is cold-starting. Try again in ~20s.', 'sys-msg');
+        return;
+    }
     prompt_ai_proxy(cmd, null, window.currentMode);
 }
 
@@ -62,7 +66,7 @@ function showHelp() {
     printToTerminal(" whoami     : Display active identity", "sys-msg");
     printToTerminal(" neofetch   : Show system statistics", "sys-msg");
     printToTerminal(" play <game>: wordle, snake, pong, mines, flappy, breakout, invaders", "sys-msg");
-    printToTerminal(" tools      : matrix, monitor, type test", "sys-msg");
+    printToTerminal(" tools      : monitor, type test", "sys-msg");
     printToTerminal(" logout     : Sever neural link", "sys-msg");
     printToTerminal("------------------------------", "sys-msg");
 }
