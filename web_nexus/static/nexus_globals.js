@@ -26,6 +26,7 @@ window.guiTitle = null;
 window.nexusCanvas = null;
 
 // System State
+window.backendReady = false;
 window.termWs = null;
 window.messageHistory = [];
 window.cmdHistory = JSON.parse(localStorage.getItem('nexus_cmd_history') || '[]');
