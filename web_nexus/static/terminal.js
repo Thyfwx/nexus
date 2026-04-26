@@ -32,8 +32,6 @@ window.addEventListener('load', async () => {
     // Core Elements Capture
     window.output = document.getElementById('terminal-output');
     window.input = document.getElementById('terminal-input');
-    window.cpuStat = document.getElementById('cpu-stat');
-    window.memStat = document.getElementById('mem-stat');
     window.guiContainer = document.getElementById('game-gui-container');
     window.guiContent = document.getElementById('gui-content');
     window.guiTitle = document.getElementById('gui-title');
@@ -47,12 +45,8 @@ window.addEventListener('load', async () => {
     setupSidebarListeners();
     startAliveLoop();
 
-    // Boot Sequence
+    // Boot Sequence (WebSocket + Stats established inside, non-blocking)
     await initiateBootSequence();
-
-    // Establish WebSocket
-    connectTerminalWS();
-    connectStats();
 });
 
 function connectTerminalWS() {
@@ -177,41 +171,50 @@ function setMode(modeKey) {
 async function initiateBootSequence() {
     const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
 
-    // Not logged in — send to login page
     if (!nexusUser || !nexusUser.name) {
         window.location.replace('./login.html');
         return;
     }
 
-    // Show sync bar while backend wakes
-    if (window.output) window.output.innerHTML = `
-        <div class="sys-msg" id="boot-sync-wrapper">
-            <span id="boot-sync-msg">[ SYNCING NEURAL LINK: 0s ]</span>
-            <div id="boot-sync-bar" style="width:200px;height:2px;background:rgba(0,255,255,0.1);margin-top:10px;position:relative;overflow:hidden;">
-                <div id="boot-sync-progress" style="position:absolute;left:-100%;width:100%;height:100%;background:var(--txt-color);box-shadow:0 0 10px var(--txt-color);animation:sync-scan 2s infinite linear;"></div>
-            </div>
-        </div>
-        <style>@keyframes sync-scan { 0%{left:-100%} 100%{left:100%} }</style>
-    `;
+    // Update header user display
+    const userDisp = document.getElementById('user-display');
+    if (userDisp) userDisp.textContent = nexusUser.name.toUpperCase();
 
-    const startWake = Date.now();
-    const MAX_WAKE_TIME = 20000;
-    while (Date.now() - startWake < MAX_WAKE_TIME) {
-        try {
-            const res = await fetch(`${window.API_BASE}/ping`);
-            if (res.ok) break;
-        } catch(e) {}
-        const elapsed = Math.round((Date.now() - startWake) / 1000);
-        const syncMsg = document.getElementById('boot-sync-msg');
-        if (syncMsg) syncMsg.textContent = `[ SYNCING NEURAL LINK: ${elapsed}s ]`;
-        await new Promise(r => setTimeout(r, 1000));
-    }
+    // Non-blocking backend wake: show a banner line, keep terminal fully usable
+    printToTerminal(`[BOOT] Identity: ${nexusUser.name} — establishing neural link...`, 'sys-msg');
 
-    if (window.output) window.output.innerHTML = '';
+    // Kick off backend ping in the background; don't block typing
+    (async () => {
+        const startWake = Date.now();
+        const MAX_WAKE_TIME = 25000;
+        let online = false;
+        while (Date.now() - startWake < MAX_WAKE_TIME) {
+            try {
+                const res = await fetch(`${window.API_BASE}/ping`);
+                if (res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    const ver = data.version || window.NEXUS_VERSION;
+                    const nodeEl = document.getElementById('node-display');
+                    if (nodeEl) nodeEl.textContent = `ONLINE · ${ver}`;
+                    const dot = document.getElementById('conn-dot');
+                    if (dot) { dot.style.background = '#0f0'; dot.style.boxShadow = '0 0 6px #0f0'; }
+                    online = true;
+                    break;
+                }
+            } catch(e) {}
+            await new Promise(r => setTimeout(r, 2000));
+        }
+        if (!online) {
+            printToTerminal('[WARN] Backend cold-start timeout. AI may be unavailable; try again in 30s.', 'conn-err');
+            const nodeEl = document.getElementById('node-display');
+            if (nodeEl) nodeEl.textContent = 'DEGRADED';
+        }
+        connectTerminalWS();
+        connectStats();
+    })();
 
-    // Populate sidebar user card
+    // Render auth card and show welcome immediately — don't wait for backend
     if (window.renderAuthSection) renderAuthSection();
-
     printToTerminal(`[AUTH] Identity Verified: ${nexusUser.name}. Welcome to the Grid.`, 'conn-ok');
     printToTerminal(`Nexus online. Type 'help' for command manifest.`, 'sys-msg');
 }

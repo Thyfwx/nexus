@@ -68,6 +68,11 @@ function renderAuthSection() {
     if (!authSection) return;
 
     const user = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+
+    // Keep header user display in sync
+    const userDisp = document.getElementById('user-display');
+    if (userDisp) userDisp.textContent = user && user.name ? user.name.toUpperCase() : 'GUEST';
+
     if (user && user.name) {
         const isGoogle = !!user.email && user.email !== 'guest@local';
         const avatarHtml = user.picture 

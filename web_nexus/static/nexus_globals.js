@@ -37,7 +37,6 @@ window.MODE_COLORS = {
     nexus: '#4af',
     shadow: '#ff6600',
     coder: '#0f0',
-    sage: '#a06fff',
     education: '#00ffcc'
 };
 
