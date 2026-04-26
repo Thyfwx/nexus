@@ -2,7 +2,6 @@
 // Routing for AI Kernel, Triggers, and Mode management.
 
 async function prompt_ai_proxy(prompt, imageB64, mode) {
-    const msgClass = (mode === 'shadow' ? 'shadow-msg' : 'ai-msg');
     console.log(`[AI] Synchronizing with ${mode.toUpperCase()} kernel...`);
     
     window.showThinking();
@@ -23,7 +22,7 @@ async function prompt_ai_proxy(prompt, imageB64, mode) {
         const data = await res.json();
         if (data.ok) {
             window._clearThinking();
-            printAIResponse(data.text, msgClass);
+            printAIResponse(data.text);
             window.messageHistory.push({ role: 'assistant', content: data.text });
             return;
         }
@@ -43,9 +42,8 @@ async function prompt_ai_proxy(prompt, imageB64, mode) {
     }
 }
 
-function printAIResponse(text, className) {
-    const unifiedClass = `ai-msg ${window.currentMode}-msg`;
-    printTypewriter(text, unifiedClass);
+function printAIResponse(text) {
+    printTypewriter(text, `ai-msg ${window.currentMode}-msg`);
 }
 
 function handleAITriggers(text) {
