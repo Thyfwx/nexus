@@ -21,8 +21,8 @@
         <div class="screen-glare"></div>
         <div class="glass-panel">
             <header class="status-bar">
-                <div class="status-item"><div id="conn-dot" class="conn-dot"></div> <span class="stat-label">CPU</span> <span id="cpu-stat">--</span></div>
-                <div class="status-item"><span class="stat-label">MEM</span> <span id="mem-stat">--</span></div>
+                <div class="status-item"><div id="conn-dot" class="conn-dot"></div> <span class="stat-label">USER</span> <span id="user-display">--</span></div>
+                <div class="status-item"><span class="stat-label">NODE</span> <span id="node-display">CENTRAL_STATION</span></div>
                 <div class="status-item status-title" id="status-title">NEXUS AI // CORE</div>
                 <div class="status-item"><span class="stat-label">MODE</span> <span id="mode-indicator">NEXUS</span></div>
             </header>
@@ -42,17 +42,13 @@
                 <button class="action-btn" data-cmd="play wordle">Wordle</button>
                 <button class="action-btn" data-cmd="play snake">Snake</button>
                 <button class="action-btn" data-cmd="play pong">Pong</button>
-                <button class="action-btn" data-cmd="play mines">Mines</button>
-                <button class="action-btn" data-cmd="play flappy">Flappy</button>
-                <button class="action-btn" data-cmd="play breakout">Breakout</button>
-                <button class="action-btn" data-cmd="play invaders">Invaders</button>
 
                 <div class="aside-header" style="margin-top:15px;">NEURAL LINKS</div>
                 <div class="mode-picker">
                     <button class="mode-btn active" data-mode="nexus"     title="Standard Interface">Nexus</button>
                     <button class="mode-btn"         data-mode="shadow"    title="Unfiltered Mode">Unfiltered</button>
                     <button class="mode-btn"         data-mode="coder"     title="Architect Mode (Code)">Coder</button>
-                    <button class="mode-btn"         data-mode="education" title="Mentor Mode (Instructional)" style="grid-column:span 2;border-color:#00ffcc;color:#00ffcc;">Education</button>
+                    <button class="mode-btn"         data-mode="education" title="Mentor Mode (Instructional)" style="border-color:#00ffcc;color:#00ffcc;">Education</button>
                 </div>
 
                 <div class="aside-header" style="margin-top:15px;">TOOLS</div>
