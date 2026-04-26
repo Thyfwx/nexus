@@ -260,3 +260,7 @@ window.handleCredentialResponse = handleCredentialResponse;
 window.revealTerminal = revealTerminal;
 window.logout = logout;
 window.submitGuestAuth = submitGuestAuth;
+window.renderAuthSection = renderAuthSection;
+
+// Render user card immediately on terminal page (no Google script needed)
+if (document.getElementById('auth-section')) renderAuthSection();

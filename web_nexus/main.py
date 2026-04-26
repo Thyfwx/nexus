@@ -93,9 +93,11 @@ app.add_middleware(
 )
 
 # 1. PRIORITY ROUTES (API & WS)
+NEXUS_VERSION = "v5.3.0"
+
 @app.get("/ping")
 async def ping():
-    return {"ok": True}
+    return {"ok": True, "version": NEXUS_VERSION}
 
 @app.get("/api/config")
 async def get_config():

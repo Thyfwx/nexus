@@ -39,7 +39,6 @@ window.MODES = {
     nexus:     { prompt: 'guest@nexus:~$',  color: '#4af',    title: 'PACIFIC // KERNEL',   label: 'NEXUS'     },
     shadow:    { prompt: 'shadow@nexus:~$', color: '#ff6600', title: 'SHADOW // PROTOCOL',  label: 'SHADOW'    },
     coder:     { prompt: 'code@nexus:~$',   color: '#0f0',    title: 'CODER // ARCHITECT',  label: 'CODER'     },
-    sage:      { prompt: 'sage@nexus:~$',   color: '#a06fff', title: 'SAGE // ORACLE',      label: 'SAGE'      },
     education: { prompt: 'edu@nexus:~$',    color: '#00ffcc', title: 'EDUCATION // MENTOR', label: 'EDUCATION' },
 };
 
