@@ -215,7 +215,7 @@ async def auth_google(request: Request):
     if not credential:
         return _JSONResponse({"error": "No credential"}, status_code=400)
 
-    try {
+    try:
         print(f"[AUTH] Verifying token for Client ID: {client_id[:15]}...")
         idinfo = id_token.verify_oauth2_token(credential, g_req.Request(), client_id)
         
