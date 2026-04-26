@@ -215,6 +215,8 @@ html, body {
 .auth-header { font-size: 1.5rem; letter-spacing: 6px; color: #fff; margin-bottom: 8px; font-weight: 600; }
 .auth-desc { color: #555; font-size: 0.65rem; letter-spacing: 2px; margin-bottom: 45px; text-transform: uppercase; }
 
+.auth-methods { display: flex; flex-direction: column; align-items: center; gap: 15px; width: 100%; }
+
 .auth-divider { 
     position: relative; margin: 30px 0; height: 1px;
     background: rgba(0, 255, 255, 0.1); width: 300px; 
@@ -236,7 +238,9 @@ html, body {
 .main-site-link {
     color: #444; text-decoration: none; font-size: 0.6rem; letter-spacing: 2px;
     transition: 0.3s; text-transform: uppercase;
+    display: inline-block; border-bottom: 1px solid transparent; padding-bottom: 2px;
 }
+.main-site-link:hover { color: var(--txt-color); border-color: var(--txt-color); text-shadow: 0 0 5px var(--txt-color); }
 
 /* ============================================================
    MODULE: MODALS & SYSTEM SETTINGS
