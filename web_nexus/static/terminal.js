@@ -94,7 +94,7 @@ function connectStats() {
 }
 
 function initModeUI() {
-    const m = MODES[window.currentMode];
+    const m = window.MODES[window.currentMode];
     if (!m) return;
     const promptEl = document.getElementById('prompt-label');
     const titleEl = document.getElementById('status-title');
@@ -167,7 +167,7 @@ function setupSidebarListeners() {
 }
 
 function setMode(modeKey) {
-    if (!MODES[modeKey]) return;
+    if (!window.MODES[modeKey]) return;
     window.currentMode = modeKey;
     localStorage.setItem('nexus_mode', modeKey);
     initModeUI();
@@ -175,42 +175,45 @@ function setMode(modeKey) {
 }
 
 async function initiateBootSequence() {
+    const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+
+    // Not logged in — send to login page
+    if (!nexusUser || !nexusUser.name) {
+        window.location.href = '/login.html';
+        return;
+    }
+
+    // Show sync bar while backend wakes
+    if (window.output) window.output.innerHTML = `
+        <div class="sys-msg" id="boot-sync-wrapper">
+            <span id="boot-sync-msg">[ SYNCING NEURAL LINK: 0s ]</span>
+            <div id="boot-sync-bar" style="width:200px;height:2px;background:rgba(0,255,255,0.1);margin-top:10px;position:relative;overflow:hidden;">
+                <div id="boot-sync-progress" style="position:absolute;left:-100%;width:100%;height:100%;background:var(--txt-color);box-shadow:0 0 10px var(--txt-color);animation:sync-scan 2s infinite linear;"></div>
+            </div>
+        </div>
+        <style>@keyframes sync-scan { 0%{left:-100%} 100%{left:100%} }</style>
+    `;
+
     const startWake = Date.now();
     const MAX_WAKE_TIME = 20000;
-    let isBackendOnline = false;
-
-    const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
-    
-    if (nexusUser && nexusUser.name) {
-        if (window.output) window.output.innerHTML = `
-            <div class="sys-msg" id="boot-sync-wrapper">
-                <span id="boot-sync-msg">[ SYNCING NEURAL LINK: 0s ]</span>
-                <div id="boot-sync-bar" style="width: 200px; height: 2px; background: rgba(0,255,255,0.1); margin-top: 10px; position: relative; overflow: hidden;">
-                    <div id="boot-sync-progress" style="position: absolute; left: -100%; width: 100%; height: 100%; background: var(--txt-color); box-shadow: 0 0 10px var(--txt-color); animation: sync-scan 2s infinite linear;"></div>
-                </div>
-            </div>
-            <style>
-                @keyframes sync-scan { 0% { left: -100%; } 100% { left: 100%; } }
-            </style>
-        `;
-        
-        while (Date.now() - startWake < MAX_WAKE_TIME) {
-            try {
-                const res = await fetch(`${window.API_BASE}/ping`);
-                if (res.ok) { isBackendOnline = true; break; }
-            } catch(e) {}
-            
-            const elapsed = Math.round((Date.now() - startWake)/1000);
-            const syncMsg = document.getElementById('boot-sync-msg');
-            if (syncMsg) syncMsg.textContent = `[ SYNCING NEURAL LINK: ${elapsed}s ]`;
-            await new Promise(r => setTimeout(r, 1000));
-        }
-
-        if (window.output) window.output.innerHTML = '';
-        revealTerminal(nexusUser.name);
-    } else {
-        initGoogleAuth();
+    while (Date.now() - startWake < MAX_WAKE_TIME) {
+        try {
+            const res = await fetch(`${window.API_BASE}/ping`);
+            if (res.ok) break;
+        } catch(e) {}
+        const elapsed = Math.round((Date.now() - startWake) / 1000);
+        const syncMsg = document.getElementById('boot-sync-msg');
+        if (syncMsg) syncMsg.textContent = `[ SYNCING NEURAL LINK: ${elapsed}s ]`;
+        await new Promise(r => setTimeout(r, 1000));
     }
+
+    if (window.output) window.output.innerHTML = '';
+
+    // Populate sidebar user card
+    if (window.renderAuthSection) renderAuthSection();
+
+    printToTerminal(`[AUTH] Identity Verified: ${nexusUser.name}. Welcome to the Grid.`, 'conn-ok');
+    printToTerminal(`Nexus online. Type 'help' for command manifest.`, 'sys-msg');
 }
 
 // --- ALIVE LOOP (Autonomous Machine) ---
