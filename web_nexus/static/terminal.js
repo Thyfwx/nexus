@@ -6,22 +6,109 @@
 // --- Global Diagnostic Reporter ---
 window.onerror = function(msg, url, line, col, error) {
     console.error("[NEXUS CRASH]", msg, "at", url, ":", line);
+
+    const stack    = error?.stack || 'No stack trace available.';
+    const user     = (() => { try { return JSON.parse(localStorage.getItem('nexus_user_data') || '{}').name || 'Guest'; } catch(_) { return 'Unknown'; } })();
+    const ts       = new Date().toISOString();
+    const mode     = window.currentMode || 'unknown';
+    const ver      = window.NEXUS_VERSION || '?';
+    const ua       = navigator.userAgent;
+    const pageUrl  = location.href;
+
+    const reportText = [
+        `=== NEXUS CRASH REPORT ===`,
+        `Time:    ${ts}`,
+        `Version: ${ver}`,
+        `User:    ${user}`,
+        `Mode:    ${mode}`,
+        `URL:     ${pageUrl}`,
+        ``,
+        `ERROR:   ${msg}`,
+        `File:    ${url}`,
+        `Line:    ${line}  Col: ${col}`,
+        ``,
+        `STACK TRACE:`,
+        stack,
+        ``,
+        `USER AGENT: ${ua}`,
+    ].join('\n');
+
     const diagnostic = document.createElement('div');
-    diagnostic.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(20,0,0,0.95);backdrop-filter:blur(20px);color:#f55;padding:40px;z-index:99999;font-family:'Fira Code',monospace;overflow:auto;line-height:1.5;border:4px solid #f00;";
-    const stack = error?.stack || 'No stack trace available.';
+    diagnostic.id = 'nexus-crash-overlay';
+    diagnostic.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(10,0,0,0.97);backdrop-filter:blur(20px);color:#f55;padding:40px;z-index:99999;font-family:'Fira Code',monospace;overflow:auto;line-height:1.6;box-sizing:border-box;";
+
+    // Safely set text content via DOM (avoids XSS from error strings)
     diagnostic.innerHTML = `
-        <h1 style="color:#fff;margin-top:0;letter-spacing:4px;">[ SYSTEM CRITICAL FAILURE ]</h1>
-        <div style="background:rgba(0,0,0,0.5);padding:20px;border:1px solid #500;margin-bottom:20px;border-radius:10px;">
-            <b style="color:#fff;">ERROR:</b> ${msg}<br>
-            <b style="color:#fff;">LOCATION:</b> ${url}<br>
-            <b style="color:#fff;">LINE:</b> ${line} <b style="color:#fff;">COL:</b> ${col}
-        </div>
-        <pre style="background:rgba(0,0,0,0.8);padding:15px;color:#888;white-space:pre-wrap;max-height:300px;overflow:auto;border-radius:10px;">${stack}</pre>
-        <div style="margin-top:20px;display:flex;gap:10px;">
-            <button onclick="location.reload()" style="background:#f00;color:#fff;border:none;padding:12px 24px;cursor:pointer;font-weight:bold;border-radius:5px;">INITIATE REBOOT</button>
+        <div style="max-width:860px;margin:0 auto;">
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:28px;border-bottom:1px solid #500;padding-bottom:18px;">
+                <div style="width:14px;height:14px;border-radius:50%;background:#f00;box-shadow:0 0 12px #f00;flex-shrink:0;"></div>
+                <h1 style="color:#fff;margin:0;letter-spacing:4px;font-size:1.1rem;">[ SYSTEM CRITICAL FAILURE ]</h1>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+                <div style="background:rgba(255,0,0,0.07);padding:14px;border:1px solid #400;border-radius:8px;">
+                    <div style="font-size:0.55rem;color:#f55;letter-spacing:2px;margin-bottom:8px;">ERROR DETAIL</div>
+                    <div id="err-msg" style="color:#fff;font-size:0.75rem;word-break:break-all;"></div>
+                    <div style="margin-top:8px;font-size:0.6rem;color:#666;">
+                        <span id="err-file"></span><br>
+                        LINE <span id="err-line"></span> · COL <span id="err-col"></span>
+                    </div>
+                </div>
+                <div style="background:rgba(0,0,0,0.3);padding:14px;border:1px solid #222;border-radius:8px;">
+                    <div style="font-size:0.55rem;color:#f55;letter-spacing:2px;margin-bottom:8px;">SESSION INFO</div>
+                    <div style="font-size:0.65rem;color:#aaa;line-height:1.9;">
+                        <span style="color:#555;">USER</span> &nbsp;<span id="err-user" style="color:#fff;"></span><br>
+                        <span style="color:#555;">MODE</span> &nbsp;<span style="color:#fff;">${mode.toUpperCase()}</span><br>
+                        <span style="color:#555;">VER </span> &nbsp;<span style="color:#fff;">${ver}</span><br>
+                        <span style="color:#555;">TIME</span> &nbsp;<span style="color:#fff;">${ts}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom:20px;">
+                <div style="font-size:0.55rem;color:#f55;letter-spacing:2px;margin-bottom:8px;">STACK TRACE</div>
+                <pre id="err-stack" style="background:rgba(0,0,0,0.6);padding:16px;color:#777;white-space:pre-wrap;max-height:220px;overflow:auto;border-radius:8px;border:1px solid #222;font-size:0.65rem;margin:0;"></pre>
+            </div>
+
+            <div style="margin-bottom:20px;">
+                <div style="font-size:0.55rem;color:#555;letter-spacing:2px;margin-bottom:6px;">BROWSER</div>
+                <div id="err-ua" style="font-size:0.55rem;color:#444;word-break:break-all;"></div>
+            </div>
+
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <button onclick="location.reload()" style="background:#c00;color:#fff;border:none;padding:11px 22px;cursor:pointer;font-weight:bold;border-radius:5px;font-family:inherit;font-size:0.7rem;letter-spacing:1px;">REBOOT NODE</button>
+                <button id="err-copy-btn" style="background:transparent;color:#f55;border:1px solid #f55;padding:11px 22px;cursor:pointer;font-weight:bold;border-radius:5px;font-family:inherit;font-size:0.7rem;letter-spacing:1px;">COPY REPORT</button>
+                <button id="err-email-btn" style="background:transparent;color:#4af;border:1px solid #4af;padding:11px 22px;cursor:pointer;font-weight:bold;border-radius:5px;font-family:inherit;font-size:0.7rem;letter-spacing:1px;">EMAIL TO DEV</button>
+                <button onclick="document.getElementById('nexus-crash-overlay').remove()" style="background:transparent;color:#555;border:1px solid #333;padding:11px 22px;cursor:pointer;font-weight:bold;border-radius:5px;font-family:inherit;font-size:0.7rem;letter-spacing:1px;">DISMISS</button>
+            </div>
         </div>
     `;
+
     document.body.appendChild(diagnostic);
+
+    // Safely inject text to prevent XSS
+    document.getElementById('err-msg').textContent  = msg;
+    document.getElementById('err-file').textContent = url;
+    document.getElementById('err-line').textContent = line;
+    document.getElementById('err-col').textContent  = col;
+    document.getElementById('err-user').textContent = user;
+    document.getElementById('err-stack').textContent = stack;
+    document.getElementById('err-ua').textContent   = ua;
+
+    document.getElementById('err-copy-btn').onclick = () => {
+        navigator.clipboard.writeText(reportText).then(() => {
+            document.getElementById('err-copy-btn').textContent = 'COPIED!';
+        }).catch(() => {
+            prompt('Copy the report below:', reportText);
+        });
+    };
+
+    const mailSubject = encodeURIComponent(`[NEXUS CRASH] ${msg.slice(0, 80)}`);
+    const mailBody    = encodeURIComponent(reportText);
+    document.getElementById('err-email-btn').onclick = () => {
+        location.href = `mailto:lovexdgamer@gmail.com?subject=${mailSubject}&body=${mailBody}`;
+    };
+
     return false;
 };
 
@@ -52,7 +139,12 @@ window.addEventListener('load', async () => {
 function connectTerminalWS() {
     if (window.termWs) window.termWs.close();
     window.termWs = new WebSocket(window.WS_URL);
-    
+
+    window.termWs.onopen = () => {
+        console.log("[WS] Terminal link established.");
+        window.backendReady = true;
+    };
+
     window.termWs.onmessage = (e) => {
         if (e.data === "__pong__") return;
         if (e.data.startsWith("[MODEL:")) {
@@ -65,12 +157,15 @@ function connectTerminalWS() {
             window.handleCommand(`play ${tag}`);
             return;
         }
-        
+
         window._clearThinking();
         printToTerminal(e.data, `ai-msg ${window.currentMode}-msg`);
     };
-    
-    window.termWs.onclose = () => setTimeout(connectTerminalWS, 5000);
+
+    window.termWs.onclose = () => {
+        window.backendReady = false;
+        setTimeout(connectTerminalWS, 5000);
+    };
 }
 
 let statsWs;
