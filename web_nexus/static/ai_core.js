@@ -3,22 +3,31 @@
 
 async function prompt_ai_proxy(prompt, imageB64, mode) {
     console.log(`[AI] Synchronizing with ${mode.toUpperCase()} kernel...`);
-    
     window.showThinking();
-    
-    // Primary: REST Uplink
+
+    // Primary: WebSocket (already open, zero latency)
+    if (window.termWs && window.termWs.readyState === WebSocket.OPEN) {
+        window.termWs.send(JSON.stringify({
+            command: prompt,
+            history: window.messageHistory.slice(-10),
+            mode,
+            imageB64
+        }));
+        return;
+    }
+
+    // Fallback: REST (handles brief WS reconnect windows)
     try {
         const res = await fetch(`${window.API_BASE}/api/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                cmd: prompt, 
-                history: window.messageHistory.slice(-10), 
-                mode, 
+            body: JSON.stringify({
+                cmd: prompt,
+                history: window.messageHistory.slice(-10),
+                mode,
                 imageB64
             })
         });
-        
         const data = await res.json();
         if (data.ok) {
             window._clearThinking();
@@ -26,20 +35,11 @@ async function prompt_ai_proxy(prompt, imageB64, mode) {
             window.messageHistory.push({ role: 'assistant', content: data.text });
             return;
         }
-    } catch(e) { console.warn("[AI] REST Link unstable. Checking WebSocket..."); }
+    } catch(e) { console.warn("[AI] REST fallback failed:", e.message); }
 
-    // Fallback: WebSocket
-    if (window.termWs && window.termWs.readyState === WebSocket.OPEN) {
-        window.termWs.send(JSON.stringify({ 
-            command: prompt, 
-            history: window.messageHistory.slice(-10), 
-            mode, 
-            imageB64 
-        }));
-    } else {
-        window._clearThinking();
-        printToTerminal(`[CRITICAL] Neural link severed. Verify backend status.`, "conn-err");
-    }
+    // Both paths failed — backend is cold-starting
+    window._clearThinking();
+    printToTerminal('[SYS] Backend is warming up (cold start). Neural link establishing — try again in ~15 seconds.', 'sys-msg');
 }
 
 function printAIResponse(text) {

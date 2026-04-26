@@ -52,10 +52,6 @@ function handleCommand(cmd) {
     if (lc === 'type test')           { startTypingTest(); return; }
 
     // 5. AI Routing
-    if (!window.backendReady) {
-        printToTerminal('[SYS] Neural link warming up — backend is cold-starting. Try again in ~20s.', 'sys-msg');
-        return;
-    }
     prompt_ai_proxy(cmd, null, window.currentMode);
 }
 
