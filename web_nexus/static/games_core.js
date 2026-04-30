@@ -82,7 +82,7 @@ function startPong() {
             <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
                 <button class="gui-btn pong-diff" data-diff="easy"   style="border-color:#0f0;color:#0f0;">EASY</button>
                 <button class="gui-btn pong-diff" data-diff="medium" style="border-color:#ff0;color:#ff0;">MEDIUM</button>
-                <button class="gui-btn pong-diff" data-diff="hard"   style="border-color:#f0f;color:#f0f;">HARD</button>
+                <button class="gui-btn pong-diff" data-diff="hard"   style="border-color:#0ff;color:#0ff;">HARD</button>
                 <button class="gui-btn pong-diff" data-diff="insane" style="border-color:#f00;color:#f00;">INSANE</button>
             </div>
             <p style="color:#555;font-size:0.68rem;margin-top:14px;">Mouse or touch to move your paddle</p>
@@ -245,7 +245,7 @@ function launchPong(difficulty) {
         ctx.fillRect(8, paddleY, PADDLE_W, PADDLE_H);
         ctx.shadowColor = '#88f'; ctx.fillStyle = '#88f';
         ctx.fillRect(382, aiY, PADDLE_W, PADDLE_H);
-        ctx.shadowColor = '#f0f'; ctx.fillStyle = '#f0f';
+        ctx.shadowColor = '#0ff'; ctx.fillStyle = '#0ff';
         ctx.beginPath(); ctx.arc(ballX, ballY, 6, 0, Math.PI * 2); ctx.fill();
         ctx.shadowBlur = 0;
 
@@ -417,14 +417,14 @@ function launchSnake(snakeMode) {
         ctx.fillRect(0, 0, 400, 360);
 
         // Glitch border
-        ctx.strokeStyle = '#f0f'; ctx.lineWidth = 2;
+        ctx.strokeStyle = '#0ff'; ctx.lineWidth = 2;
         ctx.strokeRect(16, 90, 368, 180);
         ctx.strokeStyle = 'rgba(0,255,255,0.4)'; ctx.lineWidth = 1;
         ctx.strokeRect(14, 88, 372, 184);
 
         ctx.textAlign = 'center';
         // Title
-        ctx.fillStyle = '#f0f'; ctx.font = 'bold 32px monospace';
+        ctx.fillStyle = '#0ff'; ctx.font = 'bold 32px monospace';
         ctx.fillText('YOU DIED', 200, 138);
         // Mode badge
         ctx.fillStyle = '#333'; ctx.font = '11px monospace';
@@ -486,7 +486,7 @@ function launchSnake(snakeMode) {
         ctx.drawImage(bgCanvas, 0, 0); // blit pre-drawn background
 
         // Apple glow
-        ctx.shadowBlur = 10; ctx.shadowColor = '#f0f'; ctx.fillStyle = '#f0f';
+        ctx.shadowBlur = 10; ctx.shadowColor = '#0ff'; ctx.fillStyle = '#0ff';
         ctx.fillRect(apple.x*CELL+3, apple.y*CELL+3, CELL-6, CELL-6);
 
         // Body segments  no per-segment shadow (perf)
@@ -528,82 +528,192 @@ function startInvaders() {
     nexusCanvas.width = 400; nexusCanvas.height = 360;
     const ctx = nexusCanvas.getContext('2d');
 
-    let playerX = 180, bullets = [], enemies = [], particles = [], boss = null;
-    let shields = []; // Data Firewalls
-    let score = 0, wave = 1, gameOver = false, shake = 0;
-    let moveDir = 1;
+    let playerX = 180, bullets = [], enemies = [], particles = [];
+    let score = 0, wave = 1, gameOver = false, moveDir = 1;
+    let enemyBulletTimer = 0, enemyBullets = [];
 
-    function initShields() {
-        shields = [];
-        for (let i = 0; i < 4; i++) {
-            const sx = 50 + i * 100;
-            for (let r = 0; r < 3; r++) {
-                for (let c = 0; c < 4; c++) {
-                ctx.fillText(sprite, e.x, e.y);
-                
-                if (e.x > 370 || e.x < 10) edge = true;
-
-                // Collision
-                bullets.forEach((b, bi) => {
-                    if (b.x > e.x - 5 && b.x < e.x + 20 && b.y > e.y - 15 && b.y < e.y) {
-                        e.alive = false; bullets.splice(bi, 1);
-                        score += 10 * wave;
-                        createExplosion(e.x, e.y, ctx.fillStyle);
-                        SoundManager.playBloop(200, 0.03);
-                    }
+    function initEnemies() {
+        enemies = [];
+        const rows = 3, cols = 6;
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                enemies.push({
+                    x: 40 + c * 50,
+                    y: 40 + r * 40,
+                    alive: true,
+                    type: r
                 });
+            }
+        }
+    }
 
-                if (e.y > 315) gameOver = true;
+    function createExplosion(x, y, color) {
+        for (let i = 0; i < 8; i++) {
+            particles.push({
+                x, y,
+                vx: (Math.random() - 0.5) * 4,
+                vy: (Math.random() - 0.5) * 4,
+                life: 1.0,
+                color
             });
+        }
+    }
 
-            if (edge) {
-                moveDir *= -1;
-                enemies.forEach(e => e.y += 12);
+    function tick() {
+        if (!invadersActive) return;
+        if (gameOver) {
+            draw();
+            return;
+        }
+
+        // Move Player
+        if (window._keys && window._keys['ArrowLeft']) playerX = Math.max(10, playerX - 5);
+        if (window._keys && window._keys['ArrowRight']) playerX = Math.min(370, playerX + 5);
+
+        // Player Fire
+        if (window._keys && window._keys[' '] && bullets.length < 3) {
+            bullets.push({ x: playerX + 10, y: 320 });
+            SoundManager.playBloop(400, 0.02);
+            delete window._keys[' '];
+        }
+
+        // Update Bullets
+        bullets = bullets.filter(b => {
+            b.y -= 7;
+            return b.y > 0;
+        });
+
+        // Update Enemy Bullets
+        enemyBullets = enemyBullets.filter(b => {
+            b.y += 4;
+            if (b.y > 330 && b.y < 350 && b.x > playerX && b.x < playerX + 20) {
+                gameOver = true;
+                SoundManager.playBloop(100, 0.2);
             }
-            enemies.forEach(e => e.x += moveDir * (0.8 + wave * 0.12)); // SLOWER movement
+            return b.y < 360;
+        });
 
-            if (!boss && enemies.length > 0 && enemies.every(e => !e.alive)) {
-                wave++;
-                initEnemies();
-                initShields(); // Restore shields each wave
-                if (wave % 5 === 0) spawnBoss();
-                SoundManager.playBloop(800, 0.1);
+        // Move Enemies
+        let edge = false;
+        enemies.forEach(e => {
+            if (!e.alive) return;
+            e.x += moveDir * (1 + wave * 0.2);
+            if (e.x > 370 || e.x < 10) edge = true;
+            if (e.y > 310) gameOver = true;
+        });
+
+        if (edge) {
+            moveDir *= -1;
+            enemies.forEach(e => e.y += 15);
+        }
+
+        // Enemy Firing
+        enemyBulletTimer++;
+        if (enemyBulletTimer > Math.max(20, 60 - wave * 5)) {
+            const living = enemies.filter(e => e.alive);
+            if (living.length > 0) {
+                const shooter = living[Math.floor(Math.random() * living.length)];
+                enemyBullets.push({ x: shooter.x + 10, y: shooter.y });
             }
+            enemyBulletTimer = 0;
+        }
 
-            ctx.fillStyle = '#0ff'; ctx.font = '10px monospace';
-            ctx.fillText(`MAINFRAME SECURITY: ${Math.max(0, 100 - wave)}%`, 10, 20);
-            ctx.fillText(`THREAT LEVEL: ${wave}`, 320, 20);
-            ctx.fillText(`DATA RECOVERED: ${score}`, 10, 350);
-        } else {
-            // SYSTEM BREACHED - PROPER END SCREEN
-            ctx.fillStyle = 'rgba(255,0,0,0.4)'; ctx.fillRect(0,0,400,360);
-            ctx.strokeStyle = '#f44'; ctx.lineWidth = 2; ctx.strokeRect(50, 100, 300, 120);
-            
+        // Collisions
+        bullets.forEach((b, bi) => {
+            enemies.forEach(e => {
+                if (e.alive && b.x > e.x && b.x < e.x + 20 && b.y > e.y && b.y < e.y + 20) {
+                    e.alive = false;
+                    bullets.splice(bi, 1);
+                    score += 10;
+                    createExplosion(e.x + 10, e.y + 10, '#0ff');
+                    SoundManager.playBloop(600, 0.05);
+                }
+            });
+        });
+
+        // Particles
+        particles = particles.filter(p => {
+            p.x += p.vx; p.y += p.vy;
+            p.life -= 0.02;
+            return p.life > 0;
+        });
+
+        // Next Wave
+        if (enemies.every(e => !e.alive)) {
+            wave++;
+            initEnemies();
+            SoundManager.playBloop(800, 0.1);
+        }
+
+        draw();
+        invadersRaf = requestAnimationFrame(tick);
+    }
+
+    function draw() {
+        ctx.fillStyle = '#050510';
+        ctx.fillRect(0, 0, 400, 360);
+
+        // Grid lines
+        ctx.strokeStyle = 'rgba(0, 255, 255, 0.05)';
+        ctx.lineWidth = 1;
+        for(let i=0; i<400; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,360); ctx.stroke(); }
+
+        // Player
+        ctx.fillStyle = '#0ff';
+        ctx.fillRect(playerX, 330, 20, 10);
+        ctx.fillRect(playerX + 8, 325, 4, 5);
+
+        // Enemies
+        enemies.forEach(e => {
+            if (!e.alive) return;
+            ctx.fillStyle = e.type === 0 ? '#0ff' : e.type === 1 ? '#0ff' : '#0f0';
+            ctx.font = '16px monospace';
+            ctx.fillText('W', e.x, e.y + 15);
+        });
+
+        // Bullets
+        ctx.fillStyle = '#fff';
+        bullets.forEach(b => ctx.fillRect(b.x, b.y, 2, 6));
+        ctx.fillStyle = '#f44';
+        enemyBullets.forEach(b => ctx.fillRect(b.x, b.y, 2, 6));
+
+        // Particles
+        particles.forEach(p => {
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = p.life;
+            ctx.fillRect(p.x, p.y, 2, 2);
+        });
+        ctx.globalAlpha = 1;
+
+        // HUD
+        ctx.fillStyle = '#0ff'; ctx.font = '10px monospace';
+        ctx.fillText(`THREAT LEVEL: ${wave}`, 10, 20);
+        ctx.fillText(`SCORE: ${score}`, 320, 20);
+
+        if (gameOver) {
+            ctx.fillStyle = 'rgba(255,0,0,0.4)'; ctx.fillRect(0, 0, 400, 360);
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 24px monospace';
             ctx.textAlign = 'center';
-            ctx.fillStyle = '#f44'; ctx.font = 'bold 28px monospace';
-            ctx.fillText('SYSTEM BREACHED', 200, 145);
-            
-            ctx.fillStyle = '#fff'; ctx.font = '14px monospace';
-            ctx.fillText(`DATA RECOVERED: ${score}`, 200, 175);
-            
-            ctx.fillStyle = '#0ff'; ctx.font = '11px monospace';
-            ctx.fillText('CLICK TO RESTORE UPLINK', 200, 205);
+            ctx.fillText('SYSTEM BREACHED', 200, 180);
+            ctx.font = '14px monospace';
+            ctx.fillText('CLICK TO RESTART', 200, 210);
             ctx.textAlign = 'left';
-            
-            if (score > 0 && !nexusCanvas.onclick) { 
-                submitScore('invaders', score);
+            if (!nexusCanvas.onclick) {
+                if (window.submitScore) window.submitScore('invaders', score);
                 nexusCanvas.onclick = () => { nexusCanvas.onclick = null; startInvaders(); };
             }
         }
-
-        ctx.restore();
-        invadersRaf = requestAnimationFrame(tick);
     }
-    // Start the loop
+
+    initEnemies();
     invadersRaf = requestAnimationFrame(tick);
 }
 
-function stopInvaders() { cancelAnimationFrame(invadersRaf); invadersActive = false; }
+function stopInvaders() { 
+    cancelAnimationFrame(invadersRaf); 
+    invadersActive = false; 
+    if (nexusCanvas) nexusCanvas.onclick = null;
+}
 
 // =============================================================
 //  FLAPPY BIRD (Nexus Edition)
@@ -747,8 +857,8 @@ function startFlappy() {
         ctx.save();
         ctx.translate(bird.x, bird.y);
         ctx.rotate(bird.angle);
-        ctx.shadowBlur = 14; ctx.shadowColor = '#f0f';
-        ctx.fillStyle = '#f0f';
+        ctx.shadowBlur = 14; ctx.shadowColor = '#0ff';
+        ctx.fillStyle = '#0ff';
         ctx.beginPath(); ctx.ellipse(0, 0, 11, 8, 0, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = '#c0c';
         ctx.beginPath(); ctx.ellipse(-4, 3, 6, 4, 0.4, 0, Math.PI * 2); ctx.fill();
@@ -767,7 +877,7 @@ function startFlappy() {
         if (!started) {
             ctx.fillStyle = 'rgba(0,0,0,0.6)';
             ctx.fillRect(0, 0, 400, 300);
-            ctx.fillStyle = '#f0f'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
+            ctx.fillStyle = '#0ff'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
             ctx.fillText('FLAPPY NEXUS', 200, 128);
             ctx.fillStyle = '#0ff'; ctx.font = '13px monospace';
             ctx.fillText('TAP    SPACE      to flap', 200, 155);
@@ -778,12 +888,12 @@ function startFlappy() {
             ctx.fillStyle = 'rgba(6,1,15,0.88)';
             ctx.fillRect(0, 0, 400, 300);
             // Border
-            ctx.strokeStyle = '#f0f'; ctx.lineWidth = 2;
+            ctx.strokeStyle = '#0ff'; ctx.lineWidth = 2;
             ctx.strokeRect(20, 70, 360, 160);
             ctx.strokeStyle = 'rgba(0,255,255,0.3)'; ctx.lineWidth = 1;
             ctx.strokeRect(18, 68, 364, 164);
             ctx.textAlign = 'center';
-            ctx.fillStyle = '#f0f'; ctx.font = 'bold 30px monospace';
+            ctx.fillStyle = '#0ff'; ctx.font = 'bold 30px monospace';
             ctx.fillText('GAME OVER', 200, 116);
             ctx.fillStyle = '#fff'; ctx.font = '16px monospace';
             ctx.fillText(`Score: ${score}`, 200, 150);
@@ -824,7 +934,7 @@ function startBreakout() {
             <div style="display:flex;flex-direction:column;gap:10px;align-items:center;">
                 <button class="gui-btn brk-diff" data-diff="easy"   style="border-color:#0f0;color:#0f0;width:240px;">EASY<br><span style="font-size:0.6rem;opacity:0.6;">Slow balls  Big paddle</span></button>
                 <button class="gui-btn brk-diff" data-diff="medium" style="border-color:#ff0;color:#ff0;width:240px;">MEDIUM<br><span style="font-size:0.6rem;opacity:0.6;">Standard physics</span></button>
-                <button class="gui-btn brk-diff" data-diff="hard"   style="border-color:#f0f;color:#f0f;width:240px;">HARD<br><span style="font-size:0.6rem;opacity:0.6;">Fast balls  Small paddle</span></button>
+                <button class="gui-btn brk-diff" data-diff="hard"   style="border-color:#0ff;color:#0ff;width:240px;">HARD<br><span style="font-size:0.6rem;opacity:0.6;">Fast balls  Small paddle</span></button>
                 <button class="gui-btn brk-diff" data-diff="chaos"  style="border-color:#f00;color:#f00;width:240px;">CHAOS<br><span style="font-size:0.6rem;opacity:0.6;">Extreme acceleration</span></button>
             </div>
             <p style="color:#555;font-size:0.68rem;margin-top:14px;">Mouse or touch to move your paddle</p>
@@ -859,7 +969,7 @@ function launchBreakout(difficulty) {
 
     const PH = 10, BR = 7;
     const BW = 43, BH = 16, BCOLS = 8, BROWS = 5;
-    const BCOLORS = ['#f0f','#f55','#f80','#ff0','#0f0'];
+    const BCOLORS = ['#0ff','#f55','#f80','#ff0','#0f0'];
     let paddle = 165;
     // Ball system  supporting Multi-ball
     let balls = [{ x: 200, y: 230, vx: d.startVX, vy: d.startVY }];
@@ -1284,7 +1394,7 @@ function mineFlood(r, c) {
 }
 
 function renderMinesweeper() {
-    const NCOLORS = ['','#0ff','#0f0','#f55','#55f','#f80','#0ff','#f0f','#aaa'];
+    const NCOLORS = ['','#0ff','#0f0','#f55','#55f','#f80','#0ff','#0ff','#aaa'];
     const flagsLeft = MINE_COUNT - mineFlagged.flat().filter(Boolean).length;
 
     let html = `<div style="text-align:center;font-size:0.75rem;color:#888;margin-bottom:8px;">
@@ -1425,7 +1535,7 @@ function renderTypeTest(typed) {
                 <div style="font-size:0.62rem;color:#555;letter-spacing:1px;margin-top:2px;">TIME</div>
             </div>
             <div style="background:#0a0a1a;border:1px solid #1a1a2e;padding:8px;border-radius:4px;">
-                <div id="type-wpm-val" style="font-size:1.4rem;font-weight:bold;color:#f0f;">${wpm}</div>
+                <div id="type-wpm-val" style="font-size:1.4rem;font-weight:bold;color:#0ff;">${wpm}</div>
                 <div style="font-size:0.62rem;color:#555;letter-spacing:1px;margin-top:2px;">WPM</div>
             </div>
             <div style="background:#0a0a1a;border:1px solid #1a1a2e;padding:8px;border-radius:4px;">
