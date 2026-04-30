@@ -741,7 +741,7 @@ def call_hf_tts(text: str) -> str:
     except Exception as e: print(f"[TTS ERROR] {e}")
     return ""
 
-def prompt_ai(prompt: str, history: list | None = None, mode: str = "nexus", context: str = "", force_idx: int | None = None, image_b64: str | None = None) -> dict:
+def prompt_ai(prompt: str, history: list | None = None, mode: str = "nexus", context: str = "", force_idx: int | None = None, image_b64: str | None = None, f_vulgar: bool = False) -> dict:
     """Main entry point for AI responses. Cycles through models until one works."""
     global current_model_idx
     
@@ -941,9 +941,10 @@ async def websocket_terminal(websocket: WebSocket):
                     # Support force_idx if provided in data
                     f_idx = data.get("force_idx")
                     img_b64 = data.get("imageB64") or data.get("image_b64")
+                    f_vulgar = data.get("force_vulgar", False)
                     
                     result = await asyncio.wait_for(
-                        asyncio.get_running_loop().run_in_executor(None, prompt_ai, cmd, history, mode, context, f_idx, img_b64),
+                        asyncio.get_running_loop().run_in_executor(None, prompt_ai, cmd, history, mode, context, f_idx, img_b64, f_vulgar),
                         timeout=40.0
                     )
                     
