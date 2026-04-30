@@ -68,37 +68,47 @@ function renderAuthSection() {
     if (!authSection) return;
 
     const user = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
-
-    // Keep header user display in sync
-    const userDisp = document.getElementById('user-display');
-    if (userDisp) userDisp.textContent = user && user.name ? user.name.toUpperCase() : 'GUEST';
+    const ownerEmail = 'lovexdgamer@gmail.com';
+    const isOwner = user && user.email === ownerEmail;
 
     if (user && user.name) {
         const isGoogle = !!user.email && user.email !== 'guest@local';
         const avatarHtml = user.picture 
-            ? `<img src="${user.picture}" class="auth-avatar" style="width:32px; height:32px; border-radius:50%; border:1px solid var(--accent); flex-shrink:0;" alt="User">`
-            : `<div class="auth-avatar-initials" style="width:32px; height:32px; border-radius:50%; background:#111; border:1px solid var(--accent); display:flex; align-items:center; justify-content:center; font-size:0.6rem; color:var(--accent); flex-shrink:0;">${user.name[0].toUpperCase()}</div>`;
+            ? `<img src="${user.picture}" class="auth-avatar" onclick="window.toggleUserMenu()" alt="User">`
+            : `<div class="auth-avatar-initials" onclick="window.toggleUserMenu()">${user.name[0].toUpperCase()}</div>`;
             
         authSection.innerHTML = `
-            <div class="auth-user-card" style="display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid rgba(0,255,255,0.1); margin-bottom:15px;">
+            <div class="auth-user-card" style="margin-bottom: 5px;">
                 ${avatarHtml}
-                <div class="auth-info" style="flex:1; min-width:0;">
-                    <div class="auth-name" style="color:#fff; font-size:0.65rem; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${user.name}</div>
-                    <div style="font-size:0.5rem; color:#555;">[ ${isGoogle ? 'VERIFIED' : 'GUEST'} ]</div>
+                <div class="auth-info" onclick="window.toggleUserMenu()">
+                    <div class="auth-name">${user.name}</div>
+                    <div class="auth-status" style="font-size: 0.5rem; margin-top: 2px;">[ ${isGoogle ? 'ACCOUNT_SYNCED' : 'EPHEMERAL_GUEST'} ]</div>
                 </div>
-                <div style="display:flex; gap:5px;">
-                    <button onclick="window.logout()" class="auth-logout-btn" title="Logout" style="background:none; border:1px solid #f55; color:#f55 !important; width:22px; height:22px; border-radius:4px; cursor:pointer; font-weight:bold; display:flex; align-items:center; justify-content:center;">X</button>
+                <div id="user-dropdown" class="user-dropdown">
+                    ${isOwner ? '<div class="dropdown-item" onclick="window.showDiagnostics()">SYSTEM DIAG</div>' : ''}
+                    <div class="dropdown-item" onclick="window.toggleNeuralProfile()">AI PROFILE</div>
+                    <div class="dropdown-item" onclick="window.toggleA11yPanel()">SYSTEM SETTINGS</div>
+                    <div class="dropdown-divider"></div>
+                    <div class="dropdown-item logout-item" onclick="window.logout()">LOGOUT</div>
                 </div>
             </div>
         `;
     } else {
-        authSection.innerHTML = `
-            <div class="auth-signin-wrapper">
-                <div id="sidebar-g_id_signin"></div>
-            </div>
-        `;
+        authSection.innerHTML = `<div id="sidebar-g_id_signin"></div>`;
     }
 }
+
+window.toggleUserMenu = function() {
+    const dropdown = document.getElementById('user-dropdown');
+    if (dropdown) dropdown.classList.toggle('open');
+};
+
+// Close dropdown on click outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.auth-user-card')) {
+        document.getElementById('user-dropdown')?.classList.remove('open');
+    }
+});
 
 async function handleCredentialResponse(response) {
     if (!response || !response.credential) {

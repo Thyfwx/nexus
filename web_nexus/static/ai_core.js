@@ -1,9 +1,14 @@
 // 🧠 NEXUS INTELLIGENCE CORE v5.3.0
 // Routing for AI Kernel, Triggers, and Mode management.
 
-async function prompt_ai_proxy(prompt, imageB64, mode) {
-    console.log(`[AI] Synchronizing with ${mode.toUpperCase()} kernel...`);
-    window.showThinking();
+async function prompt_ai_proxy(prompt, imageB64, mode, retryCount = 0) {
+    console.log(`[AI] Synchronizing with ${mode.toUpperCase()} kernel... (Attempt: ${retryCount + 1})`);
+    if (retryCount === 0) window.showThinking();
+
+    const memory = localStorage.getItem('nexus_neural_memory') || "";
+    const personalContext = memory ? `[USER PERSONAL MEMORY: ${memory}]` : "";
+
+    const isForceVulgar = localStorage.getItem('nexus_force_vulgar') === 'true';
 
     // Primary: WebSocket (already open, zero latency)
     if (window.termWs && window.termWs.readyState === WebSocket.OPEN) {
@@ -11,12 +16,15 @@ async function prompt_ai_proxy(prompt, imageB64, mode) {
             command: prompt,
             history: window.messageHistory.slice(-10),
             mode,
-            imageB64
+            imageB64,
+            context: personalContext,
+            force_vulgar: isForceVulgar,
+            owner_mode: window.OWNER_MODE
         }));
         return;
     }
 
-    // Fallback: REST (handles brief WS reconnect windows)
+    // Fallback: REST
     try {
         const res = await fetch(`${window.API_BASE}/api/chat`, {
             method: 'POST',
@@ -25,7 +33,9 @@ async function prompt_ai_proxy(prompt, imageB64, mode) {
                 cmd: prompt,
                 history: window.messageHistory.slice(-10),
                 mode,
-                imageB64
+                imageB64,
+                context: personalContext,
+                owner_mode: window.OWNER_MODE
             })
         });
         const data = await res.json();
@@ -34,16 +44,34 @@ async function prompt_ai_proxy(prompt, imageB64, mode) {
             printAIResponse(data.text);
             window.messageHistory.push({ role: 'assistant', content: data.text });
             return;
+        } else if (retryCount < 2) {
+            console.warn("[AI] API error response, retrying...");
+            await new Promise(r => setTimeout(r, 2000));
+            return prompt_ai_proxy(prompt, imageB64, mode, retryCount + 1);
         }
-    } catch(e) { console.warn("[AI] REST fallback failed:", e.message); }
+    } catch(e) { 
+        console.warn("[AI] REST fallback failed:", e.message); 
+        if (retryCount < 2) {
+            console.log("[AI] Error detected, auto-retrying...");
+            await new Promise(r => setTimeout(r, 2000));
+            return prompt_ai_proxy(prompt, imageB64, mode, retryCount + 1);
+        }
+    }
 
-    // Both paths failed — backend is cold-starting
+    // All paths failed — backend is cold-starting or down
     window._clearThinking();
-    printToTerminal('[SYS] Backend is warming up (cold start). Neural link establishing — try again in ~15 seconds.', 'sys-msg');
+    printToTerminal('[SYS] API Error detected. Connection unstable. Neural link retrying in background...', 'sys-msg');
 }
 
 function printAIResponse(text) {
-    printTypewriter(text, `ai-msg ${window.currentMode}-msg`);
+    const speeds = {
+        nexus: 10,
+        unfiltered: 1,
+        coder: 5,
+        education: 20
+    };
+    const speed = speeds[window.currentMode] || 10;
+    printTypewriter(text, `ai-msg ${window.currentMode}-msg`, speed);
 }
 
 function handleAITriggers(text) {
@@ -70,3 +98,20 @@ async function generateImage(prompt) {
         window.output.scrollTop = window.output.scrollHeight;
     } catch(e) { printToTerminal(`[ERR] Rendering failed.`, 'sys-msg'); }
 }
+
+function playNeuralVoice(base64) {
+    if (!base64) return;
+    const active = localStorage.getItem('nexus_tts_active') === 'true';
+    if (!active) return;
+    
+    try {
+        const audio = new Audio(`data:audio/wav;base64,${base64}`);
+        audio.play().catch(e => console.warn("[VOICE] Autoplay blocked:", e));
+    } catch(e) { console.error("[VOICE] Playback error:", e); }
+}
+
+// Global Exports
+window.prompt_ai_proxy = prompt_ai_proxy;
+window.handleAITriggers = handleAITriggers;
+window.generateImage = generateImage;
+window.playNeuralVoice = playNeuralVoice;
