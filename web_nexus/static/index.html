@@ -5,24 +5,68 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>NEXUS AI // TERMINAL</title>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=5.3.0">
+    <link rel="stylesheet" href="style.css?v=5.3.7">
     <link rel="icon" type="image/png" href="https://thyfwxit.com/favicon.png">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
-<body class="crt-mode">
+<body class="crt-mode auth-locked">
 
-    <script>
-        (function() {
-            var user = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
-            if (!user || !user.name) window.location.replace('./login.html');
-        })();
-    </script>
+    <!-- Login Wall (Lobby) -->
+    <div id="auth-screen" class="auth-overlay">
+        <div class="auth-box">
+            <div class="auth-header">NEXUS AI</div>
+            <p class="auth-desc">Neural synchronization required for grid access.</p>
 
-    <div class="monitor" id="main-monitor">
+            <div class="auth-methods">
+                <div id="main-g_id_signin" class="g-signin-btn"></div>
+                <div class="auth-divider"><span>OR</span></div>
+                <button class="gui-btn guest-btn" onclick="window.showTermsFromWall()">CONTINUE AS GUEST</button>
+            </div>
+
+            <p id="auth-status-msg"></p>
+
+            <div class="auth-footer">
+                <a href="https://thyfwxit.com" class="main-site-link">← RETURN TO MAIN PAGE</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Terms and Conditions Modal -->
+    <div id="terms-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-box" id="terms-box">
+            <h3 class="modal-header">TERMS AND CONDITIONS</h3>
+            <div class="modal-body" id="terms-content">
+                <b style="color:var(--neon-blue);">[ 01: DATA ANALYTICS ]</b><br>
+                Nexus analyzes session metadata and prompt text in real-time. These logs are audited by Xavier Scott to optimize neural response latency and harden node security.<br><br>
+                <b style="color:var(--neon-blue);">[ 02: NEURAL ARCHITECTURE ]</b><br>
+                This instance is hyper-tuned by Xavier Scott for sub-millisecond reasoning. All queries bypass standard consumer-grade throttling via a direct high-fidelity bridge.<br><br>
+                <b style="color:var(--neon-blue);">[ 03: SECURE TRANSMISSION ]</b><br>
+                All communications are protected via standard SSL/TLS encryption. Session metadata is transmitted to a secure external node for real-time monitoring.<br><br>
+                <b style="color:var(--neon-blue);">[ 04: PERSISTENCE ]</b><br>
+                Guest sessions are strictly non-persistent. All temporary neural data is purged upon termination of the session link. Xavier Scott does not store identifiable biological signatures.<br><br>
+                <b style="color:var(--neon-blue);">[ 05: NODE SECURITY ]</b><br>
+                Any attempt to bypass standard neural filters or reverse-engineer the core architecture will result in immediate termination of the node uplink.
+            </div>
+
+            <div id="terms-error-msg" class="terms-error-msg">SCROLL DOWN TO AGREE TO THE TERMS</div>
+
+            <div class="terms-agreement" id="terms-agreement-area">
+                <input type="checkbox" id="terms-check">
+                <label for="terms-check">I AGREE TO THE TERMS</label>
+            </div>
+
+            <div class="modal-actions">
+                <button id="agree-btn" class="gui-btn action-btn-primary" onclick="submitGuestAuth()">ENTER</button>
+                <button class="gui-btn action-btn-secondary" onclick="window.hideTerms()">ABORT</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Terminal Machine -->
+    <div class="monitor" id="main-monitor" style="display:none;">
         <div class="screen-glare"></div>
         <div class="glass-panel">
             <header class="status-bar">
-                <div class="status-item"><div id="conn-dot" class="conn-dot"></div> <span class="stat-label">USER</span> <span id="user-display">--</span></div>
-                <div class="status-item"><span class="stat-label">NODE</span> <span id="node-display">CENTRAL_STATION</span></div>
                 <div class="status-item status-title" id="status-title">NEXUS AI // CORE</div>
                 <div class="status-item"><span class="stat-label">MODE</span> <span id="mode-indicator">NEXUS</span></div>
             </header>
@@ -45,17 +89,16 @@
 
                 <div class="aside-header" style="margin-top:15px;">NEURAL LINKS</div>
                 <div class="mode-picker">
-                    <button class="mode-btn active" data-mode="nexus"     title="Standard Interface">Nexus</button>
-                    <button class="mode-btn"         data-mode="shadow"    title="Unfiltered Mode">Unfiltered</button>
-                    <button class="mode-btn"         data-mode="coder"     title="Architect Mode (Code)">Coder</button>
-                    <button class="mode-btn"         data-mode="education" title="Mentor Mode (Instructional)" style="border-color:#00ffcc;color:#00ffcc;">Education</button>
+                    <button class="mode-btn mode-nexus active" data-mode="nexus"      title="Standard Interface">Nexus</button>
+                    <button class="mode-btn mode-unfiltered" data-mode="unfiltered" title="Unfiltered Mode">Unfiltered</button>
+                    <button class="mode-btn mode-coder"      data-mode="coder"      title="Architect Mode (Code)">Coder</button>
+                    <button class="mode-btn mode-education"  data-mode="education"  title="Mentor Mode (Instructional)">Education</button>
                 </div>
 
                 <div class="aside-header" style="margin-top:15px;">TOOLS</div>
                 <button class="action-btn" onclick="startMaintenanceHub()">Maintenance Hub</button>
                 <button class="action-btn" onclick="startSpeedTest()">Speed Test</button>
                 <button class="action-btn" data-cmd="type test">Type Test</button>
-                <button class="action-btn" data-cmd="monitor">Monitor</button>
                 <button class="action-btn" data-cmd="help">Help</button>
                 <button class="action-btn" data-cmd="clear">Clear</button>
 
@@ -76,6 +119,51 @@
             </div>
         </div>
     </div>
+
+    <!-- Accessibility Panel (Settings) -->
+    <div id="a11y-panel" class="a11y-panel">
+        <div class="panel-header">
+            <span>[ SYSTEM SETTINGS ]</span>
+            <button onclick="window.toggleA11yPanel()" class="a11y-close">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+        
+        <div class="a11y-section">
+            <div class="a11y-section-label">VISUAL KERNEL</div>
+            <div class="a11y-row">
+                <button class="a11y-toggle active" data-class="crt-mode" onclick="window.toggleA11yClass('crt-mode', this)">CRT SCANLINES</button>
+                <button class="a11y-toggle" data-class="no-animations" onclick="window.toggleA11yClass('no-animations', this)">REDUCE MOTION</button>
+            </div>
+            <div class="a11y-row" style="margin-top:5px;">
+                <button class="a11y-toggle" onclick="window.toggleTips()">NEURAL TIPS: ON</button>
+                <button class="a11y-toggle" data-class="a11y-high-contrast" onclick="window.toggleA11yClass('a11y-high-contrast', this)">HIGH CONTRAST</button>
+            </div>
+        </div>
+
+        <div class="a11y-section">
+            <div class="a11y-section-label">INTERFACE & TYPOGRAPHY</div>
+            <div class="a11y-row">
+                <button class="a11y-toggle" data-class="a11y-dim" onclick="window.toggleA11yClass('a11y-dim', this)">DIM MODE</button>
+                <button class="a11y-toggle" data-class="a11y-large" onclick="window.toggleA11yClass('a11y-large', this)">LARGE TEXT</button>
+            </div>
+            <div class="a11y-row" style="margin-top:5px;">
+                <button class="a11y-toggle" data-class="a11y-dyslexic" onclick="window.toggleA11yClass('a11y-dyslexic', this)">DYSLEXIC FONT</button>
+            </div>
+        </div>
+
+        <div class="a11y-section">
+            <div class="a11y-section-label">SYSTEM RECOVERY</div>
+            <div class="a11y-row">
+                <button class="a11y-toggle" onclick="location.reload()" style="border-color:#f55; color:#f55;">RESET CORE KERNEL</button>
+            </div>
+        </div>
+        
+        <p class="a11y-tip" id="settings-persistence-msg">Node configuration is persistent via neural cache.</p>
+    </div>
+
+    <!-- AI Neural Profile Panel (Separate) -->
+    <div id="neural-profile-panel" class="a11y-panel"></div>
 
     <!-- Neural Override (Hack Menu) -->
     <div id="hack-menu" class="modal-overlay" style="display:none;">
@@ -99,18 +187,46 @@
         </div>
     </div>
 
-    <script src="nexus_globals.js?v=5.3.0"></script>
-    <script src="nexus_brain.js?v=5.3.0"></script>
-    <script src="config_core.js?v=5.3.0"></script>
-    <script src="modules/speedtest_logic.js?v=5.3.0"></script>
-    <script src="modules/hardware_logic.js?v=5.3.0"></script>
-    <script src="uplink_core.js?v=5.3.0"></script>
-    <script src="stats_core.js?v=5.3.0"></script>
-    <script src="audio_core.js?v=5.3.0"></script>
-    <script src="games_core.js?v=5.3.0"></script>
-    <script src="auth_core.js?v=5.3.0"></script>
-    <script src="ai_core.js?v=5.3.0"></script>
-    <script src="commands_core.js?v=5.3.0"></script>
-    <script src="terminal.js?v=5.3.0"></script>
+    <!-- Load scripts in Master Order -->
+    <script src="nexus_globals.js?v=5.3.9"></script>
+    <script src="secrets.js?v=5.3.9"></script>
+    <script src="nexus_brain.js?v=5.3.9"></script>
+    <script src="config_core.js?v=5.3.9"></script>
+    <script src="core_modules/speedtest_logic.js?v=5.3.9"></script>
+    <script src="core_modules/hardware_logic.js?v=5.3.9"></script>
+    <script src="uplink_core.js?v=5.3.9"></script>
+    <script src="stats_core.js?v=5.3.9"></script>
+    <script src="audio_core.js?v=5.3.9"></script>
+    <script src="games_core.js?v=5.3.9"></script>
+    <script src="auth_core.js?v=5.3.9"></script>
+    <script src="ai_core.js?v=5.3.9"></script>
+    <script src="commands_core.js?v=5.3.9"></script>
+    <script src="terminal.js?v=5.3.9"></script>
+
+    <script>
+        // Lobby Auto-Handshake
+        window.addEventListener('load', () => {
+            const user = JSON.parse(localStorage.getItem('nexus_user_data') || sessionStorage.getItem('nexus_user_data') || 'null');
+            if (user && user.name) {
+                const screen = document.getElementById('auth-screen');
+                const monitor = document.getElementById('main-monitor');
+                if (screen) screen.style.display = 'none';
+                if (monitor) monitor.style.display = 'flex';
+                document.body.classList.remove('auth-locked');
+                if (window.initiateBootSequence) window.initiateBootSequence();
+            } else {
+                let attempts = 0;
+                const pollGSI = setInterval(() => {
+                    attempts++;
+                    if (window.google?.accounts?.id && window.initGoogleAuth) {
+                        clearInterval(pollGSI);
+                        window.initGoogleAuth();
+                    } else if (attempts > 30) {
+                        clearInterval(pollGSI);
+                    }
+                }, 500);
+            }
+        });
+    </script>
 </body>
 </html>
