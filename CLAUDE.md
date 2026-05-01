@@ -1,7 +1,7 @@
 # CLAUDE.md — Nexus AI Terminal repo
 
 This is the source-of-truth repo for the Nexus terminal that deploys to `https://thyfwxit.com/nexus/`.
-The mirror at `~/Documents/Projects/thyfwxit/nexus/` is synced from here by `sync.sh`.
+The mirror at `~/Documents/Domain_Project/thyfwxit/nexus/` is synced from here by `sync.sh`.
 
 ## SECURITY MANDATE — CRITICAL
 - **NEVER USE `git add .` or commit blindly.** A previous AI leaked a Cloudflare API Token, Discord Webhook, and Google Client Secrets via a blanket `git add`.
@@ -131,7 +131,7 @@ Adding a function to the wrong file (game logic in `terminal.js`, AI logic in `c
 Gemini prepended orphaned closing braces (`});`, `}, 400);`) to line 1 while adding Breach Protocol. Caused a SyntaxError on line 1 → entire terminal crashed. **Rule:** add new games as complete self-contained functions. Never prepend partial fragments.
 
 ### Script tag mismatch
-Gemini left `index.html` loading only 2 scripts at v4.0.77 while the source had 13 modules at v5.3.0. **Rule:** when editing `web_nexus/static/index.html`, run `sync.sh` (after review) so the thyfwxit mirror at `~/Documents/Projects/thyfwxit/nexus/index.html` matches exactly.
+Gemini left `index.html` loading only 2 scripts at v4.0.77 while the source had 13 modules at v5.3.0. **Rule:** when editing `web_nexus/static/index.html`, run `sync.sh` (after review) so the thyfwxit mirror at `~/Documents/Domain_Project/thyfwxit/nexus/index.html` matches exactly.
 
 ## Visual / UI rules
 - Font: **'Fira Code'** monospace ONLY, locked via `!important`. Never override.
