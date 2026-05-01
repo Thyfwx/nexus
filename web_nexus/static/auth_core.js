@@ -189,7 +189,7 @@ function setupTermsInteraction() {
         }
     };
 
-    // Capture clicks ONLY on the actual checkbox box
+    // Capture clicks ONLY on the actual checkbox input itself
     check.onclick = (e) => {
         if (!_termsScrolled) {
             e.preventDefault();
@@ -197,10 +197,11 @@ function setupTermsInteraction() {
         }
     };
     
-    // Explicitly prevent the label from triggering the checkbox or the error
+    // Disable clicks on the label/area from affecting the checkbox
     area.onclick = (e) => {
-        if (!_termsScrolled && e.target.tagName === 'LABEL') {
+        if (e.target !== check) {
             e.preventDefault();
+            e.stopPropagation();
         }
     };
 }
