@@ -100,12 +100,20 @@ window.addEventListener('load', async () => {
     // 1. INSTANT COLOR SYNC (No more grey drift)
     const savedMode = localStorage.getItem('nexus_mode') || 'nexus';
     window.currentMode = savedMode;
-    const m = window.MODES[savedMode];
-    if (m && m.color) {
-        document.documentElement.style.setProperty('--accent', m.color);
-    } else {
-        document.documentElement.style.setProperty('--accent', '#0ff');
-    }
+    
+    // Wait for MODES to load from ai_config.js
+    const pollModes = setInterval(() => {
+        if (window.MODES) {
+            clearInterval(pollModes);
+            const m = window.MODES[window.currentMode];
+            if (m && m.color) {
+                document.documentElement.style.setProperty('--accent', m.color);
+            } else {
+                document.documentElement.style.setProperty('--accent', '#0ff');
+            }
+            initModeUI();
+        }
+    }, 100);
 
     // 2. Core Elements Capture
     window.output = document.getElementById('terminal-output');
@@ -115,8 +123,18 @@ window.addEventListener('load', async () => {
     window.guiTitle = document.getElementById('gui-title');
     window.nexusCanvas = document.getElementById('nexus-canvas');
 
-    // --- Dynamic UI Reconstruction ---
-    // 1. Add Neural Uplink Button (True Paperclip)
+    // 3. Dynamic UI Recalibration
+    setupUplinkHandlers();
+    setupInputListeners();
+    setupSidebarListeners();
+    startAliveLoop();
+});
+
+function setupUplinkHandlers() {
+    const monitor = document.querySelector('.monitor');
+    if (!monitor) return;
+
+    // Neural Uplink Button Injection (True Paperclip)
     const inputWrapper = document.querySelector('.terminal-input-wrapper');
     if (inputWrapper && !document.getElementById('uplink-trigger')) {
         const uplinkBtn = document.createElement('button');
@@ -131,57 +149,6 @@ window.addEventListener('load', async () => {
         uplinkBtn.onclick = () => document.getElementById('neural-uplink')?.click();
         inputWrapper.appendChild(uplinkBtn);
     }
-
-    const picker = document.querySelector('.mode-picker');
-    if (picker && !document.querySelector('.mode-education')) {
-        const eduBtn = document.createElement('button');
-        eduBtn.className = 'mode-btn mode-education';
-        eduBtn.dataset.mode = 'education';
-        eduBtn.title = 'Mentor Mode';
-        eduBtn.textContent = 'Education';
-        picker.appendChild(eduBtn);
-        
-        // Wire listener
-        eduBtn.addEventListener('click', () => {
-            setMode('education');
-            window.input.focus();
-        });
-    }
-
-    // Update Settings Icon (Gear)
-    const settingsBtn = document.querySelector('.a11y-open-btn');
-    if (settingsBtn) {
-        settingsBtn.title = 'System Settings';
-        settingsBtn.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="margin-right:8px;">
-                <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7-3.21 2.11-1.63a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a8.4 8.4 0 0 0-1.04-.6l-.37-2.65a.5.5 0 0 0-.5-.43h-4a.5.5 0 0 0-.5.43l-.37 2.65c-.37.16-.72.36-1.04.6l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64L5 12.29v.42l-2.11 1.63a.5.5 0 0 0-.12.64l2 3.46a.5.5 0 0 0 .61.22l2.49-1c.32.24.67.44 1.04.6l.37 2.65a.5.5 0 0 0 .5.43h4a.5.5 0 0 0 .5-.43l.37-2.65c.37-.16.72-.36 1.04-.6l2.49 1a.5.5 0 0 0 .61-.22l2-3.46a.5.5 0 0 0-.12-.64L19 12.71v-.42Z"/>
-            </svg>
-            SETTINGS
-        `;
-    }
-
-    // Clean up Status Bar (Top)
-    const statusBar = document.querySelector('.status-bar');
-    if (statusBar) {
-        statusBar.style.justifyContent = 'space-between';
-        statusBar.style.padding = '0 25px';
-        statusBar.style.borderBottom = '1px solid rgba(255, 255, 255, 0.05)';
-        statusBar.style.background = 'rgba(0,0,0,0.4)';
-    }
-
-    // Restore State
-    initModeUI();
-
-    // WIRE LISTENERS IMMEDIATELY (Before sync)
-    setupInputListeners();
-    setupSidebarListeners();
-    setupUplinkHandlers(); // New Image Vision Handlers
-    startAliveLoop();
-});
-
-function setupUplinkHandlers() {
-    const monitor = document.querySelector('.monitor');
-    if (!monitor) return;
 
     // Drag and Drop
     monitor.addEventListener('dragover', (e) => {
@@ -235,8 +202,6 @@ function connectTerminalWS() {
         window.backendReady = true;
         const dot = document.getElementById('conn-dot');
         if (dot) { dot.style.background = '#0f0'; dot.style.boxShadow = '0 0 6px #0f0'; }
-        const nodeEl = document.getElementById('node-display');
-        if (nodeEl && nodeEl.textContent === 'OFFLINE') nodeEl.textContent = `ONLINE · ${window.NEXUS_VERSION}`;
     };
 
     window.termWs.onmessage = (e) => {
@@ -258,11 +223,6 @@ function connectTerminalWS() {
             console.log("[WS] Model Active:", label);
             return;
         }
-        if (messageText.startsWith("[TRIGGER:")) {
-            const tag = messageText.match(/\[TRIGGER:(.*?)\]/)[1];
-            window.handleCommand(`play ${tag}`);
-            return;
-        }
 
         window._clearThinking();
         if (window.printTypewriter) {
@@ -271,7 +231,7 @@ function connectTerminalWS() {
             printToTerminal(messageText, `ai-msg ${window.currentMode}-msg`);
         }
 
-        if (audioB64) playNeuralVoice(audioB64);
+        if (audioB64 && window.playNeuralVoice) window.playNeuralVoice(audioB64);
     };
 
     window.termWs.onclose = () => {
@@ -295,7 +255,7 @@ function connectStats() {
 }
 
 function initModeUI() {
-    const m = window.MODES[window.currentMode];
+    const m = window.MODES ? window.MODES[window.currentMode] : null;
     if (!m) return;
 
     // Get current user name for prompt
@@ -315,12 +275,6 @@ function initModeUI() {
     
     if (m.color) {
         document.documentElement.style.setProperty('--accent', m.color);
-        const settingsBtn = document.querySelector('.a11y-open-btn');
-        if (settingsBtn) {
-            settingsBtn.style.borderColor = m.color;
-            settingsBtn.style.color = m.color;
-            settingsBtn.querySelector('svg')?.style.setProperty('color', m.color);
-        }
     }
     document.querySelectorAll('.mode-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.mode === window.currentMode);
@@ -339,16 +293,12 @@ function setupInputListeners() {
             if (cmd) {
                 // If in unfiltered mode, check for toxicity to increase rage
                 if (window.currentMode === 'unfiltered') {
-                    const isForceVulgar = localStorage.getItem('nexus_force_vulgar') === 'true';
                     const toxicKeywords = ['bitch', 'fuck', 'shit', 'slow', 'dumb', 'stupid', 'stfu', 'asshole', 'nigger', 'nigga'];
-                    
                     if (toxicKeywords.some(word => cmd.toLowerCase().includes(word))) {
                         window.unfilteredRage += 25;
                         applyGlitchEffect();
                     }
-                    
-                    // If Force Vulgar is ON, disable lockout and just go hard
-                    if (window.unfilteredRage >= 100 && !isForceVulgar) {
+                    if (window.unfilteredRage >= 100 && localStorage.getItem('nexus_force_vulgar') !== 'true') {
                         triggerLockout();
                         window.input.value = '';
                         return;
@@ -362,8 +312,7 @@ function setupInputListeners() {
                 window.handleCommand(cmd);
                 window.input.value = '';
             }
-        }
- else if (e.key === 'ArrowUp') {
+        } else if (e.key === 'ArrowUp') {
             if (window.historyIndex > 0) {
                 window.historyIndex--;
                 window.input.value = window.cmdHistory[window.historyIndex];
@@ -406,7 +355,7 @@ function setupSidebarListeners() {
 }
 
 function setMode(modeKey) {
-    if (!window.MODES[modeKey]) return;
+    if (!window.MODES || !window.MODES[modeKey]) return;
     window.currentMode = modeKey;
     localStorage.setItem('nexus_mode', modeKey);
     initModeUI();
@@ -446,23 +395,8 @@ async function initiateBootSequence() {
     
     updateTipsBtn();
 
-    // 1. Fetch Dynamic Status
-    try {
-        const res = await fetch(`status.json?v=${Date.now()}`);
-        const s = await res.json();
-        window.MAINTENANCE_MODE = s.maintenance === true;
-        window.MAINTENANCE_MESSAGE = s.message || 'AI kernel is offline while improvements deploy.';
-    } catch(e) {
-        window.MAINTENANCE_MODE = false;
-    }
-
     const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || sessionStorage.getItem('nexus_user_data') || 'null');
-
-    if (!nexusUser || !nexusUser.name) {
-        if (document.getElementById('auth-screen')) return;
-        window.location.replace('./login.html');
-        return;
-    }
+    if (!nexusUser || !nexusUser.name) return;
 
     // Owner Identity Check
     const ownerEmail = window.NEXUS_CONFIG?.OWNER_EMAIL || 'lovexdgamer@gmail.com';
@@ -471,7 +405,6 @@ async function initiateBootSequence() {
         console.log("[SEC] Owner Identity Verified. Unlocking privileged nodes.");
     }
 
-    // Non-blocking backend wake
     const welcomeMsg = window.OWNER_MODE 
         ? `<span style="font-size:0.75rem;">[BOOT] Identity: ${nexusUser.name} (OWNER) — established. Unlocking Filter Bypass.</span>`
         : `<span style="font-size:0.75rem;">[BOOT] Identity: ${nexusUser.name} — establishing neural link...</span>`;
@@ -479,63 +412,28 @@ async function initiateBootSequence() {
     printToTerminal(welcomeMsg, 'sys-msg');
 
     (async () => {
-        const startWake = Date.now();
-        const MAX_WAKE_TIME = 25000;
-        let online = false;
-
         const dot = document.getElementById('conn-dot');
         if (dot) { dot.style.background = '#ffb300'; dot.style.boxShadow = '0 0 6px #ffb300'; }
 
-        while (Date.now() - startWake < MAX_WAKE_TIME) {
-            try {
-                const res = await fetch(`${window.API_BASE}/ping`);
-                if (res.ok) {
-                    const data = await res.json().catch(() => ({}));
-                    const ver = data.version || window.NEXUS_VERSION;
-                    const nodeEl = document.getElementById('node-display');
-                    if (nodeEl) nodeEl.textContent = `ONLINE · ${ver}`;
-                    if (dot) { dot.style.background = '#0f0'; dot.style.boxShadow = '0 0 6px #0f0'; }
-                    online = true;
-                    window.backendReady = true;
-                    printToTerminal('<span style="font-size:0.75rem; color:#0f0;">[LINK] Pacific Hub is online. AI ready.</span>', 'conn-ok');
-                    break;
-                }
-            } catch(e) {}
-            await new Promise(r => setTimeout(r, 2000));
-        }
-
-        if (!online) {
-            const nodeEl = document.getElementById('node-display');
-            if (nodeEl) nodeEl.textContent = 'DEGRADED';
-            if (dot) { dot.style.background = '#444'; dot.style.boxShadow = 'none'; }
-            window.backendReady = false;
-        }
+        try {
+            const res = await fetch(`${window.API_BASE}/ping`);
+            if (res.ok) {
+                if (dot) { dot.style.background = '#0f0'; dot.style.boxShadow = '0 0 6px #0f0'; }
+                window.backendReady = true;
+                printToTerminal('<span style="font-size:0.75rem; color:#0f0;">[LINK] Pacific Hub is online. AI ready.</span>', 'conn-ok');
+            }
+        } catch(e) {}
 
         connectTerminalWS();
         connectStats();
     })();
 
-    if (window.renderAuthSection) renderAuthSection();
+    if (window.renderAuthSection) window.renderAuthSection();
     printToTerminal(`<span style="font-size:0.75rem; color:#0f0;">[AUTH] Identity Verified: ${nexusUser.name}. Welcome to the Grid.</span>`, 'conn-ok');
     printToTerminal(`<span style="font-size:0.75rem;">Nexus online. Type 'help' for command manifest.</span>`, 'sys-msg');
-
-    if (window.MAINTENANCE_MODE) {
-        setTimeout(() => {
-            printToTerminal('<span style="color:#ffb300;letter-spacing:1px;">╔══════════════════════════════════════════════════════╗</span>', 'sys-msg');
-            printToTerminal('<span style="color:#ffb300;">║</span>  <span style="color:#ffb300;font-weight:bold;letter-spacing:2px;">⚡  PACIFIC HUB — UPGRADE IN PROGRESS  ⚡</span>  <span style="color:#ffb300;">║</span>', 'sys-msg');
-            printToTerminal('<span style="color:#ffb300;">╠══════════════════════════════════════════════════════╣</span>', 'sys-msg');
-            printToTerminal(`<span style="color:#ffb300;">║</span>  <span style="color:#aaa;">${window.MAINTENANCE_MESSAGE.padEnd(46)}</span>  <span style="color:#ffb300;">║</span>`, 'sys-msg');
-            printToTerminal('<span style="color:#ffb300;">║</span>  <span style="color:#aaa;">Terminal commands remain active. Check back soon.  </span>  <span style="color:#ffb300;">║</span>', 'sys-msg');
-            printToTerminal('<span style="color:#ffb300;">╚══════════════════════════════════════════════════════╝</span>', 'sys-msg');
-            const nodeEl = document.getElementById('node-display');
-            if (nodeEl) nodeEl.textContent = 'MAINTENANCE';
-            const dot = document.getElementById('conn-dot');
-            if (dot) { dot.style.background = '#ffb300'; dot.style.boxShadow = '0 0 8px #ffb300'; }
-        }, 600);
-    }
 }
 
-// --- ALIVE LOOP (Autonomous Machine) ---
+// --- ALIVE LOOP ---
 function startAliveLoop() {
     setInterval(() => {
         if (window.termWs && window.termWs.readyState === WebSocket.OPEN) {
@@ -554,8 +452,8 @@ function applyGlitchEffect() {
 function triggerLockout() {
     window.isLockedOut = true;
     window.unfilteredRage = 0;
-    const originalPrompt = document.getElementById('prompt-label').textContent;
     const promptEl = document.getElementById('prompt-label');
+    const originalPrompt = promptEl.textContent;
     
     printToTerminal("[CRITICAL] NEURAL LINK SEVERED. Link unstable due to high hostility.", "sys-msg-persistent-unfiltered");
     
@@ -593,50 +491,67 @@ function renderNeuralProfile() {
     const user = JSON.parse(localStorage.getItem('nexus_user_data') || '{}');
     const isGuest = !user.email || user.email === 'guest@local';
     const savedMem = localStorage.getItem('nexus_neural_memory') || '';
-    const savedLang = localStorage.getItem('nexus_ai_lang') || 'en-US';
 
     panel.innerHTML = `
         <div class="panel-header">
             <span>[ AI NEURAL PROFILE ]</span>
-            <button onclick="window.toggleNeuralProfile()" class="a11y-close">
-                 <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-            </button>
+            <button onclick="window.toggleNeuralProfile()" class="a11y-close">X</button>
         </div>
-        
         <div class="a11y-section">
-            <div class="a11y-section-label">PERSONAL CONTEXT (MEMORY)</div>
-            <textarea id="neural-memory-input" placeholder="Tell Nexus about your projects, preferences, or name..." 
-                style="width:100%; height:100px; background:rgba(0,0,0,0.4); border:1px solid rgba(255,255,255,0.1); color:#fff; font-family:inherit; font-size:0.7rem; padding:12px; border-radius:8px; outline:none; resize:none;">${savedMem}</textarea>
-            <button class="a11y-toggle" onclick="saveNeuralMemory()" style="margin-top:5px; height:40px;">
-                <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12" style="margin-right:5px;"><path d="M21 7L9 19l-5.5-5.5 1.41-1.41L9 16.17 19.59 5.58z"/></svg>
-                SYNC DATA CORE
-            </button>
+            <div class="a11y-section-label">PERSONAL CONTEXT</div>
+            <textarea id="neural-memory-input" style="width:100%; height:80px; background:#000; color:#fff; border:1px solid #333; padding:8px; font-family:inherit; font-size:0.7rem;">${savedMem}</textarea>
+            <button class="a11y-toggle" onclick="saveNeuralMemory()">SYNC DATA CORE</button>
         </div>
-
-        <div class="a11y-section">
-            <div class="a11y-section-label">NEURAL VOICE CONFIG</div>
-            <div class="a11y-row">
-                <button id="tts-toggle" class="a11y-toggle" onclick="toggleNeuralVoice()">VOICE: OFF</button>
-                <select id="ai-lang-select" class="a11y-toggle" onchange="saveAILang(this.value)" style="appearance:none; text-align:center;">
-                    <option value="en-US" ${savedLang === 'en-US' ? 'selected' : ''}>ENGLISH (US)</option>
-                    <option value="en-GB" ${savedLang === 'en-GB' ? 'selected' : ''}>ENGLISH (UK)</option>
-                    <option value="es-ES" ${savedLang === 'es-ES' ? 'selected' : ''}>SPANISH</option>
-                    <option value="fr-FR" ${savedLang === 'fr-FR' ? 'selected' : ''}>FRENCH</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="a11y-section unfiltered-only">
-            <div class="a11y-section-label">ADVANCED OVERRIDE</div>
-            <button id="vulgar-toggle" class="a11y-toggle" onclick="toggleForceVulgar()">FORCE VULGARITY: OFF</button>
-        </div>
-
-        <p class="a11y-tip">${isGuest ? 'GUEST_SESSION: DATA PURGED ON TERMINATION' : 'NODE IDENTITY SYNCED VIA GOOGLE AUTH'}</p>
     `;
-    
-    updateUplinkUI();
 }
 
+window.saveNeuralMemory = function() {
+    const val = document.getElementById('neural-memory-input').value.trim();
+    localStorage.setItem('nexus_neural_memory', val);
+    printToTerminal("[SYSTEM] Neural memory synchronized.", "sys-msg-colored");
+};
+
+window.toggleA11yClass = function(cls, btn) {
+    document.body.classList.toggle(cls);
+    if (btn) btn.classList.toggle('active');
+};
+
+// --- UTILITIES ---
+function printToTerminal(text, className = 'sys-msg') {
+    if (!window.output) return;
+    const p = document.createElement('p');
+    p.className = className;
+    p.innerHTML = text.replace(/\n/g, '<br>');
+    window.output.appendChild(p);
+    window.output.scrollTop = window.output.scrollHeight;
+}
+
+function printTypewriter(text, className = 'ai-msg', speed = 15) {
+    if (!window.output) return;
+    const p = document.createElement('p');
+    p.className = className;
+    window.output.appendChild(p);
+    
+    let i = 0;
+    function tick() {
+        if (i < text.length) {
+            p.innerHTML += text[i];
+            i++;
+            setTimeout(tick, speed);
+        } else {
+            window.output.scrollTop = window.output.scrollHeight;
+        }
+    }
+    tick();
+}
+
+// Global Exports
+window.printToTerminal = printToTerminal;
+window.printTypewriter = printTypewriter;
+window.setMode = setMode;
+window.initiateBootSequence = initiateBootSequence;
+
+// --- NEURAL TIPS SYSTEM ---
 const NEURAL_TIPS = [
     "Type 'uplink' to select and analyze an image file.",
     "Drag and drop any image onto the monitor to scan it.",
@@ -656,111 +571,20 @@ function showNeuralTip() {
     const el = document.createElement('div');
     el.className = 'neural-tip';
     el.innerHTML = `
-        <div class="tip-header">[ NEURAL_TIP ]</div>
+        <span class="tip-header">TIP:</span>
+        <span class="tip-body">${tip}</span>
         <button class="tip-close" onclick="this.parentElement.remove()">X</button>
-        <div class="tip-body">${tip}</div>
     `;
-    document.body.appendChild(el);
-    setTimeout(() => el.remove(), 10000);
+    
+    const wrapper = document.querySelector('.terminal-input-wrapper');
+    if (wrapper) {
+        wrapper.appendChild(el);
+    }
+    
+    setTimeout(() => { if(el.parentElement) el.remove(); }, 10000);
 }
 
-// Show first tip after 5 seconds, then every 3 minutes
+// Start tip loop
 setTimeout(showNeuralTip, 5000);
 setInterval(showNeuralTip, 180000);
 
-window.saveNeuralMemory = function() {
-    const val = document.getElementById('neural-memory-input').value.trim();
-    localStorage.setItem('nexus_neural_memory', val);
-    printToTerminal("[SYSTEM] Neural memory synchronized. Personal context active.", "sys-msg-colored");
-};
-
-window.saveAILang = function(lang) {
-    localStorage.setItem('nexus_ai_lang', lang);
-    printToTerminal(`[SYSTEM] Neural voice language set to: ${lang}`, "sys-msg-colored");
-};
-
-window.toggleForceVulgar = function() {
-    const active = localStorage.getItem('nexus_force_vulgar') === 'true';
-    localStorage.setItem('nexus_force_vulgar', !active);
-    updateUplinkUI();
-    printToTerminal(`[SYSTEM] Force-Vulgarity protocol ${!active ? 'ENGAGED' : 'DEACTIVATED'}.`, "sys-msg-colored");
-};
-
-window.toggleNeuralVoice = function() {
-    const active = localStorage.getItem('nexus_tts_active') === 'true';
-    localStorage.setItem('nexus_tts_active', !active);
-    updateUplinkUI();
-    printToTerminal(`[SYSTEM] Neural voice synthesis ${!active ? 'ENGAGED' : 'DEACTIVATED'}.`, "sys-msg-colored");
-};
-
-function updateUplinkUI() {
-    const ttsBtn = document.getElementById('tts-toggle');
-    const vulgarBtn = document.getElementById('vulgar-toggle');
-    if (ttsBtn) {
-        const active = localStorage.getItem('nexus_tts_active') === 'true';
-        ttsBtn.classList.toggle('active', active);
-        ttsBtn.textContent = `VOICE: ${active ? 'ON' : 'OFF'}`;
-    }
-    if (vulgarBtn) {
-        const active = localStorage.getItem('nexus_force_vulgar') === 'true';
-        vulgarBtn.classList.toggle('active', active);
-        vulgarBtn.textContent = `FORCE VULGARITY: ${active ? 'ON' : 'OFF'}`;
-    }
-}
-
-window.toggleA11yClass = function(cls, btn) {
-    document.body.classList.toggle(cls);
-    if (btn) btn.classList.toggle('active');
-};
-
-// --- UTILITIES ---
-function printToTerminal(text, className = 'sys-msg') {
-    if (!window.output) return;
-    const p = document.createElement('p');
-    p.className = className;
-    p.innerHTML = text.replace(/\n/g, '<br>');
-    window.output.appendChild(p);
-    
-    setTimeout(() => {
-        window.output.scrollTo({ top: window.output.scrollHeight, behavior: 'smooth' });
-    }, 10);
-}
-
-function printTypewriter(text, className = 'ai-msg', speed = 15) {
-    if (!window.output) return;
-    const p = document.createElement('p');
-    p.className = className;
-    window.output.appendChild(p);
-    
-    const lines = text.split('\n');
-    let lineIdx = 0, charIdx = 0;
-    
-    function tick() {
-        if (lineIdx >= lines.length) {
-            window.output.scrollTop = window.output.scrollHeight;
-            return;
-        }
-        const line = lines[lineIdx];
-        if (charIdx < line.length) {
-            p.innerHTML += line[charIdx];
-            charIdx++;
-            setTimeout(tick, speed);
-        } else {
-            p.innerHTML += '<br>';
-            lineIdx++;
-            charIdx = 0;
-            setTimeout(tick, speed * 2);
-        }
-        if (charIdx % 5 === 0) window.output.scrollTop = window.output.scrollHeight;
-    }
-    tick();
-}
-
-// Global Exports
-window.printToTerminal = printToTerminal;
-window.printTypewriter = printTypewriter;
-window.setMode = setMode;
-window.initiateBootSequence = initiateBootSequence;
-window.startTypingTest = startTypingTest;
-
-function startTypingTest() { window.handleCommand("type test"); }

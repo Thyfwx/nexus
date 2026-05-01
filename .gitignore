@@ -11,3 +11,4 @@ web_nexus/server.log
 web_nexus/static/secrets.js
 venv/
 node_modules/
+.aider*

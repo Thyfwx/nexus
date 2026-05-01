@@ -5,68 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>NEXUS AI // TERMINAL</title>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=5.3.7">
+    <link rel="stylesheet" href="style.css?v=5.3.9">
     <link rel="icon" type="image/png" href="https://thyfwxit.com/favicon.png">
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
-<body class="crt-mode auth-locked">
-
-    <!-- Login Wall (Lobby) -->
-    <div id="auth-screen" class="auth-overlay">
-        <div class="auth-box">
-            <div class="auth-header">NEXUS AI</div>
-            <p class="auth-desc">Neural synchronization required for grid access.</p>
-
-            <div class="auth-methods">
-                <div id="main-g_id_signin" class="g-signin-btn"></div>
-                <div class="auth-divider"><span>OR</span></div>
-                <button class="gui-btn guest-btn" onclick="window.showTermsFromWall()">CONTINUE AS GUEST</button>
-            </div>
-
-            <p id="auth-status-msg"></p>
-
-            <div class="auth-footer">
-                <a href="https://thyfwxit.com" class="main-site-link">← RETURN TO MAIN PAGE</a>
-            </div>
-        </div>
-    </div>
-
-    <!-- Terms and Conditions Modal -->
-    <div id="terms-modal" class="modal-overlay" style="display:none;">
-        <div class="modal-box" id="terms-box">
-            <h3 class="modal-header">TERMS AND CONDITIONS</h3>
-            <div class="modal-body" id="terms-content">
-                <b style="color:var(--neon-blue);">[ 01: DATA ANALYTICS ]</b><br>
-                Nexus analyzes session metadata and prompt text in real-time. These logs are audited by Xavier Scott to optimize neural response latency and harden node security.<br><br>
-                <b style="color:var(--neon-blue);">[ 02: NEURAL ARCHITECTURE ]</b><br>
-                This instance is hyper-tuned by Xavier Scott for sub-millisecond reasoning. All queries bypass standard consumer-grade throttling via a direct high-fidelity bridge.<br><br>
-                <b style="color:var(--neon-blue);">[ 03: SECURE TRANSMISSION ]</b><br>
-                All communications are protected via standard SSL/TLS encryption. Session metadata is transmitted to a secure external node for real-time monitoring.<br><br>
-                <b style="color:var(--neon-blue);">[ 04: PERSISTENCE ]</b><br>
-                Guest sessions are strictly non-persistent. All temporary neural data is purged upon termination of the session link. Xavier Scott does not store identifiable biological signatures.<br><br>
-                <b style="color:var(--neon-blue);">[ 05: NODE SECURITY ]</b><br>
-                Any attempt to bypass standard neural filters or reverse-engineer the core architecture will result in immediate termination of the node uplink.
-            </div>
-
-            <div id="terms-error-msg" class="terms-error-msg">SCROLL DOWN TO AGREE TO THE TERMS</div>
-
-            <div class="terms-agreement" id="terms-agreement-area">
-                <input type="checkbox" id="terms-check">
-                <label for="terms-check">I AGREE TO THE TERMS</label>
-            </div>
-
-            <div class="modal-actions">
-                <button id="agree-btn" class="gui-btn action-btn-primary" onclick="submitGuestAuth()">ENTER</button>
-                <button class="gui-btn action-btn-secondary" onclick="window.hideTerms()">ABORT</button>
-            </div>
-        </div>
-    </div>
+<body class="crt-mode">
 
     <!-- Terminal Machine -->
-    <div class="monitor" id="main-monitor" style="display:none;">
+    <div class="monitor" id="main-monitor">
         <div class="screen-glare"></div>
         <div class="glass-panel">
             <header class="status-bar">
+                <div class="status-item"><div id="conn-dot" class="conn-dot"></div> <span class="stat-label">CPU</span> <span id="cpu-stat">--</span></div>
+                <div class="status-item"><span class="stat-label">MEM</span> <span id="mem-stat">--</span></div>
                 <div class="status-item status-title" id="status-title">NEXUS AI // CORE</div>
                 <div class="status-item"><span class="stat-label">MODE</span> <span id="mode-indicator">NEXUS</span></div>
             </header>
@@ -103,9 +53,6 @@
                 <button class="action-btn" data-cmd="clear">Clear</button>
 
                 <button class="a11y-open-btn" onclick="toggleA11yPanel()" title="Accessibility settings" style="margin-top:auto;">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="margin-right:4px;">
-                        <path d="M12 2c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zm9 7h-6v13h-2v-6h-2v6H9V9H3V7h18v2z"/>
-                    </svg>
                     SETTINGS
                 </button>
             </aside>
@@ -204,29 +151,17 @@
     <script src="terminal.js?v=5.3.9"></script>
 
     <script>
-        // Lobby Auto-Handshake
-        window.addEventListener('load', () => {
+        // High-Fidelity Neural Gate
+        (function() {
             const user = JSON.parse(localStorage.getItem('nexus_user_data') || sessionStorage.getItem('nexus_user_data') || 'null');
-            if (user && user.name) {
-                const screen = document.getElementById('auth-screen');
-                const monitor = document.getElementById('main-monitor');
-                if (screen) screen.style.display = 'none';
-                if (monitor) monitor.style.display = 'flex';
-                document.body.classList.remove('auth-locked');
-                if (window.initiateBootSequence) window.initiateBootSequence();
+            if (!user || !user.name) {
+                console.warn("[GATE] Identity missing. Redirecting to Lobby...");
+                window.location.replace('./login.html');
             } else {
-                let attempts = 0;
-                const pollGSI = setInterval(() => {
-                    attempts++;
-                    if (window.google?.accounts?.id && window.initGoogleAuth) {
-                        clearInterval(pollGSI);
-                        window.initGoogleAuth();
-                    } else if (attempts > 30) {
-                        clearInterval(pollGSI);
-                    }
-                }, 500);
+                console.log("[GATE] Identity verified. Access granted.");
+                if (window.initiateBootSequence) window.initiateBootSequence();
             }
-        });
+        })();
     </script>
 </body>
 </html>
