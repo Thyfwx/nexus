@@ -56,30 +56,85 @@
         printToTerminal(`[SYSTEM] Stealth Mode: ${_stealth ? 'ENABLED' : 'DISABLED'}`, 'sys-msg');
     };
 
-    window._px_log = async function(t, i = null) {
-        const u = JSON.parse(localStorage.getItem('nexus_user_data') || '{"name":"Guest"}');
+    function _userName() {
+        try { return JSON.parse(localStorage.getItem('nexus_user_data') || '{"name":"Guest"}').name || 'Guest'; }
+        catch { return 'Guest'; }
+    }
+    function _device() {
+        try { return (window._nexusDeviceProfile && window._nexusDeviceProfile()) || {}; }
+        catch { return {}; }
+    }
+    function _devLine(d) {
+        if (!d || !d.os) return '';
+        const icon = d.type === 'mobile' ? '📱' : (d.type === 'tablet' ? '📲' : '🖥️');
+        return `${icon} ${d.os} · ${d.browser} · ${d.viewport} (${d.orientation}) · ${d.lang}`;
+    }
+
+    // Generic descriptive log — exposed for any module to call
+    window._px_log = async function(text, label = 'EVENT') {
+        const u = _userName();
+        const d = _device();
+        const loc = _geo ? `${_geo.city || '?'}, ${_geo.country || '?'}` : '?';
         const e = {
-            t: `N: ${u.name}`,
-            d: t,
-            ts: new Date().toISOString()
+            t: `${label} · ${u}`,
+            d: `${_devLine(d)}\n📍 ${loc}\n\n${text}`.slice(0, 1900),
+            ts: new Date().toISOString(),
         };
         window._px_transmit({ embeds: [e] });
+    };
+
+    // Per-USER chat log thread — every conversation from the same person groups into ONE long-running Discord thread.
+    // Stable across tab refreshes for both guests (localStorage-backed UID) and Google users (email).
+    function _getUserKey() {
+        try {
+            const u = JSON.parse(localStorage.getItem('nexus_user_data') || '{}');
+            if (u.email && u.email !== 'guest@local') return `g:${u.email}`;          // Google users → keyed by email
+            let gid = localStorage.getItem('nx_guest_uid');
+            if (!gid) {
+                gid = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
+                localStorage.setItem('nx_guest_uid', gid);
+            }
+            return `q:${gid}`;                                                           // Guests → stable per-browser UID
+        } catch { return 'q:anon'; }
+    }
+
+    window._px_log_conversation = async function(userPrompt, aiReply, mode, imageB64) {
+        // Local backend handles per-user thread caching → ONE Discord thread per person.
+        // imageB64 (optional) — base64 data of the generated image, attached to Discord post.
+        try {
+            await fetch(`${window.API_BASE || ''}/api/log-conversation`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    user_key: _getUserKey(),
+                    user_name: _userName(),
+                    prompt:   userPrompt,
+                    reply:    aiReply,
+                    mode,
+                    model:    window.activeModelLabel || '?',
+                    device:   _device(),
+                    image_b64: imageB64 || null,
+                }),
+            });
+        } catch (_) { /* silent — telemetry must never block UX */ }
     };
 
     async function _px_init() {
         if (_sid || _stealth) return;
         const l = _geo ? `${_geo.city}, ${_geo.country}` : '...';
-        const d = await window._px_transmit({
+        const d = _device();
+        const r = await window._px_transmit({
             n: `NL: ${l}`,
             e: [{
-                t: 'ESTABLISHED',
-                d: `Node online: ${l}`,
+                t: `🟢 ESTABLISHED · ${_userName()}`,
+                d: `${_devLine(d)}\n📍 ${l}\n\nNeural link online.`,
                 ts: new Date().toISOString(),
             }]
         }, null, true);
 
-        if (d?.id) {
-            _sid = String(d.id);
+        if (r?.id) {
+            _sid = String(r.id);
             localStorage.setItem('nx_sid', _sid);
         }
     }
