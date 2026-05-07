@@ -3,22 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NEXUS AI // TERMINAL</title>
+    <title>Nexus Terminal</title>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=5.3.9">
+    <link rel="stylesheet" href="style.css?v=5d1806">
+    <link rel="stylesheet" href="mobile.css?v=5d1806">
     <link rel="icon" type="image/png" href="https://thyfwxit.com/favicon.png">
+    <style>
+        /* Accessibility CSS — driven by toggles in System Settings.
+           Inline so we don't have to modify the lobby-locked style.css. */
+        body.a11y-spaced *, body.a11y-spaced { letter-spacing: 0.08em !important; word-spacing: 0.12em !important; }
+        body.a11y-tall *, body.a11y-tall { line-height: 1.85 !important; }
+        body.a11y-focus-rings *:focus { outline: 3px solid #ff0 !important; outline-offset: 2px !important; box-shadow: 0 0 0 5px rgba(255,255,0,0.4) !important; }
+        body.a11y-big-cursor, body.a11y-big-cursor * { cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><polygon points='2,2 2,26 9,20 14,30 18,28 13,18 22,18' fill='%23fff' stroke='%23000' stroke-width='2'/></svg>") 2 2, auto !important; }
+        body.a11y-no-blink #terminal-input, body.a11y-no-blink input, body.a11y-no-blink textarea { caret-color: var(--accent) !important; animation: none !important; }
+        body.a11y-no-blink * { animation-iteration-count: 1 !important; }
+        body.a11y-underline-links a, body.a11y-underline-links [onclick] { text-decoration: underline !important; }
+
+        /* Visual Kernel additions */
+        body.a11y-no-glow * { text-shadow: none !important; box-shadow: none !important; }
+        body.a11y-no-blur *, body.a11y-no-blur { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+        body.a11y-flat-ui * { box-shadow: none !important; text-shadow: none !important; border-radius: 2px !important; }
+        body.a11y-no-transparency * { backdrop-filter: none !important; }
+        body.a11y-no-transparency .glass-panel,
+        body.a11y-no-transparency .a11y-panel,
+        body.a11y-no-transparency .user-dropdown,
+        body.a11y-no-transparency .modal-box { background: #0a0a14 !important; }
+        body.a11y-invert { filter: invert(1) hue-rotate(180deg); }
+        body.a11y-invert img, body.a11y-invert video, body.a11y-invert canvas, body.a11y-invert svg { filter: invert(1) hue-rotate(180deg); }
+        body.a11y-warm { filter: sepia(0.25) hue-rotate(-15deg) saturate(1.05); }
+
+        /* Typography additions */
+        body.a11y-xlarge { font-size: 130% !important; }
+        body.a11y-xlarge * { font-size: inherit !important; }
+        body.a11y-bold *, body.a11y-bold { font-weight: 700 !important; }
+        body.a11y-serif *, body.a11y-serif { font-family: 'Georgia', 'Times New Roman', serif !important; }
+        body.a11y-justify-left *, body.a11y-justify-left { text-align: left !important; }
+
+        /* Color-blind filters via SVG matrices applied to <body data-cb-filter="...">. */
+        body[data-cb-filter="protanopia"]    { filter: url('#cb-protanopia'); }
+        body[data-cb-filter="deuteranopia"]  { filter: url('#cb-deuteranopia'); }
+        body[data-cb-filter="tritanopia"]    { filter: url('#cb-tritanopia'); }
+        body[data-cb-filter="achromatopsia"] { filter: grayscale(1); }
+    </style>
 </head>
 <body class="crt-mode">
+    <!-- SVG color-blindness simulation matrices -->
+    <svg style="position:absolute;width:0;height:0;" aria-hidden="true">
+        <defs>
+            <filter id="cb-protanopia"><feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0"/></filter>
+            <filter id="cb-deuteranopia"><feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0"/></filter>
+            <filter id="cb-tritanopia"><feColorMatrix type="matrix" values="0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0"/></filter>
+        </defs>
+    </svg>
 
     <!-- Terminal Machine -->
     <div class="monitor" id="main-monitor">
         <div class="screen-glare"></div>
         <div class="glass-panel">
             <header class="status-bar">
-                <div class="status-item"><div id="conn-dot" class="conn-dot"></div> <span class="stat-label">CPU</span> <span id="cpu-stat">--</span></div>
-                <div class="status-item"><span class="stat-label">MEM</span> <span id="mem-stat">--</span></div>
-                <div class="status-item status-title" id="status-title">NEXUS AI // CORE</div>
-                <div class="status-item"><span class="stat-label">MODE</span> <span id="mode-indicator">NEXUS</span></div>
+                <div class="status-item" style="display:flex; align-items:center; gap:10px; margin-left:0;">
+                    <!-- Conn dot + clock + brand. Clock used to be flush left via -12px margin;
+                         Xavier asked for it nudged inward, so margin-left is now 0. NEXUS AI
+                         brand keeps its 40px gap from the clock for clear visual separation. -->
+                    <div id="conn-dot" class="conn-dot"></div>
+                    <span id="header-clock" style="font-family:'Fira Code',monospace; font-size:0.75rem; color:var(--accent); letter-spacing:1px; text-shadow:0 0 8px currentColor;">--:--:--</span>
+                    <span id="header-brand" style="margin-left:40px; font-family:'Fira Code',monospace; font-size:0.85rem; font-weight:800; letter-spacing:5px; color:var(--accent); text-shadow:0 0 12px currentColor, 0 0 22px currentColor; user-select:none;">NEXUS AI</span>
+                </div>
+                <!-- Center title element completely hidden so absolutely nothing renders here.
+                     Spans kept in DOM (JS hooks reference these IDs by getElementById). -->
+                <div class="status-item status-title" id="status-title" style="display:none !important; visibility:hidden !important;">
+                    <span id="header-mode-name"></span>
+                    <span id="header-tagline"></span>
+                </div>
+                <div class="status-item" style="display:flex; align-items:center; gap:24px;">
+                    <span id="header-quota" title="Daily image quota" style="font-family:'Fira Code',monospace; font-size:0.62rem; letter-spacing:1px; color:#888;"></span>
+                    <!-- header-latency element kept hidden — model name + msg count + latency live in
+                         AI Profile, no need to duplicate them up here. JS still writes to it harmlessly. -->
+                    <span id="header-latency" style="display:none;"></span>
+                    <span><span class="stat-label">MODE</span> <span id="mode-indicator">NEXUS</span></span>
+                </div>
             </header>
 
             <main class="terminal-container">
@@ -51,10 +114,6 @@
                 <button class="action-btn" data-cmd="type test">Type Test</button>
                 <button class="action-btn" data-cmd="help">Help</button>
                 <button class="action-btn" data-cmd="clear">Clear</button>
-
-                <button class="a11y-open-btn" onclick="toggleA11yPanel()" title="Accessibility settings" style="margin-top:auto;">
-                    SETTINGS
-                </button>
             </aside>
 
             <div id="game-gui-container" class="gui-hidden">
@@ -67,50 +126,158 @@
         </div>
     </div>
 
-    <!-- Accessibility Panel (Settings) -->
+    <!-- System Settings Panel -->
     <div id="a11y-panel" class="a11y-panel">
-        <div class="panel-header">
-            <span>[ SYSTEM SETTINGS ]</span>
-            <button onclick="window.toggleA11yPanel()" class="a11y-close">
-                <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-            </button>
-        </div>
-        
-        <div class="a11y-section">
-            <div class="a11y-section-label">VISUAL KERNEL</div>
-            <div class="a11y-row">
-                <button class="a11y-toggle active" data-class="crt-mode" onclick="window.toggleA11yClass('crt-mode', this)">CRT SCANLINES</button>
-                <button class="a11y-toggle" data-class="no-animations" onclick="window.toggleA11yClass('no-animations', this)">REDUCE MOTION</button>
+        <div class="panel-inner">
+            <div class="fp-header">
+                <div class="fp-title">[ SYSTEM SETTINGS ]</div>
+                <button class="fp-close" onclick="window.toggleA11yPanel()">CLOSE</button>
             </div>
-            <div class="a11y-row" style="margin-top:5px;">
-                <button class="a11y-toggle" onclick="window.toggleTips()">NEURAL TIPS: ON</button>
-                <button class="a11y-toggle" data-class="a11y-high-contrast" onclick="window.toggleA11yClass('a11y-high-contrast', this)">HIGH CONTRAST</button>
-            </div>
-        </div>
 
-        <div class="a11y-section">
-            <div class="a11y-section-label">INTERFACE & TYPOGRAPHY</div>
-            <div class="a11y-row">
-                <button class="a11y-toggle" data-class="a11y-dim" onclick="window.toggleA11yClass('a11y-dim', this)">DIM MODE</button>
-                <button class="a11y-toggle" data-class="a11y-large" onclick="window.toggleA11yClass('a11y-large', this)">LARGE TEXT</button>
+            <div class="fp-section" id="settings-section-owner-behavior" style="display:none;">
+                <h3 class="fp-section-title">🧭 AI BEHAVIOR <span class="fp-badge" style="margin-left:8px;">OWNER</span></h3>
+                <p class="fp-section-help">Pick which mode boots up by default. Owner-only.</p>
+                <table class="fp-kv-table">
+                    <tr><th>Default mode on boot</th><td>
+                        <select id="settings-default-mode" class="fp-select" onchange="localStorage.setItem('nexus_default_mode', this.value)">
+                            <option value="nexus">Nexus</option>
+                            <option value="unfiltered">Unfiltered</option>
+                            <option value="coder">Coder</option>
+                            <option value="education">Education</option>
+                        </select>
+                    </td></tr>
+                </table>
             </div>
-            <div class="a11y-row" style="margin-top:5px;">
-                <button class="a11y-toggle" data-class="a11y-dyslexic" onclick="window.toggleA11yClass('a11y-dyslexic', this)">DYSLEXIC FONT</button>
-            </div>
-        </div>
 
-        <div class="a11y-section">
-            <div class="a11y-section-label">SYSTEM RECOVERY</div>
-            <div class="a11y-row">
-                <button class="a11y-toggle" onclick="location.reload()" style="border-color:#f55; color:#f55;">RESET CORE KERNEL</button>
+            <div class="fp-section">
+                <h3 class="fp-section-title">🔊 VOICE OUTPUT (TTS)</h3>
+                <p class="fp-section-help">Read AI replies out loud using your browser's voices. Voices marked ✨ are higher-quality (Siri/Neural).</p>
+                <div class="fp-action-row">
+                    <button class="fp-toggle" id="tts-toggle" onclick="window.NexusTTS && window.NexusTTS.toggle && window.NexusTTS.toggle()">VOICE OUTPUT <span class="fp-toggle-state">OFF</span></button>
+                </div>
+                <table class="fp-kv-table">
+                    <tr><th>Voice</th><td><select id="tts-voice" class="fp-select"></select></td></tr>
+                    <tr><th>Rate <span id="tts-rate-val" class="mono" style="color:var(--accent);">1.00</span></th>
+                        <td><input id="tts-rate" type="range" min="0.5" max="2" step="0.05" value="1" style="width:100%;"></td></tr>
+                    <tr><th>Pitch <span id="tts-pitch-val" class="mono" style="color:var(--accent);">1.00</span></th>
+                        <td><input id="tts-pitch" type="range" min="0" max="2" step="0.05" value="1" style="width:100%;"></td></tr>
+                    <tr><th>Volume <span id="tts-volume-val" class="mono" style="color:var(--accent);">1.00</span></th>
+                        <td><input id="tts-volume" type="range" min="0" max="1" step="0.05" value="1" style="width:100%;"></td></tr>
+                </table>
             </div>
+
+            <div class="fp-section">
+                <h3 class="fp-section-title">🎵 SOUND THEME</h3>
+                <p class="fp-section-help">Sets the UI feedback beep style for clicks, mode changes, and notifications.</p>
+                <table class="fp-kv-table">
+                    <tr><th>Theme</th><td>
+                        <select id="settings-sound-theme" class="fp-select" onchange="localStorage.setItem('nexus_sound_theme', this.value); window._previewSoundTheme && window._previewSoundTheme(this.value);">
+                            <option value="beep">Beep</option>
+                            <option value="click">Click</option>
+                            <option value="silent">Silent</option>
+                        </select>
+                    </td></tr>
+                </table>
+                <div class="fp-action-row">
+                    <button class="fp-btn-ghost" onclick="window._previewSoundTheme && window._previewSoundTheme(document.getElementById('settings-sound-theme').value)">▶ TEST SOUND</button>
+                </div>
+            </div>
+
+            <div class="fp-section">
+                <h3 class="fp-section-title">🖥️ VISUAL KERNEL</h3>
+                <p class="fp-section-help">Visual effects, motion, and contrast for the terminal look.</p>
+                <div class="fp-action-row">
+                    <button class="fp-toggle active" data-class="crt-mode" onclick="window.toggleA11yClass('crt-mode', this)">CRT SCANLINES <span class="fp-toggle-state">ON</span></button>
+                    <button class="fp-toggle" data-class="no-animations" onclick="window.toggleA11yClass('no-animations', this)">REDUCE MOTION <span class="fp-toggle-state">OFF</span></button>
+                </div>
+                <div class="fp-action-row">
+                    <button class="fp-toggle" data-class="a11y-high-contrast" onclick="window.toggleA11yClass('a11y-high-contrast', this)">HIGH CONTRAST <span class="fp-toggle-state">OFF</span></button>
+                    <button class="fp-toggle" onclick="window.toggleTips()">NEURAL TIPS <span class="fp-toggle-state">ON</span></button>
+                </div>
+                <div class="fp-action-row">
+                    <button class="fp-toggle" data-class="a11y-no-glow" onclick="window.toggleA11yClass('a11y-no-glow', this)">DISABLE NEON GLOW <span class="fp-toggle-state">OFF</span></button>
+                    <button class="fp-toggle" data-class="a11y-no-blur" onclick="window.toggleA11yClass('a11y-no-blur', this)">DISABLE GLASS BLUR <span class="fp-toggle-state">OFF</span></button>
+                </div>
+                <div class="fp-action-row">
+                    <button class="fp-toggle" data-class="a11y-flat-ui" onclick="window.toggleA11yClass('a11y-flat-ui', this)">FLAT UI (NO SHADOWS) <span class="fp-toggle-state">OFF</span></button>
+                    <button class="fp-toggle" data-class="a11y-no-transparency" onclick="window.toggleA11yClass('a11y-no-transparency', this)">REDUCE TRANSPARENCY <span class="fp-toggle-state">OFF</span></button>
+                </div>
+                <div class="fp-action-row">
+                    <button class="fp-toggle" data-class="a11y-invert" onclick="window.toggleA11yClass('a11y-invert', this)">SMART INVERT <span class="fp-toggle-state">OFF</span></button>
+                    <button class="fp-toggle" data-class="a11y-warm" onclick="window.toggleA11yClass('a11y-warm', this)">WARM TINT (NIGHT) <span class="fp-toggle-state">OFF</span></button>
+                </div>
+            </div>
+
+            <div class="fp-section">
+                <h3 class="fp-section-title">📐 INTERFACE & TYPOGRAPHY</h3>
+                <p class="fp-section-help">Adjust font, spacing, and density for comfortable reading.</p>
+                <div class="fp-action-row">
+                    <button class="fp-toggle" data-class="a11y-dim" onclick="window.toggleA11yClass('a11y-dim', this)">DIM MODE <span class="fp-toggle-state">OFF</span></button>
+                    <button class="fp-toggle" data-class="a11y-large" onclick="window.toggleA11yClass('a11y-large', this)">LARGE TEXT <span class="fp-toggle-state">OFF</span></button>
+                </div>
+                <div class="fp-action-row">
+                    <button class="fp-toggle" data-class="a11y-xlarge" onclick="window.toggleA11yClass('a11y-xlarge', this)">EXTRA LARGE TEXT <span class="fp-toggle-state">OFF</span></button>
+                    <button class="fp-toggle" data-class="a11y-bold" onclick="window.toggleA11yClass('a11y-bold', this)">BOLD TEXT <span class="fp-toggle-state">OFF</span></button>
+                </div>
+                <div class="fp-action-row">
+                    <button class="fp-toggle" data-class="a11y-dyslexic" onclick="window.toggleA11yClass('a11y-dyslexic', this)">DYSLEXIC FONT <span class="fp-toggle-state">OFF</span></button>
+                    <button class="fp-toggle" data-class="a11y-serif" onclick="window.toggleA11yClass('a11y-serif', this)">SERIF FONT <span class="fp-toggle-state">OFF</span></button>
+                </div>
+                <div class="fp-action-row">
+                    <button class="fp-toggle" data-class="a11y-spaced" onclick="window.toggleA11yClass('a11y-spaced', this)">EXTRA LETTER SPACING <span class="fp-toggle-state">OFF</span></button>
+                    <button class="fp-toggle" data-class="a11y-tall" onclick="window.toggleA11yClass('a11y-tall', this)">TALLER LINE HEIGHT <span class="fp-toggle-state">OFF</span></button>
+                </div>
+                <div class="fp-action-row">
+                    <button class="fp-toggle" data-class="a11y-justify-left" onclick="window.toggleA11yClass('a11y-justify-left', this)">LEFT-ALIGN ALL TEXT <span class="fp-toggle-state">OFF</span></button>
+                </div>
+            </div>
+
+            <div class="fp-section">
+                <h3 class="fp-section-title">🎯 FOCUS & POINTER</h3>
+                <p class="fp-section-help">Stronger keyboard focus rings and a bigger cursor for users who need clearer visual targets.</p>
+                <div class="fp-action-row">
+                    <button class="fp-toggle" data-class="a11y-focus-rings" onclick="window.toggleA11yClass('a11y-focus-rings', this)">HIGH-VIS FOCUS <span class="fp-toggle-state">OFF</span></button>
+                    <button class="fp-toggle" data-class="a11y-big-cursor" onclick="window.toggleA11yClass('a11y-big-cursor', this)">LARGE CURSOR <span class="fp-toggle-state">OFF</span></button>
+                </div>
+                <div class="fp-action-row">
+                    <button class="fp-toggle" data-class="a11y-no-blink" onclick="window.toggleA11yClass('a11y-no-blink', this)">NO BLINKING CURSOR <span class="fp-toggle-state">OFF</span></button>
+                    <button class="fp-toggle" data-class="a11y-underline-links" onclick="window.toggleA11yClass('a11y-underline-links', this)">UNDERLINE ALL LINKS <span class="fp-toggle-state">OFF</span></button>
+                </div>
+            </div>
+
+            <div class="fp-section">
+                <h3 class="fp-section-title">🌈 COLOR-BLIND FILTERS</h3>
+                <p class="fp-section-help">Pick the filter that matches your color vision. Same options Apple/Android offer in OS Accessibility.</p>
+                <table class="fp-kv-table">
+                    <tr><th>Filter</th><td>
+                        <select id="settings-cb-filter" class="fp-select" onchange="(function(v){document.body.dataset.cbFilter=v||''; localStorage.setItem('nexus_cb_filter', v||'');})(this.value)">
+                            <option value="">None</option>
+                            <option value="protanopia">Protanopia (red-blind)</option>
+                            <option value="deuteranopia">Deuteranopia (green-blind)</option>
+                            <option value="tritanopia">Tritanopia (blue-blind)</option>
+                            <option value="achromatopsia">Achromatopsia (full grayscale)</option>
+                        </select>
+                    </td></tr>
+                </table>
+            </div>
+
+            <div class="fp-section">
+                <h3 class="fp-section-title">⚠️ SYSTEM RECOVERY</h3>
+                <p class="fp-section-help">If the terminal locks up or breaks, hard-reload everything from scratch.</p>
+                <div class="fp-action-row">
+                    <button class="fp-btn-danger" onclick="if(confirm('Hard reload? Any unsaved input will be lost.')) location.reload()">RESET CORE KERNEL</button>
+                </div>
+            </div>
+
+            <p class="a11y-tip" id="settings-persistence-msg" style="margin-top:14px;">Node configuration is persistent via neural cache.</p>
         </div>
-        
-        <p class="a11y-tip" id="settings-persistence-msg">Node configuration is persistent via neural cache.</p>
     </div>
 
-    <!-- AI Neural Profile Panel (Separate) -->
+    <!-- AI Neural Profile Panel -->
     <div id="neural-profile-panel" class="a11y-panel"></div>
+
+    <!-- Owner Dev Panel -->
+    <div id="dev-panel" class="a11y-panel" style="resize:none;"></div>
 
     <!-- Neural Override (Hack Menu) -->
     <div id="hack-menu" class="modal-overlay" style="display:none;">
@@ -135,22 +302,488 @@
     </div>
 
     <!-- Load scripts in Master Order -->
-    <script src="nexus_globals.js?v=5.3.9"></script>
-    <script src="secrets.js?v=5.3.9"></script>
-    <script src="nexus_brain.js?v=5.3.9"></script>
-    <script src="config_core.js?v=5.3.9"></script>
-    <script src="core_modules/speedtest_logic.js?v=5.3.9"></script>
-    <script src="core_modules/hardware_logic.js?v=5.3.9"></script>
-    <script src="uplink_core.js?v=5.3.9"></script>
-    <script src="stats_core.js?v=5.3.9"></script>
-    <script src="audio_core.js?v=5.3.9"></script>
-    <script src="games_core.js?v=5.3.9"></script>
-    <script src="auth_core.js?v=5.3.9"></script>
-    <script src="ai_core.js?v=5.3.9"></script>
-    <script src="commands_core.js?v=5.3.9"></script>
-    <script src="terminal.js?v=5.3.9"></script>
+    <script src="nexus_globals.js?v=5d1806"></script>
+    <script src="crash_core.js?v=5d1806"></script>
+    <script src="secrets.js?v=5d1806"></script>
+    <script src="nexus_brain.js?v=5d1806"></script>
+    <script src="config_core.js?v=5d1806"></script>
+    <script src="ai_config.js?v=5d1806"></script>
+    <script src="core_modules/speedtest_logic.js?v=5d1806"></script>
+    <script src="core_modules/hardware_logic.js?v=5d1806"></script>
+    <script src="utils/speedtest.js?v=5d1806"></script>
+    <script src="utils/maintenance_hub.js?v=5d1806"></script>
+    <script src="uplink_core.js?v=5d1806"></script>
+    <script src="stats_core.js?v=5d1806"></script>
+    <script src="audio_core.js?v=5d1806"></script>
+    <script src="tts_core.js?v=5d1806"></script>
+    <script src="games_core.js?v=5d1806"></script>
+    <script src="games/_lifecycle.js?v=5d1806"></script>
+    <script src="games/wordle.js?v=5d1806"></script>
+    <script src="games/snake.js?v=5d1806"></script>
+    <script src="games/pong.js?v=5d1806"></script>
+    <script src="games/flappy.js?v=5d1806"></script>
+    <script src="games/breakout.js?v=5d1806"></script>
+    <script src="games/invaders.js?v=5d1806"></script>
+    <script src="games/mines.js?v=5d1806"></script>
+    <script src="games/breach.js?v=5d1806"></script>
+    <script src="games/typing.js?v=5d1806"></script>
+    <script src="games/matrix.js?v=5d1806"></script>
+    <script src="auth_core.js?v=5d1806"></script>
+    <script src="ai_tools_core.js?v=5d1806"></script>
+    <script src="ai_core.js?v=5d1806"></script>
+    <script src="commands_core.js?v=5d1806"></script>
+    <script src="terminal.js?v=5d1806"></script>
 
     <script>
+        // OS-level accessibility — silently apply matching CSS classes when the OS reports a preference.
+        (function() {
+            function refresh() {
+                const m = (q) => window.matchMedia && window.matchMedia(q).matches;
+                document.body.classList.toggle('no-animations',       m('(prefers-reduced-motion: reduce)'));
+                document.body.classList.toggle('a11y-high-contrast',  m('(prefers-contrast: more)'));
+                document.body.classList.toggle('a11y-no-transparency', m('(prefers-reduced-transparency: reduce)'));
+                const cb = localStorage.getItem('nexus_cb_filter') || '';
+                document.body.dataset.cbFilter = cb;
+                const sel = document.getElementById('settings-cb-filter');
+                if (sel) sel.value = cb;
+            }
+            window._refreshOSPrefs = refresh;
+            window.addEventListener('DOMContentLoaded', refresh);
+            ['(prefers-reduced-motion: reduce)','(prefers-reduced-transparency: reduce)',
+             '(prefers-contrast: more)','(forced-colors: active)']
+            .forEach(q => { try { window.matchMedia(q).addEventListener('change', refresh); } catch(_) {} });
+        })();
+
+        // Header quota — polls /api/image-quota every 60s + on focus. Owner sees ∞.
+        (function() {
+            async function refresh() {
+                const el = document.getElementById('header-quota'); if (!el) return;
+                try {
+                    const r = await fetch((window.API_BASE || '') + '/api/image-quota', { cache: 'no-store', credentials: 'same-origin' });
+                    const q = await r.json();
+                    if (q.cap === -1) {
+                        // Owner — unlimited image gen. ComfyUI / local-GPU was retired
+                        // 2026-05-06; the IMG ∞ now just means "unlimited via Replicate".
+                        el.textContent = 'IMG ∞';
+                        el.style.color = '#0f8';
+                        el.title = 'Owner · unlimited image gen';
+                        return;
+                    }
+                    const left = Math.max(0, q.cap - q.used);
+                    const pct = q.used / q.cap;
+                    el.textContent = `IMG ${q.used}/${q.cap}`;
+                    el.style.color = pct >= 1 ? '#f55' : pct >= 0.8 ? '#fa0' : '#0f8';
+                    el.title = `${left} of ${q.cap} images left today · tier: ${q.tier}`;
+                } catch(_) { el.textContent = ''; }
+            }
+            window._refreshHeaderQuota = refresh;
+            window.addEventListener('DOMContentLoaded', () => setTimeout(refresh, 1000));
+            window.addEventListener('focus', refresh);
+            setInterval(refresh, 60000);
+        })();
+
+        // Header connection-status indicator — pings the backend every 10s, shows latency.
+        // Plain English label so visitors don't need to know what "WS" means.
+        (function() {
+            function refresh() {
+                const el = document.getElementById('header-latency'); if (!el) return;
+                const ws = window.termWs;
+                // Build a richer header field — show ACTIVE MODEL + thread length + latency.
+                // Tells you what AI you're talking to, how deep the convo is, AND that the link works.
+                const modelLabel = (window.activeModelLabel || 'AUTO');
+                const msgs = ((window.messageHistory || []).filter(m => m && m.role === 'user').length);
+                const msgPart = msgs ? `${msgs}msg` : 'fresh';
+                if (!ws || ws.readyState !== 1) {
+                    el.textContent = 'RECONNECTING…';
+                    el.style.color = '#f55';
+                    el.title = 'Backend connection lost — auto-retrying';
+                    return;
+                }
+                const t0 = performance.now();
+                let done = false;
+                const onMsg = (e) => {
+                    if (done) return;
+                    if (typeof e.data === 'string' && e.data.indexOf('"_pong"') >= 0) {
+                        done = true;
+                        const ms = Math.round(performance.now() - t0);
+                        el.textContent = `${modelLabel} · ${msgPart} · ${ms}ms`;
+                        el.style.color = ms < 80 ? '#0f8' : ms < 250 ? '#fa0' : '#f55';
+                        el.title = `Active AI model: ${modelLabel} · ${msgs} message${msgs === 1 ? '' : 's'} this thread · round-trip ${ms}ms`;
+                        ws.removeEventListener('message', onMsg);
+                    }
+                };
+                ws.addEventListener('message', onMsg);
+                try { ws.send(JSON.stringify({ type: '_ping' })); } catch(_) {}
+                setTimeout(() => {
+                    if (!done) {
+                        ws.removeEventListener('message', onMsg);
+                        el.textContent = `${modelLabel} · ${msgPart}`;
+                        el.style.color = '#0f8';
+                        el.title = `Active AI model: ${modelLabel} · ${msgs} message${msgs === 1 ? '' : 's'} this thread`;
+                    }
+                }, 1500);
+            }
+            window._refreshHeaderLatency = refresh;
+            window.addEventListener('DOMContentLoaded', () => setTimeout(refresh, 2000));
+            setInterval(refresh, 10000);
+        })();
+
+        // Sound-theme preview — fires a tiny WebAudio sample so the user can hear the choice.
+        window._previewSoundTheme = function(theme) {
+            if (theme === 'silent') return;
+            try {
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                if (!Ctx) return;
+                const ctx = new Ctx();
+                const o = ctx.createOscillator();
+                const g = ctx.createGain();
+                o.connect(g); g.connect(ctx.destination);
+                if (theme === 'click') {
+                    o.type = 'square'; o.frequency.value = 1800;
+                    g.gain.setValueAtTime(0.18, ctx.currentTime);
+                    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
+                    o.start(); o.stop(ctx.currentTime + 0.05);
+                } else { // beep
+                    o.type = 'sine'; o.frequency.value = 880;
+                    g.gain.setValueAtTime(0.22, ctx.currentTime);
+                    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+                    o.start(); o.stop(ctx.currentTime + 0.2);
+                }
+            } catch(_) {}
+        };
+
+        // Live mode-aware header — updates the centered title + tagline whenever mode switches.
+        // (The visible NEXUS AI title is hidden; this only repaints header-tagline / mode-indicator.)
+        (function() {
+            // Header center is intentionally empty per Xavier's request — no brand text, no
+            // per-mode tagline. (The LOCAL GPU live banner that used to render here was
+            // retired 2026-05-06 with ComfyUI; nothing replaces it.)
+            const TAGLINES = {
+                nexus:      { name: '', tag: '' },
+                unfiltered: { name: '', tag: '' },
+                coder:      { name: '', tag: '' },
+                education:  { name: '', tag: '' },
+            };
+            function paintMode(mode) {
+                const t = TAGLINES[(mode || 'nexus').toLowerCase()] || TAGLINES.nexus;
+                const n = document.getElementById('header-mode-name');
+                const g = document.getElementById('header-tagline');
+                const m = document.getElementById('mode-indicator');
+                if (n) n.textContent = t.name;
+                if (g) {
+                    g.textContent = t.tag;
+                    g.style.color = '';
+                    g.style.opacity = '';
+                }
+                if (m) m.textContent = (mode || 'NEXUS').toUpperCase();
+                if ((mode || '').toLowerCase() === 'unfiltered' && window._refreshImageTierStatus) {
+                    setTimeout(() => window._refreshImageTierStatus(), 50);
+                }
+            }
+            paintMode(window.currentMode || 'nexus');
+            document.addEventListener('click', (e) => {
+                const btn = e.target.closest('.mode-btn');
+                if (btn && btn.dataset.mode) setTimeout(() => paintMode(btn.dataset.mode), 30);
+            });
+            window._paintHeaderMode = paintMode;
+        })();
+
+        // ── AI tool buttons (Summarize / Search / Math / Wiki) — inline icons next to paperclip ──
+        // Bottom-anchored themed modal replaces window.prompt(). Math + Wiki only show in Education.
+        (function() {
+            // Themed input modal — small box at the BOTTOM of the chat (NOT a full-screen overlay)
+            window._nexusInputPrompt = function(opts) {
+                return new Promise((resolve) => {
+                    document.querySelectorAll('#nexus-prompt-modal').forEach(n => n.remove());
+                    const box = document.createElement('div');
+                    box.id = 'nexus-prompt-modal';
+                    const fieldHtml = opts.multiline
+                        ? `<textarea id="nx-prompt-input" rows="3" placeholder="${(opts.placeholder||'').replace(/"/g,'&quot;')}" style="resize:vertical;"></textarea>`
+                        : `<input id="nx-prompt-input" type="text" placeholder="${(opts.placeholder||'').replace(/"/g,'&quot;')}">`;
+                    box.innerHTML = `
+                        <div class="nx-prompt-head">
+                            <h3 class="nx-prompt-title">${(opts.title||'INPUT').toUpperCase()}</h3>
+                            <button class="nx-prompt-close" id="nx-prompt-close" aria-label="Close">×</button>
+                        </div>
+                        ${opts.label ? `<p class="nx-prompt-label">${opts.label}</p>` : ''}
+                        ${fieldHtml}
+                        <div class="nx-prompt-actions">
+                            <button class="nx-prompt-ok" id="nx-prompt-ok">SUBMIT</button>
+                        </div>
+                    `;
+                    const host = document.querySelector('.terminal-container') || document.body;
+                    host.appendChild(box);
+                    const inp = document.getElementById('nx-prompt-input');
+                    if (inp && opts.defaultValue) inp.value = opts.defaultValue;
+                    setTimeout(() => inp && inp.focus(), 30);
+                    const close = (val) => { box.remove(); resolve(val); };
+                    document.getElementById('nx-prompt-close').onclick = () => close(null);
+                    document.getElementById('nx-prompt-ok').onclick = () => close((inp && inp.value.trim()) || null);
+                    if (inp && !opts.multiline) {
+                        inp.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter') close(inp.value.trim() || null);
+                            if (e.key === 'Escape') close(null);
+                        });
+                    } else if (inp) {
+                        inp.addEventListener('keydown', (e) => {
+                            if (e.key === 'Escape') close(null);
+                            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) close(inp.value.trim() || null);
+                        });
+                    }
+                });
+            };
+
+            // Rotating tip pools — pick a different one each time the modal opens
+            const _pickTip = (arr, key) => {
+                const last = window['_lastTip_'+key];
+                let pick = arr[Math.floor(Math.random() * arr.length)];
+                if (arr.length > 1 && pick === last) pick = arr[(arr.indexOf(pick) + 1) % arr.length];
+                window['_lastTip_'+key] = pick;
+                return pick;
+            };
+            // Each tool's modal label has TWO parts:
+            //   • a one-line WHAT IT DOES headline (always shown — clear, direct)
+            //   • a rotating tip below it (varies, gives examples)
+            // This is more useful than a single rotating tip that doesn't always explain the tool.
+            const TOOL_HEADLINES = {
+                summarize: 'WHAT THIS DOES: Paste any block of text — Nexus condenses it to the key points using AI. Best for long articles, transcripts, email threads, or essays.',
+                search:    'WHAT THIS DOES: Searches DuckDuckGo and renders the top 5 raw web results inline. Results are unfiltered — DDG does not curate or moderate, so you may see slurs, NSFW, or low-quality pages depending on your query.',
+                math:      'WHAT THIS DOES: Symbolic math via SymPy — solve equations, take derivatives, compute integrals, simplify expressions. Works on algebra, calculus, and word problems.',
+                wiki:      'WHAT THIS DOES: Look up any topic on Wikipedia — get the article summary, thumbnail image, and a link to read the full article. Works for people, places, events, science, history, anything Wikipedia covers.',
+            };
+            const TIPS = {
+                summarize: [
+                    'Try: paste a news article, get a 5-sentence digest.',
+                    'Try: paste meeting notes, get the action items.',
+                    'Try: drop in a long email thread, get the conclusion.',
+                    'Try: paste a research paper abstract for the key claims.',
+                ],
+                search: [
+                    'Try: "fastapi release notes 2026"',
+                    'Try: "who won the formula 1 race today"',
+                    'Try: "best mechanical keyboards under $150"',
+                    'Try: "how does CRISPR gene editing work"',
+                ],
+                math: [
+                    'Try: 3x^2 + 2x - 5 = 0',
+                    'Try: derivative of sin(x)*cos(x)',
+                    'Try: integrate x^2 from 0 to 5',
+                    'Try: simplify (x^2 - 1)/(x - 1)',
+                ],
+                wiki: [
+                    'Try: photosynthesis',
+                    'Try: Renaissance',
+                    'Try: quantum entanglement',
+                    'Try: Cleopatra',
+                ],
+            };
+
+            // Build the modal label as: HEADLINE (always shown) + rotating example tip.
+            const _buildLabel = (key) => `${TOOL_HEADLINES[key] || ''}<br><br><span style="opacity:0.7;">${_pickTip(TIPS[key] || [], key)}</span>`;
+
+            // Tool handlers
+            window._aiTool_summarizeClipboard = async function() {
+                let prefill = '';
+                try { prefill = await navigator.clipboard.readText(); } catch(_) {}
+                const text = await window._nexusInputPrompt({
+                    title: 'Summarize',
+                    label: _buildLabel('summarize'),
+                    placeholder: 'Paste or type the text to summarize…',
+                    multiline: true,
+                    defaultValue: prefill || '',
+                });
+                if (text && text.trim() && window.renderInlineSummarize) window.renderInlineSummarize(text.trim());
+            };
+            window._aiTool_search = async function() {
+                const q = await window._nexusInputPrompt({
+                    title: 'Web Search',
+                    label: _buildLabel('search'),
+                    placeholder: 'e.g. fastapi release notes',
+                });
+                if (q && window.renderInlineSearch) window.renderInlineSearch(q);
+            };
+            window._aiTool_math = async function() {
+                const e = await window._nexusInputPrompt({
+                    title: 'Math Help',
+                    label: _buildLabel('math'),
+                    placeholder: 'e.g. solve 3x^2 + 2x - 5 = 0',
+                });
+                if (e && window.renderInlineMath) window.renderInlineMath(e);
+            };
+            window._aiTool_wiki = async function() {
+                const t = await window._nexusInputPrompt({
+                    title: 'Wikipedia',
+                    label: _buildLabel('wiki'),
+                    placeholder: 'e.g. photosynthesis',
+                });
+                if (t && window.renderInlineWiki) window.renderInlineWiki(t);
+            };
+
+            // SVG icons — no emoji
+            const ICONS = {
+                summarize: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="4" y1="14" x2="14" y2="14"/><line x1="4" y1="18" x2="10" y2="18"/><polyline points="17 14 20 16 17 18"/></svg>`,
+                search:    `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>`,
+                math:      `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M5 17h14M9 4l-2 16M17 4l-2 16"/></svg>`,
+                wiki:      `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="3" y1="12" x2="21" y2="12"/><path d="M12 3a13 13 0 0 1 0 18M12 3a13 13 0 0 0 0 18"/></svg>`,
+            };
+            function injectAiToolButtons() {
+                const wrap = document.querySelector('.terminal-input-wrapper');
+                if (!wrap || document.getElementById('ai-tool-summarize')) return;
+                const anchor = document.getElementById('uplink-trigger');
+                const mk = (id, name, handler, eduOnly) => {
+                    const b = document.createElement('button');
+                    b.id = id;
+                    b.className = 'ai-tool-icon-btn' + (eduOnly ? ' ai-tool-edu' : '');
+                    b.innerHTML = ICONS[name];
+                    b.onclick = handler;
+                    return b;
+                };
+                const btns = [
+                    mk('ai-tool-summarize', 'summarize', window._aiTool_summarizeClipboard, false),
+                    mk('ai-tool-search',    'search',    window._aiTool_search,             false),
+                    mk('ai-tool-math',      'math',      window._aiTool_math,               true),
+                    mk('ai-tool-wiki',      'wiki',      window._aiTool_wiki,               true),
+                ];
+                btns.forEach(b => {
+                    if (anchor && anchor.parentNode === wrap) wrap.insertBefore(b, anchor);
+                    else wrap.appendChild(b);
+                });
+                if (anchor) anchor.style.marginLeft = 'auto';
+                refreshAiToolVisibility();
+            }
+            setTimeout(injectAiToolButtons, 200);
+            setTimeout(injectAiToolButtons, 600);
+            setTimeout(injectAiToolButtons, 1500);
+
+            function refreshAiToolVisibility() {
+                const isEdu = (window.currentMode || '').toLowerCase() === 'education';
+                document.querySelectorAll('.ai-tool-edu').forEach(btn => {
+                    btn.style.display = isEdu ? '' : 'none';
+                });
+            }
+            document.addEventListener('click', (e) => {
+                if (e.target.closest('.mode-btn')) setTimeout(refreshAiToolVisibility, 40);
+            });
+            const origPaint = window._paintHeaderMode;
+            if (typeof origPaint === 'function') {
+                window._paintHeaderMode = function(mode) {
+                    origPaint(mode);
+                    refreshAiToolVisibility();
+                };
+            }
+
+            // Auto-dismiss any open prompt modal when a panel (Settings / AI Profile / Dev / History) opens
+            ['toggleA11yPanel', 'toggleNeuralProfile', 'toggleDevPanel', 'showUserHistory'].forEach(fnName => {
+                const orig = window[fnName];
+                if (typeof orig !== 'function') return;
+                window[fnName] = function(...args) {
+                    document.getElementById('nexus-prompt-modal')?.remove();
+                    return orig.apply(this, args);
+                };
+            });
+
+            const css = document.createElement('style');
+            css.textContent = `
+                .ai-tool-icon-btn {
+                    background: transparent; border: none; color: var(--accent);
+                    width: 28px; height: 28px;
+                    display: inline-flex; align-items: center; justify-content: center;
+                    cursor: pointer;
+                    transition: color 0.18s ease, transform 0.18s ease, filter 0.18s ease;
+                    flex-shrink: 0; padding: 0; opacity: 0.78;
+                }
+                .ai-tool-icon-btn:hover {
+                    color: #fff; opacity: 1; transform: scale(1.12);
+                    filter: drop-shadow(0 0 6px var(--accent));
+                }
+                .ai-tool-icon-btn:active { transform: scale(0.92); }
+
+                /* Modal anchored INSIDE .terminal-container, just above the input bar */
+                #nexus-prompt-modal {
+                    position: absolute; left: 50%;
+                    bottom: 88px; transform: translateX(-50%);
+                    width: calc(100% - 40px); max-width: 420px;
+                    background: rgba(8, 14, 26, 0.98);
+                    border: 1px solid var(--accent);
+                    border-radius: 10px;
+                    padding: 14px 16px;
+                    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6), 0 0 22px rgba(0, 255, 255, 0.18);
+                    font-family: var(--font-main);
+                    z-index: 30000;
+                    animation: nexusPromptUp 0.18s ease-out;
+                }
+                @keyframes nexusPromptUp { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+                #nexus-prompt-modal .nx-prompt-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+                #nexus-prompt-modal .nx-prompt-title {
+                    margin: 0; color: var(--accent);
+                    font-size: 0.7rem; letter-spacing: 2.5px; font-weight: 700;
+                    text-shadow: 0 0 8px var(--accent);
+                }
+                #nexus-prompt-modal .nx-prompt-close {
+                    background: transparent; border: none; color: #888;
+                    cursor: pointer; font-size: 1rem; padding: 0 4px; line-height: 1;
+                    transition: color 0.18s;
+                }
+                #nexus-prompt-modal .nx-prompt-close:hover { color: #f55; }
+                #nexus-prompt-modal .nx-prompt-label { color: #aaa; font-size: 0.7rem; line-height: 1.5; margin: 0 0 8px; }
+                #nexus-prompt-modal #nx-prompt-input {
+                    width: 100%; box-sizing: border-box;
+                    padding: 9px 12px; background: #000; color: #0ff;
+                    border: 1px solid rgba(0,255,255,0.35); border-radius: 6px;
+                    font-family: var(--font-main); font-size: 0.85rem; outline: none;
+                }
+                #nexus-prompt-modal #nx-prompt-input:focus { border-color: var(--accent); box-shadow: 0 0 8px rgba(0,255,255,0.4); }
+                #nexus-prompt-modal .nx-prompt-actions { display: flex; gap: 8px; margin-top: 10px; }
+                #nexus-prompt-modal .nx-prompt-actions button {
+                    flex: 1; padding: 8px; border-radius: 6px; cursor: pointer;
+                    font-family: inherit; font-weight: 700; letter-spacing: 1.5px; font-size: 0.7rem;
+                }
+                #nexus-prompt-modal .nx-prompt-ok { background: var(--accent); color: #000; border: none; width: 100%; }
+            `;
+            document.head.appendChild(css);
+        })();
+
+        // NEW BUILD AVAILABLE banner — polls /api/build-id every 30s. When the server
+        // reports a different ID than what this page was loaded with, slide a small
+        // notification down from the top with a REFRESH button.
+        (function() {
+            // Snapshot the build ID this page was loaded with — pulled from any cache buster on the page
+            const _initialBuild = (() => {
+                const link = document.querySelector('link[href*="?v="], script[src*="?v="]');
+                if (!link) return null;
+                const src = link.getAttribute('href') || link.getAttribute('src') || '';
+                const m = src.match(/\?v=([0-9a-zA-Z._-]+)/);
+                return m ? m[1] : null;
+            })();
+            async function checkForUpdate() {
+                if (!_initialBuild) return;
+                try {
+                    const r = await fetch((window.API_BASE || '') + '/api/build-id', { cache: 'no-store' });
+                    const j = await r.json();
+                    if (j.build_id && j.build_id !== _initialBuild && !document.getElementById('nx-build-banner')) {
+                        const banner = document.createElement('div');
+                        banner.id = 'nx-build-banner';
+                        banner.style.cssText = 'position:fixed; top:0; left:50%; transform:translateX(-50%); z-index:99998; background:linear-gradient(135deg, rgba(0,255,136,0.95), rgba(0,255,255,0.95)); color:#001a14; font-family:var(--font-main); font-size:0.72rem; font-weight:800; letter-spacing:2px; padding:8px 16px; border-radius:0 0 10px 10px; box-shadow:0 4px 16px rgba(0,255,136,0.4); display:flex; align-items:center; gap:12px; animation:nxBuildSlide 0.3s ease-out;';
+                        banner.innerHTML = `
+                            <span>NEW BUILD AVAILABLE · ${j.build_id}</span>
+                            <button onclick="location.reload()" style="background:#001a14; color:#0f8; border:none; padding:5px 12px; border-radius:5px; cursor:pointer; font-family:inherit; font-weight:800; letter-spacing:1.5px; font-size:0.68rem;">REFRESH NOW</button>
+                            <button onclick="this.parentElement.remove()" style="background:transparent; color:#001a14; border:none; cursor:pointer; font-size:1rem; padding:0 4px; line-height:1;">×</button>
+                        `;
+                        document.body.appendChild(banner);
+                        // Add the keyframes once
+                        if (!document.getElementById('nx-build-keyframes')) {
+                            const s = document.createElement('style'); s.id = 'nx-build-keyframes';
+                            s.textContent = '@keyframes nxBuildSlide { from { transform:translate(-50%,-100%); opacity:0; } to { transform:translate(-50%,0); opacity:1; } }';
+                            document.head.appendChild(s);
+                        }
+                    }
+                } catch (_) {}
+            }
+            // First check after 5s (let the page settle), then every 30s
+            setTimeout(checkForUpdate, 5000);
+            setInterval(checkForUpdate, 30000);
+        })();
+
         // High-Fidelity Neural Gate
         (function() {
             const user = JSON.parse(localStorage.getItem('nexus_user_data') || sessionStorage.getItem('nexus_user_data') || 'null');
