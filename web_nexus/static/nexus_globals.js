@@ -1,5 +1,5 @@
-// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.4.0
-window.NEXUS_VERSION = 'v5.4.0';
+// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.5.0 — SFW Release
+window.NEXUS_VERSION = 'v5.5.0';
 
 // Core Environment
 window.isLocal = (function() {
