@@ -18,19 +18,28 @@ html, body {
     color: var(--txt-color);
     font-family: var(--font-main) !important;
     margin: 0; padding: 0;
-    min-height: 100vh; width: 100vw;
+    min-height: 100vh; width: 100%;
     display: flex; justify-content: center; align-items: center;
     overflow: hidden !important;
 }
 
 .monitor {
     position: relative;
-    width: 98vw; 
+    width: 98vw;
     height: 92vh;
     margin: 10px 0;
-    background: radial-gradient(circle, #1a1a2e 0%, #000 100%);
+    background:
+        radial-gradient(circle at top left,     rgba(0, 220, 255, 0.22) 0%, transparent 38%),
+        radial-gradient(circle at top right,    rgba(0, 220, 255, 0.22) 0%, transparent 38%),
+        radial-gradient(circle at bottom left,  rgba(0, 220, 255, 0.22) 0%, transparent 38%),
+        radial-gradient(circle at bottom right, rgba(0, 220, 255, 0.22) 0%, transparent 38%),
+        radial-gradient(ellipse at center, rgba(0, 255, 255, 0.10) 0%, rgba(8, 18, 40, 0.95) 65%, rgba(10, 35, 60, 0.92) 100%),
+        linear-gradient(135deg, #061626 0%, #08182a 100%);
+    border: 1px solid rgba(0, 255, 255, 0.18);
     border-radius: 12px;
-    box-shadow: 0 0 50px rgba(0, 255, 255, 0.1);
+    box-shadow:
+        0 0 60px rgba(0, 255, 255, 0.20),
+        inset 0 0 80px rgba(0, 200, 255, 0.10);
     display: flex; flex-direction: column;
     overflow: hidden;
 }
@@ -47,7 +56,7 @@ html, body {
 /* CRT Scanlines Layer */
 .monitor::after {
     content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
-    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
                 linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.01), rgba(0, 255, 0, 0.04));
     z-index: 100; background-size: 100% 4px, 3px 100%; pointer-events: none; opacity: 0.1;
 }
@@ -55,28 +64,41 @@ html, body {
 
 .glass-panel {
     display: grid;
-    grid-template-columns: 1fr 240px; 
+    grid-template-columns: 1fr 240px;
     grid-template-rows: 44px 1fr;
     grid-template-areas: "header header" "main aside";
-    width: 100%; flex-grow: 1;
+    width: 100%; flex: 1 1 auto;
+    min-height: 0; min-width: 0;
+    overflow: hidden;
     background: rgba(5, 5, 16, 0.98);
     border: 1px solid rgba(0, 255, 255, 0.1);
 }
 
 .status-bar {
     grid-area: header;
-    display: flex; justify-content: space-around; align-items: center;
+    display: flex; justify-content: space-between; align-items: center;
     border-bottom: 2px solid var(--accent);
     background: rgba(0,0,0,0.9);
-    font-weight: 600; font-size: 0.8rem; padding: 0 10px;
+    font-weight: 600; font-size: 0.8rem; padding: 0 28px;
     z-index: 50;
+    gap: 28px;
 }
 
-.status-item span { margin-left: 5px; color: #fff; }
-.stat-label { color: var(--accent); font-size: 0.65rem; letter-spacing: 1px; }
+.status-bar .status-item { display: flex; align-items: center; gap: 8px; }
+.status-item span { color: #fff; }
+.stat-label { color: var(--accent); font-size: 0.65rem; letter-spacing: 1.5px; opacity: 0.85; }
 
-/* Clean Header Title */
-.status-title { letter-spacing: 4px; font-weight: 800; color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.2); }
+/* Clean Header Title — extra horizontal breathing room */
+.status-title { letter-spacing: 5px; font-weight: 800; color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.2); flex: 1; text-align: center; padding: 0 24px; }
+
+/* MODEL badge in top bar — clickable, opens AI Profile */
+#active-model-badge {
+    color: #0ff !important; font-weight: 700; letter-spacing: 1.5px;
+    cursor: pointer; padding: 2px 8px; border: 1px solid rgba(0,255,255,0.3);
+    border-radius: 4px; transition: all 0.18s ease;
+}
+#active-model-badge:hover { background: rgba(0,255,255,0.1); border-color: var(--accent); box-shadow: 0 0 8px rgba(0,255,255,0.3); }
+
 
 /* ============================================================
    MODULE: TERMINAL & AI LOGIC
@@ -85,22 +107,26 @@ html, body {
     grid-area: main;
     padding: 20px;
     display: flex; flex-direction: column;
-    height: 100%;
+    min-height: 0;
+    min-width: 0;
     border: 2px solid var(--accent);
     border-radius: 20px;
     margin: 15px;
     box-shadow: inset 0 0 20px rgba(0, 255, 255, 0.02);
     position: relative;
     background: rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 .terminal-output {
-    flex-grow: 1;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto !important;
+    overflow-x: hidden;
     margin-bottom: 15px; padding-right: 12px;
     scrollbar-width: thin; scrollbar-color: var(--txt-color) transparent;
     padding-bottom: 10px;
-}
 }
 
 .terminal-output p {
@@ -114,7 +140,7 @@ html, body {
 .user-cmd { color: #fff; font-weight: bold; }
 
 /* AI Message Styling — INDIVIDUAL COLORS */
-.ai-msg { 
+.ai-msg {
     display: block; width: 100%;
     line-height: 1.7; padding-left: 14px; margin-left: 2px;
     border-left: 3px solid var(--accent);
@@ -136,13 +162,12 @@ html, body {
 .sys-msg-persistent-education  { color: #ff00ff; font-weight: bold; padding-left: 0; margin: 15px 0; }
 
 .terminal-input-wrapper {
-    position: sticky;
-    bottom: 0;
+    position: relative;
     background: rgba(5,5,16,0.95);
     padding: 15px 5px;
     border-top: 1px solid rgba(0, 255, 255, 0.2);
     display: flex; align-items: center;
-    gap: 12px; flex-shrink: 0;
+    gap: 12px; flex: 0 0 auto;
     transition: all 0.3s ease;
     border-radius: 0 0 18px 18px; /* Match inner curve of container */
 }
@@ -171,6 +196,7 @@ html, body {
     display: flex; flex-direction: column;
     padding: 16px 14px; background: rgba(0,0,0,0.6);
     gap: 10px; overflow-y: auto; height: 100%;
+    min-height: 0;
     scrollbar-width: thin; scrollbar-color: var(--accent) transparent;
 }
 
@@ -197,7 +223,11 @@ html, body {
     cursor: pointer; border-radius: 2px; transition: all 0.2s ease;
     text-transform: uppercase; letter-spacing: 1px;
 }
-.mode-btn:hover { background: #fff !important; color: #000 !important; border-color: #fff; }
+/* Per-mode hover — keep the mode color, gentle glow, no white flash */
+.mode-btn[data-mode="nexus"]:hover      { background: rgba(64, 170, 255, 0.12) !important; border-color: #4af !important;    color: #4af !important;    box-shadow: 0 0 12px rgba(64,170,255,0.35); }
+.mode-btn[data-mode="unfiltered"]:hover { background: rgba(255, 102, 0, 0.12) !important; border-color: #ff6600 !important; color: #ff6600 !important; box-shadow: 0 0 12px rgba(255,102,0,0.35); }
+.mode-btn[data-mode="coder"]:hover      { background: rgba(0, 255, 0, 0.12) !important;   border-color: #0f0 !important;    color: #0f0 !important;    box-shadow: 0 0 12px rgba(0,255,0,0.35); }
+.mode-btn[data-mode="education"]:hover  { background: rgba(255, 0, 255, 0.12) !important; border-color: #ff00ff !important; color: #ff00ff !important; box-shadow: 0 0 12px rgba(255,0,255,0.35); }
 
 .mode-nexus { border-color: rgba(64, 170, 255, 0.3); color: #4af; }
 .mode-coder { border-color: rgba(0, 255, 0, 0.3); color: #0f0; }
@@ -214,10 +244,29 @@ html, body {
 /* Identity Card & Dropdown (COMPACT 32px Standard) */
 .auth-user-card {
     position: relative;
-    display: flex; align-items: center; gap: 10px; padding: 10px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05); margin-bottom: 12px;
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 28px 10px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    margin-bottom: 12px;
     cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
+.auth-user-card::after {
+    content: "▾";
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    color: var(--accent); font-size: 0.75rem; opacity: 0.7;
+    transition: transform 0.2s, opacity 0.2s;
+    pointer-events: none;
+}
+.auth-user-card:hover {
+    background: rgba(0, 255, 255, 0.06);
+    border-color: var(--accent);
+    box-shadow: 0 0 14px rgba(0, 255, 255, 0.12);
+}
+.auth-user-card:hover::after { opacity: 1; }
+.auth-user-card:has(.user-dropdown.open)::after { transform: translateY(-50%) rotate(180deg); }
 .auth-avatar, .auth-avatar-initials {
     width: 32px !important; height: 32px !important;
     border-radius: 50%; border: 1px solid var(--accent); flex-shrink: 0;
@@ -227,10 +276,11 @@ html, body {
 }
 .auth-user-card:hover .auth-avatar { box-shadow: 0 0 10px var(--accent); }
 .auth-name { font-size: 0.68rem; color: #fff; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.auth-status { display: none !important; } /* hide ACCOUNT_SYNCED / EPHEMERAL_GUEST line */
 
 .user-dropdown {
     position: absolute; top: 100%; left: 0; width: 100%;
-    background: rgba(10, 10, 20, 0.98); 
+    background: rgba(10, 10, 20, 0.98);
     border: 1px solid var(--accent); border-radius: 8px;
     z-index: 1000; display: none; flex-direction: column;
     padding: 8px; margin-top: 5px;
@@ -270,8 +320,8 @@ html, body {
    MODULE: LOBBY (PROTECTED v5.2.6 Detail - 45px Rounding)
    ============================================================ */
 .auth-overlay {
-    position: fixed; inset: 0; 
-    background: radial-gradient(circle at center, #0a0a20 0%, #050510 100%); 
+    position: fixed; inset: 0;
+    background: radial-gradient(circle at center, #0a0a20 0%, #050510 100%);
     z-index: 10000;
     display: flex; align-items: center; justify-content: center;
     transition: opacity 0.8s ease-in-out, visibility 0.8s;
@@ -302,12 +352,12 @@ html, body {
 
 .auth-methods { display: flex; flex-direction: column; align-items: center; gap: 15px; width: 100%; }
 
-.auth-divider { 
+.auth-divider {
     position: relative; margin: 30px 0; height: 1px;
-    background: rgba(0, 255, 255, 0.1); width: 300px; 
+    background: rgba(0, 255, 255, 0.1); width: 300px;
 }
-.auth-divider span { 
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+.auth-divider span {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
     background: #0a0a20; padding: 0 15px; color: #444; font-size: 0.65rem; letter-spacing: 2px;
 }
 
@@ -331,15 +381,15 @@ html, body {
    MODULE: MODALS & SYSTEM SETTINGS
    ============================================================ */
 .modal-overlay {
-    position: fixed; inset: 0; 
-    background: radial-gradient(circle at center, #0a0a20 0%, #050510 100%); 
+    position: fixed; inset: 0;
+    background: radial-gradient(circle at center, #0a0a20 0%, #050510 100%);
     z-index: 20000;
     display: none; align-items: center; justify-content: center;
 }
 
 .modal-box {
-    background: rgba(10, 10, 30, 0.65) !important;
-    backdrop-filter: blur(25px) !important;
+    background: rgba(8, 10, 22, 0.97) !important;
+    /* backdrop-filter REMOVED — was repainting the whole viewport every scroll frame, causing the stutter */
     border: 1px solid var(--txt-color);
     border-radius: 45px;
     padding: 50px 45px;
@@ -353,12 +403,22 @@ html, body {
 
 .modal-header { color: #fff; letter-spacing: 5px; font-size: 1.1rem; margin-bottom: 5px; text-transform: uppercase; font-weight: 600; }
 
-.modal-body { 
-    color: #888; font-size: 0.75rem; line-height: 1.7; text-align: left; 
-    margin: 25px 0; max-height: 220px; overflow-y: auto; 
+.modal-body {
+    color: #aaa; font-size: 0.78rem; line-height: 1.6; text-align: left;
+    margin: 18px 0; max-height: 280px; overflow-y: auto; overflow-x: hidden;
     padding-right: 15px; width: 100%;
-    scrollbar-width: thin; scrollbar-color: var(--txt-color) transparent;
+    scrollbar-width: thin; scrollbar-color: var(--accent) transparent;
+    /* Aggressive scroll perf: own layer, no smooth scroll, no animations during scroll */
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    scroll-behavior: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
 }
+.modal-body * { animation: none !important; transition: none !important; }
+.modal-body::-webkit-scrollbar { width: 6px; }
+.modal-body::-webkit-scrollbar-track { background: transparent; }
+.modal-body::-webkit-scrollbar-thumb { background: rgba(0,255,255,0.35); border-radius: 3px; }
 
 /* Inline Error Styling */
 .terms-error-msg {
@@ -369,7 +429,7 @@ html, body {
 
 @keyframes shake-mini { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
 
-.terms-agreement { 
+.terms-agreement {
     margin: 10px 0; display: flex; align-items: center; gap: 12px; justify-content: center; padding: 10px;
     transition: all 0.4s ease;
 }
@@ -383,40 +443,91 @@ html, body {
 .modal-actions { display: flex; gap: 15px; justify-content: center; width: 100%; margin-top: 10px; }
 .modal-actions .gui-btn { width: 150px; padding: 12px; font-size: 0.75rem; }
 
-/* --- Accessibility Panel Overhaul --- */
+/* --- Settings, AI Profile, DEV Panel — draggable windowed panels --- */
 .a11y-panel {
-    position: fixed; bottom: 85px; right: 20px;
-    background: rgba(5, 5, 10, 0.95); 
-    backdrop-filter: blur(25px);
-    border: 1px solid rgba(255, 255, 255, 0.1); 
-    padding: 24px; border-radius: 15px;
-    z-index: 15000; display: none; flex-direction: column; gap: 20px;
-    color: #fff; width: 340px; 
-    box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
-    font-family: var(--font-main); 
-    animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(620px, 92vw);
+    height: min(560px, 80vh);
+    /* Resize range: don't let it shrink below usable, don't let it cover the whole screen */
+    max-width: 92vw;
+    max-height: 88vh;
+    background: rgba(8, 14, 26, 0.97);
+    /* backdrop-filter REMOVED — was the source of the lag on every render */
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    box-shadow: 0 0 50px rgba(0, 255, 255, 0.22), 0 20px 60px rgba(0, 0, 0, 0.6);
+    z-index: 15000;
+    display: none;
+    flex-direction: column;
+    color: #fff;
+    font-family: var(--font-main);
+    overflow: hidden;
+    resize: both;
+    min-width: 360px;
+    min-height: 280px;
 }
 .a11y-panel.open, .a11y-panel-open { display: flex !important; }
+.a11y-panel > .panel-inner {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 26px 28px 44px;
+    display: flex; flex-direction: column; gap: 26px;
+}
+/* Panels positioned by JS get explicit transform reset */
+.a11y-panel.dragged { top: 0; left: 0; transform: none; }
+/* Drag handle is the fp-header at the top of each panel — JS attaches mousedown */
+.a11y-panel .panel-inner > .fp-header {
+    cursor: move; user-select: none;
+    /* Negative margins eat the panel-inner padding so the header reaches the panel edges */
+    margin: -26px -28px 14px;
+    padding: 18px 24px 14px;
+    background: rgba(8, 14, 26, 0.98);
+    border-bottom: 1px solid rgba(0, 255, 255, 0.25);
+    /* Sticky pinned to the very top of the scroll container; opaque so content can't bleed above */
+    position: sticky;
+    top: -26px;
+    z-index: 5;
+    /* A second background fill above the header itself, for the negative-margin gap */
+    box-shadow: 0 -26px 0 0 rgba(8, 14, 26, 0.98);
+}
+/* Clean cyan-tinted scrollbar inside panels (no white system bar) */
+.a11y-panel .panel-inner { scrollbar-width: thin; scrollbar-color: var(--accent) transparent; }
+.a11y-panel .panel-inner::-webkit-scrollbar { width: 8px; }
+.a11y-panel .panel-inner::-webkit-scrollbar-track { background: transparent; }
+.a11y-panel .panel-inner::-webkit-scrollbar-thumb { background: rgba(0,255,255,0.3); border-radius: 4px; }
+.a11y-panel .panel-inner::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+/* Mobile: revert to full-screen, no drag, no resize */
+@media (max-width: 700px) {
+    .a11y-panel {
+        top: 0 !important; left: 0 !important; transform: none !important;
+        width: 100vw !important; height: 100dvh !important;
+        border-radius: 0; border: none;
+        resize: none;
+    }
+    .a11y-panel .panel-inner > .fp-header { cursor: default; margin: -22px -16px 4px; padding: 14px 16px; }
+}
 
-.panel-header { 
-    display: flex; justify-content: space-between; align-items: center; 
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 12px; 
+.panel-header {
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 12px;
     font-weight: bold; color: var(--accent); font-size: 0.85rem; letter-spacing: 3px;
     text-shadow: 0 0 10px var(--accent);
 }
 .a11y-section { display: flex; flex-direction: column; gap: 10px; }
-.a11y-section-label { 
-    font-size: 0.52rem; color: #555; letter-spacing: 2.5px; 
-    text-transform: uppercase; font-weight: 800; 
+.a11y-section-label {
+    font-size: 0.52rem; color: #555; letter-spacing: 2.5px;
+    text-transform: uppercase; font-weight: 800;
     margin-bottom: 2px; padding-left: 2px;
 }
 .a11y-row { display: flex; gap: 10px; width: 100%; }
 
 .a11y-toggle {
-    background: rgba(255, 255, 255, 0.03); 
-    border: 1px solid rgba(255, 255, 255, 0.1); 
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     color: #aaa;
-    padding: 14px 10px; font-size: 0.68rem; border-radius: 6px; 
+    padding: 14px 10px; font-size: 0.68rem; border-radius: 6px;
     cursor: pointer; font-family: inherit; font-weight: 800;
     transition: all 0.2s ease;
     flex: 1; text-transform: uppercase; letter-spacing: 2px;
@@ -425,24 +536,24 @@ html, body {
     overflow: hidden;
 }
 .a11y-toggle:hover { border-color: var(--accent); color: #fff; background: rgba(255, 255, 255, 0.08); }
-.a11y-toggle.active { 
-    background: rgba(0, 255, 255, 0.15) !important; 
-    color: var(--accent) !important; 
-    border: 2px solid var(--accent) !important; 
+.a11y-toggle.active {
+    background: rgba(0, 255, 255, 0.15) !important;
+    color: var(--accent) !important;
+    border: 2px solid var(--accent) !important;
     box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
     text-shadow: 0 0 10px var(--accent);
 }
-.a11y-close { 
-    background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); 
+.a11y-close {
+    background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
     color: #fff; cursor: pointer; width: 28px; height: 28px;
-    border-radius: 50%; font-weight: bold; font-size: 0.8rem; 
+    border-radius: 50%; font-weight: bold; font-size: 0.8rem;
     display: flex; align-items: center; justify-content: center;
     transition: 0.2s;
 }
 .a11y-close:hover { background: #f44; border-color: #f44; transform: rotate(90deg); }
 
-.a11y-tip { 
-    font-size: 0.55rem; color: #333; text-align: center; 
+.a11y-tip {
+    font-size: 0.55rem; color: #333; text-align: center;
     margin-top: 10px; letter-spacing: 1px; text-transform: uppercase;
 }
 
@@ -497,4 +608,241 @@ body.a11y-dim { filter: brightness(0.7) contrast(1.1); }
 @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 @keyframes fadeIn { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-X(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* ============================================================
+   MODULE: AI TOOLS — sidebar buttons, mic, tool modals
+   ============================================================ */
+.tools-group { display: flex; flex-direction: column; gap: 6px; }
+.tool-btn {
+    display: flex; align-items: center; gap: 8px; justify-content: flex-start;
+    text-align: left; padding-left: 10px;
+}
+.tool-btn .tool-icon { font-size: 0.95rem; flex-shrink: 0; }
+
+/* Mic button next to terminal input */
+.mic-btn {
+    background: transparent; border: 1px solid var(--accent); color: var(--accent);
+    padding: 6px 10px; border-radius: 6px; font-size: 1rem; cursor: pointer;
+    transition: all 0.2s ease; flex-shrink: 0;
+}
+.mic-btn:hover { background: rgba(0,255,255,0.1); box-shadow: 0 0 10px var(--accent); }
+.mic-btn.recording { background: #f00; color: #fff; border-color: #f00; box-shadow: 0 0 14px #f00; animation: pulse 1.2s infinite; }
+
+/* Tool modal shell — lives inside #game-gui-container */
+.tool-shell { display: flex; flex-direction: column; gap: 10px; padding: 4px 0; }
+.tool-label { display: block; font-size: 0.65rem; color: var(--accent); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 6px; }
+.tool-input {
+    width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.6);
+    color: #fff; border: 1px solid rgba(0,255,255,0.25); border-radius: 6px;
+    padding: 10px 12px; font-family: var(--font-main); font-size: 0.9rem;
+    outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+}
+.tool-input:focus { border-color: var(--accent); box-shadow: 0 0 10px rgba(0,255,255,0.25); }
+textarea.tool-input { resize: vertical; min-height: 60px; }
+.tool-btn-primary {
+    align-self: flex-start; background: var(--accent); color: #000; border: none;
+    padding: 10px 18px; border-radius: 6px; cursor: pointer;
+    font-family: var(--font-main); font-weight: 700; letter-spacing: 1.5px;
+    font-size: 0.78rem; text-transform: uppercase; transition: all 0.2s;
+}
+.tool-btn-primary:hover:not(:disabled) { box-shadow: 0 0 14px var(--accent); transform: translateY(-1px); }
+.tool-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.tool-btn-secondary {
+    background: transparent; color: var(--accent); border: 1px solid var(--accent);
+    padding: 8px 14px; border-radius: 6px; cursor: pointer;
+    text-decoration: none; font-size: 0.7rem; letter-spacing: 1.5px;
+    text-transform: uppercase; font-family: var(--font-main);
+}
+.tool-btn-secondary:hover { background: rgba(0,255,255,0.1); }
+.tool-status { margin: 4px 0; }
+.tool-footer { padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.05); margin-top: 10px; color: #666; }
+
+/* ============================================================
+   MODULE: FULL-SCREEN PANEL CHROME
+   ============================================================ */
+.fp-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 18px; border-bottom: 1px solid rgba(0, 255, 255, 0.18);
+    margin-bottom: 28px;
+    gap: 14px;
+}
+.fp-title { font-size: 1.3rem; font-weight: 800; letter-spacing: 4px; color: var(--accent); text-shadow: 0 0 14px var(--accent); margin: 0; line-height: 1.2; }
+.fp-subtitle { font-size: 0.78rem; color: #888; margin-top: 0; letter-spacing: 1.5px; line-height: 1.5; }
+.fp-close {
+    background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #aaa;
+    padding: 8px 16px; border-radius: 6px; cursor: pointer;
+    font-family: inherit; font-size: 0.7rem; letter-spacing: 2px; font-weight: 700;
+}
+.fp-close:hover { border-color: var(--accent); color: var(--accent); }
+
+.fp-section { display: flex; flex-direction: column; gap: 14px; padding: 26px 24px; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; background: rgba(0,0,0,0.35); }
+.fp-section + .fp-section { margin-top: 8px; }
+.fp-section-title { font-size: 0.95rem; font-weight: 700; color: var(--accent); letter-spacing: 3px; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.fp-section-help  { font-size: 0.78rem; color: #888; line-height: 1.6; margin: 0 0 16px; }
+
+.fp-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.fp-row > * { flex: 1 1 220px; min-width: 0; }
+
+.fp-slider-row { display: flex; align-items: center; gap: 14px; padding: 6px 0; }
+.fp-slider-row label { flex: 0 0 130px; color: #aaa; font-size: 0.8rem; letter-spacing: 1px; }
+.fp-slider-row input[type=range] { flex: 1; accent-color: var(--accent); }
+.fp-slider-row .fp-val { flex: 0 0 60px; text-align: right; color: var(--accent); font-weight: 700; font-size: 0.85rem; }
+
+.fp-select {
+    width: 100%; background: rgba(0,0,0,0.6); color: #fff;
+    border: 1px solid rgba(0,255,255,0.25); border-radius: 6px;
+    padding: 10px 12px; font-family: var(--font-main); font-size: 0.9rem;
+}
+
+.fp-toggle {
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.12);
+    color: #aaa; padding: 12px 14px; border-radius: 6px;
+    cursor: pointer; font-family: inherit; font-weight: 700;
+    transition: all 0.2s ease; text-transform: uppercase; letter-spacing: 1.5px;
+    text-align: left; font-size: 0.78rem;
+    display: flex; align-items: center; justify-content: space-between;
+}
+.fp-toggle:hover { border-color: var(--accent); color: #fff; background: rgba(0,255,255,0.05); }
+.fp-toggle.active { border-color: var(--accent); color: var(--accent); background: rgba(0,255,255,0.1); box-shadow: 0 0 10px rgba(0,255,255,0.2); }
+.fp-toggle .fp-toggle-state { font-size: 0.65rem; color: #555; letter-spacing: 1px; }
+.fp-toggle.active .fp-toggle-state { color: var(--accent); }
+
+.fp-action-row { display: flex; gap: 10px; }
+.fp-action-row button {
+    flex: 1; padding: 12px; border-radius: 6px; cursor: pointer;
+    font-family: var(--font-main); font-weight: 700; letter-spacing: 1.5px; font-size: 0.78rem;
+    text-transform: uppercase; transition: 0.2s;
+}
+.fp-action-row .fp-btn-primary  { background: var(--accent); color: #000; border: none; }
+.fp-action-row .fp-btn-primary:hover { box-shadow: 0 0 14px var(--accent); }
+.fp-action-row .fp-btn-danger   { background: transparent; color: #f55; border: 1px solid #f55; }
+.fp-action-row .fp-btn-danger:hover { background: rgba(255,85,85,0.1); box-shadow: 0 0 10px #f55; }
+.fp-action-row .fp-btn-ghost    { background: transparent; color: #aaa; border: 1px solid rgba(255,255,255,0.15); }
+
+.fp-badge {
+    display: inline-block; padding: 4px 10px; border-radius: 4px;
+    font-size: 0.65rem; letter-spacing: 1.5px; font-weight: 700;
+    background: rgba(0,255,255,0.1); color: var(--accent); border: 1px solid var(--accent);
+}
+.fp-badge.warn { background: rgba(255,170,0,0.1); color: #fa0; border-color: #fa0; }
+.fp-badge.err  { background: rgba(255,85,85,0.1); color: #f55; border-color: #f55; }
+
+.fp-kv-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.fp-kv-table th, .fp-kv-table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: left; }
+.fp-kv-table th { color: #666; font-weight: 600; letter-spacing: 1.5px; font-size: 0.65rem; text-transform: uppercase; }
+.fp-kv-table td.mono { font-family: var(--font-main); color: var(--accent); }
+
+.fp-textarea {
+    width: 100%; min-height: 220px; resize: vertical; box-sizing: border-box;
+    background: #000; color: #0ff; border: 1px solid rgba(0,255,255,0.25); border-radius: 6px;
+    padding: 12px; font-family: var(--font-main); font-size: 0.72rem; line-height: 1.5;
+}
+
+/* Custom theme tooltip — ONLY inside panels (Settings, AI Profile, DEV).
+   Main terminal sidebar deliberately has no hover-tips per user request. */
+.a11y-panel [data-tip] { position: relative; }
+.a11y-panel [data-tip]::after {
+    content: attr(data-tip);
+    position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+    background: rgba(0, 25, 40, 0.96); color: var(--accent);
+    border: 1px solid var(--accent); border-radius: 6px;
+    padding: 6px 10px; font-size: 0.65rem; letter-spacing: 1px; line-height: 1.4;
+    pointer-events: none;
+    opacity: 0; transition: opacity 0.15s ease 0.4s;
+    z-index: 10000;
+    box-shadow: 0 0 10px rgba(0,255,255,0.3);
+    max-width: 240px; white-space: normal; text-align: center;
+}
+.a11y-panel [data-tip]:hover::after { opacity: 1; }
+
+/* Tool button — disabled (N/A on free HF tier) */
+.tool-btn-off { opacity: 0.55; border-color: rgba(255,255,255,0.18) !important; color: #888 !important; }
+.tool-btn-off:hover { background: rgba(255,255,255,0.05) !important; border-color: #fa0 !important; color: #fa0 !important; box-shadow: none !important; }
+
+/* New accessibility toggles */
+body.a11y-clear-links a { text-decoration: underline !important; }
+body.a11y-clear-links button, body.a11y-clear-links .action-btn, body.a11y-clear-links .mode-btn { min-height: 44px; }
+body.a11y-spacious .terminal-output p { line-height: 2 !important; margin: 14px 0 !important; }
+body.a11y-spacious .ai-msg { line-height: 2 !important; }
+
+/* Accessibility: bold text everywhere */
+body.a11y-bold, body.a11y-bold .terminal-output, body.a11y-bold .ai-msg,
+body.a11y-bold input, body.a11y-bold button, body.a11y-bold .fp-section,
+body.a11y-bold .fp-toggle, body.a11y-bold p { font-weight: 700 !important; }
+
+/* Accessibility: wider letter spacing (dyslexia-friendly without naming it) */
+body.a11y-wide-spacing, body.a11y-wide-spacing .terminal-output p,
+body.a11y-wide-spacing .ai-msg, body.a11y-wide-spacing input,
+body.a11y-wide-spacing .fp-section { letter-spacing: 0.06em !important; word-spacing: 0.18em !important; }
+
+/* Accessibility: warm sepia tint (blue-light cut) */
+body.a11y-warm { filter: sepia(0.18) hue-rotate(-12deg) saturate(0.92); }
+
+/* Accessibility: reduce transparency — solid panel/sidebar/monitor backgrounds */
+body.a11y-no-transparency .a11y-panel { background: #0a1020 !important; }
+body.a11y-no-transparency .modal-box  { background: #0a1020 !important; }
+body.a11y-no-transparency .quick-actions { background: rgba(0,0,0,0.95) !important; }
+body.a11y-no-transparency .terminal-container { background: rgba(0,0,0,0.6) !important; }
+
+/* DEV PANEL · LOAD button polish */
+#dev-panel button.fp-btn-primary {
+    margin-top: 6px;
+    padding: 12px 20px;
+    background: var(--accent);
+    color: #000;
+    border: none; border-radius: 6px;
+    font-family: var(--font-main);
+    font-weight: 800;
+    letter-spacing: 2px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: 0.18s;
+    text-transform: uppercase;
+    width: auto;
+}
+#dev-panel button.fp-btn-primary:hover {
+    box-shadow: 0 0 14px var(--accent);
+    transform: translateY(-1px);
+}
+
+/* CHAT BEHAVIOR toggles — a11y-* classes on body */
+body.a11y-timestamps .ai-msg::before {
+    content: attr(data-ts);
+    color: #555; font-size: 0.62rem; letter-spacing: 1px;
+    margin-right: 8px; opacity: 0.7;
+}
+body.a11y-mode-watermark .terminal-output::before {
+    content: attr(data-watermark);
+    position: absolute; right: 28px; bottom: 70px;
+    font-size: 5rem; font-weight: 900; letter-spacing: 8px;
+    color: var(--accent); opacity: 0.04; pointer-events: none;
+    text-transform: uppercase;
+}
+
+/* Compact UI — tighter line spacing + smaller padding for power users */
+body.a11y-compact .terminal-output p { line-height: 1.35 !important; margin: 5px 0 !important; }
+body.a11y-compact .ai-msg { line-height: 1.4 !important; padding-left: 10px; }
+body.a11y-compact .terminal-input-wrapper { padding: 8px 5px; }
+body.a11y-compact .quick-actions { padding: 10px 10px; gap: 6px; }
+body.a11y-compact .action-btn { padding: 7px 10px !important; font-size: 0.7rem !important; }
+body.a11y-compact .aside-header { font-size: 0.66rem; margin-top: 8px !important; }
+
+/* Per-mode thread WIPE buttons in AI Profile — themed, not plain */
+#profile-mode-threads button.fp-btn-ghost {
+    background: rgba(255,85,85,0.08);
+    color: #f55;
+    border: 1px solid rgba(255,85,85,0.4);
+    padding: 6px 12px;
+    border-radius: 5px;
+    font-family: var(--font-main);
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    transition: 0.15s;
+}
+#profile-mode-threads button.fp-btn-ghost:hover {
+    background: rgba(255,85,85,0.2);
+    color: #fff;
+    border-color: #f55;
+    box-shadow: 0 0 8px rgba(255,85,85,0.4);
+}
