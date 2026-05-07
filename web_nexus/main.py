@@ -99,7 +99,7 @@ app.add_middleware(
 )
 
 # 1. PRIORITY ROUTES (API & WS)
-NEXUS_VERSION = "v5.3.0"
+NEXUS_VERSION = "v5.5.0"
 
 # Build stamp — read from index.html cache buster on import so the frontend can
 # detect when a new version has shipped and trigger a soft reload without F5.
@@ -109,7 +109,8 @@ def _read_build_stamp() -> str:
         if os.path.exists(idx):
             content = open(idx, encoding="utf-8").read()
             import re as _re
-            m = _re.search(r"v=(\d+\.\d+\.\d+)", content)
+            # Match either semver (5.3.0) OR hex cache-buster (51a60b) — both formats are in use
+            m = _re.search(r'v=([a-f0-9.]+)["&\s]', content)
             if m: return m.group(1)
     except Exception:
         pass
