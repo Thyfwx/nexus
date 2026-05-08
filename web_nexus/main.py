@@ -78,7 +78,7 @@ async def add_security_headers(request: Request, call_next):
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; "
         "img-src 'self' data: https://thyfwxit.com https://*.googleusercontent.com https://*.agilebits.com https://*.googlesyndication.com https://*.googleadservices.com https://*.doubleclick.net https://*.google.com; "
-        "connect-src 'self' https://nexus-terminalnexus.onrender.com wss://nexus-terminalnexus.onrender.com https://api.groq.com https://router.huggingface.co https://nexus-evil-proxy.xavierscott300.workers.dev https://ipinfo.io https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com https://*.adtrafficquality.google https://fundingchoicesmessages.google.com; "
+        "connect-src 'self' https://api.thyfwxit.com wss://api.thyfwxit.com https://nexus-terminalnexus.onrender.com wss://nexus-terminalnexus.onrender.com https://api.groq.com https://router.huggingface.co https://nexus-evil-proxy.xavierscott300.workers.dev https://ipinfo.io https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com https://*.adtrafficquality.google https://fundingchoicesmessages.google.com; "
         "frame-src https://accounts.google.com https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com;"
     )
     response.headers["Content-Security-Policy"] = csp
@@ -90,7 +90,8 @@ async def add_security_headers(request: Request, call_next):
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://thyfwxit.com", 
+        "https://thyfwxit.com",
+        "https://api.thyfwxit.com",
         "https://nexus-terminalnexus.onrender.com",
         "http://localhost:8000",
         "http://127.0.0.1:8000",
@@ -102,7 +103,7 @@ app.add_middleware(
 )
 
 # 1. PRIORITY ROUTES (API & WS)
-NEXUS_VERSION = "v5.5.4"
+NEXUS_VERSION = "v5.5.5"
 
 # Build stamp — read from index.html cache buster on import so the frontend can
 # detect when a new version has shipped and trigger a soft reload without F5.
