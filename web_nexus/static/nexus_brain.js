@@ -224,24 +224,19 @@ window.NexusBrain = {
 
 window.addEventListener('load', () => window.NexusBrain.init());
 
-// =============================================================
-// AUTO-RELOAD ON NEW BUILD
-// Polls /api/build on focus + every 30s. If the build stamp changed
-// since page load, shows a one-click banner instead of forcing a hard refresh.
-// =============================================================
+// AUTO-RELOAD ON NEW BUILD — DISABLED 2026-05-08 per Xavier's request.
+// The banner was visually intrusive even in subtle form. Browser hard-refresh
+// (Cmd+Shift+R) handles version updates; no UI nag needed.
 (function _autoBuildWatch(){
-    // Runs everywhere (including localhost) — Xavier liked seeing the banner during dev.
+    // No-op. Kept as a stub so any external references don't break.
+    return;
+    // The detection-and-banner logic below is preserved for reference but unreachable.
+    // To re-enable: remove the `return;` above.
     let _bootBuild = null;
     let _bannerShown = false;
     function _showBanner(newBuild){
         if (_bannerShown) return;
         _bannerShown = true;
-        const bar = document.createElement('div');
-        bar.style.cssText = 'position:fixed; top:0; left:0; right:0; z-index:99999; background:rgba(0,30,30,0.92); color:#0ff; border-bottom:1px solid rgba(0,255,255,0.35); padding:8px 14px; font:600 0.74rem "Fira Code",monospace; text-align:center; letter-spacing:1px; cursor:pointer; backdrop-filter:blur(4px);';
-        bar.innerHTML = 'NEW BUILD AVAILABLE (' + newBuild + ') — click here to reload &nbsp;&nbsp; <span style="opacity:0.55; font-weight:400;">(or press R)</span>';
-        bar.onclick = function() { location.reload(); };
-        document.body.appendChild(bar);
-        document.addEventListener('keydown', function(e) { if (e.key === 'r' || e.key === 'R') location.reload(); }, { once: true });
     }
     async function _check(){
         try {
