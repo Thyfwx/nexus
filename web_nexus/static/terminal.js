@@ -604,7 +604,7 @@ async function initiateBootSequence() {
     if (window.renderAuthSection) window.renderAuthSection();
 
     const _bootIsGuest = !nexusUser.email || nexusUser.email === 'guest@local';
-    const NEXUS_VERSION = window.NEXUS_VERSION || 'v5.5.5';
+    const NEXUS_VERSION = window.NEXUS_VERSION || 'v5.5.6';
 
     // Boot lines — print SYNCHRONOUSLY first (so they always appear), then patch latency in.
     window.replayBootSummary = function() {
@@ -2366,12 +2366,22 @@ window._devToggleLogTail = function() {
     const fetchOnce = async () => {
         try {
             const r = await fetch(`${window.API_BASE || ''}/api/dev/log-tail`, { credentials: 'include', cache: 'no-store' });
+            // Stop polling on 403 (not owner) — was spamming console with hundreds of errors
+            if (r.status === 403) {
+                clearInterval(window._devLogTimer);
+                window._devLogTimer = null;
+                const out = document.getElementById('dev-log-output');
+                if (out) out.textContent = '[ACCESS DENIED] Owner cookie missing or invalid. Sign in again, then click START LIVE TAIL.';
+                const btn = document.querySelector('.fp-btn-loglog');
+                if (btn) { btn.textContent = 'START LIVE TAIL'; btn.style.color = '#0f8'; btn.style.borderColor = '#0f8'; }
+                const status = document.getElementById('dev-log-status');
+                if (status) status.textContent = 'access denied — paused';
+                return;
+            }
             const j = await r.json();
             const out = document.getElementById('dev-log-output');
             if (!out) return;
             if (!j.ok) { out.textContent = `ERROR: ${j.error || 'unknown'}`; return; }
-            // Capture scroll state BEFORE updating text — if user is at the bottom,
-            // they want to follow new lines; if they scrolled up (to copy/read), respect it.
             const wasAtBottom = (out.scrollHeight - out.scrollTop - out.clientHeight) < 30;
             out.textContent = (j.lines || []).join('\n') || (j.note || '(empty log)');
             if (wasAtBottom) out.scrollTop = out.scrollHeight;
