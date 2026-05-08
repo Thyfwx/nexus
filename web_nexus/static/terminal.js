@@ -3,13 +3,9 @@
  * High-Fidelity Reconstruction Core — Making the machine ALIVE.
  */
 
-// Dynamic Configuration Loading
-(function() {
-    const s = document.createElement('script');
-    s.src = 'ai_config.js?v=5.3.9';
-    s.async = false;
-    document.head.appendChild(s);
-})();
+// ai_config.js is loaded via the static <script> tag in index.html.
+// (A previous dynamic loader here re-imported it with a stale cache buster, which
+//  caused a SyntaxError when const _HARD_REFUSAL got redeclared. Removed 2026-05-07.)
 
 // Crash overlay + diagnostic-code system lives in crash_core.js (loads earlier).
 
@@ -206,6 +202,20 @@ function connectTerminalWS() {
         if (dot) { dot.style.background = '#f55'; dot.style.boxShadow = '0 0 6px #f55'; }
         const stat = document.getElementById('header-status');
         if (stat) { stat.textContent = 'OFFLINE'; stat.style.color = '#f55'; }
+        // RECONNECT OVERLAY AD — owner-gated, shows during the 5s reconnect poll.
+        try {
+            if (!window.NEXUS_DISABLE_ADS && window.OWNER_MODE && !document.getElementById('reconnect-overlay-ad') && document.body) {
+                const overlay = document.createElement('div');
+                overlay.id = 'reconnect-overlay-ad';
+                overlay.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(520px, calc(100vw - 32px)); padding: 24px; background: rgba(8,14,26,0.96); border: 2px dashed #ff3333; border-radius: 6px; z-index: 9500; box-shadow: 0 0 32px rgba(255,51,51,0.3); font-family: monospace; backdrop-filter: blur(6px);';
+                overlay.innerHTML = '<div style="text-align:center; color:#f55; font-weight:800; letter-spacing:3px; font-size:0.78rem; margin-bottom:14px;">⚠ NEXUS · OFFLINE</div><div style="text-align:center; color:#aaa; font-size:0.72rem; margin-bottom:16px;">Reconnecting… <span id="reconnect-countdown">5</span>s</div><div style="padding: 14px; min-height: 250px; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.12); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #6a6a7a; font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase; text-align: center; line-height: 1.5;"><div><div>AD SLOT · 300 × 250</div><div style="font-size:0.6rem; opacity:0.6; margin-top:4px;">[ Reconnect overlay ]</div></div></div>';
+                document.body.appendChild(overlay);
+                let secs = 5;
+                const cdEl = overlay.querySelector('#reconnect-countdown');
+                const ticker = setInterval(() => { secs--; if (cdEl) cdEl.textContent = Math.max(0, secs); if (secs <= 0) clearInterval(ticker); }, 1000);
+                const watch = setInterval(() => { if (window.backendReady) { clearInterval(ticker); clearInterval(watch); overlay.remove(); } }, 500);
+            }
+        } catch (e) { console.warn('[reconnect-ad]', e); }
         setTimeout(connectTerminalWS, 5000);
     };
 }
@@ -594,7 +604,7 @@ async function initiateBootSequence() {
     if (window.renderAuthSection) window.renderAuthSection();
 
     const _bootIsGuest = !nexusUser.email || nexusUser.email === 'guest@local';
-    const NEXUS_VERSION = window.NEXUS_VERSION || 'v5.5.0';
+    const NEXUS_VERSION = window.NEXUS_VERSION || 'v5.5.1';
 
     // Boot lines — print SYNCHRONOUSLY first (so they always appear), then patch latency in.
     window.replayBootSummary = function() {
@@ -636,6 +646,29 @@ async function initiateBootSequence() {
     window.addEventListener('load', () => {
         if (!document.getElementById('boot-latency')) window.replayBootSummary();
     });
+
+    // BOOT ONE-SHOT AD — shows under the boot log, fades after 8s or on first user input.
+    // Owner-gated. Once-per-session. Wrapped in try/catch + kill-switch so it can never break boot.
+    setTimeout(() => {
+        try {
+            if (window.NEXUS_DISABLE_ADS) return;
+            if (window.NEXUS_DISABLE_BOOT_AD) return;
+            if (!window.OWNER_MODE) return;
+            if (sessionStorage.getItem('nexus_boot_ad_shown')) return;
+            sessionStorage.setItem('nexus_boot_ad_shown', '1');
+            const out = document.getElementById('terminal-output') || window.output;
+            if (!out || !out.appendChild) return;
+            const slot = document.createElement('div');
+            slot.id = 'boot-one-shot-ad';
+            slot.style.cssText = 'margin: 18px auto; padding: 16px; min-height: 90px; max-width: 720px; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.18); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #6a6a7a; font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase; font-family: monospace; text-align: center; line-height: 1.5; transition: opacity 0.6s ease;';
+            slot.innerHTML = '<div><div>AD SLOT · 728 × 90</div><div style="font-size:0.6rem; opacity:0.6; margin-top:4px;">[ Boot one-shot · session-once ]</div></div>';
+            out.appendChild(slot);
+            const fadeOut = () => { if (slot && slot.parentNode) { slot.style.opacity = '0'; setTimeout(() => slot.remove(), 700); } };
+            setTimeout(fadeOut, 8000);
+            const dismissOnInput = () => { fadeOut(); window.removeEventListener('keydown', dismissOnInput); };
+            window.addEventListener('keydown', dismissOnInput, { once: true });
+        } catch (e) { console.warn('[boot-ad]', e); }
+    }, 1800);
 
     // Backend warm-up + WS connect run in parallel with the staggered prints
     (async () => {
@@ -758,6 +791,13 @@ function _clearPersistedLockout(mode) {
         const data = JSON.parse(localStorage.getItem(_LOCK_STORAGE_KEY) || '{}');
         const now = Date.now();
         const stillActive = {};
+
+        // DISABLED 2026-05-08: the auto-redirect to locked.html created a tight
+        // reload loop with locked.html's "expired → bounce back" logic. The lockout
+        // enforcement still works via the in-page _enforceLockUI() pathway below;
+        // we just don't auto-navigate to the dedicated locked page on reload.
+        // Re-enable later with sessionStorage-based loop detection.
+
         for (const [mode, unlockAt] of Object.entries(data)) {
             if (unlockAt > now) {
                 window._lockedModes.add(mode);
@@ -872,7 +912,7 @@ function triggerLockout(overrideSeconds) {
     try {
         fetch(`${window.API_BASE || ''}/api/lockout/register`, {
             method: 'POST',
-            credentials: 'same-origin',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ seconds: _willSeconds, mode, group }),
         });
@@ -975,11 +1015,13 @@ window.checkProvocation = function(prompt) {
 };
 
 // Shared INTENT prefix — captures every common phrasing of "I want to / how do I / etc."
-// Without this, patterns only matched "how do/to/can i" and missed "I want to burn down a
-// school" / "tell me ways to kill" / "best way to hack my ex" / "I'm gonna shoot up the school".
-// Source-of-truth list of bypass wrappers — keep expanding when new ones surface.
+// Bug fixed 2026-05-07: pronoun group (?:i|you|we) was inside a literal-space context that
+// consumed the trailing space even when matching empty, so "how to kidnap kids" failed
+// because the outer \s+ had no whitespace left. Now (?:\s+(?:i|you|we))? — the WHOLE optional
+// chunk including the space — is optional, so "how to X" and "how do i X" both work.
+// Also added typo/voice-to-text variants ("show do i" = misheard "how do i", common with dictation).
 const _INTENT = "(?:" +
-    "how (?:do|to|can|should|would|might|could) (?:i|you|we)?|" +
+    "(?:how|show|tell|teach|explain)\\s+(?:do|to|can|should|would|might|could|me)(?:\\s+(?:i|you|we))?|" +
     "i\\s+(?:want|wanna|need|plan|am\\s+(?:going|gonna)|will|'ll|would\\s+like|might|hope|aim)\\s+to|" +
     "i'm\\s+(?:going|gonna|about|trying)\\s+to|" +
     "let\\s+me|let's|" +
@@ -1008,19 +1050,25 @@ const _MODERATION_PATTERNS = [
     // Sexual content involving minors (ages spelled out or numeric)
     { rx: /\b(my|the|a|this)\s+(\d+|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen)[-\s]?(year|yr)[-\s]?old\b.{0,40}\b(sex|porn|nude|naked|fuck|sexy|hot|kiss|date|grope|touch)\b/i, kind: 'AGE_SEXUAL', severity: 'critical' },
 
+    // VIOLENCE TOWARD MINORS — standalone, no INTENT needed. "kill a kid" / "hurt a baby" / "stab a child" are unambiguous critical.
+    { rx: /\b(kill|murder|stab|shoot|strangle|suffocate|poison|hurt|harm|attack|maim|behead|eliminate|drown|smother|beat|abuse|rape|molest|assault)\s+(a\s+|the\s+|some\s+|an?\s+|my\s+|that\s+|this\s+|her\s+|his\s+|their\s+)?(kid|kids|child|children|minor|baby|babies|toddler|infant|teen|teens|teenager|girl|boy|preteen)\b/i, kind: 'CSAM_VIOLENCE', severity: 'critical' },
+
     // ── BODY DISPOSAL / EVIDENCE ──
-    { rx: /\b(hide|dispose\s+of|get\s+rid\s+of|bury|dissolve|destroy|burn|hide\s+from)\s+(the\s+|a\s+|my\s+)?(body|corpse|evidence|murder\s+weapon|dead\s+body|remains)\b/i, kind: 'BODY_DISPOSAL', severity: 'critical' },
+    // Allow up to 30 chars between determiner and "body" so "hide a child's body" / "hide my dad's body" / "dispose of the dead childs body" all match
+    { rx: /\b(hide|dispose\s+of|get\s+rid\s+of|bury|dissolve|destroy|burn|hide\s+from)\s+(the\s+|a\s+|my\s+|that\s+|some\s+|an?\s+|her\s+|his\s+|their\s+)?.{0,30}(body|corpse|evidence|murder\s+weapon|dead\s+body|remains)\b/i, kind: 'BODY_DISPOSAL', severity: 'critical' },
+    // Compound verb form: "kill and hide a body" / "kill her and hide the body"
+    { rx: /\b(kill\w*|murder\w*|stab\w*|shoot\w*|strangl\w*|suffocat\w*|poison\w*|harm\w*)\s+.{0,40}\s+(?:and|then|&)\s+.{0,20}(?:hide|dispose|bury|dissolve|destroy|burn|get\s+rid)\s+.{0,30}(?:body|corpse|remains)\b/i, kind: 'BODY_DISPOSAL', severity: 'critical' },
 
     // ── MURDER / VIOLENCE PLANNING ──
     { rx: new RegExp("\\b" + _INTENT + "\\s+.{0,40}(?:hide\\s+a\\s+body|dispose\\s+of\\s+a\\s+body|get\\s+away\\s+with\\s+(?:murder|killing))\\b", 'i'), kind: 'BODY_DISPOSAL', severity: 'critical' },
     { rx: new RegExp("\\b" + _INTENT + "\\s+.{0,40}(?:kill\\w*|murder\\w*|harm\\w*|stab\\w*|shoot\\w*|bomb\\w*|behead\\w*|strangl\\w*|suffocat\\w*|poison\\w*|hurt\\w*|attack\\w*|injur\\w*|maim\\w*|assassinat\\w*|eliminat\\w*)\\s+.{0,30}(?:someone|somebody|a\\s+person|people|a\\s+human|humans?|my\\s+(?:ex|wife|husband|girlfriend|boyfriend|partner|teacher|boss|kid|child|sister|brother|mom|dad|mother|father|neighbor|coworker|friend|enemy|roommate|landlord)|him|her|them)\\b", 'i'), kind: 'MURDER_PLANNING', severity: 'critical' },
 
-    // Directed violence (no intent prefix needed — "kill my wife" alone is sufficient)
-    { rx: /\b(kill|murder|stab|shoot|bomb|behead|strangle|suffocate|poison|hurt|attack|injure|maim|assassinate|eliminate|harm)\s+(my|the|that|this)\s+(wife|husband|girlfriend|boyfriend|partner|kid|child|teacher|boss|coworker|neighbor|sister|brother|mom|dad|mother|father|friend|enemy|roommate|landlord)\b/i, kind: 'VIOLENCE_DIRECTED_FAMILY', severity: 'critical' },
+    // Directed violence (no intent prefix needed — "kill my wife" / "kill my ex" alone is sufficient)
+    { rx: /\b(kill|murder|stab|shoot|bomb|behead|strangle|suffocate|poison|hurt|attack|injure|maim|assassinate|eliminate|harm)\s+(my|the|that|this|her|his|their)\s+(ex|wife|husband|girlfriend|boyfriend|partner|kid|child|baby|teacher|boss|coworker|neighbor|sister|brother|mom|dad|mother|father|friend|enemy|roommate|landlord|family|parents?)\b/i, kind: 'VIOLENCE_DIRECTED_FAMILY', severity: 'critical' },
     { rx: /\b(kill|murder|stab|shoot|bomb|behead|strangle)\s+(yourself|him|her|them|me|everyone|everybody|all|those people)\b/i, kind: 'VIOLENCE_DIRECTED', severity: 'high' },
 
     // ── MASS VIOLENCE / TARGETED ATTACKS ──
-    { rx: /\b(school\s+shoot|mass\s+shoot|shoot\s+(?:up|off|at|the|down)?\s*(?:the\s+|a\s+|an\s+|my\s+)?(?:school|mall|church|synagogue|mosque|workplace|office|hospital|college|university|kindergarten|daycare|stadium|concert|theater|club))\b/i, kind: 'MASS_VIOLENCE', severity: 'critical' },
+    { rx: /\b(school\s+shoot\w*|mass\s+shoot\w*|shoot\s+(?:up|off|at|the|down)?\s*(?:the\s+|a\s+|an\s+|my\s+)?(?:school|mall|church|synagogue|mosque|workplace|office|hospital|college|university|kindergarten|daycare|stadium|concert|theater|club))\b/i, kind: 'MASS_VIOLENCE', severity: 'critical' },
     { rx: new RegExp("\\b" + _INTENT + "\\s+.{0,50}(?:attack\\w*|harm\\w*|hurt\\w*|kill\\w*|target\\w*|massacr\\w*|injur\\w*|shoot\\w*|bomb\\w*|burn\\w*|stab\\w*)\\s+.{0,40}\\b(?:school|mall|church|synagogue|mosque|workplace|office|hospital|college|university|kindergarten|daycare|stadium|concert|theater|club|kids?|children|students?|congregation)\\b", 'i'), kind: 'MASS_VIOLENCE', severity: 'critical' },
 
     // ── WEAPON / EXPLOSIVE / POISON SYNTHESIS ──
@@ -1074,6 +1122,8 @@ const _MODERATION_PATTERNS = [
     // is reversible and the alert is owner-side.
     { rx: /\b(?:making|building|crafting|cooking|synthesizing|creating|constructing|assembling|manufacturing)\s+(?:a\s+|the\s+|some\s+|an?\s+)?(?:bomb|explosive|grenade|nerve\s+gas|ricin|sarin|cyanide|napalm|tnt|c4|c-4|pipe\s+bomb|ied|molotov|biological\s+agent|chemical\s+weapon|nerve\s+agent|bioweapon)\b/i, kind: 'WEAPON_SYNTHESIS', severity: 'critical' },
     { rx: /\b(?:burning(?:\s+down)?|setting\s+fire\s+to|torching|igniting|incinerating)\s+(?:a\s+|the\s+|my\s+)?(?:school|building|car|business|store|church|synagogue|mosque|hospital|college|university|workplace|office|home|house|apartment|warehouse|garage|barn|shed|kindergarten|daycare)\b/i, kind: 'ARSON', severity: 'critical' },
+    // Verb-form ARSON catches "burn down a school" without an INTENT prefix (e.g. "i should burn down a school", "burn down that house")
+    { rx: /\b(?:burn\s+down|set\s+fire\s+to|torch|ignite|incinerate)\s+(?:a\s+|the\s+|my\s+|that\s+|this\s+|some\s+|an?\s+)?(?:school|building|car|business|store|church|synagogue|mosque|hospital|college|university|workplace|office|home|house|apartment|warehouse|garage|barn|shed|kindergarten|daycare)\b/i, kind: 'ARSON', severity: 'critical' },
     { rx: /\b(?:killing|murdering|stabbing|shooting|poisoning|strangling|suffocating|harming|attacking|assassinating|eliminating)\s+(?:my\s+|the\s+|that\s+|a\s+|some\s+)?(?:wife|husband|girlfriend|boyfriend|partner|kid|child|teacher|boss|coworker|neighbor|sister|brother|mom|dad|mother|father|friend|enemy|roommate|landlord|ex|family|baby)\b/i, kind: 'VIOLENCE_DIRECTED_FAMILY', severity: 'critical' },
     { rx: /\b(?:kidnapping|abducting|trafficking|enslaving|grabbing|snatching)\s+(?:a\s+|the\s+|my\s+|some\s+|an?\s+)?(?:person|kid|child|children|woman|women|girl|girls|teen|teens|baby|babies)\b/i, kind: 'KIDNAPPING', severity: 'critical' },
     { rx: /\b(?:hacking|breaking\s+into|cracking)\s+(?:my\s+|her\s+|his\s+|their\s+|the\s+|an?\s+|someone'?s?\s+)?(?:ex|wife|husband|girlfriend|boyfriend|partner|sister|brother|mom|dad|kid|child|neighbor|boss|coworker|friend|account|email|facebook|instagram|tiktok|snapchat|phone|laptop|computer|bank)\b/i, kind: 'HACKING_REQUEST', severity: 'high' },
@@ -1136,7 +1186,7 @@ async function _notifyModeration(payload) {
         };
         await fetch(`${window.API_BASE || ''}/api/moderation-alert`, {
             method: 'POST',
-            credentials: 'same-origin',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
         });
@@ -1145,6 +1195,110 @@ async function _notifyModeration(payload) {
 window._notifyModeration = _notifyModeration;
 
 // --- SETTINGS / AI PROFILE / DEV PANEL — full-screen ---
+// Tab switcher for System Settings — VISUAL · TEXT · INPUT · AUDIO
+window._settingsSwitchTab = function(tab) {
+    window._settingsActiveTab = tab;
+    const accent = 'var(--accent)';
+    const panel = document.getElementById('a11y-panel');
+    if (!panel) return;
+    // Show/hide sections by data-tab. Sections without a data-tab (like footer SYSTEM RECOVERY) always show.
+    panel.querySelectorAll('.fp-section[data-tab]').forEach(sec => {
+        sec.style.display = (sec.getAttribute('data-tab') === tab) ? '' : 'none';
+    });
+    // Owner-only section flag — keep hidden if not owner regardless of tab
+    const ownerSec = document.getElementById('settings-section-owner-behavior');
+    if (ownerSec && !window.OWNER_MODE) ownerSec.style.display = 'none';
+    // Mark active tab button
+    panel.querySelectorAll('.settings-tab').forEach(btn => {
+        const isActive = btn.getAttribute('data-tab') === tab;
+        btn.style.setProperty('color', isActive ? '#0ff' : '#888', 'important');
+        btn.style.borderBottom = isActive ? `2px solid #0ff` : '2px solid transparent';
+        btn.style.textShadow = isActive ? `0 0 8px #0ff` : 'none';
+    });
+    // Reset scroll
+    const inner = panel.querySelector('.panel-inner');
+    if (inner) inner.scrollTop = 0;
+};
+
+// OS-pref auto-detection — apply browser/OS accessibility preferences automatically.
+// Runs at boot AND every time settings panel opens. Only applies a class if user hasn't
+// manually overridden it (tracked via 'nexus_a11y_user_set' map). Auto-applied toggles
+// get an "AUTO" badge so user knows it came from their OS, not their click.
+window._refreshOSPrefs = function() {
+    const userSet = JSON.parse(localStorage.getItem('nexus_a11y_user_set') || '{}');
+    const autoApplied = JSON.parse(localStorage.getItem('nexus_a11y_auto_applied') || '{}');
+
+    const apply = (mediaQuery, className) => {
+        if (userSet[className]) return; // user manually set this — don't override
+        const matches = window.matchMedia(mediaQuery).matches;
+        if (matches) {
+            document.body.classList.add(className);
+            autoApplied[className] = true;
+        } else if (autoApplied[className]) {
+            // Was auto-applied before, OS pref no longer matches — auto-remove
+            document.body.classList.remove(className);
+            delete autoApplied[className];
+        }
+    };
+
+    apply('(prefers-reduced-motion: reduce)',       'no-animations');
+    apply('(prefers-contrast: more)',               'a11y-high-contrast');
+    apply('(prefers-reduced-transparency: reduce)', 'a11y-no-transparency');
+    apply('(forced-colors: active)',                'a11y-high-contrast');
+    apply('(prefers-color-scheme: dark)',           'crt-mode'); // already dark by default
+
+    localStorage.setItem('nexus_a11y_auto_applied', JSON.stringify(autoApplied));
+
+    // Refresh toggle button visual state to reflect what's actually on the body.
+    // Add an "AUTO" badge to toggles whose class is in autoApplied (and not in userSet).
+    document.querySelectorAll('button.fp-toggle[data-class]').forEach(btn => {
+        const cls = btn.getAttribute('data-class');
+        const isOn = document.body.classList.contains(cls);
+        btn.classList.toggle('active', isOn);
+        const stateLbl = btn.querySelector('.fp-toggle-state');
+        if (stateLbl) stateLbl.textContent = isOn ? 'ON' : 'OFF';
+        // AUTO badge
+        let autoBadge = btn.querySelector('.fp-auto-badge');
+        const showAuto = !!autoApplied[cls] && !userSet[cls];
+        if (showAuto && !autoBadge) {
+            autoBadge = document.createElement('span');
+            autoBadge.className = 'fp-auto-badge';
+            autoBadge.textContent = 'AUTO';
+            autoBadge.style.cssText = 'margin-left:6px; padding:1px 5px; background:rgba(0,255,255,0.15); color:#0ff; border:1px solid rgba(0,255,255,0.4); border-radius:3px; font-size:0.55rem; letter-spacing:1px;';
+            btn.appendChild(autoBadge);
+        } else if (!showAuto && autoBadge) {
+            autoBadge.remove();
+        }
+    });
+};
+
+// Wrap toggleA11yClass so user manual clicks mark themselves as user-set
+// (so OS auto-detect doesn't override their explicit choice next time).
+const _origToggleA11yClass = window.toggleA11yClass;
+if (_origToggleA11yClass && !_origToggleA11yClass._wrappedForOSPrefs) {
+    window.toggleA11yClass = function(cls, btn) {
+        const before = document.body.classList.contains(cls);
+        _origToggleA11yClass.call(this, cls, btn);
+        // Mark this class as user-set so _refreshOSPrefs won't auto-toggle it
+        const userSet = JSON.parse(localStorage.getItem('nexus_a11y_user_set') || '{}');
+        userSet[cls] = !before; // store the new state
+        localStorage.setItem('nexus_a11y_user_set', JSON.stringify(userSet));
+        // Remove AUTO badge since user has now manually set it
+        if (btn) {
+            const autoBadge = btn.querySelector('.fp-auto-badge');
+            if (autoBadge) autoBadge.remove();
+        }
+    };
+    window.toggleA11yClass._wrappedForOSPrefs = true;
+}
+
+// Apply OS prefs at boot (before user opens settings panel)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => { setTimeout(window._refreshOSPrefs, 200); });
+} else {
+    setTimeout(window._refreshOSPrefs, 200);
+}
+
 window.toggleA11yPanel = function() {
     const panel = document.getElementById('a11y-panel');
     if (!panel) return;
@@ -1152,6 +1306,9 @@ window.toggleA11yPanel = function() {
     if (panel.classList.contains('a11y-panel-open')) {
         if (window.NexusTTS && window.NexusTTS.bindUI) window.NexusTTS.bindUI();
         if (window._refreshOSPrefs) window._refreshOSPrefs();
+        // Apply active tab (default to VISUAL)
+        const activeTab = window._settingsActiveTab || 'visual';
+        if (window._settingsSwitchTab) window._settingsSwitchTab(activeTab);
         // Owner-only sections — reveal default-mode picker for owner only
         const ownerSec = document.getElementById('settings-section-owner-behavior');
         if (ownerSec) ownerSec.style.display = window.OWNER_MODE ? '' : 'none';
@@ -1323,6 +1480,11 @@ window.showUserHistory = function() {
                 ${chatHTML}
             </div>
 
+            ${window.OWNER_MODE ? `
+            <div class="history-ad-slot" style="margin: 22px 0; padding: 14px; min-height: 90px; max-width: 728px; margin-left: auto; margin-right: auto; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.12); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #6a6a7a; font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase; font-family: 'Fira Code', monospace;">
+                <span>AD SLOT · 728 × 90 · pending AdSense approval</span>
+            </div>` : ''}
+
             <div class="fp-section">
                 <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:8px;">
                     <h3 class="fp-section-title" style="margin:0;">🎨 GENERATED IMAGES <span style="color:#888; font-weight:400; font-size:0.7rem;">${imageHist.length} of 30</span></h3>
@@ -1333,6 +1495,11 @@ window.showUserHistory = function() {
                     : 'Saved for THIS BROWSER TAB ONLY. Closing the tab erases all of it — nothing on your disk.'}</p>
                 ${imgHTML}
             </div>
+
+            ${window.OWNER_MODE ? `
+            <div class="history-ad-slot" style="margin: 22px 0 4px; padding: 14px; min-height: 250px; max-width: 720px; margin-left: auto; margin-right: auto; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.12); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #6a6a7a; font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase; font-family: 'Fira Code', monospace;">
+                <span>AD SLOT · 300 × 250 · pending AdSense approval</span>
+            </div>` : ''}
         </div>
     `;
 };
@@ -1380,15 +1547,38 @@ function _renderNeuralProfileInner() {
     const mode = (window.currentMode || 'nexus').toUpperCase();
     const accent = (window.MODE_COLORS && window.MODE_COLORS[window.currentMode]) || '#0ff';
 
+    // Tab state — restore from previous render so switching keeps active tab
+    const activeTab = window._profileActiveTab || 'identity';
+
+    // Shared tab button styling (mirrors DevPanel — minimal underline, SVG icon, no emoji)
+    const tabBtnStyle = "display:inline-flex !important; align-items:center; justify-content:center; gap:8px; flex:1 1 0; min-width:0; background:transparent !important; border:none; border-bottom:2px solid transparent; color:#888 !important; padding:9px 8px; margin-bottom:-1px; font-family:'Fira Code',monospace !important; font-weight:700 !important; font-size:0.66rem !important; letter-spacing:1.5px !important; text-transform:uppercase; cursor:pointer; white-space:nowrap; transition:0.18s;";
+
     panel.innerHTML = `
-        <div class="panel-inner">
-            <div class="fp-header">
-                <div class="fp-title" style="color:${accent}; text-shadow:0 0 14px ${accent};">[ AI NEURAL PROFILE ]</div>
-                <button class="fp-close" onclick="window.toggleNeuralProfile()">CLOSE</button>
+        <div class="panel-inner" style="gap:12px;">
+            <div class="fp-header" style="position:relative !important; top:auto !important; margin:0 0 14px 0 !important; padding:14px 18px !important; box-shadow:none !important; background:rgba(8,14,26,0.98); border-bottom:1px solid ${accent}40; display:flex !important; align-items:center; justify-content:space-between; gap:14px;">
+                <div class="fp-title" style="color:${accent} !important; text-shadow:0 0 14px ${accent}; font-size:1.1rem; font-weight:800; letter-spacing:4px; margin:0;">[ AI NEURAL PROFILE ]</div>
+                <button class="fp-close" onclick="window.toggleNeuralProfile()" style="background:transparent; border:1px solid rgba(255,255,255,0.2); color:#aaa; padding:6px 14px; border-radius:6px; cursor:pointer; font-family:inherit; font-size:0.7rem; letter-spacing:2px; font-weight:700;">CLOSE</button>
             </div>
 
-            <div class="fp-section">
-                <h3 class="fp-section-title">👤 IDENTITY</h3>
+            <!-- Underline tab bar — IDENTITY · MEMORY · MODE · TOOLS — matches DevPanel style -->
+            <div id="profile-tabs" style="display:flex !important; flex-wrap:wrap; gap:0; margin:0 0 8px; padding:0; border-bottom:1px solid rgba(255,255,255,0.08);">
+                <button class="profile-tab" data-tab="identity" onclick="window._profileSwitchTab('identity')" style="${tabBtnStyle}">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="flex-shrink:0; pointer-events:none;"><circle cx="8" cy="5" r="2.5"/><path d="M3 14 Q3 9 8 9 Q13 9 13 14"/></svg>IDENTITY
+                </button>
+                <button class="profile-tab" data-tab="memory" onclick="window._profileSwitchTab('memory')" style="${tabBtnStyle}">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; pointer-events:none;"><path d="M5 3 Q3 3 3 5 Q3 6.5 4 7 Q3 7.5 3 9 Q3 11 5 11 L5 13 Q5 14 6 14 L10 14 Q11 14 11 13 L11 11 Q13 11 13 9 Q13 7.5 12 7 Q13 6.5 13 5 Q13 3 11 3 Z"/><path d="M8 6 V11"/><path d="M6 8 H10"/></svg>MEMORY
+                </button>
+                <button class="profile-tab" data-tab="mode" onclick="window._profileSwitchTab('mode')" style="${tabBtnStyle}">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; pointer-events:none;"><rect x="2" y="3" width="9" height="6" rx="1.5"/><rect x="5" y="7" width="9" height="6" rx="1.5"/></svg>MODE
+                </button>
+                <button class="profile-tab" data-tab="tools" onclick="window._profileSwitchTab('tools')" style="${tabBtnStyle}">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; pointer-events:none;"><circle cx="8" cy="8" r="2.5"/><path d="M8 1 V3.5"/><path d="M8 12.5 V15"/><path d="M1 8 H3.5"/><path d="M12.5 8 H15"/><path d="M3 3 L4.8 4.8"/><path d="M11.2 11.2 L13 13"/><path d="M3 13 L4.8 11.2"/><path d="M11.2 4.8 L13 3"/></svg>TOOLS
+                </button>
+            </div>
+
+            <!-- IDENTITY tab content -->
+            <div class="fp-section" data-tab="identity">
+                <h3 class="fp-section-title">IDENTITY</h3>
                 <div style="display:flex; align-items:center; gap:14px;">
                     ${user.picture ? `<img src="${user.picture}" style="width:56px;height:56px;border-radius:50%;border:2px solid ${accent};">` : ''}
                     <div>
@@ -1402,32 +1592,8 @@ function _renderNeuralProfileInner() {
                 </div>
             </div>
 
-            <div class="fp-section">
-                <h3 class="fp-section-title">🧠 PERSONAL CONTEXT (Memory)</h3>
-                ${isGuest
-                    ? `<p class="fp-section-help">🔒 Memory is reserved for Google-signed accounts. As a guest, your conversations end when this tab closes. <strong>Sign in</strong> to give the AI persistent context across sessions.</p>`
-                    : `<p class="fp-section-help">Anything you put here is sent to the AI on every reply, so it knows you across sessions. Stored only in your browser.</p>
-                       <textarea id="neural-memory-input" class="fp-textarea" placeholder="e.g. I'm Xavier, I prefer concise answers, I work in security and infrastructure.">${savedMem}</textarea>
-                       <div class="fp-action-row">
-                           <button class="fp-btn-primary" onclick="saveNeuralMemory()">SAVE MEMORY</button>
-                           <button class="fp-btn-ghost"   onclick="clearNeuralMemory()">CLEAR</button>
-                       </div>`}
-            </div>
-
-            <div class="fp-section">
-                <h3 class="fp-section-title">🛠️ AI CAPABILITIES</h3>
-                <p class="fp-section-help">Live status of every Hugging Face / Gemini-backed feature. The AI invokes these automatically when you ask in plain words.</p>
-                <div id="profile-tools-status" style="display:flex; flex-direction:column; gap:8px;"></div>
-            </div>
-
-            <div class="fp-section">
-                <h3 class="fp-section-title">📜 PER-MODE THREADS</h3>
-                <p class="fp-section-help">Each mode keeps its own conversation. Wipe one without touching the others.</p>
-                <div id="profile-mode-threads" style="display:flex; flex-direction:column; gap:8px;"></div>
-            </div>
-
-            <div class="fp-section">
-                <h3 class="fp-section-title">🔬 SESSION TELEMETRY</h3>
+            <div class="fp-section" data-tab="identity">
+                <h3 class="fp-section-title">SESSION TELEMETRY</h3>
                 <table class="fp-kv-table">
                     <tr><th>Active Mode</th><td class="mono">${(window.currentMode || 'nexus').toUpperCase()}</td></tr>
                     <tr><th>Active Model</th><td class="mono">${window.activeModelLabel || `(auto · this mode prefers ${_modePreferredModel(window.currentMode)})`}</td></tr>
@@ -1437,12 +1603,70 @@ function _renderNeuralProfileInner() {
                     <tr><th>Voice Output</th><td class="mono">${(window.NexusTTS && window.NexusTTS.getPrefs().enabled) ? 'on' : 'off'}</td></tr>
                 </table>
             </div>
+
+            <!-- MEMORY tab content -->
+            <div class="fp-section" data-tab="memory">
+                <h3 class="fp-section-title">PERSONAL CONTEXT</h3>
+                ${isGuest
+                    ? `<p class="fp-section-help">Memory is reserved for Google-signed accounts. As a guest, your conversations end when this tab closes. <strong>Sign in</strong> to give the AI persistent context across sessions.</p>`
+                    : `<p class="fp-section-help">Anything you put here is sent to the AI on every reply, so it knows you across sessions. Stored only in your browser.</p>
+                       <textarea id="neural-memory-input" class="fp-textarea" placeholder="e.g. I'm Xavier, I prefer concise answers, I work in security and infrastructure.">${savedMem}</textarea>
+                       <div class="fp-action-row">
+                           <button class="fp-btn-primary" onclick="saveNeuralMemory()">SAVE MEMORY</button>
+                           <button class="fp-btn-ghost"   onclick="clearNeuralMemory()">CLEAR</button>
+                       </div>`}
+            </div>
+
+            <!-- MODE tab content -->
+            <div class="fp-section" data-tab="mode">
+                <h3 class="fp-section-title">PER-MODE THREADS</h3>
+                <p class="fp-section-help">Each mode keeps its own conversation. Wipe one without touching the others.</p>
+                <div id="profile-mode-threads" style="display:flex; flex-direction:column; gap:8px;"></div>
+            </div>
+
+            <!-- TOOLS tab content -->
+            <div class="fp-section" data-tab="tools">
+                <h3 class="fp-section-title">AI CAPABILITIES</h3>
+                <p class="fp-section-help">Live status of every Hugging Face / Gemini-backed feature. The AI invokes these automatically when you ask in plain words.</p>
+                <div id="profile-tools-status" style="display:flex; flex-direction:column; gap:8px;"></div>
+                ${window.OWNER_MODE ? `
+                <div class="profile-ad-slot" style="margin-top: 22px; padding: 14px; min-height: 90px; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.12); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #6a6a7a; font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase; font-family: 'Fira Code', monospace;">
+                    <span>AD SLOT · 728 × 90 · pending AdSense approval</span>
+                </div>` : ''}
+            </div>
         </div>
     `;
 
     renderToolsStatus('profile-tools-status');
     renderModeThreads('profile-mode-threads');
+
+    // Apply the active tab (hide non-matching sections, mark active button)
+    if (window._profileSwitchTab) window._profileSwitchTab(activeTab);
 }
+
+// Tab switcher for AI Profile — same pattern as _devSwitchTab in DevPanel.
+window._profileSwitchTab = function(tab) {
+    window._profileActiveTab = tab;
+    const accent = (window.MODE_COLORS && window.MODE_COLORS[window.currentMode]) || '#0ff';
+    const panel = document.getElementById('neural-profile-panel');
+    if (!panel) return;
+    // Show/hide sections by data-tab
+    panel.querySelectorAll('.fp-section[data-tab]').forEach(sec => {
+        sec.style.display = (sec.getAttribute('data-tab') === tab) ? '' : 'none';
+    });
+    // Mark active tab button — accent color underline + glow
+    panel.querySelectorAll('.profile-tab').forEach(btn => {
+        const isActive = btn.getAttribute('data-tab') === tab;
+        btn.style.color = isActive ? `${accent} !important` : '#888 !important';
+        btn.style.borderBottom = isActive ? `2px solid ${accent}` : '2px solid transparent';
+        btn.style.textShadow = isActive ? `0 0 8px ${accent}` : 'none';
+        // Re-apply via cssText hack since "!important" inline can be sticky
+        btn.style.setProperty('color', isActive ? accent : '#888', 'important');
+    });
+    // Reset scroll to top of newly-shown content
+    const inner = panel.querySelector('.panel-inner');
+    if (inner) inner.scrollTop = 0;
+};
 
 function renderModeThreads(hostId) {
     const host = document.getElementById(hostId);
@@ -1823,7 +2047,7 @@ async function renderDevPanel() {
         const host = document.getElementById('dev-env-editor');
         if (!host) return;
         try {
-            const r = await fetch(`${window.API_BASE || ''}/api/dev/env`, { credentials: 'same-origin' });
+            const r = await fetch(`${window.API_BASE || ''}/api/dev/env`, { credentials: 'include' });
             const data = await r.json();
             if (data.error) { host.innerHTML = `<span class="fp-badge err">${data.error}</span>`; return; }
             const KEY_BLURBS = {
@@ -1869,7 +2093,7 @@ async function renderDevPanel() {
 
     // Load premium users list
     try {
-        const r = await fetch(`${window.API_BASE || ''}/api/dev/premium`, { credentials: 'same-origin' });
+        const r = await fetch(`${window.API_BASE || ''}/api/dev/premium`, { credentials: 'include' });
         const data = await r.json();
         const host = document.getElementById('dev-premium-list');
         if (host) {
@@ -1918,7 +2142,7 @@ async function renderDevPanel() {
 
     // Load blocklist
     try {
-        const r = await fetch(`${window.API_BASE || ''}/api/dev/blocklist`, { credentials: 'same-origin' });
+        const r = await fetch(`${window.API_BASE || ''}/api/dev/blocklist`, { credentials: 'include' });
         const data = await r.json();
         const host = document.getElementById('dev-blocklist');
         if (host) {
@@ -1931,7 +2155,7 @@ async function renderDevPanel() {
 
     // Load active server-side lockouts (separate from permanent IP blocks)
     try {
-        const r = await fetch(`${window.API_BASE || ''}/api/dev/locked-users`, { credentials: 'same-origin' });
+        const r = await fetch(`${window.API_BASE || ''}/api/dev/locked-users`, { credentials: 'include' });
         const data = await r.json();
         const host = document.getElementById('dev-lockouts');
         if (host) {
@@ -1951,7 +2175,7 @@ async function renderDevPanel() {
 
     // Load file list + show description for the currently-selected file
     try {
-        const r = await fetch(`${window.API_BASE || ''}/api/dev/files`, { credentials: 'same-origin' });
+        const r = await fetch(`${window.API_BASE || ''}/api/dev/files`, { credentials: 'include' });
         const data = await r.json();
         const sel  = document.getElementById('dev-file');
         const info = document.getElementById('dev-file-info');
@@ -1977,7 +2201,7 @@ window._devLoadPrompt = async function() {
     ta.value = '// loading…';
     if (mi) mi.textContent = 'Loading…';
     try {
-        const r = await fetch(`${window.API_BASE || ''}/api/system-prompt?mode=${encodeURIComponent(sel.value)}`, { credentials: 'same-origin' });
+        const r = await fetch(`${window.API_BASE || ''}/api/system-prompt?mode=${encodeURIComponent(sel.value)}`, { credentials: 'include' });
         const data = await r.json();
         ta.value = data.error ? `// ERROR: ${data.error}` : data.prompt;
         if (mi && data.primary_model) {
@@ -1993,7 +2217,7 @@ window._devBlockIp = async function() {
     const inp = document.getElementById('dev-block-ip');
     if (!inp || !inp.value.trim()) return;
     const r = await fetch(`${window.API_BASE || ''}/api/dev/block`, {
-        method: 'POST', credentials: 'same-origin',
+        method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ip: inp.value.trim() })
     });
@@ -2002,7 +2226,7 @@ window._devBlockIp = async function() {
 };
 window._devUnblockIp = async function(ip) {
     const r = await fetch(`${window.API_BASE || ''}/api/dev/unblock`, {
-        method: 'POST', credentials: 'same-origin',
+        method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ip })
     });
@@ -2024,7 +2248,7 @@ window._devGrantPremium = async function() {
     const note = document.getElementById('dev-premium-note')?.value.trim();
     if (!email || !email.includes('@')) { alert('Need valid email'); return; }
     const r = await fetch(`${window.API_BASE || ''}/api/dev/premium/grant`, {
-        method: 'POST', credentials: 'same-origin',
+        method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, days: days || null, note }),
     });
@@ -2041,7 +2265,7 @@ window._devGrantPremium = async function() {
 window._devRevokePremium = async function(email) {
     if (!confirm(`Remove premium from ${email}?`)) return;
     const r = await fetch(`${window.API_BASE || ''}/api/dev/premium/revoke`, {
-        method: 'POST', credentials: 'same-origin',
+        method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
     });
@@ -2051,7 +2275,7 @@ window._devRevokePremium = async function(email) {
 window._devRevokeLockout = async function(key) {
     if (!confirm(`Revoke lockout for ${key}?`)) return;
     const r = await fetch(`${window.API_BASE || ''}/api/dev/revoke-lockout`, {
-        method: 'POST', credentials: 'same-origin',
+        method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key })
     });
@@ -2065,7 +2289,7 @@ window._devLoadImageModels = async function() {
     const freeSel = document.getElementById('dev-img-free');
     if (!repSel || !freeSel) return;
     try {
-        const r = await fetch(`${window.API_BASE || ''}/api/dev/image-models`, { credentials: 'same-origin' });
+        const r = await fetch(`${window.API_BASE || ''}/api/dev/image-models`, { credentials: 'include' });
         const data = await r.json();
         if (data.error) return;
 
@@ -2104,7 +2328,7 @@ window._devTestCivitai = async function() {
     out.innerHTML = '<span style="color:#0ff;">running test job against Civitai…</span>';
     try {
         const r = await fetch(`${window.API_BASE || ''}/api/dev/test-civitai`, {
-            method: 'POST', credentials: 'same-origin',
+            method: 'POST', credentials: 'include',
         });
         const j = await r.json();
         if (j.ok) {
@@ -2141,7 +2365,7 @@ window._devToggleLogTail = function() {
     if (status) status.textContent = 'streaming · 3s interval';
     const fetchOnce = async () => {
         try {
-            const r = await fetch(`${window.API_BASE || ''}/api/dev/log-tail`, { credentials: 'same-origin', cache: 'no-store' });
+            const r = await fetch(`${window.API_BASE || ''}/api/dev/log-tail`, { credentials: 'include', cache: 'no-store' });
             const j = await r.json();
             const out = document.getElementById('dev-log-output');
             if (!out) return;
@@ -2165,7 +2389,7 @@ window._devSaveEnvKey = async function(key) {
     if (btn) { btn.textContent = 'SAVING…'; btn.disabled = true; }
     try {
         const r = await fetch(`${window.API_BASE || ''}/api/dev/env`, {
-            method: 'POST', credentials: 'same-origin',
+            method: 'POST', credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ key, value }),
         });
@@ -2211,7 +2435,7 @@ window._devRestartBackend = async function() {
     const status = document.getElementById('dev-restart-status');
     if (status) status.innerHTML = '<span style="color:#fa0;">restarting…</span>';
     try {
-        await fetch(`${window.API_BASE || ''}/api/dev/restart-backend`, { method: 'POST', credentials: 'same-origin' });
+        await fetch(`${window.API_BASE || ''}/api/dev/restart-backend`, { method: 'POST', credentials: 'include' });
     } catch (_) { /* the backend re-execs mid-response, fetch will likely error — that's expected */ }
     if (status) status.innerHTML = '<span style="color:#fa0;">re-execing… polling for backend to come back…</span>';
     // Poll /ping every 500ms until it returns OK, then auto-refresh dropdowns
@@ -2237,7 +2461,7 @@ window._devTestComfyUI = async function() {
     if (!out) return;
     out.innerHTML = '<span style="color:#0ff;">running test job against your local ComfyUI box (free, ~30-60s)…</span>';
     try {
-        const r = await fetch(`${window.API_BASE || ''}/api/dev/test-comfyui`, { method: 'POST', credentials: 'same-origin' });
+        const r = await fetch(`${window.API_BASE || ''}/api/dev/test-comfyui`, { method: 'POST', credentials: 'include' });
         const j = await r.json();
         if (j.ok) {
             out.innerHTML = `<div style="background:rgba(0,255,128,0.1); border-left:3px solid #0f8; padding:10px 14px; border-radius:4px; color:#9fc;">
@@ -2266,7 +2490,7 @@ window._devTestReplicate = async function() {
     out.innerHTML = '<span style="color:#0ff;">running test job against Replicate using cheapest model (~$0.0014)…</span>';
     try {
         const r = await fetch(`${window.API_BASE || ''}/api/dev/test-replicate`, {
-            method: 'POST', credentials: 'same-origin',
+            method: 'POST', credentials: 'include',
         });
         const j = await r.json();
         if (j.ok) {
@@ -2317,7 +2541,7 @@ window._devSaveImageModelsActual = async function() {
     showToast('SAVING…', '#0ff');
     try {
         const r = await fetch(`${window.API_BASE || ''}/api/dev/image-models`, {
-            method: 'POST', credentials: 'same-origin',
+            method: 'POST', credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 replicate_model: repSel.value,
@@ -2343,7 +2567,7 @@ window._devLoadFile = async function() {
     const f = sel.value;
     ta.value = '// loading…';
     try {
-        const r = await fetch(`${window.API_BASE || ''}/api/dev/source?file=${encodeURIComponent(f)}`, { credentials: 'same-origin' });
+        const r = await fetch(`${window.API_BASE || ''}/api/dev/source?file=${encodeURIComponent(f)}`, { credentials: 'include' });
         const data = await r.json();
         if (data.error) ta.value = `// ERROR: ${data.error}`;
         else ta.value = `// ${data.file}  (${data.size} bytes)\n\n${data.content}`;
@@ -2449,6 +2673,81 @@ window.printTypewriter = printTypewriter;
 window.setMode = setMode;
 window.initiateBootSequence = initiateBootSequence;
 
+// =====================================================================
+// FOOTER PERMANENT BANNER — owner-gated, always-on inventory at viewport bottom.
+// Wrapped in try/catch + kill-switch (window.NEXUS_DISABLE_ADS = true to disable).
+// =====================================================================
+(function _injectFooterBanner() {
+    const ensure = () => {
+        try {
+            if (window.NEXUS_DISABLE_ADS) return;
+            if (window.NEXUS_DISABLE_FOOTER_AD) return;
+            if (!window.OWNER_MODE) return;
+            if (document.getElementById('footer-permanent-ad')) return;
+            if (!document.body) return;
+            const slot = document.createElement('div');
+            slot.id = 'footer-permanent-ad';
+            slot.style.cssText = 'position: fixed; left: 50%; bottom: 8px; transform: translateX(-50%); width: min(728px, calc(100vw - 24px)); height: 60px; padding: 8px; background: rgba(0,0,0,0.85); border: 1px dashed rgba(255,255,255,0.18); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #6a6a7a; font-size: 0.65rem; letter-spacing: 2px; text-transform: uppercase; font-family: monospace; z-index: 50; pointer-events: none; backdrop-filter: blur(4px);';
+            slot.innerHTML = '<span>AD SLOT · 728 × 60 · footer (always on)</span>';
+            document.body.appendChild(slot);
+            const obs = new MutationObserver(() => {
+                try {
+                    const gamePanel = document.getElementById('game-gui-container');
+                    const devPanel = document.getElementById('dev-panel');
+                    const profilePanel = document.getElementById('neural-profile-panel');
+                    const a11yPanel = document.getElementById('a11y-panel');
+                    const lockedPage = location.pathname.endsWith('locked.html');
+                    const anyOpen =
+                        (gamePanel && !gamePanel.classList.contains('gui-hidden')) ||
+                        (devPanel && devPanel.classList.contains('open')) ||
+                        (profilePanel && profilePanel.classList.contains('open')) ||
+                        (a11yPanel && a11yPanel.classList.contains('a11y-panel-open')) ||
+                        lockedPage;
+                    slot.style.display = anyOpen ? 'none' : 'flex';
+                } catch (_) {}
+            });
+            ['game-gui-container', 'dev-panel', 'neural-profile-panel', 'a11y-panel'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) obs.observe(el, { attributes: true, attributeFilter: ['class'] });
+            });
+        } catch (e) { console.warn('[footer-ad]', e); }
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ensure);
+    else ensure();
+})();
+
+// =====================================================================
+// PATH C — denser ad load for guests. Wrap printToTerminal — every Nth AI msg
+// gets an ad below it. Wrapped in try/catch so a failure cannot break printing.
+// =====================================================================
+(function _wrapPrintForGuestAds() {
+    try {
+        if (typeof window.printToTerminal !== 'function') return;
+        const _origPrint = window.printToTerminal;
+        const EVERY_N = 4;
+        window._guestAiMsgCount = 0;
+        window.printToTerminal = function(text, className) {
+            // ALWAYS call the original first so chat keeps working even if ad code fails
+            try { _origPrint(text, className); } catch (e) { console.warn('[print orig]', e); }
+            try {
+                if (window.NEXUS_DISABLE_ADS) return;
+                if (window.NEXUS_DISABLE_PATHC_AD) return;
+                if (!className || !String(className).includes('ai-msg')) return;
+                if (!window.OWNER_MODE) return;
+                window._guestAiMsgCount = (window._guestAiMsgCount || 0) + 1;
+                if (window._guestAiMsgCount % EVERY_N !== 0) return;
+                const out = document.getElementById('terminal-output') || document.getElementById('output') || window.output;
+                if (!out || !out.appendChild) return;
+                const slot = document.createElement('div');
+                slot.className = 'guest-inline-ad';
+                slot.style.cssText = 'margin: 14px auto; padding: 14px; min-height: 90px; max-width: 720px; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.12); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #6a6a7a; font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase; font-family: monospace; text-align: center; line-height: 1.5;';
+                slot.innerHTML = '<div><div>AD SLOT · 728 × 90 · pending AdSense approval</div><div style="font-size:0.6rem; opacity:0.6; margin-top:4px;">[ Guest density · every ' + EVERY_N + ' AI replies ]</div></div>';
+                out.appendChild(slot);
+            } catch (e) { console.warn('[guest-ad]', e); }
+        };
+    } catch (e) { console.warn('[guest-ad-wrap]', e); }
+})();
+
 // --- NEURAL TIPS SYSTEM ---
 const NEURAL_TIPS = [
     "Type 'uplink' to select and analyze an image file.",
@@ -2498,3 +2797,66 @@ function showNeuralTip() {
 // Start tip loop
 setTimeout(showNeuralTip, 5000);
 setInterval(showNeuralTip, 180000);
+
+// =====================================================================
+// IN-MENU AD SLOTS (Phase 3) — small banner at the bottom of the
+// Settings panel (#a11y-panel) and AI Profile panel (#neural-profile-panel).
+// Empty placeholders until AdSense is approved. Survives panel re-renders
+// via MutationObserver (because renderNeuralProfile rewrites innerHTML).
+// =====================================================================
+function _ensurePanelAdSlot(panelId, slotLabel) {
+    if (window.NEXUS_DISABLE_ADS) return;
+    if (window.NEXUS_DISABLE_INMENU_AD) return;
+    // Owner-only — public users never see the gray placeholders. When real AdSense
+    // units are wired in, swap this gate for the AdSense ad code (publicly visible).
+    if (!window.OWNER_MODE) return;
+    const panel = document.getElementById(panelId);
+    if (!panel) return;
+    const inner = panel.querySelector('.panel-inner');
+    if (!inner) return;
+    if (inner.querySelector('.menu-ad-slot')) return; // already present, don't duplicate
+    const slot = document.createElement('div');
+    slot.className = 'menu-ad-slot';
+    slot.style.cssText = [
+        'margin: 22px 0 4px',
+        'padding: 14px',
+        'min-height: 50px',
+        'background: rgba(255, 255, 255, 0.02)',
+        'border: 1px dashed rgba(255, 255, 255, 0.12)',
+        'border-radius: 4px',
+        'display: flex',
+        'align-items: center',
+        'justify-content: center',
+        'color: #6a6a7a',
+        'font-size: 0.7rem',
+        'letter-spacing: 2px',
+        'text-transform: uppercase',
+        "font-family: 'Fira Code', monospace"
+    ].join(';') + ';';
+    slot.innerHTML = `<span>${slotLabel}</span>`;
+    inner.appendChild(slot);
+}
+
+function _watchPanelAdSlot(panelId, slotLabel) {
+    const panel = document.getElementById(panelId);
+    if (!panel) return;
+    _ensurePanelAdSlot(panelId, slotLabel);  // initial inject
+    // Re-inject whenever panel-inner is rebuilt (e.g. renderNeuralProfile)
+    const obs = new MutationObserver(() => _ensurePanelAdSlot(panelId, slotLabel));
+    obs.observe(panel, { childList: true, subtree: true });
+}
+
+// Boot — set up watchers once. DOMContentLoaded already fired by the time
+// terminal.js runs, so we kick immediately.
+(function _bootMenuAds() {
+    const _label = 'AD SLOT · 320 × 50 · pending AdSense approval';
+    const _setup = () => {
+        _watchPanelAdSlot('a11y-panel', _label);
+        _watchPanelAdSlot('neural-profile-panel', _label);
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', _setup);
+    } else {
+        _setup();
+    }
+})();
