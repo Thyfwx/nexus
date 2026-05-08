@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus AI — Changelog</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="https://thyfwxit.com/favicon.png">
+    <!-- Google AdSense — fills any <ins class="adsbygoogle"> tags. -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3034789470490055" crossorigin="anonymous"></script>
+    <script async src="https://fundingchoicesmessages.google.com/i/pub-3034789470490055?ers=1"></script>
+    <script>(function(){function signalGooglefcPresent(){if(!window.frames['googlefcPresent']){if(document.body){const iframe=document.createElement('iframe');iframe.style='width: 0; height: 0; border: none; z-index: -1000; left: -1000px; top: -1000px;';iframe.style.display='none';iframe.name='googlefcPresent';document.body.appendChild(iframe);}else{setTimeout(signalGooglefcPresent,0);}}}signalGooglefcPresent();})();</script>
+    <script src="adblock_recovery.js"></script>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --bg-soft: #12121a;
+            --fg: #c9c9d4;
+            --fg-dim: #6a6a7a;
+            --accent: #00b4ff;
+            --accent-glow: rgba(0, 180, 255, 0.4);
+            --green: #00ff88;
+            --orange: #ff9500;
+            --red: #ff3333;
+            --border: rgba(255, 255, 255, 0.07);
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: 'Fira Code', monospace;
+        }
+
+        body {
+            background:
+                radial-gradient(ellipse at top, rgba(0, 180, 255, 0.04) 0%, transparent 50%),
+                radial-gradient(ellipse at bottom, rgba(0, 255, 136, 0.03) 0%, transparent 50%),
+                var(--bg);
+            min-height: 100vh;
+            padding: 24px 16px 60px;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0) 0px,
+                rgba(0, 0, 0, 0) 2px,
+                rgba(0, 0, 0, 0.04) 3px,
+                rgba(0, 0, 0, 0.04) 4px
+            );
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 2;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.7rem;
+            letter-spacing: 2px;
+            color: var(--fg-dim);
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .topbar .brand { color: var(--accent); font-weight: 700; }
+        .topbar a {
+            color: var(--fg-dim);
+            text-decoration: none;
+            border-bottom: 1px dotted var(--fg-dim);
+        }
+        .topbar a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+        h1 {
+            color: #fff;
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin: 0 0 8px;
+            letter-spacing: 1px;
+            text-shadow: 0 0 16px var(--accent-glow);
+        }
+
+        .subtitle {
+            color: var(--fg-dim);
+            font-size: 0.85rem;
+            margin-bottom: 32px;
+            line-height: 1.6;
+        }
+
+        .release {
+            background: var(--bg-soft);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--accent);
+            border-radius: 4px;
+            padding: 20px 24px;
+            margin-bottom: 18px;
+            position: relative;
+        }
+
+        .release.major { border-left-color: var(--green); }
+        .release.fix   { border-left-color: var(--orange); }
+
+        .release-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .release-version {
+            color: var(--accent);
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+
+        .release.major .release-version { color: var(--green); }
+        .release.fix   .release-version { color: var(--orange); }
+
+        .release-date {
+            color: var(--fg-dim);
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+        }
+
+        .release-tag {
+            display: inline-block;
+            font-size: 0.6rem;
+            letter-spacing: 1.5px;
+            padding: 2px 8px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            font-weight: 700;
+            margin-left: 6px;
+            background: rgba(0, 180, 255, 0.15);
+            color: var(--accent);
+            border: 1px solid var(--accent);
+        }
+
+        .release.major .release-tag {
+            background: rgba(0, 255, 136, 0.15);
+            color: var(--green);
+            border-color: var(--green);
+        }
+
+        .release.fix .release-tag {
+            background: rgba(255, 149, 0, 0.15);
+            color: var(--orange);
+            border-color: var(--orange);
+        }
+
+        .release-summary {
+            color: var(--fg);
+            font-size: 0.88rem;
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+
+        ul.changes {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        ul.changes li {
+            padding: 6px 0 6px 22px;
+            position: relative;
+            font-size: 0.78rem;
+            color: var(--fg);
+            line-height: 1.55;
+        }
+
+        ul.changes li::before {
+            content: '▸';
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+        }
+
+        ul.changes li.added::before { content: '+'; color: var(--green); font-weight: 700; }
+        ul.changes li.fixed::before { content: '✓'; color: var(--orange); font-weight: 700; }
+        ul.changes li.removed::before { content: '−'; color: var(--red); font-weight: 700; }
+
+        .footer {
+            margin-top: 40px;
+            padding-top: 18px;
+            border-top: 1px solid var(--border);
+            font-size: 0.7rem;
+            color: var(--fg-dim);
+            line-height: 1.6;
+            text-align: center;
+        }
+
+        .footer a {
+            color: var(--accent);
+            text-decoration: none;
+            border-bottom: 1px dotted var(--accent);
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 1.4rem; }
+            .release { padding: 16px 18px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+
+        <div class="topbar">
+            <span class="brand">● NEXUS AI · CHANGELOG</span>
+            <a href="./">← Return to terminal</a>
+        </div>
+
+        <h1>What's new in Nexus</h1>
+        <p class="subtitle">
+            A live record of every shipped change — features, fixes, and behind-the-scenes work.
+            For the full git history, see <a href="https://github.com/Thyfwx/nexus" target="_blank" rel="noopener" style="color:var(--accent);">github.com/Thyfwx/nexus</a>.
+        </p>
+
+        <!-- v5.5.1 -->
+        <div class="release fix">
+            <div class="release-head">
+                <span class="release-version">v5.5.1</span>
+                <span>
+                    <span class="release-tag">PATCH</span>
+                </span>
+                <span class="release-date">2026-05-08</span>
+            </div>
+            <div class="release-summary">
+                AdSense wired in, ad-loop bugs fixed, moderation patterns hardened, three game bugs squashed.
+            </div>
+            <ul class="changes">
+                <li class="added">Google AdSense bootstrap script integrated for monetization (publisher ID + ad-block recovery).</li>
+                <li class="added">AI Profile rebuilt with 4 tabs: IDENTITY · MEMORY · MODE · TOOLS.</li>
+                <li class="added">System Settings rebuilt with 4 tabs: VISUAL · TEXT · INPUT · AUDIO + automatic OS-preference detection (reduce-motion, contrast, etc.).</li>
+                <li class="added">Hard refusal policy now applies in every chat mode for critical content.</li>
+                <li class="fixed">Pong crash on game-over (submitScore was undefined).</li>
+                <li class="fixed">Wordle physical keyboard now works (Backspace, Enter, A-Z).</li>
+                <li class="fixed">Snake cells no longer visually overlap the wall border.</li>
+                <li class="fixed">Critical-content moderation: 18/18 prompts caught (was 5/18). New patterns for arson, kidnapping, body disposal, school violence.</li>
+                <li class="fixed">Cross-domain cookies now work on production (SameSite=None on HTTPS). Owner DevPanel API endpoints stop returning 403 after re-login.</li>
+                <li class="removed">Critical-lockout auto-redirect to dedicated locked page (caused a tight reload loop with rehydrate-on-boot).</li>
+            </ul>
+        </div>
+
+        <!-- v5.5.0 -->
+        <div class="release major">
+            <div class="release-head">
+                <span class="release-version">v5.5.0</span>
+                <span>
+                    <span class="release-tag">RELEASE</span>
+                </span>
+                <span class="release-date">2026-05-07</span>
+            </div>
+            <div class="release-summary">
+                Major SFW pivot: NSFW image generation removed entirely. ComfyUI retired. Replicate becomes the paid SFW image generator. AdSense-eligible build.
+            </div>
+            <ul class="changes">
+                <li class="added">Replicate Flux-schnell as the primary paid SFW image provider ($0.003 per image, $15/mo cap).</li>
+                <li class="added">Dedicated lockout page (<code>/nexus/locked.html</code>) with countdown timer and access-restoration UI.</li>
+                <li class="added">Combined strike counter — NSFW + hostility tracked together. Three strikes triggers escalating lockout. Slurs hit 30-min lockout instantly.</li>
+                <li class="added">Unfiltered chaos rage system with role-aware rates and smart lockout ladder.</li>
+                <li class="added">Discord moderation webhook severity routing (silent for low/medium, owner-mention for high/critical).</li>
+                <li class="added">Live commit-status indicator on portfolio Nexus preview (sandbox-ahead-of-main shows as ONGOING).</li>
+                <li class="removed">All explicit/NSFW image generation system-wide. Image generation is now SFW only in every mode.</li>
+                <li class="removed">ComfyUI provider entirely (was running on GTX 1070 Ti home GPU).</li>
+                <li class="removed">Coder and Education modes can no longer generate images (per topic-lock policy).</li>
+            </ul>
+        </div>
+
+        <!-- v5.4.x — placeholder for older releases, to be backfilled -->
+        <div class="release">
+            <div class="release-head">
+                <span class="release-version">v5.4.x</span>
+                <span>
+                    <span class="release-tag">EARLIER</span>
+                </span>
+                <span class="release-date">~2026-04</span>
+            </div>
+            <div class="release-summary">
+                DevPanel cleanup, lobby v5.2.6 lock, sandbox/main worktree workflow, image gen tier system, accessibility kernel.
+            </div>
+            <ul class="changes">
+                <li>Detailed release notes for older versions are being backfilled. See <a href="https://github.com/Thyfwx/nexus/commits/main" target="_blank" rel="noopener" style="color:var(--accent);">commit history</a> for now.</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            Built solo by Xavier Scott (THYFWX). Updated on every release.<br>
+            Bug? Idea? Email <a href="mailto:xavier@thyfwxit.com">xavier@thyfwxit.com</a>.
+        </div>
+
+    </div>
+
+</body>
+</html>
