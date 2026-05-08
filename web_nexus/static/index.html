@@ -4,9 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Nexus Terminal</title>
+    <!-- Google AdSense — fills any <ins class="adsbygoogle"> tags on the page. -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3034789470490055" crossorigin="anonymous"></script>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=51a60b">
-    <link rel="stylesheet" href="mobile.css?v=51a60b">
+    <link rel="stylesheet" href="style.css?v=1b0f0a">
+    <link rel="stylesheet" href="mobile.css?v=1b0f0a">
     <link rel="icon" type="image/png" href="https://thyfwxit.com/favicon.png">
     <style>
         /* Accessibility CSS — driven by toggles in System Settings.
@@ -128,14 +130,30 @@
 
     <!-- System Settings Panel -->
     <div id="a11y-panel" class="a11y-panel">
-        <div class="panel-inner">
-            <div class="fp-header">
-                <div class="fp-title">[ SYSTEM SETTINGS ]</div>
-                <button class="fp-close" onclick="window.toggleA11yPanel()">CLOSE</button>
+        <div class="panel-inner" style="gap:12px;">
+            <div class="fp-header" style="position:relative !important; top:auto !important; margin:0 0 14px 0 !important; padding:14px 18px !important; box-shadow:none !important; background:rgba(8,14,26,0.98); border-bottom:1px solid rgba(0,255,255,0.25); display:flex !important; align-items:center; justify-content:space-between; gap:14px;">
+                <div class="fp-title" style="color:var(--accent) !important; text-shadow:0 0 14px var(--accent); font-size:1.1rem; font-weight:800; letter-spacing:4px; margin:0;">[ SYSTEM SETTINGS ]</div>
+                <button class="fp-close" onclick="window.toggleA11yPanel()" style="background:transparent; border:1px solid rgba(255,255,255,0.2); color:#aaa; padding:6px 14px; border-radius:6px; cursor:pointer; font-family:inherit; font-size:0.7rem; letter-spacing:2px; font-weight:700;">CLOSE</button>
             </div>
 
-            <div class="fp-section" id="settings-section-owner-behavior" style="display:none;">
-                <h3 class="fp-section-title">🧭 AI BEHAVIOR <span class="fp-badge" style="margin-left:8px;">OWNER</span></h3>
+            <!-- Settings tab bar — VISUAL · TEXT · INPUT · AUDIO. Mirrors DevPanel style. -->
+            <div id="settings-tabs" style="display:flex !important; flex-wrap:wrap; gap:0; margin:0 0 8px; padding:0; border-bottom:1px solid rgba(255,255,255,0.08);">
+                <button class="settings-tab" data-tab="visual" onclick="window._settingsSwitchTab('visual')" style="display:inline-flex !important; align-items:center; justify-content:center; gap:8px; flex:1 1 0; min-width:0; background:transparent !important; border:none; border-bottom:2px solid transparent; color:#888 !important; padding:9px 8px; margin-bottom:-1px; font-family:'Fira Code',monospace !important; font-weight:700 !important; font-size:0.66rem !important; letter-spacing:1.5px !important; text-transform:uppercase; cursor:pointer; white-space:nowrap; transition:0.18s;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="flex-shrink:0; pointer-events:none;"><circle cx="8" cy="8" r="3"/><circle cx="8" cy="8" r="6"/></svg>VISUAL
+                </button>
+                <button class="settings-tab" data-tab="text" onclick="window._settingsSwitchTab('text')" style="display:inline-flex !important; align-items:center; justify-content:center; gap:8px; flex:1 1 0; min-width:0; background:transparent !important; border:none; border-bottom:2px solid transparent; color:#888 !important; padding:9px 8px; margin-bottom:-1px; font-family:'Fira Code',monospace !important; font-weight:700 !important; font-size:0.66rem !important; letter-spacing:1.5px !important; text-transform:uppercase; cursor:pointer; white-space:nowrap; transition:0.18s;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="flex-shrink:0; pointer-events:none;"><path d="M3 4 H13"/><path d="M5 4 V13"/><path d="M11 4 V13"/></svg>TEXT
+                </button>
+                <button class="settings-tab" data-tab="input" onclick="window._settingsSwitchTab('input')" style="display:inline-flex !important; align-items:center; justify-content:center; gap:8px; flex:1 1 0; min-width:0; background:transparent !important; border:none; border-bottom:2px solid transparent; color:#888 !important; padding:9px 8px; margin-bottom:-1px; font-family:'Fira Code',monospace !important; font-weight:700 !important; font-size:0.66rem !important; letter-spacing:1.5px !important; text-transform:uppercase; cursor:pointer; white-space:nowrap; transition:0.18s;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; pointer-events:none;"><path d="M3 3 L11 8 L7 9 L9 13 L7 14 L5 10 L3 11 Z"/></svg>INPUT
+                </button>
+                <button class="settings-tab" data-tab="audio" onclick="window._settingsSwitchTab('audio')" style="display:inline-flex !important; align-items:center; justify-content:center; gap:8px; flex:1 1 0; min-width:0; background:transparent !important; border:none; border-bottom:2px solid transparent; color:#888 !important; padding:9px 8px; margin-bottom:-1px; font-family:'Fira Code',monospace !important; font-weight:700 !important; font-size:0.66rem !important; letter-spacing:1.5px !important; text-transform:uppercase; cursor:pointer; white-space:nowrap; transition:0.18s;">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; pointer-events:none;"><path d="M3 6 L7 6 L11 3 V13 L7 10 L3 10 Z"/><path d="M13 5 Q14.5 8 13 11"/></svg>AUDIO
+                </button>
+            </div>
+
+            <div class="fp-section" data-tab="visual" id="settings-section-owner-behavior" style="display:none;">
+                <h3 class="fp-section-title">AI BEHAVIOR <span class="fp-badge" style="margin-left:8px;">OWNER</span></h3>
                 <p class="fp-section-help">Pick which mode boots up by default. Owner-only.</p>
                 <table class="fp-kv-table">
                     <tr><th>Default mode on boot</th><td>
@@ -149,8 +167,8 @@
                 </table>
             </div>
 
-            <div class="fp-section">
-                <h3 class="fp-section-title">🔊 VOICE OUTPUT (TTS)</h3>
+            <div class="fp-section" data-tab="audio">
+                <h3 class="fp-section-title">VOICE OUTPUT (TTS)</h3>
                 <p class="fp-section-help">Read AI replies out loud using your browser's voices. Voices marked ✨ are higher-quality (Siri/Neural).</p>
                 <div class="fp-action-row">
                     <button class="fp-toggle" id="tts-toggle" onclick="window.NexusTTS && window.NexusTTS.toggle && window.NexusTTS.toggle()">VOICE OUTPUT <span class="fp-toggle-state">OFF</span></button>
@@ -166,8 +184,8 @@
                 </table>
             </div>
 
-            <div class="fp-section">
-                <h3 class="fp-section-title">🎵 SOUND THEME</h3>
+            <div class="fp-section" data-tab="audio">
+                <h3 class="fp-section-title">SOUND THEME</h3>
                 <p class="fp-section-help">Sets the UI feedback beep style for clicks, mode changes, and notifications.</p>
                 <table class="fp-kv-table">
                     <tr><th>Theme</th><td>
@@ -183,8 +201,8 @@
                 </div>
             </div>
 
-            <div class="fp-section">
-                <h3 class="fp-section-title">🖥️ VISUAL KERNEL</h3>
+            <div class="fp-section" data-tab="visual">
+                <h3 class="fp-section-title">VISUAL KERNEL</h3>
                 <p class="fp-section-help">Visual effects, motion, and contrast for the terminal look.</p>
                 <div class="fp-action-row">
                     <button class="fp-toggle active" data-class="crt-mode" onclick="window.toggleA11yClass('crt-mode', this)">CRT SCANLINES <span class="fp-toggle-state">ON</span></button>
@@ -208,32 +226,28 @@
                 </div>
             </div>
 
-            <div class="fp-section">
-                <h3 class="fp-section-title">📐 INTERFACE & TYPOGRAPHY</h3>
+            <div class="fp-section" data-tab="text">
+                <h3 class="fp-section-title">INTERFACE & TYPOGRAPHY</h3>
                 <p class="fp-section-help">Adjust font, spacing, and density for comfortable reading.</p>
                 <div class="fp-action-row">
-                    <button class="fp-toggle" data-class="a11y-dim" onclick="window.toggleA11yClass('a11y-dim', this)">DIM MODE <span class="fp-toggle-state">OFF</span></button>
                     <button class="fp-toggle" data-class="a11y-large" onclick="window.toggleA11yClass('a11y-large', this)">LARGE TEXT <span class="fp-toggle-state">OFF</span></button>
-                </div>
-                <div class="fp-action-row">
                     <button class="fp-toggle" data-class="a11y-xlarge" onclick="window.toggleA11yClass('a11y-xlarge', this)">EXTRA LARGE TEXT <span class="fp-toggle-state">OFF</span></button>
+                </div>
+                <div class="fp-action-row">
                     <button class="fp-toggle" data-class="a11y-bold" onclick="window.toggleA11yClass('a11y-bold', this)">BOLD TEXT <span class="fp-toggle-state">OFF</span></button>
-                </div>
-                <div class="fp-action-row">
                     <button class="fp-toggle" data-class="a11y-dyslexic" onclick="window.toggleA11yClass('a11y-dyslexic', this)">DYSLEXIC FONT <span class="fp-toggle-state">OFF</span></button>
+                </div>
+                <div class="fp-action-row">
                     <button class="fp-toggle" data-class="a11y-serif" onclick="window.toggleA11yClass('a11y-serif', this)">SERIF FONT <span class="fp-toggle-state">OFF</span></button>
-                </div>
-                <div class="fp-action-row">
                     <button class="fp-toggle" data-class="a11y-spaced" onclick="window.toggleA11yClass('a11y-spaced', this)">EXTRA LETTER SPACING <span class="fp-toggle-state">OFF</span></button>
-                    <button class="fp-toggle" data-class="a11y-tall" onclick="window.toggleA11yClass('a11y-tall', this)">TALLER LINE HEIGHT <span class="fp-toggle-state">OFF</span></button>
                 </div>
                 <div class="fp-action-row">
-                    <button class="fp-toggle" data-class="a11y-justify-left" onclick="window.toggleA11yClass('a11y-justify-left', this)">LEFT-ALIGN ALL TEXT <span class="fp-toggle-state">OFF</span></button>
+                    <button class="fp-toggle" data-class="a11y-tall" onclick="window.toggleA11yClass('a11y-tall', this)">TALLER LINE HEIGHT <span class="fp-toggle-state">OFF</span></button>
                 </div>
             </div>
 
-            <div class="fp-section">
-                <h3 class="fp-section-title">🎯 FOCUS & POINTER</h3>
+            <div class="fp-section" data-tab="input">
+                <h3 class="fp-section-title">FOCUS & POINTER</h3>
                 <p class="fp-section-help">Stronger keyboard focus rings and a bigger cursor for users who need clearer visual targets.</p>
                 <div class="fp-action-row">
                     <button class="fp-toggle" data-class="a11y-focus-rings" onclick="window.toggleA11yClass('a11y-focus-rings', this)">HIGH-VIS FOCUS <span class="fp-toggle-state">OFF</span></button>
@@ -245,8 +259,8 @@
                 </div>
             </div>
 
-            <div class="fp-section">
-                <h3 class="fp-section-title">🌈 COLOR-BLIND FILTERS</h3>
+            <div class="fp-section" data-tab="visual">
+                <h3 class="fp-section-title">COLOR-BLIND FILTERS</h3>
                 <p class="fp-section-help">Pick the filter that matches your color vision. Same options Apple/Android offer in OS Accessibility.</p>
                 <table class="fp-kv-table">
                     <tr><th>Filter</th><td>
@@ -261,15 +275,16 @@
                 </table>
             </div>
 
-            <div class="fp-section">
-                <h3 class="fp-section-title">⚠️ SYSTEM RECOVERY</h3>
+            <!-- Footer (always visible across all tabs) — system recovery -->
+            <div class="fp-section" style="border-top:1px solid rgba(255,255,255,0.06); margin-top:14px; padding-top:14px;">
+                <h3 class="fp-section-title">SYSTEM RECOVERY</h3>
                 <p class="fp-section-help">If the terminal locks up or breaks, hard-reload everything from scratch.</p>
                 <div class="fp-action-row">
                     <button class="fp-btn-danger" onclick="if(confirm('Hard reload? Any unsaved input will be lost.')) location.reload()">RESET CORE KERNEL</button>
                 </div>
             </div>
 
-            <p class="a11y-tip" id="settings-persistence-msg" style="margin-top:14px;">Node configuration is persistent via neural cache.</p>
+            <p class="a11y-tip" id="settings-persistence-msg" style="margin-top:14px;">Node configuration is persistent via neural cache. Toggles marked <span class="fp-badge" style="font-size:0.55rem;">AUTO</span> were turned on automatically based on your device's accessibility preferences.</p>
         </div>
     </div>
 
@@ -302,37 +317,37 @@
     </div>
 
     <!-- Load scripts in Master Order -->
-    <script src="nexus_globals.js?v=51a60b"></script>
-    <script src="crash_core.js?v=51a60b"></script>
-    <script src="secrets.js?v=51a60b"></script>
-    <script src="nexus_brain.js?v=51a60b"></script>
-    <script src="config_core.js?v=51a60b"></script>
-    <script src="ai_config.js?v=51a60b"></script>
-    <script src="core_modules/speedtest_logic.js?v=51a60b"></script>
-    <script src="core_modules/hardware_logic.js?v=51a60b"></script>
-    <script src="utils/speedtest.js?v=51a60b"></script>
-    <script src="utils/maintenance_hub.js?v=51a60b"></script>
-    <script src="uplink_core.js?v=51a60b"></script>
-    <script src="stats_core.js?v=51a60b"></script>
-    <script src="audio_core.js?v=51a60b"></script>
-    <script src="tts_core.js?v=51a60b"></script>
-    <script src="games_core.js?v=51a60b"></script>
-    <script src="games/_lifecycle.js?v=51a60b"></script>
-    <script src="games/wordle.js?v=51a60b"></script>
-    <script src="games/snake.js?v=51a60b"></script>
-    <script src="games/pong.js?v=51a60b"></script>
-    <script src="games/flappy.js?v=51a60b"></script>
-    <script src="games/breakout.js?v=51a60b"></script>
-    <script src="games/invaders.js?v=51a60b"></script>
-    <script src="games/mines.js?v=51a60b"></script>
-    <script src="games/breach.js?v=51a60b"></script>
-    <script src="games/typing.js?v=51a60b"></script>
-    <script src="games/matrix.js?v=51a60b"></script>
-    <script src="auth_core.js?v=51a60b"></script>
-    <script src="ai_tools_core.js?v=51a60b"></script>
-    <script src="ai_core.js?v=51a60b"></script>
-    <script src="commands_core.js?v=51a60b"></script>
-    <script src="terminal.js?v=51a60b"></script>
+    <script src="nexus_globals.js?v=1b0f0a"></script>
+    <script src="crash_core.js?v=1b0f0a"></script>
+    <script src="secrets.js?v=1b0f0a"></script>
+    <script src="nexus_brain.js?v=1b0f0a"></script>
+    <script src="config_core.js?v=1b0f0a"></script>
+    <script src="ai_config.js?v=1b0f0a"></script>
+    <script src="core_modules/speedtest_logic.js?v=1b0f0a"></script>
+    <script src="core_modules/hardware_logic.js?v=1b0f0a"></script>
+    <script src="utils/speedtest.js?v=1b0f0a"></script>
+    <script src="utils/maintenance_hub.js?v=1b0f0a"></script>
+    <script src="uplink_core.js?v=1b0f0a"></script>
+    <script src="stats_core.js?v=1b0f0a"></script>
+    <script src="audio_core.js?v=1b0f0a"></script>
+    <script src="tts_core.js?v=1b0f0a"></script>
+    <script src="games_core.js?v=1b0f0a"></script>
+    <script src="games/_lifecycle.js?v=1b0f0a"></script>
+    <script src="games/wordle.js?v=1b0f0a"></script>
+    <script src="games/snake.js?v=1b0f0a"></script>
+    <script src="games/pong.js?v=1b0f0a"></script>
+    <script src="games/flappy.js?v=1b0f0a"></script>
+    <script src="games/breakout.js?v=1b0f0a"></script>
+    <script src="games/invaders.js?v=1b0f0a"></script>
+    <script src="games/mines.js?v=1b0f0a"></script>
+    <script src="games/breach.js?v=1b0f0a"></script>
+    <script src="games/typing.js?v=1b0f0a"></script>
+    <script src="games/matrix.js?v=1b0f0a"></script>
+    <script src="auth_core.js?v=1b0f0a"></script>
+    <script src="ai_tools_core.js?v=1b0f0a"></script>
+    <script src="ai_core.js?v=1b0f0a"></script>
+    <script src="commands_core.js?v=1b0f0a"></script>
+    <script src="terminal.js?v=1b0f0a"></script>
 
     <script>
         // OS-level accessibility — silently apply matching CSS classes when the OS reports a preference.

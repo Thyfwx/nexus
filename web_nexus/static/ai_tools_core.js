@@ -29,7 +29,7 @@
         const res = await fetch(`${window.API_BASE || ''}/api/tool/${id}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin',
+            credentials: 'include',
             body: JSON.stringify(payload || {})
         });
         const data = await res.json().catch(() => ({}));
@@ -318,7 +318,7 @@
         nllbLangs() { return NLLB_LANGS; },
         async refresh() {
             try {
-                const r = await fetch(`${window.API_BASE || ''}/api/tools/manifest`, { credentials: 'same-origin' });
+                const r = await fetch(`${window.API_BASE || ''}/api/tools/manifest`, { credentials: 'include' });
                 const data = await r.json();
                 TOOLS = data.tools || [];
                 NLLB_LANGS = data.nllb_langs || {};
