@@ -4,22 +4,88 @@ let _snakeTS = null, _snakeTE = null, _snakeKey = null;
 function startSnake() {
     stopAllGames();
     guiContainer.classList.remove('gui-hidden');
+    guiContainer.classList.add('gui-game-wide');  // widen modal for bigger canvas
     guiTitle.textContent = 'NEXUS SNAKE';
     nexusCanvas.style.display = 'none';
 
+    // Shared button style — all four modes use the same dimensions/layout.
+    // Color comes from CSS variables we set per-button below.
+    const _btnStyle = `
+        padding: 22px 14px;
+        border-width: 1.5px;
+        border-style: solid;
+        border-radius: 6px;
+        background: var(--mode-bg);
+        border-color: var(--mode-color);
+        color: var(--mode-color);
+        cursor: pointer;
+        transition: 0.18s;
+        font-family: 'Fira Code', monospace;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-height: 88px;
+    `.trim();
+
     guiContent.innerHTML = `
-        <div style="text-align:center;padding:10px 0;">
-            <div style="color:#0ff;letter-spacing:3px;font-size:0.8rem;margin-bottom:16px;">SELECT MODE</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:300px;margin:0 auto;">
-                <button class="gui-btn snake-mode" data-mode="classic" style="border-color:#0ff;color:#0ff;">CLASSIC</button>
-                <button class="gui-btn snake-mode" data-mode="speed"   style="border-color:#ff0;color:#ff0;">SPEED RUN</button>
-                <button class="gui-btn snake-mode" data-mode="endless" style="border-color:#0f0;color:#0f0;">ENDLESS</button>
-                <button class="gui-btn snake-mode" data-mode="stealth" style="border-color:#888;color:#888;">STEALTH</button>
-            </div>
-            <div style="color:#333;font-size:0.65rem;margin-top:16px;line-height:1.8;">
-                SPEED RUN  starts fast, gets faster<br>
-                ENDLESS  walls wrap around<br>
-                STEALTH  no grid, pure instinct
+        <style>
+            .snake-pick {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 14px;
+                margin: 0 auto;
+                max-width: 460px;
+            }
+            .snake-pick button.snake-mode {
+                ${_btnStyle.replace(/\n/g, ' ')}
+            }
+            .snake-pick button.snake-mode .mode-name {
+                font-size: 1rem;
+                font-weight: 700;
+                letter-spacing: 2.5px;
+                line-height: 1;
+            }
+            .snake-pick button.snake-mode .mode-desc {
+                font-size: 0.62rem;
+                opacity: 0.65;
+                letter-spacing: 1px;
+                line-height: 1.3;
+            }
+            .snake-pick button.snake-mode:hover {
+                background: var(--mode-bg-hov) !important;
+                box-shadow: 0 0 18px var(--mode-color);
+            }
+            @media (max-width: 480px) {
+                .snake-pick { grid-template-columns: 1fr; max-width: 280px; }
+            }
+        </style>
+        <div style="text-align:center; padding:24px 12px;">
+            <div style="color:#0ff; letter-spacing:4px; font-size:0.85rem; font-weight:700; margin-bottom:6px; text-shadow:0 0 12px #0ff;">SELECT MODE</div>
+            <div style="color:#666; font-size:0.7rem; margin-bottom:24px; letter-spacing:1px;">Pick how you want to die</div>
+            <div class="snake-pick">
+                <button class="snake-mode" data-mode="classic"
+                    style="--mode-color:#0ff; --mode-bg:rgba(0,255,255,0.06); --mode-bg-hov:rgba(0,255,255,0.18);">
+                    <span class="mode-name">CLASSIC</span>
+                    <span class="mode-desc">walls kill · steady pace</span>
+                </button>
+                <button class="snake-mode" data-mode="speed"
+                    style="--mode-color:#ff0; --mode-bg:rgba(255,255,0,0.06); --mode-bg-hov:rgba(255,255,0,0.18);">
+                    <span class="mode-name">SPEED RUN</span>
+                    <span class="mode-desc">fast · gets faster</span>
+                </button>
+                <button class="snake-mode" data-mode="endless"
+                    style="--mode-color:#0f0; --mode-bg:rgba(0,255,0,0.06); --mode-bg-hov:rgba(0,255,0,0.18);">
+                    <span class="mode-name">ENDLESS</span>
+                    <span class="mode-desc">walls wrap · only self kills</span>
+                </button>
+                <button class="snake-mode" data-mode="stealth"
+                    style="--mode-color:#888; --mode-bg:rgba(255,255,255,0.04); --mode-bg-hov:rgba(255,255,255,0.14);">
+                    <span class="mode-name">STEALTH</span>
+                    <span class="mode-desc">no grid · pure instinct</span>
+                </button>
             </div>
         </div>`;
 
@@ -35,26 +101,36 @@ function launchSnake(snakeMode) {
     const hiKey    = `snake_hi_${snakeMode}`;
     let   snakeHi  = parseInt(localStorage.getItem(hiKey) || '0');
 
+    // Mode color for the title bar accent
+    const modeColor = snakeMode === 'classic' ? '#0ff'
+                    : snakeMode === 'speed'   ? '#ff0'
+                    : snakeMode === 'endless' ? '#0f0' : '#888';
+
     guiContent.innerHTML = `
-        <div style="display:flex;justify-content:space-between;padding:0 10px;font-size:0.75rem;color:#0ff;margin-bottom:4px;">
-            <span>Arrows  WASD  Swipe</span>
-            <span style="color:#444;font-size:0.65rem;letter-spacing:1px;">${snakeMode.toUpperCase()}</span>
-            <span>Score: <b id="snake-score">0</b> &nbsp;<span style="color:#333">HI:${snakeHi}</span></span>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 14px; font-size:0.78rem; color:#aaa; margin-bottom:8px; background:rgba(255,255,255,0.02); border-radius:4px; border:1px solid rgba(255,255,255,0.06);">
+            <span style="color:#666; font-size:0.7rem; letter-spacing:1px;">ARROWS / WASD / SWIPE</span>
+            <span style="color:${modeColor}; font-size:0.7rem; letter-spacing:2px; font-weight:700;">${snakeMode.toUpperCase()}</span>
+            <span style="color:#fff;">SCORE <b id="snake-score" style="color:${modeColor}; text-shadow:0 0 8px ${modeColor};">0</b> <span style="color:#444; font-size:0.7rem; margin-left:8px;">HI ${snakeHi}</span></span>
         </div>`;
     nexusCanvas.style.display = 'block';
-    nexusCanvas.width = 400; nexusCanvas.height = 360;
+    nexusCanvas.style.maxWidth = '100%';
+    nexusCanvas.style.height = 'auto';
+    nexusCanvas.style.borderRadius = '4px';
+    nexusCanvas.style.border = `1px solid ${modeColor}33`;
+    nexusCanvas.style.boxShadow = `0 0 24px ${modeColor}22`;
+    nexusCanvas.width = 600; nexusCanvas.height = 480;  // up from 400×360 — 50% more play area
     const ctx = nexusCanvas.getContext('2d');
-    const CELL = 20, COLS = 20, ROWS = 18;
+    const CELL = 24, COLS = 25, ROWS = 20;  // 24px cells (was 20px) — bigger, more readable
     snakeActive = true;
 
     // Pre-draw background once into an offscreen canvas for perf
     const bgCanvas = document.createElement('canvas');
-    bgCanvas.width = 400; bgCanvas.height = 360;
+    bgCanvas.width = 600; bgCanvas.height = 480;
     const bgCtx = bgCanvas.getContext('2d');
     (function buildBg() {
         // Dark base
         bgCtx.fillStyle = '#050510';
-        bgCtx.fillRect(0, 0, 400, 360);
+        bgCtx.fillRect(0, 0, 600, 480);
         
         if (stealth) return; // Stay dark for stealth mode
 
@@ -150,34 +226,45 @@ function launchSnake(snakeMode) {
 
         drawSnake(); // draw final game state first
 
-        // Death overlay
-        ctx.fillStyle = 'rgba(0,0,0,0.82)';
-        ctx.fillRect(0, 0, 400, 360);
+        // Death overlay — centered for 600×480 canvas
+        ctx.fillStyle = 'rgba(0,0,0,0.85)';
+        ctx.fillRect(0, 0, 600, 480);
 
-        // Glitch border
-        ctx.strokeStyle = '#0ff'; ctx.lineWidth = 2;
-        ctx.strokeRect(16, 90, 368, 180);
-        ctx.strokeStyle = 'rgba(0,255,255,0.4)'; ctx.lineWidth = 1;
-        ctx.strokeRect(14, 88, 372, 184);
+        const cx = 300, cy = 240;  // canvas center
+
+        // Glitch border (centered card)
+        ctx.strokeStyle = modeColor; ctx.lineWidth = 2;
+        ctx.strokeRect(cx - 200, cy - 100, 400, 220);
+        ctx.strokeStyle = modeColor + '66'; ctx.lineWidth = 1;
+        ctx.strokeRect(cx - 204, cy - 104, 408, 228);
 
         ctx.textAlign = 'center';
-        // Title
-        ctx.fillStyle = '#0ff'; ctx.font = 'bold 32px monospace';
-        ctx.fillText('YOU DIED', 200, 138);
+        // Title — bigger, mode-colored
+        ctx.fillStyle = modeColor;
+        ctx.font = 'bold 42px monospace';
+        ctx.shadowBlur = 18; ctx.shadowColor = modeColor;
+        ctx.fillText('YOU DIED', cx, cy - 50);
+        ctx.shadowBlur = 0;
         // Mode badge
-        ctx.fillStyle = '#333'; ctx.font = '11px monospace';
-        ctx.fillText(` ${snakeMode.toUpperCase()} MODE `, 200, 158);
+        ctx.fillStyle = '#666'; ctx.font = '13px monospace';
+        ctx.fillText(`· ${snakeMode.toUpperCase()} MODE ·`, cx, cy - 22);
         // Score
-        ctx.fillStyle = '#fff'; ctx.font = 'bold 18px monospace';
-        ctx.fillText(`Score: ${score}`, 200, 190);
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 24px monospace';
+        ctx.fillText(`SCORE: ${score}`, cx, cy + 18);
         // High score
         const isNew = score === snakeHi && score > 0;
-        ctx.fillStyle = isNew ? '#ff0' : '#555';
-        ctx.font = '13px monospace';
-        ctx.fillText(isNew ? ` NEW BEST: ${snakeHi} ` : `Best: ${snakeHi}`, 200, 212);
+        ctx.fillStyle = isNew ? '#ff0' : '#888';
+        ctx.font = isNew ? 'bold 16px monospace' : '14px monospace';
+        if (isNew) {
+            ctx.shadowBlur = 12; ctx.shadowColor = '#ff0';
+            ctx.fillText(`★ NEW BEST: ${snakeHi} ★`, cx, cy + 50);
+            ctx.shadowBlur = 0;
+        } else {
+            ctx.fillText(`Best: ${snakeHi}`, cx, cy + 50);
+        }
         // Restart prompt
-        ctx.fillStyle = '#0ff'; ctx.font = '12px monospace';
-        ctx.fillText('CLICK  ENTER  SWIPE  to restart', 200, 244);
+        ctx.fillStyle = modeColor + 'cc'; ctx.font = '13px monospace';
+        ctx.fillText('CLICK · ENTER · SWIPE  to restart', cx, cy + 90);
         ctx.textAlign = 'left';
 
         nexusCanvas.onclick = () => { nexusCanvas.onclick = null; launchSnake(snakeMode); };
@@ -252,4 +339,13 @@ function stopSnake() {
     if (_snakeKey) { document.removeEventListener('keydown', _snakeKey); _snakeKey = null; }
     if (_snakeTS)  { nexusCanvas.removeEventListener('touchstart', _snakeTS); _snakeTS = null; }
     if (_snakeTE)  { nexusCanvas.removeEventListener('touchend',   _snakeTE); _snakeTE = null; }
+    // Reset canvas styling we applied
+    nexusCanvas.style.maxWidth = '';
+    nexusCanvas.style.height = '';
+    nexusCanvas.style.borderRadius = '';
+    nexusCanvas.style.border = '';
+    nexusCanvas.style.boxShadow = '';
+    if (typeof guiContainer !== 'undefined' && guiContainer) {
+        guiContainer.classList.remove('gui-game-wide');
+    }
 }
