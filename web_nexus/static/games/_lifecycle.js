@@ -234,6 +234,15 @@ window._hideGameSideAd = function() {
                 flex-direction: column !important;
             }
         }
+        /* Wider modal for action games — Snake bumped from 400×360 to 600×480 */
+        #game-gui-container.gui-game-wide {
+            max-width: 660px !important;
+            width: min(660px, calc(100vw - 24px)) !important;
+        }
+        #game-gui-container.gui-game-wide #nexus-canvas {
+            display: block !important;
+            margin: 0 auto !important;
+        }
     `;
     document.head.appendChild(style);
 })();
