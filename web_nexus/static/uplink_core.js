@@ -105,7 +105,7 @@
             await fetch(`${window.API_BASE || ''}/api/log-conversation`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                credentials: 'same-origin',
+                credentials: 'include',
                 body: JSON.stringify({
                     user_key: _getUserKey(),
                     user_name: _userName(),

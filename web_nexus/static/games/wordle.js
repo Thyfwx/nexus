@@ -53,6 +53,29 @@ let wordleKeyState = {};
 const WORDLE_MAX = 6;
 const WORDLE_LEN = 5;
 
+// Physical-keyboard handler — bind once, gate by wordleActive flag.
+// Without this, Backspace and letter keys only worked via on-screen buttons.
+if (!window._wordleKeyboardBound) {
+    document.addEventListener('keydown', (e) => {
+        if (!wordleActive) return;
+        // Don't capture if user is typing in a text input/textarea (e.g. terminal input)
+        const target = e.target;
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
+            // Allow Backspace + letter keys to act on Wordle even when input is focused,
+            // since wordle modal takes UI focus visually. Block input from also receiving them.
+            if (e.key === 'Backspace' || e.key === 'Enter' || /^[a-zA-Z]$/.test(e.key)) {
+                e.preventDefault();
+            } else {
+                return;
+            }
+        }
+        if (e.key === 'Backspace') { window.wordleKey('Backspace'); }
+        else if (e.key === 'Enter') { window.wordleKey('Enter'); }
+        else if (/^[a-zA-Z]$/.test(e.key)) { window.wordleKey(e.key.toUpperCase()); }
+    });
+    window._wordleKeyboardBound = true;
+}
+
 function startWordle() {
     stopAllGames();
     wordleActive = true;
@@ -66,7 +89,7 @@ function startWordle() {
     nexusCanvas.style.display = 'none';
 
     renderWordle();
-    printToTerminal('Wordle started  type a 5-letter word and press Enter.', 'sys-msg');
+    printToTerminal('Wordle started — type a 5-letter word, Backspace to delete, Enter to submit.', 'sys-msg');
 }
 
 function stopWordle() {
@@ -113,6 +136,9 @@ function renderWordle() {
         return `<div style="display:flex;gap:4px;justify-content:center;">${keys.join('')}</div>`;
     }).join('');
 
+    // Side ad is now handled by the generic _showGameSideAd in _lifecycle.js
+    // (auto-triggers on any game start, vertical 300×600). Wordle no longer
+    // needs its own side ad logic.
     guiContent.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:6px;align-items:center;margin-bottom:12px;">${rows.join('')}</div>
         <div style="display:flex;flex-direction:column;gap:5px;">${kbRows}</div>

@@ -132,6 +132,10 @@ async function prompt_ai_proxy(prompt, imageB64, mode, retryCount = 0) {
                             ['nexus', 'coder', 'education', 'unfiltered'].forEach(m => window._lockedModes.add(m));
                         }
                         window.triggerLockout(seconds);
+
+                        // CRITICAL lockout — redirect to dedicated /locked page DISABLED
+                        // 2026-05-08 (was causing reload loop with terminal.js rehydrate).
+                        // The inline banner above + triggerLockout's UI lock are sufficient.
                         return;  // do NOT send to LLM
                     }
                 }
@@ -881,6 +885,16 @@ async function renderInlineImage(prompt) {
     // "5-30s, longer if Pollinations queue is busy" caveat per Xavier's request.
     status.innerHTML = `Generating "${escapeHTML(prompt)}" · <span class="img-elapsed">0s</span>`;
     window.output.appendChild(status);
+    // Owner-gated wait-state ad — captures the user's attention during the 5-15s
+    // generation window. Removed when image arrives or generation fails.
+    let waitAd = null;
+    if (window.OWNER_MODE) {
+        waitAd = document.createElement('div');
+        waitAd.className = 'image-wait-ad';
+        waitAd.style.cssText = 'margin: 10px auto; padding: 14px; min-height: 250px; max-width: 480px; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.18); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #6a6a7a; font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase; font-family: \'Fira Code\', monospace; text-align: center; line-height: 1.5;';
+        waitAd.innerHTML = '<div><div>AD SLOT · 300 × 250</div><div style="font-size:0.6rem; opacity:0.6; margin-top:4px;">[ Image-gen wait state ]</div></div>';
+        window.output.appendChild(waitAd);
+    }
     window.output.scrollTop = window.output.scrollHeight;
     const t0 = Date.now();
     const elapsedTimer = setInterval(() => {
@@ -891,6 +905,7 @@ async function renderInlineImage(prompt) {
         const r = await window.NexusTools.callTool('image_gen', { prompt, mode });
         clearInterval(elapsedTimer);
         status.remove();
+        if (waitAd) waitAd.remove();
         // Detect MIME type from the base64 prefix — Safari rejects mismatched MIMEs.
         const head = (r.image_b64 || '').slice(0, 16);
         let mime = 'image/png';
@@ -989,6 +1004,7 @@ ${prompt}`;
     } catch (e) {
         clearInterval(elapsedTimer);
         status.remove();
+        if (waitAd) waitAd.remove();
         // Daily image cap hit — pair the error with a soft BMC link so users know
         // donations directly fund the budget. Don't be pushy; one inline link is plenty.
         if (/Daily image limit reached/i.test(e.message || '')) {
