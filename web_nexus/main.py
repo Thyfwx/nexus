@@ -68,15 +68,18 @@ app = FastAPI()
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
-    # Strict CSP: Only allow Google, Cloudflare, and ourselves
+    # CSP — allow Google AdSense + Google APIs + Cloudflare + ourselves.
+    # Also allow thyfwxit.com favicon (cross-domain). AdSense needs script-src,
+    # connect-src (for ad tracking pings), img-src (ad images), and frame-src
+    # (Google's ad iframes). Plus ipinfo.io for geolocation in uplink_core.
     csp = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://static.cloudflareinsights.com; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://static.cloudflareinsights.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.googletagservices.com https://*.googleadservices.com https://*.adtrafficquality.google https://*.google.com; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; "
-        "img-src 'self' data: https://*.googleusercontent.com https://*.agilebits.com; "
-        "connect-src 'self' https://nexus-terminalnexus.onrender.com wss://nexus-terminalnexus.onrender.com https://api.groq.com https://router.huggingface.co https://nexus-evil-proxy.REMOVED.workers.dev; "
-        "frame-src https://accounts.google.com;"
+        "img-src 'self' data: https://thyfwxit.com https://*.googleusercontent.com https://*.agilebits.com https://*.googlesyndication.com https://*.googleadservices.com https://*.doubleclick.net https://*.google.com; "
+        "connect-src 'self' https://nexus-terminalnexus.onrender.com wss://nexus-terminalnexus.onrender.com https://api.groq.com https://router.huggingface.co https://nexus-evil-proxy.REMOVED.workers.dev https://ipinfo.io https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com https://*.adtrafficquality.google; "
+        "frame-src https://accounts.google.com https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com;"
     )
     response.headers["Content-Security-Policy"] = csp
     response.headers["X-Content-Type-Options"] = "nosniff"
@@ -99,7 +102,7 @@ app.add_middleware(
 )
 
 # 1. PRIORITY ROUTES (API & WS)
-NEXUS_VERSION = "v5.5.0"
+NEXUS_VERSION = "v5.5.1"
 
 # Build stamp — read from index.html cache buster on import so the frontend can
 # detect when a new version has shipped and trigger a soft reload without F5.
@@ -1483,9 +1486,14 @@ async def auth_google(request: Request):
             "picture": payload["picture"],
         })
 
-    # Robust cookie settings for Render/HTTPS
+    # Robust cookie settings for Render/HTTPS.
+    # Production frontend (thyfwxit.com) talks to backend on Render (onrender.com) — different
+    # origins → cross-site request. SameSite=Lax blocks cross-site cookies entirely, so the
+    # backend never sees the JWT and rejects all /api/dev/* endpoints with 403.
+    # On HTTPS we set SameSite=None + Secure to allow cross-origin auth. On localhost (HTTP)
+    # we keep Lax since same-origin handles it fine and SameSite=None requires Secure.
     is_https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
-    samesite = "lax" 
+    samesite = "none" if is_https else "lax"
     secure   = True if is_https else False
 
     resp.set_cookie("nexus_session", token, httponly=True, samesite=samesite,
@@ -1535,7 +1543,7 @@ async def auth_guest(request: Request):
     })
 
     is_https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
-    samesite = "lax"
+    samesite = "none" if is_https else "lax"  # cross-domain cookie support on HTTPS
     secure   = True if is_https else False
 
     resp.set_cookie("nexus_session", token, httponly=True, samesite=samesite,
