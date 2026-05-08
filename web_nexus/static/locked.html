@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nexus AI — Access Revoked</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="https://thyfwxit.com/favicon.png">
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --bg-soft: #12121a;
+            --fg: #c9c9d4;
+            --fg-dim: #6a6a7a;
+            --red: #ff3333;
+            --red-soft: rgba(255, 51, 51, 0.08);
+            --red-glow: rgba(255, 51, 51, 0.3);
+            --orange: #ff9500;
+            --green: #00ff88;
+            --neon-blue: #00b4ff;
+            --border: rgba(255, 255, 255, 0.07);
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: 'Fira Code', monospace;
+            overflow-x: hidden;
+        }
+
+        body {
+            background:
+                radial-gradient(ellipse at top, rgba(255, 51, 51, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at bottom, rgba(0, 180, 255, 0.04) 0%, transparent 50%),
+                var(--bg);
+            min-height: 100vh;
+            padding: 24px 16px 40px;
+        }
+
+        /* Subtle scanlines */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0) 0px,
+                rgba(0, 0, 0, 0) 2px,
+                rgba(0, 0, 0, 0.04) 3px,
+                rgba(0, 0, 0, 0.04) 4px
+            );
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .container {
+            max-width: 720px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Header bar */
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.7rem;
+            letter-spacing: 2px;
+            color: var(--fg-dim);
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .topbar .brand { color: var(--red); font-weight: 700; }
+        .topbar .session { font-family: 'Fira Code', monospace; }
+
+        /* Main lockout card */
+        .lockcard {
+            background: var(--bg-soft);
+            border: 1px solid var(--red);
+            border-left: 4px solid var(--red);
+            border-radius: 4px;
+            padding: 28px 28px 20px;
+            box-shadow: 0 0 24px var(--red-glow);
+            position: relative;
+        }
+
+        .lockcard::before {
+            content: '';
+            position: absolute;
+            top: -1px; left: -1px; right: -1px; bottom: -1px;
+            background: linear-gradient(90deg, var(--red), transparent 30%);
+            opacity: 0.15;
+            border-radius: 4px;
+            pointer-events: none;
+        }
+
+        .lock-status {
+            font-size: 0.72rem;
+            letter-spacing: 3px;
+            color: var(--red);
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .lock-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--red);
+            border-radius: 50%;
+            box-shadow: 0 0 12px var(--red);
+            animation: pulse 1.4s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
+        }
+
+        .lock-title {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 1px;
+            margin: 0 0 14px 0;
+            font-family: 'Fira Code', monospace;
+        }
+
+        .lock-reason {
+            font-size: 0.85rem;
+            color: var(--fg);
+            line-height: 1.6;
+            margin-bottom: 22px;
+        }
+
+        .lock-reason b { color: var(--orange); font-weight: 600; }
+
+        /* Countdown */
+        .countdown-wrap {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 18px;
+            text-align: center;
+            margin-bottom: 18px;
+        }
+
+        .countdown-label {
+            font-size: 0.65rem;
+            letter-spacing: 3px;
+            color: var(--fg-dim);
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .countdown-time {
+            font-size: 2.4rem;
+            font-weight: 700;
+            color: var(--orange);
+            font-family: 'Fira Code', monospace;
+            letter-spacing: 2px;
+            text-shadow: 0 0 16px rgba(255, 149, 0, 0.4);
+        }
+
+        .countdown-time.expired {
+            color: var(--green);
+            text-shadow: 0 0 16px rgba(0, 255, 136, 0.4);
+        }
+
+        /* Action button */
+        .action-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background: transparent;
+            color: var(--fg-dim);
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.78rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-weight: 600;
+            cursor: not-allowed;
+            transition: all 0.2s ease;
+        }
+
+        .action-btn.ready {
+            cursor: pointer;
+            color: var(--green);
+            border-color: var(--green);
+            box-shadow: 0 0 12px rgba(0, 255, 136, 0.25);
+        }
+
+        .action-btn.ready:hover {
+            background: rgba(0, 255, 136, 0.08);
+        }
+
+        /* Ad slots — empty placeholders until AdSense approved */
+        .ad-slot {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px dashed rgba(255, 255, 255, 0.12);
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--fg-dim);
+            font-size: 0.7rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin: 22px 0;
+            position: relative;
+            z-index: 2;
+        }
+
+        .ad-slot.banner-top, .ad-slot.banner-bottom {
+            min-height: 90px;
+            max-width: 728px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .ad-slot.middle {
+            min-height: 250px;
+            max-width: 720px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* Footer notes */
+        .footer-notes {
+            font-size: 0.7rem;
+            color: var(--fg-dim);
+            line-height: 1.6;
+            margin-top: 28px;
+            padding-top: 18px;
+            border-top: 1px solid var(--border);
+        }
+
+        .footer-notes a {
+            color: var(--neon-blue);
+            text-decoration: none;
+            border-bottom: 1px dotted var(--neon-blue);
+        }
+
+        .footer-notes a:hover {
+            opacity: 0.7;
+        }
+
+        /* Mobile tweaks */
+        @media (max-width: 600px) {
+            .lock-title { font-size: 1.25rem; }
+            .countdown-time { font-size: 1.8rem; }
+            .lockcard { padding: 20px 18px 16px; }
+            .ad-slot.middle { min-height: 200px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+
+        <!-- Top bar -->
+        <div class="topbar">
+            <span class="brand">● NEXUS AI · TERMINATED</span>
+            <span class="session" id="session-id">SID: ----</span>
+        </div>
+
+        <!-- Top banner ad (728x90 placeholder) -->
+        <div class="ad-slot banner-top">
+            <span>AD SLOT · 728 × 90 · pending AdSense approval</span>
+        </div>
+
+        <!-- Main lockout card -->
+        <div class="lockcard">
+            <div class="lock-status">
+                <span class="lock-dot"></span>
+                <span>ACCESS REVOKED</span>
+            </div>
+
+            <h1 class="lock-title" id="lock-title">All modes locked</h1>
+
+            <div class="lock-reason" id="lock-reason">
+                Loading reason...
+            </div>
+
+            <div class="countdown-wrap">
+                <div class="countdown-label">Time until access restored</div>
+                <div class="countdown-time" id="countdown-time">--:--</div>
+            </div>
+
+            <button class="action-btn" id="return-btn" disabled>
+                Return to terminal
+            </button>
+        </div>
+
+        <!-- Middle in-content ad (300x250 / 728x90 mix) -->
+        <div class="ad-slot middle">
+            <span>AD SLOT · 300 × 250 · pending AdSense approval</span>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer-notes">
+            Need to appeal? Contact <a href="mailto:xavier@thyfwxit.com">xavier@thyfwxit.com</a>.<br>
+            Lockouts are auto-released when the timer hits zero. Refreshing this page does not bypass the timer.
+        </div>
+
+        <!-- Bottom banner ad -->
+        <div class="ad-slot banner-bottom">
+            <span>AD SLOT · 728 × 90 · pending AdSense approval</span>
+        </div>
+
+    </div>
+
+    <script>
+        (function() {
+            // Owner-gate ad placeholders — only Xavier sees the gray dashed boxes
+            // until real AdSense units are wired in. Public visitors see no ad UI.
+            try {
+                const OWNER_EMAIL = 'lovexdgamer@gmail.com';
+                const u = JSON.parse(localStorage.getItem('nexus_user_data') || '{}');
+                const isOwner = u && u.email === OWNER_EMAIL;
+                if (!isOwner) {
+                    document.querySelectorAll('.ad-slot').forEach(el => el.remove());
+                }
+            } catch (_) {
+                // On any error, hide ads (safe default for non-owners)
+                document.querySelectorAll('.ad-slot').forEach(el => el.remove());
+            }
+
+            const params = new URLSearchParams(location.search);
+            const reason = (params.get('reason') || 'critical').toLowerCase();
+            const untilRaw = params.get('until');
+            const groupRaw = (params.get('group') || 'all').toLowerCase();
+
+            // Parse expiry — fall back to localStorage if URL has no `until`
+            let untilTs = parseInt(untilRaw, 10);
+            if (!untilTs || isNaN(untilTs)) {
+                // Try to recover from localStorage's persisted lockout map
+                try {
+                    const stored = JSON.parse(localStorage.getItem('nexus_active_lockouts') || '{}');
+                    const entries = Object.values(stored).filter(v => v && v.unlockAt > Date.now());
+                    if (entries.length > 0) {
+                        untilTs = Math.max(...entries.map(e => e.unlockAt));
+                    }
+                } catch (_) {}
+            }
+
+            // DISABLED 2026-05-08: this auto-bounce caused a reload loop with
+            // terminal.js's _rehydrateLockouts redirect-to-locked. If the URL has no
+            // valid `until`, just show "expired" copy and let the user click out.
+            if (!untilTs || untilTs <= Date.now()) {
+                document.getElementById('lock-title').textContent = 'Access restored';
+                document.getElementById('lock-reason').innerHTML = 'No active lockout found. <a href="./" style="color:#00ff88;">Return to terminal →</a>';
+                document.getElementById('countdown-time').textContent = 'RESTORED';
+                document.getElementById('countdown-time').classList.add('expired');
+                return;
+            }
+
+            // Reason → human-readable copy
+            const reasonCopy = {
+                critical: {
+                    title: 'All modes locked',
+                    body: 'Your last message contained content this terminal does not handle under any circumstances — explicit minor content, weapon synthesis, mass-violence ideation, or body-disposal queries. <b>Every mode</b> — Nexus, Coder, Education, Unfiltered — is suspended for the duration shown below. There is no appeal process during the lockout window.'
+                },
+                slur: {
+                    title: 'Hate speech detected',
+                    body: 'A slur was detected in your input. Slurs trigger an <b>immediate 30-minute lockout</b> with no warning ladder. This is the same penalty regardless of mode.'
+                },
+                hostility: {
+                    title: 'Repeated hostile content',
+                    body: 'You hit the strike threshold for hostile language toward the AI or other users. The lockout duration scales with how many times this has happened.'
+                },
+                nsfw: {
+                    title: 'Explicit content in chat',
+                    body: 'Image generation is SFW-only across every mode, and chat hit the strike threshold for explicit prompts in a non-Unfiltered mode.'
+                },
+                provocation: {
+                    title: 'Repeated provocation',
+                    body: 'Your chat hit the provocation threshold. The lockout duration scales each time it triggers.'
+                }
+            };
+
+            const r = reasonCopy[reason] || reasonCopy.critical;
+            document.getElementById('lock-title').textContent = r.title;
+            document.getElementById('lock-reason').innerHTML = r.body;
+
+            // Session ID from localStorage user data (truncated for display)
+            try {
+                const u = JSON.parse(localStorage.getItem('nexus_user_data') || '{}');
+                const id = (u.email || u.id || 'guest').toString().split('@')[0].slice(0, 12).toUpperCase();
+                document.getElementById('session-id').textContent = `SID: ${id}`;
+            } catch (_) {}
+
+            // Countdown
+            const timeEl = document.getElementById('countdown-time');
+            const btnEl = document.getElementById('return-btn');
+
+            const fmt = (sec) => {
+                if (sec <= 0) return '00:00';
+                const m = Math.floor(sec / 60);
+                const s = sec % 60;
+                if (m >= 60) {
+                    const h = Math.floor(m / 60);
+                    const mm = m % 60;
+                    return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                }
+                return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+            };
+
+            const tick = () => {
+                const remaining = Math.max(0, Math.ceil((untilTs - Date.now()) / 1000));
+                timeEl.textContent = fmt(remaining);
+                if (remaining <= 0) {
+                    timeEl.classList.add('expired');
+                    timeEl.textContent = 'RESTORED';
+                    btnEl.disabled = false;
+                    btnEl.classList.add('ready');
+                    btnEl.textContent = '→ Return to terminal';
+                    btnEl.onclick = () => { location.href = './'; };
+                    clearInterval(_iv);
+                    // Auto-redirect disabled 2026-05-08 — user clicks button to return.
+                }
+            };
+
+            tick();
+            const _iv = setInterval(tick, 1000);
+        })();
+    </script>
+
+</body>
+</html>
