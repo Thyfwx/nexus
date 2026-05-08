@@ -99,6 +99,8 @@ window.submitScore = function(gameId, score) {
     } catch (_) { /* no-op on storage failure */ }
     // Pop the game-over ad (owner-gated) the moment a game ends.
     if (window._showGameOverAd) window._showGameOverAd(gameId, score);
+    // Show the public mini-leaderboard with submit button (Phase B).
+    if (window._showMiniLeaderboard) window._showMiniLeaderboard(gameId, score);
 };
 // Function declaration shadow so non-window callers (e.g. submitScore('pong', x)
 // inside a game module's local scope) resolve via the global.
@@ -122,15 +124,11 @@ window._showGameOverAd = function(gameId, score) {
         host.style.cssText = 'padding: 0 14px;';
         wrapper.appendChild(host);
     }
+    // Single full-width 728×90 placeholder. Narrow 320×50 removed per Xavier's feedback.
+    // Phrasing kept neutral — Google reviews account before ads fill.
     host.innerHTML = `
         <div style="margin: 14px auto 6px; padding: 14px; min-height: 90px; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.12); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #6a6a7a; font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase; font-family: 'Fira Code', monospace; text-align: center; line-height: 1.5;">
-            <div>
-                <div>AD SLOT · 728 × 90 · pending AdSense approval</div>
-                <div style="font-size: 0.6rem; opacity: 0.6; margin-top: 4px;">[ Game-Over · ${(gameId || '').toUpperCase()} ]</div>
-            </div>
-        </div>
-        <div style="margin: 8px auto 4px; padding: 14px; min-height: 50px; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.12); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #6a6a7a; font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase; font-family: 'Fira Code', monospace;">
-            <span>AD SLOT · 320 × 50 · pending AdSense approval</span>
+            AD SLOT
         </div>
     `;
 };
@@ -246,4 +244,237 @@ const _origStopAllGames_adWrap = window.stopAllGames;
 window.stopAllGames = function() {
     if (_origStopAllGames_adWrap) _origStopAllGames_adWrap();
     if (window._hideGameOverAd) window._hideGameOverAd();
+    if (window._hideMiniLeaderboard) window._hideMiniLeaderboard();
+};
+
+// =============================================================
+// MINI LEADERBOARD — shows top 3 + submit button after every game-over.
+// "FULL LEADERBOARD →" link drives traffic to /leaderboard.html (where ads serve).
+// Public to ALL visitors (Google users see Submit button, guests see sign-in CTA).
+// Wrapped in try/catch so failure can't break the game.
+// =============================================================
+(function _injectMiniLeaderboardCSS() {
+    if (document.getElementById('mlb-style')) return;
+    const style = document.createElement('style');
+    style.id = 'mlb-style';
+    style.textContent = `
+        #mini-leaderboard {
+            margin: 14px auto 4px;
+            padding: 14px 16px;
+            max-width: 100%;
+            background: rgba(0, 180, 255, 0.04);
+            border: 1px solid rgba(0, 180, 255, 0.25);
+            border-radius: 6px;
+            font-family: 'Fira Code', monospace;
+            color: #c9c9d4;
+            font-size: 0.78rem;
+        }
+        #mini-leaderboard .mlb-header {
+            color: #00ff88;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            font-size: 0.72rem;
+        }
+        #mini-leaderboard .mlb-title {
+            color: #00b4ff;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            font-size: 0.68rem;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            padding-bottom: 6px;
+            margin-bottom: 8px;
+        }
+        #mini-leaderboard .mlb-row {
+            display: grid;
+            grid-template-columns: 36px 1fr auto;
+            gap: 10px;
+            align-items: center;
+            padding: 4px 0;
+            font-size: 0.74rem;
+        }
+        #mini-leaderboard .mlb-rank { font-weight: 700; color: #888; text-align: center; }
+        #mini-leaderboard .mlb-row.top1 .mlb-rank { color: #ffd700; }
+        #mini-leaderboard .mlb-row.top2 .mlb-rank { color: #c0c0c0; }
+        #mini-leaderboard .mlb-row.top3 .mlb-rank { color: #cd7f32; }
+        #mini-leaderboard .mlb-handle { color: #fff; }
+        #mini-leaderboard .mlb-score { color: #00b4ff; font-weight: 700; }
+        #mini-leaderboard .mlb-empty { color: #666; padding: 8px 0; font-style: italic; }
+        #mini-leaderboard .mlb-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        #mini-leaderboard .mlb-submit-btn {
+            background: rgba(0, 255, 136, 0.12);
+            color: #00ff88;
+            border: 1px solid #00ff88;
+            padding: 6px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.7rem;
+            letter-spacing: 1.5px;
+            font-weight: 700;
+            transition: 0.18s;
+        }
+        #mini-leaderboard .mlb-submit-btn:hover { background: rgba(0,255,136,0.25); box-shadow: 0 0 8px #00ff88; }
+        #mini-leaderboard .mlb-submit-btn:disabled { opacity: 0.5; cursor: wait; }
+        #mini-leaderboard .mlb-signin {
+            color: #888;
+            font-size: 0.7rem;
+            font-style: italic;
+        }
+        #mini-leaderboard .mlb-full-link {
+            color: #00b4ff;
+            text-decoration: none;
+            border-bottom: 1px dotted #00b4ff;
+            font-size: 0.7rem;
+            letter-spacing: 1.5px;
+            font-weight: 700;
+            margin-left: auto;
+        }
+        #mini-leaderboard .mlb-full-link:hover { color: #fff; border-bottom-color: #fff; }
+        #mini-leaderboard .mlb-msg {
+            color: #00ff88;
+            font-size: 0.72rem;
+            margin-top: 8px;
+            font-style: italic;
+        }
+        #mini-leaderboard .mlb-msg.err { color: #ff6666; }
+    `;
+    document.head.appendChild(style);
+})();
+
+window._showMiniLeaderboard = function(gameId, score) {
+    try {
+        const wrapper = document.getElementById('gui-content-wrapper');
+        if (!wrapper) return;
+
+        let panel = document.getElementById('mini-leaderboard');
+        if (!panel) {
+            panel = document.createElement('div');
+            panel.id = 'mini-leaderboard';
+            wrapper.appendChild(panel);
+        }
+        panel.dataset.game = gameId;
+        panel.dataset.score = String(score);
+        panel.innerHTML = `<div class="mlb-empty">Loading top scores…</div>`;
+
+        const u = (() => { try { return JSON.parse(localStorage.getItem('nexus_user_data') || '{}'); } catch { return {}; } })();
+        const isGoogle = !!u.email && u.email !== 'guest@local';
+
+        fetch(`${window.API_BASE || ''}/api/leaderboard/${encodeURIComponent(gameId)}?limit=3`, { credentials: 'include' })
+            .then(r => r.json())
+            .then(data => {
+                const entries = (data.entries || []).slice(0, 3);
+                const escapeHTML = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+                const rows = entries.length ? entries.map(e => {
+                    const t = e.rank === 1 ? 'top1' : e.rank === 2 ? 'top2' : e.rank === 3 ? 'top3' : '';
+                    return `<div class="mlb-row ${t}">
+                        <span class="mlb-rank">#${e.rank}</span>
+                        <span class="mlb-handle">${escapeHTML(e.handle)}</span>
+                        <span class="mlb-score">${e.score.toLocaleString()}</span>
+                    </div>`;
+                }).join('') : `<div class="mlb-empty">No scores submitted yet — be the first.</div>`;
+
+                const submitBtn = isGoogle
+                    ? `<button class="mlb-submit-btn" onclick="window._submitScoreToLeaderboard()">SUBMIT YOUR SCORE</button>`
+                    : `<div class="mlb-signin">Sign in with Google to submit</div>`;
+
+                panel.innerHTML = `
+                    <div class="mlb-header">YOUR SCORE: ${score.toLocaleString()}</div>
+                    <div class="mlb-title">Top 3 · ${escapeHTML(gameId).replace(/_/g,' ').toUpperCase()}</div>
+                    ${rows}
+                    <div class="mlb-actions">
+                        ${submitBtn}
+                        <a href="leaderboard.html" target="_blank" rel="noopener" class="mlb-full-link">FULL LEADERBOARD →</a>
+                    </div>
+                    <div id="mlb-msg" class="mlb-msg" style="display:none;"></div>
+                `;
+            })
+            .catch(e => {
+                console.warn('[mlb] fetch failed', e);
+                panel.innerHTML = `
+                    <div class="mlb-empty">Couldn't reach leaderboard service.</div>
+                    <div class="mlb-actions">
+                        <a href="leaderboard.html" target="_blank" rel="noopener" class="mlb-full-link">VIEW BOARDS →</a>
+                    </div>
+                `;
+            });
+    } catch (e) { console.warn('[mlb] show failed', e); }
+};
+
+window._hideMiniLeaderboard = function() {
+    const panel = document.getElementById('mini-leaderboard');
+    if (panel) panel.remove();
+};
+
+window._submitScoreToLeaderboard = async function() {
+    const panel = document.getElementById('mini-leaderboard');
+    if (!panel) return;
+    const gameId = panel.dataset.game;
+    const score = parseInt(panel.dataset.score, 10);
+    const btn = panel.querySelector('.mlb-submit-btn');
+    const msg = panel.querySelector('#mlb-msg');
+    if (!gameId || isNaN(score)) return;
+
+    if (btn) { btn.disabled = true; btn.textContent = 'SUBMITTING…'; }
+
+    try {
+        const r = await fetch(`${window.API_BASE || ''}/api/leaderboard/submit`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ game: gameId, score: score }),
+        });
+        const data = await r.json();
+
+        if (data.needs_handle) {
+            // Inline handle setup — prompt for one, save, then retry submit.
+            if (btn) { btn.disabled = false; btn.textContent = 'SUBMIT YOUR SCORE'; }
+            const handle = prompt(
+                'Pick your leaderboard handle.\n\n' +
+                'Rules: 3-20 characters, letters / numbers / underscore / dash only.\n' +
+                'This is what shows on the public leaderboard — your real Google name stays private.'
+            );
+            if (!handle) return;
+            const hr = await fetch(`${window.API_BASE || ''}/api/me/handle`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ handle: handle.trim() }),
+            });
+            const hdata = await hr.json();
+            if (!hr.ok) {
+                if (msg) { msg.style.display = ''; msg.classList.add('err'); msg.textContent = hdata.error || 'Handle rejected.'; }
+                return;
+            }
+            // Retry submit with new handle
+            return window._submitScoreToLeaderboard();
+        }
+
+        if (!r.ok) {
+            throw new Error(data.error || `HTTP ${r.status}`);
+        }
+
+        // Success
+        if (msg) {
+            msg.style.display = '';
+            msg.classList.remove('err');
+            msg.innerHTML = `<b>${data.handle}</b> submitted at rank <b>#${data.rank || '?'}</b>. Game on.`;
+        }
+        if (btn) { btn.style.display = 'none'; }
+        // Refresh the visible top 3 with the new entry
+        setTimeout(() => window._showMiniLeaderboard(gameId, score), 600);
+    } catch (e) {
+        if (btn) { btn.disabled = false; btn.textContent = 'SUBMIT YOUR SCORE'; }
+        if (msg) { msg.style.display = ''; msg.classList.add('err'); msg.textContent = '[' + (e.message || 'submit failed') + ']'; }
+    }
 };
