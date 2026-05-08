@@ -1,3 +1,9 @@
+// Grid config — were missing after the split out of games_core.js (caused
+// "MINE_ROWS is not defined" crash). 12×10 grid with 18 mines = ~15% density.
+const MINE_ROWS = 10;
+const MINE_COLS = 12;
+const MINE_COUNT = 18;
+
 let mineGrid = [], mineRevealed = [], mineFlagged = [], mineOver = false, mineWon = false, mineFirst = true;
 
 function startMinesweeper() {
