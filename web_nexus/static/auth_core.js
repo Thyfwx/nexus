@@ -100,7 +100,7 @@ function renderAuthSection() {
             : `<div class="auth-avatar-initials">${user.name[0].toUpperCase()}</div>`;
         // Async-fetch premium status and add badge if user is a supporter
         if (isGoogle) {
-            fetch(`${window.API_BASE || ''}/api/me/premium`, { credentials: 'same-origin' })
+            fetch(`${window.API_BASE || ''}/api/me/premium`, { credentials: 'include' })
                 .then(r => r.json()).then(d => {
                     if (d.premium) {
                         const status = document.querySelector('.auth-status');
@@ -245,6 +245,15 @@ async function revealTerminal(name) {
     renderAuthSection();
 }
 
+// Helper — every time the Terms modal opens, snap content to the top so the user
+// always starts reading from the beginning, even after close+reopen. Patched 2026-05-07.
+function _scrollTermsToTop() {
+    const content = document.getElementById('terms-content');
+    if (content) content.scrollTop = 0;
+    const box = document.getElementById('terms-box');
+    if (box) box.scrollTop = 0;
+}
+
 window.showTermsFromWall = () => {
     const modal = document.getElementById('terms-modal');
     modal.style.display = 'flex';
@@ -254,6 +263,7 @@ window.showTermsFromWall = () => {
     if (area)     area.style.display = '';
     if (agreeBtn) agreeBtn.style.display = '';
     setupTermsInteraction();
+    _scrollTermsToTop();
 };
 
 // Read-only view — no agreement gate, no guest signup. For people just wanting to read terms.
@@ -268,6 +278,7 @@ window.showTermsReadOnly = () => {
     if (area)     area.style.display = 'none';
     if (agreeBtn) agreeBtn.style.display = 'none';
     if (errEl)    errEl.classList.remove('active');
+    _scrollTermsToTop();
 };
 
 window.hideTerms = () => {
