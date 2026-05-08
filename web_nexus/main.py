@@ -74,11 +74,11 @@ async def add_security_headers(request: Request, call_next):
     # (Google's ad iframes). Plus ipinfo.io for geolocation in uplink_core.
     csp = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://static.cloudflareinsights.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.googletagservices.com https://*.googleadservices.com https://*.adtrafficquality.google https://*.google.com; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://static.cloudflareinsights.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.googletagservices.com https://*.googleadservices.com https://*.adtrafficquality.google https://*.google.com https://fundingchoicesmessages.google.com https://www.gstatic.com; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; "
         "img-src 'self' data: https://thyfwxit.com https://*.googleusercontent.com https://*.agilebits.com https://*.googlesyndication.com https://*.googleadservices.com https://*.doubleclick.net https://*.google.com; "
-        "connect-src 'self' https://nexus-terminalnexus.onrender.com wss://nexus-terminalnexus.onrender.com https://api.groq.com https://router.huggingface.co https://nexus-evil-proxy.REMOVED.workers.dev https://ipinfo.io https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com https://*.adtrafficquality.google; "
+        "connect-src 'self' https://nexus-terminalnexus.onrender.com wss://nexus-terminalnexus.onrender.com https://api.groq.com https://router.huggingface.co https://nexus-evil-proxy.REMOVED.workers.dev https://ipinfo.io https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com https://*.adtrafficquality.google https://fundingchoicesmessages.google.com; "
         "frame-src https://accounts.google.com https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com;"
     )
     response.headers["Content-Security-Policy"] = csp
@@ -102,7 +102,7 @@ app.add_middleware(
 )
 
 # 1. PRIORITY ROUTES (API & WS)
-NEXUS_VERSION = "v5.5.1"
+NEXUS_VERSION = "v5.5.2"
 
 # Build stamp — read from index.html cache buster on import so the frontend can
 # detect when a new version has shipped and trigger a soft reload without F5.
@@ -310,6 +310,28 @@ OWNER_EMAIL = "***REMOVED***"
 def _is_owner(request: Request) -> bool:
     user = _get_session(request)
     return bool(user and (user.get("email") or "").lower() == OWNER_EMAIL)
+
+@app.get("/api/me/whoami-debug")
+async def whoami_debug(request: Request):
+    """Diagnostic — shows EXACTLY what the backend sees in the request, so we can
+    pinpoint why _is_owner is returning False. Public-safe: only exposes the user's
+    own email + whether their cookie decoded. No secrets revealed."""
+    cookie_present = bool(request.cookies.get("nexus_session"))
+    user = _get_session(request)
+    email = (user.get("email") or "").lower() if user else None
+    cookie_token_len = len(request.cookies.get("nexus_session") or "")
+    return {
+        "cookie_present": cookie_present,
+        "cookie_token_length": cookie_token_len,
+        "session_decoded": bool(user),
+        "session_email": email,
+        "session_name": (user or {}).get("name"),
+        "owner_email_const": OWNER_EMAIL,
+        "is_owner_check": (email == OWNER_EMAIL) if email else False,
+        "_is_owner_result": _is_owner(request),
+        "request_origin": request.headers.get("origin"),
+        "request_referer": request.headers.get("referer"),
+    }
 
 # ── Tools — declarative registry, single dispatch endpoint ────────────────────
 @app.get("/api/tools/manifest")
@@ -1713,66 +1735,20 @@ def log_login(name: str, email: str, request: Request):
 
 
 @app.post("/auth/logout")
-async def logout():
+async def logout(request: Request):
     resp = _JSONResponse({"ok": True})
+    is_https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+    # Delete with BOTH SameSite variants — old cookies might be Lax (pre-v5.5.1),
+    # new cookies are None on HTTPS. delete_cookie has to match attributes to
+    # actually delete; sending both clears either one.
     resp.delete_cookie("nexus_session", samesite="lax")
+    if is_https:
+        resp.delete_cookie("nexus_session", samesite="none", secure=True)
     return resp
 
-# ── Leaderboard ───────────────────────────────────────────────────────────────
-SCORES_FILE = os.path.join(base_dir, "scores.json")
-
-def load_scores():
-    if not os.path.exists(SCORES_FILE): return {}
-    try:
-        with open(SCORES_FILE, "r") as f: return json.load(f)
-    except: return {}
-
-def save_scores(scores):
-    try:
-        with open(SCORES_FILE, "w") as f: json.dump(scores, f, indent=2)
-    except: pass
-
-@app.get("/api/leaderboard")
-async def get_leaderboard(game: str = "pong"):
-    scores = load_scores().get(game, [])
-    top = sorted(scores, key=lambda x: x["score"], reverse=True)[:10]
-    # Strip internal sub field before returning to client
-    return [{"name": s["name"], "score": s["score"], "date": s.get("date", ""), "picture": s.get("picture", "")} for s in top]
-
-@app.post("/api/leaderboard")
-async def post_score(request: Request):
-    user = _get_session(request)
-    if not user:
-        return _JSONResponse({"error": "Sign in to save scores"}, status_code=401)
-
-    data      = await request.json()
-    game      = data.get("game", "unknown")
-    score     = int(data.get("score", 0))
-    user_sub  = user["sub"]
-    user_name = user["name"]
-
-    all_scores = load_scores()
-    if game not in all_scores:
-        all_scores[game] = []
-
-    # One entry per user per game — keep personal best only
-    existing = next((s for s in all_scores[game] if s.get("sub") == user_sub), None)
-    if existing:
-        if score > existing["score"]:
-            existing["score"] = score
-            existing["date"]  = datetime.now(UTC).strftime("%Y-%m-%d")
-            existing["picture"] = user.get("picture", "") # Keep picture current
-    else:
-        all_scores[game].append({
-            "sub":   user_sub,
-            "name":  user_name,
-            "picture": user.get("picture", ""), # Store picture
-            "score": score,
-            "date":  datetime.now(UTC).strftime("%Y-%m-%d"),
-        })
-
-    save_scores(all_scores)
-    return {"ok": True}
+# Legacy leaderboard system removed 2026-05-08 — replaced by the v2 system at the
+# bottom of this file (/api/leaderboard, /api/leaderboard/{game}, handles, periods).
+# Old SCORES_FILE = scores.json — orphaned now, ignore it. New file: _leaderboard.json.
 
 from prompts import CORE_RULES, MODE_PROMPTS
 
@@ -2104,6 +2080,199 @@ async def websocket_stats(websocket: WebSocket):
             await asyncio.sleep(2)
     except Exception as e:
         print(f"[STATS WS] Closed: {e}")
+
+# ──────────────────────────────────────────────────────────────────────────────
+# LEADERBOARD — per-game high-score boards.
+# Storage: file-backed JSON (top 100 per game, sorted by score desc).
+# Submit: Google-signed users only. Custom handle (3-20 chars, alphanum + _-,
+#         filtered for slurs). Top 10 visible publicly per game per period.
+# ──────────────────────────────────────────────────────────────────────────────
+import hashlib
+
+_LEADERBOARD_FILE = os.path.join(base_dir, "_leaderboard.json")
+_HANDLE_FILE = os.path.join(base_dir, "_handles.json")
+
+_VALID_GAMES = {
+    "wordle", "pong", "flappy", "breakout", "invaders", "mines", "breach", "typing",
+    "snake_classic", "snake_speed", "snake_endless", "snake_stealth",
+}
+
+# Slur filter for handles. Mirrors the SLURS pattern in terminal.js.
+_BAD_HANDLE_RX = re.compile(
+    r"\b(nigger|niggers|nigga|niggas|faggot|faggots|kike|chink|tranny|sp[i1]c|"
+    r"wetback|towelhead|gook|retard|retards|cunt|cunts)\b",
+    re.IGNORECASE,
+)
+_HANDLE_RX = re.compile(r"^[a-zA-Z0-9_\-]{3,20}$")
+
+def _email_hash(email: str) -> str:
+    """Stable short hash of an email — used as user key without storing the address."""
+    return hashlib.sha256((email or "").lower().encode("utf-8")).hexdigest()[:12]
+
+def _load_json(path: str) -> dict:
+    try:
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as f:
+                return json.load(f) or {}
+    except Exception:
+        pass
+    return {}
+
+def _save_json(path: str, data: dict) -> None:
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+    except Exception:
+        pass
+
+def _require_google_user(request: Request):
+    """Return the signed-in Google user payload, or a JSONResponse(401) if not signed in."""
+    s = _get_session(request)
+    if not s or not s.get("email") or s.get("email") == "guest@local":
+        return _JSONResponse({"error": "Sign in with Google to do this."}, status_code=401)
+    return s
+
+def _validate_handle(h: str):
+    h = (h or "").strip()
+    if not _HANDLE_RX.match(h):
+        return None, "Handle must be 3-20 chars, letters/numbers/underscore/dash only."
+    if _BAD_HANDLE_RX.search(h):
+        return None, "Handle contains banned content."
+    return h, None
+
+@app.get("/api/me/handle")
+async def get_my_handle(request: Request):
+    """Return the leaderboard handle for the signed-in user, or null if not set."""
+    s = _get_session(request)
+    if not s or not s.get("email") or s.get("email") == "guest@local":
+        return {"handle": None, "signed_in": False}
+    handles = _load_json(_HANDLE_FILE)
+    eh = _email_hash(s["email"])
+    entry = handles.get(eh)
+    return {"handle": entry["handle"] if entry else None, "signed_in": True}
+
+@app.post("/api/me/handle")
+async def set_my_handle(request: Request):
+    """Set or update the leaderboard handle. Google-signed users only."""
+    user = _require_google_user(request)
+    if isinstance(user, _JSONResponse):
+        return user
+    try:
+        body = await request.json()
+    except Exception:
+        return _JSONResponse({"error": "Invalid JSON body."}, status_code=400)
+    handle, err = _validate_handle(body.get("handle", ""))
+    if err:
+        return _JSONResponse({"error": err}, status_code=400)
+    handles = _load_json(_HANDLE_FILE)
+    eh = _email_hash(user["email"])
+    # Prevent handle collisions (case-insensitive)
+    h_lower = handle.lower()
+    for other_eh, other in handles.items():
+        if other_eh != eh and other.get("handle", "").lower() == h_lower:
+            return _JSONResponse({"error": "Handle already taken — pick another."}, status_code=409)
+    handles[eh] = {
+        "handle": handle,
+        "ts": int(datetime.now(timezone.utc).timestamp() * 1000),
+    }
+    _save_json(_HANDLE_FILE, handles)
+    return {"ok": True, "handle": handle}
+
+@app.post("/api/leaderboard/submit")
+async def submit_leaderboard_score(request: Request):
+    """Submit a score. Google-signed users only. Requires a handle to be set first."""
+    user = _require_google_user(request)
+    if isinstance(user, _JSONResponse):
+        return user
+    try:
+        body = await request.json()
+    except Exception:
+        return _JSONResponse({"error": "Invalid JSON body."}, status_code=400)
+
+    game = (body.get("game") or "").strip().lower()
+    if game not in _VALID_GAMES:
+        return _JSONResponse({"error": f"Unknown game id: {game}"}, status_code=400)
+
+    try:
+        score = int(body.get("score", 0))
+    except Exception:
+        return _JSONResponse({"error": "Score must be an integer."}, status_code=400)
+    if not (0 <= score <= 1_000_000):
+        return _JSONResponse({"error": "Score out of range (0..1,000,000)."}, status_code=400)
+
+    handles = _load_json(_HANDLE_FILE)
+    eh = _email_hash(user["email"])
+    handle_entry = handles.get(eh)
+    if not handle_entry:
+        return _JSONResponse(
+            {"error": "Set a leaderboard handle first via AI Profile.", "needs_handle": True},
+            status_code=400,
+        )
+    handle = handle_entry["handle"]
+
+    lb = _load_json(_LEADERBOARD_FILE)
+    if game not in lb:
+        lb[game] = []
+    lb[game].append({
+        "score": score,
+        "handle": handle,
+        "ts": int(datetime.now(timezone.utc).timestamp() * 1000),
+        "eh": eh,  # internal — for personal-best tracking
+    })
+    # Keep top 100 by score (ties broken by older timestamp first)
+    lb[game].sort(key=lambda e: (-e["score"], e["ts"]))
+    lb[game] = lb[game][:100]
+    _save_json(_LEADERBOARD_FILE, lb)
+
+    rank = next(
+        (i + 1 for i, e in enumerate(lb[game]) if e["eh"] == eh and e["score"] == score and e["handle"] == handle),
+        None,
+    )
+    return {"ok": True, "rank": rank, "handle": handle}
+
+@app.get("/api/leaderboard/{game}")
+async def get_leaderboard(game: str, period: str = "all", limit: int = 10):
+    """Public — return the top entries for a game. period = 'all' or 'week'."""
+    game = (game or "").strip().lower()
+    if game not in _VALID_GAMES:
+        return _JSONResponse({"error": f"Unknown game id: {game}"}, status_code=400)
+    limit = max(1, min(int(limit or 10), 50))
+
+    lb = _load_json(_LEADERBOARD_FILE)
+    entries = lb.get(game, [])
+
+    if period == "week":
+        week_ago_ms = int((datetime.now(timezone.utc) - timedelta(days=7)).timestamp() * 1000)
+        entries = [e for e in entries if int(e.get("ts", 0)) >= week_ago_ms]
+
+    # Already sorted on insert, but re-sort defensively + strip internal eh field
+    entries = sorted(entries, key=lambda e: (-e["score"], e["ts"]))[:limit]
+    return {
+        "game": game,
+        "period": period,
+        "entries": [
+            {"rank": i + 1, "handle": e["handle"], "score": e["score"], "ts": e["ts"]}
+            for i, e in enumerate(entries)
+        ],
+    }
+
+@app.get("/api/leaderboard")
+async def list_all_leaderboards(period: str = "all"):
+    """Public — return the top 3 of every game (for the leaderboard index page)."""
+    out = {}
+    for game in sorted(_VALID_GAMES):
+        # Inline top-3 fetch
+        lb = _load_json(_LEADERBOARD_FILE)
+        entries = lb.get(game, [])
+        if period == "week":
+            week_ago_ms = int((datetime.now(timezone.utc) - timedelta(days=7)).timestamp() * 1000)
+            entries = [e for e in entries if int(e.get("ts", 0)) >= week_ago_ms]
+        entries = sorted(entries, key=lambda e: (-e["score"], e["ts"]))[:3]
+        out[game] = [
+            {"rank": i + 1, "handle": e["handle"], "score": e["score"]}
+            for i, e in enumerate(entries)
+        ]
+    return {"period": period, "games": out}
 
 # ── Static Files ──────────────────────────────────────────────────────────────
 # We wrap StaticFiles to prevent AssertionError when WebSocket requests hit the root mount.

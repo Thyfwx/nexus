@@ -1,5 +1,5 @@
-// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.5.1 — AdSense wired + ad-loop fixes
-window.NEXUS_VERSION = 'v5.5.1';
+// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.5.2 — leaderboard, changelog, logout fix
+window.NEXUS_VERSION = 'v5.5.2';
 
 // AD KILL SWITCHES — Set any to true to disable that specific ad block. The master
 // `NEXUS_DISABLE_ADS` overrides everything. Per-block flags let us bisect a hot loop.
