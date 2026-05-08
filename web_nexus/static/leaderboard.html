@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus AI — Leaderboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="https://thyfwxit.com/favicon.png">
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3034789470490055" crossorigin="anonymous"></script>
+    <script async src="https://fundingchoicesmessages.google.com/i/pub-3034789470490055?ers=1"></script>
+    <script>(function(){function signalGooglefcPresent(){if(!window.frames['googlefcPresent']){if(document.body){const iframe=document.createElement('iframe');iframe.style='width: 0; height: 0; border: none; z-index: -1000; left: -1000px; top: -1000px;';iframe.style.display='none';iframe.name='googlefcPresent';document.body.appendChild(iframe);}else{setTimeout(signalGooglefcPresent,0);}}}signalGooglefcPresent();})();</script>
+    <script src="adblock_recovery.js"></script>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --bg-soft: #12121a;
+            --bg-row: rgba(255, 255, 255, 0.025);
+            --fg: #c9c9d4;
+            --fg-dim: #6a6a7a;
+            --accent: #00b4ff;
+            --accent-glow: rgba(0, 180, 255, 0.4);
+            --gold: #ffd700;
+            --silver: #c0c0c0;
+            --bronze: #cd7f32;
+            --border: rgba(255, 255, 255, 0.07);
+        }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; min-height: 100vh; background: var(--bg); color: var(--fg); font-family: 'Fira Code', monospace; }
+        body {
+            background: radial-gradient(ellipse at top, rgba(0,180,255,0.04) 0%, transparent 50%), var(--bg);
+            padding: 24px 16px 60px;
+        }
+        body::before {
+            content: ''; position: fixed; inset: 0;
+            background: repeating-linear-gradient(0deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
+            pointer-events: none; z-index: 1;
+        }
+        .container { max-width: 920px; margin: 0 auto; position: relative; z-index: 2; }
+        .topbar {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.7rem; letter-spacing: 2px; color: var(--fg-dim);
+            margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid var(--border);
+        }
+        .topbar .brand { color: var(--accent); font-weight: 700; }
+        .topbar a {
+            color: var(--fg-dim); text-decoration: none;
+            border-bottom: 1px dotted var(--fg-dim);
+        }
+        .topbar a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+        h1 {
+            color: #fff; font-size: 1.8rem; font-weight: 700;
+            margin: 0 0 8px; letter-spacing: 1px;
+            text-shadow: 0 0 16px var(--accent-glow);
+        }
+        .subtitle { color: var(--fg-dim); font-size: 0.85rem; margin-bottom: 24px; line-height: 1.6; }
+
+        /* Period switcher */
+        .period-switch {
+            display: inline-flex; gap: 0; margin-bottom: 18px;
+            border: 1px solid var(--border); border-radius: 4px; overflow: hidden;
+        }
+        .period-switch button {
+            padding: 8px 18px; background: transparent; color: var(--fg-dim);
+            border: none; cursor: pointer; font-family: inherit; font-size: 0.7rem;
+            letter-spacing: 1.5px; text-transform: uppercase; font-weight: 700;
+            transition: 0.18s;
+        }
+        .period-switch button.active { background: var(--accent); color: #000; }
+        .period-switch button:hover:not(.active) { color: var(--fg); }
+
+        /* Game tabs */
+        .game-tabs {
+            display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 22px;
+            padding-bottom: 12px; border-bottom: 1px solid var(--border);
+        }
+        .game-tabs button {
+            padding: 8px 14px; background: transparent; color: var(--fg-dim);
+            border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+            font-family: inherit; font-size: 0.7rem; letter-spacing: 1.5px;
+            text-transform: uppercase; font-weight: 700; transition: 0.18s;
+        }
+        .game-tabs button.active {
+            background: rgba(0, 180, 255, 0.1); color: var(--accent);
+            border-color: var(--accent); box-shadow: 0 0 8px var(--accent-glow);
+        }
+        .game-tabs button:hover:not(.active) { color: var(--fg); border-color: var(--fg-dim); }
+
+        /* Leaderboard table */
+        .board {
+            background: var(--bg-soft); border: 1px solid var(--border);
+            border-radius: 4px; padding: 18px 20px; min-height: 200px;
+        }
+        .board-title {
+            color: #fff; font-size: 1rem; font-weight: 700;
+            letter-spacing: 2px; margin-bottom: 14px; text-transform: uppercase;
+        }
+        .board-empty {
+            color: var(--fg-dim); font-size: 0.85rem; padding: 30px 0;
+            text-align: center; line-height: 1.6;
+        }
+        .board-row {
+            display: grid; grid-template-columns: 50px 1fr auto auto;
+            gap: 12px; align-items: center;
+            padding: 10px 12px; border-bottom: 1px solid var(--border);
+        }
+        .board-row:last-child { border-bottom: none; }
+        .board-row:nth-child(even) { background: var(--bg-row); }
+
+        .row-rank {
+            font-weight: 800; font-size: 1rem; text-align: center;
+            color: var(--fg-dim);
+        }
+        .board-row.top1 .row-rank { color: var(--gold); text-shadow: 0 0 10px rgba(255,215,0,0.5); }
+        .board-row.top2 .row-rank { color: var(--silver); }
+        .board-row.top3 .row-rank { color: var(--bronze); }
+
+        .row-handle { font-weight: 600; color: var(--fg); font-size: 0.85rem; }
+        .row-score {
+            color: var(--accent); font-weight: 700; font-size: 0.95rem;
+            text-shadow: 0 0 6px var(--accent-glow);
+        }
+        .row-time { color: var(--fg-dim); font-size: 0.7rem; }
+
+        .footer {
+            margin-top: 30px; padding-top: 18px; border-top: 1px solid var(--border);
+            font-size: 0.7rem; color: var(--fg-dim); line-height: 1.6; text-align: center;
+        }
+        .footer a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent); }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 1.4rem; }
+            .board-row { grid-template-columns: 36px 1fr auto; gap: 8px; }
+            .row-time { display: none; }
+            .row-score { font-size: 0.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="topbar">
+            <span class="brand">● NEXUS AI · LEADERBOARD</span>
+            <a href="./">← Return to terminal</a>
+        </div>
+
+        <h1>Top players</h1>
+        <p class="subtitle">
+            Highest scores across the 8 Nexus games. Sign in with Google and set a handle in
+            AI Profile to submit your own. Boards update live.
+        </p>
+
+        <div class="period-switch" id="period-switch">
+            <button data-period="all" class="active">ALL TIME</button>
+            <button data-period="week">THIS WEEK</button>
+        </div>
+
+        <div class="game-tabs" id="game-tabs">
+            <!-- populated by JS -->
+        </div>
+
+        <div class="board" id="board">
+            <div class="board-empty">Loading…</div>
+        </div>
+
+        <div class="footer">
+            Built solo by Xavier Scott (THYFWX). Spotted a cheater?
+            <a href="mailto:xavier@thyfwxit.com">Email me</a>.
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        const GAMES = [
+            { id: 'wordle',         label: 'Wordle' },
+            { id: 'snake_classic',  label: 'Snake · Classic' },
+            { id: 'snake_speed',    label: 'Snake · Speed' },
+            { id: 'snake_endless',  label: 'Snake · Endless' },
+            { id: 'snake_stealth',  label: 'Snake · Stealth' },
+            { id: 'pong',           label: 'Pong' },
+            { id: 'flappy',         label: 'Flappy' },
+            { id: 'breakout',       label: 'Breakout' },
+            { id: 'invaders',       label: 'Invaders' },
+            { id: 'mines',          label: 'Mines' },
+            { id: 'breach',         label: 'Breach' },
+            { id: 'typing',         label: 'Typing Test' },
+        ];
+
+        let activeGame = GAMES[0].id;
+        let activePeriod = 'all';
+
+        const tabsEl  = document.getElementById('game-tabs');
+        const boardEl = document.getElementById('board');
+        const periodEl = document.getElementById('period-switch');
+
+        // Build game tabs
+        GAMES.forEach((g, i) => {
+            const btn = document.createElement('button');
+            btn.dataset.game = g.id;
+            btn.textContent = g.label;
+            if (i === 0) btn.classList.add('active');
+            btn.onclick = () => { setActiveGame(g.id); load(); };
+            tabsEl.appendChild(btn);
+        });
+
+        function setActiveGame(id) {
+            activeGame = id;
+            tabsEl.querySelectorAll('button').forEach(b => {
+                b.classList.toggle('active', b.dataset.game === id);
+            });
+        }
+
+        periodEl.querySelectorAll('button').forEach(b => {
+            b.onclick = () => {
+                activePeriod = b.dataset.period;
+                periodEl.querySelectorAll('button').forEach(o => o.classList.toggle('active', o === b));
+                load();
+            };
+        });
+
+        function fmtTime(ts) {
+            try {
+                const d = new Date(ts);
+                const now = Date.now();
+                const diffMin = (now - ts) / 60000;
+                if (diffMin < 60) return `${Math.floor(diffMin)}m ago`;
+                const diffH = diffMin / 60;
+                if (diffH < 24) return `${Math.floor(diffH)}h ago`;
+                const diffD = diffH / 24;
+                if (diffD < 30) return `${Math.floor(diffD)}d ago`;
+                return d.toLocaleDateString();
+            } catch (_) { return ''; }
+        }
+
+        function escapeHTML(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        async function load() {
+            const game = activeGame;
+            const period = activePeriod;
+            boardEl.innerHTML = '<div class="board-empty">Loading…</div>';
+            try {
+                const r = await fetch(`/api/leaderboard/${encodeURIComponent(game)}?period=${period}&limit=10`, {
+                    credentials: 'include'
+                });
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                const data = await r.json();
+                const label = (GAMES.find(g => g.id === game) || {}).label || game;
+                if (!data.entries || data.entries.length === 0) {
+                    boardEl.innerHTML = `
+                        <div class="board-title">${escapeHTML(label)} · ${period === 'week' ? 'This week' : 'All time'}</div>
+                        <div class="board-empty">No scores submitted yet for this board.<br>Be the first — sign in, play, submit.</div>`;
+                    return;
+                }
+                const rows = data.entries.map(e => {
+                    const trophy = e.rank === 1 ? 'top1' : e.rank === 2 ? 'top2' : e.rank === 3 ? 'top3' : '';
+                    return `
+                    <div class="board-row ${trophy}">
+                        <div class="row-rank">#${e.rank}</div>
+                        <div class="row-handle">${escapeHTML(e.handle)}</div>
+                        <div class="row-score">${e.score.toLocaleString()}</div>
+                        <div class="row-time">${fmtTime(e.ts)}</div>
+                    </div>`;
+                }).join('');
+                boardEl.innerHTML = `
+                    <div class="board-title">${escapeHTML(label)} · ${period === 'week' ? 'This week' : 'All time'}</div>
+                    ${rows}`;
+            } catch (e) {
+                boardEl.innerHTML = `<div class="board-empty">Failed to load: ${escapeHTML(e.message)}</div>`;
+            }
+        }
+
+        load();
+    })();
+    </script>
+</body>
+</html>
