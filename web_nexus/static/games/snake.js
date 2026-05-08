@@ -223,20 +223,22 @@ function launchSnake(snakeMode) {
     function drawSnake() {
         ctx.drawImage(bgCanvas, 0, 0); // blit pre-drawn background
 
-        // Apple glow
+        // Apple glow — already inset by 3px so it stays inside the 3px wall border
         ctx.shadowBlur = 10; ctx.shadowColor = '#0ff'; ctx.fillStyle = '#0ff';
         ctx.fillRect(apple.x*CELL+3, apple.y*CELL+3, CELL-6, CELL-6);
 
-        // Body segments  no per-segment shadow (perf)
+        // Body segments — bumped inset from 1px to 3px so cells in row/col 19/17 (the edges)
+        // no longer visually overlap the 3px wall border. Was: cell width 18 reached pixel 399
+        // at the right edge, encroaching into wall (397-400). Now: cell width 14 stops at 397.
         ctx.shadowBlur = 0;
         snake.forEach((seg, i) => {
             ctx.fillStyle = i === 0 ? '#fff' : `hsl(${140 + i * 3},100%,55%)`;
-            ctx.fillRect(seg.x*CELL+1, seg.y*CELL+1, CELL-2, CELL-2);
+            ctx.fillRect(seg.x*CELL+3, seg.y*CELL+3, CELL-6, CELL-6);
         });
         // Head glow only
         if (snake.length > 0) {
             ctx.shadowBlur = 14; ctx.shadowColor = '#0ff'; ctx.fillStyle = '#fff';
-            ctx.fillRect(snake[0].x*CELL+1, snake[0].y*CELL+1, CELL-2, CELL-2);
+            ctx.fillRect(snake[0].x*CELL+3, snake[0].y*CELL+3, CELL-6, CELL-6);
             ctx.shadowBlur = 0;
         }
     }
