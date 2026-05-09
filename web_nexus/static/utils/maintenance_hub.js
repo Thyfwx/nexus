@@ -48,13 +48,18 @@ window.startMaintenanceHub = function() {
     };
     const platform = _detectOS();
 
+    // Cards: clickable to expand. Subtle chevron in the header row indicates
+    // it's expandable. Tip text reveals on click via _hubShowTip.
     const card = (title, body, tip) => `
         <div ${tip ? `data-hub-tip="${tip.replace(/"/g, '&quot;')}" onclick="window._hubShowTip(this)"` : ''}
-             title="${(tip || '').replace(/"/g, '&quot;')}"
-             style="background:rgba(0,0,0,0.4); padding:10px 12px; border:1px solid rgba(0,255,255,0.18); border-radius:8px; ${tip ? 'cursor:pointer;' : ''}">
-            <div style="font-size:0.55rem; color:#666; letter-spacing:1.5px; margin-bottom:4px;">${title}${tip ? ' <span style="color:#0ff; opacity:0.6;">·</span>' : ''}</div>
+             style="background:rgba(0,0,0,0.4); padding:11px 13px; border:1px solid rgba(0,255,255,0.18); border-radius:8px; ${tip ? 'cursor:pointer;' : ''} transition:border-color 0.15s, background 0.15s;"
+             ${tip ? `onmouseover="this.style.borderColor='rgba(0,255,255,0.45)'; this.style.background='rgba(0,30,40,0.55)';" onmouseout="this.style.borderColor='rgba(0,255,255,0.18)'; this.style.background='rgba(0,0,0,0.4)';"` : ''}>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.58rem; color:#888; letter-spacing:1.5px; margin-bottom:6px; font-weight:600;">
+                <span>${title}</span>
+                ${tip ? '<span class="hub-chevron" style="color:#0ff; opacity:0.6; font-size:0.7rem; transition:transform 0.18s;">▾</span>' : ''}
+            </div>
             ${body}
-            ${tip ? '<div class="hub-tip-body" style="display:none; margin-top:6px; padding-top:6px; border-top:1px solid rgba(0,255,255,0.12); font-size:0.65rem; color:#888; line-height:1.5;"></div>' : ''}
+            ${tip ? '<div class="hub-tip-body" style="display:none; margin-top:8px; padding-top:8px; border-top:1px solid rgba(0,255,255,0.15); font-size:0.7rem; color:#9ce; line-height:1.55;"></div>' : ''}
         </div>`;
 
     const kv = (k, v, id) => `
@@ -119,22 +124,33 @@ window.startMaintenanceHub = function() {
                         'OS / browser context this session is running in.')}
                 </div>
             </div>
+
+            <!-- Ad slot at the bottom of the hub. Owner-gated until AdSense slot ID
+                 is dropped in. AdSense will fill this once a real <ins> tag replaces it. -->
+            ${window.OWNER_MODE ? `
+            <div style="margin-top:18px; padding:14px; min-height:90px; background:rgba(255,255,255,0.02); border:1px dashed rgba(255,255,255,0.12); border-radius:4px; display:flex; align-items:center; justify-content:center; color:#6a6a7a; font-size:0.7rem; letter-spacing:2px; text-transform:uppercase; font-family:'Fira Code',monospace; text-align:center;">
+                AD SLOT · 728 × 90 · maintenance hub
+            </div>` : ''}
         </div>`;
 
     _hubStartLivePoll();
 };
 
-// Click handler — toggles the inline description body for any card with a data-hub-tip
+// Click handler — toggles the inline description body + rotates the chevron
 window._hubShowTip = function(el) {
     if (!el) return;
     const body = el.querySelector('.hub-tip-body');
+    const chev = el.querySelector('.hub-chevron');
     if (!body) return;
     const tip = el.getAttribute('data-hub-tip') || '';
-    if (body.style.display === 'none' || !body.style.display) {
+    const isOpen = body.style.display === 'block';
+    if (!isOpen) {
         body.textContent = tip;
         body.style.display = 'block';
+        if (chev) { chev.style.transform = 'rotate(180deg)'; chev.style.opacity = '1'; }
     } else {
         body.style.display = 'none';
+        if (chev) { chev.style.transform = 'rotate(0deg)'; chev.style.opacity = '0.6'; }
     }
 };
 

@@ -82,37 +82,62 @@ window.startSpeedTest = function() {
     window.guiContainer.classList.remove('gui-hidden');
 
     window.guiContent.innerHTML = `
-        <div style="padding:20px 18px;">
-            <h2 id="speed-status" style="color:var(--accent); margin:0 0 4px; letter-spacing:2px; font-size:0.92rem; text-align:center;">READY</h2>
-            <p id="speed-server" style="color:#666; font-size:0.68rem; margin:0 0 16px; text-align:center;">Click START — runs entirely against the Nexus backend, no external deps.</p>
+        <div style="padding:22px 18px; max-width:560px; margin:0 auto;">
 
-            <div style="text-align:center; margin-bottom:18px;">
-                <div id="speed-rate-live" style="color:#0ff; font-weight:800; font-size:3rem; letter-spacing:1px; line-height:1;">—</div>
-                <div id="speed-phase" style="color:#555; font-size:0.65rem; letter-spacing:3px; margin-top:4px;">MBPS · LIVE</div>
-            </div>
-
-            <div style="height:18px; background:rgba(0,0,0,0.7); border:1px solid rgba(0,255,255,0.25); border-radius:9px; overflow:hidden; position:relative;">
-                <div id="speed-meter-fill" style="position:absolute; left:0; top:0; bottom:0; width:0%; background:linear-gradient(90deg, #0f0 0%, #0ff 30%, #ff0 60%, #f80 80%, #f0f 100%); transition:width 0.18s ease-out;"></div>
-            </div>
-            <div style="display:flex; justify-content:space-between; font-size:0.55rem; color:#555; letter-spacing:1px; margin-top:4px; padding:0 2px;">
-                <span>0</span><span>25</span><span>100</span><span>250</span><span>500</span><span>1Gb+</span>
-            </div>
-
-            <div id="speed-results" style="margin-top:18px; background:rgba(0,0,0,0.3); padding:12px 14px; border-radius:8px; display:none;">
-                <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:10px; text-align:center;">
-                    <div><div id="speed-down" style="color:#0f0; font-weight:bold; font-size:1rem;">—</div><div style="color:#666; font-size:0.55rem; letter-spacing:1.5px; margin-top:2px;">DOWN Mbps</div></div>
-                    <div><div id="speed-up" style="color:#0ff; font-weight:bold; font-size:1rem;">—</div><div style="color:#666; font-size:0.55rem; letter-spacing:1.5px; margin-top:2px;">UP Mbps</div></div>
-                    <div><div id="speed-ping" style="color:#0ff; font-weight:bold; font-size:1rem;">—</div><div style="color:#666; font-size:0.55rem; letter-spacing:1.5px; margin-top:2px;">LATENCY ms</div></div>
-                    <div><div id="speed-jitter" style="color:#0ff; font-weight:bold; font-size:1rem;">—</div><div style="color:#666; font-size:0.55rem; letter-spacing:1.5px; margin-top:2px;">JITTER ms</div></div>
+            <!-- Header: status + server info pill -->
+            <div style="text-align:center; margin-bottom:20px;">
+                <h2 id="speed-status" style="color:var(--accent); margin:0 0 6px; letter-spacing:3px; font-size:0.85rem; font-weight:700; text-shadow:0 0 12px var(--accent);">READY</h2>
+                <div id="speed-server-pill" style="display:inline-flex; align-items:center; gap:8px; padding:5px 12px; background:rgba(0,180,255,0.06); border:1px solid rgba(0,180,255,0.2); border-radius:14px; font-size:0.65rem; color:#9ce; letter-spacing:0.5px; font-family:inherit;">
+                    <span style="width:6px; height:6px; background:#0f0; border-radius:50%; box-shadow:0 0 6px #0f0;"></span>
+                    <span id="speed-server">Click START to begin</span>
                 </div>
             </div>
 
-            <div style="margin-top:20px; display:flex; gap:8px; justify-content:center;">
-                <button id="speed-start" class="action-btn" style="min-width:200px;" onclick="window._runSpeedTest()">START FULL TEST</button>
+            <!-- Live MBPS readout -->
+            <div style="text-align:center; margin-bottom:14px;">
+                <div id="speed-rate-live" style="color:#0ff; font-weight:800; font-size:3.4rem; letter-spacing:0; line-height:1; text-shadow:0 0 18px rgba(0,255,255,0.4);">—</div>
+                <div id="speed-phase" style="color:#666; font-size:0.65rem; letter-spacing:3px; margin-top:6px; font-weight:600;">MBPS · LIVE</div>
             </div>
-            <p style="color:#666; font-size:0.6rem; text-align:center; margin-top:10px; line-height:1.5;">
-                Measures real bytes from your device to the Nexus backend (Cloudflare Pages edge).<br>
-                If your link is slow, the number will be slow. If it's fast, the number will be fast. Honest.
+
+            <!-- Meter bar with cleaner gradient + axis -->
+            <div style="height:14px; background:rgba(0,0,0,0.6); border:1px solid rgba(0,255,255,0.2); border-radius:7px; overflow:hidden; position:relative;">
+                <div id="speed-meter-fill" style="position:absolute; left:0; top:0; bottom:0; width:0%; background:linear-gradient(90deg, #0f0 0%, #0ff 30%, #ff0 60%, #f80 80%, #f0f 100%); transition:width 0.18s ease-out;"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.55rem; color:#555; letter-spacing:1px; margin-top:5px; padding:0 2px; font-family:monospace;">
+                <span>0</span><span>25</span><span>100</span><span>250</span><span>500</span><span>1 Gb+</span>
+            </div>
+
+            <!-- Results panel — reveals after first run -->
+            <div id="speed-results" style="margin-top:22px; background:rgba(0,0,0,0.35); padding:16px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); display:none;">
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:14px; text-align:center;">
+                    <div>
+                        <div id="speed-down" style="color:#0f0; font-weight:800; font-size:1.2rem; line-height:1;">—</div>
+                        <div style="color:#888; font-size:0.55rem; letter-spacing:1.5px; margin-top:6px;">DOWN<br>Mbps</div>
+                    </div>
+                    <div>
+                        <div id="speed-up" style="color:#0ff; font-weight:800; font-size:1.2rem; line-height:1;">—</div>
+                        <div style="color:#888; font-size:0.55rem; letter-spacing:1.5px; margin-top:6px;">UP<br>Mbps</div>
+                    </div>
+                    <div>
+                        <div id="speed-ping" style="color:#ff0; font-weight:800; font-size:1.2rem; line-height:1;">—</div>
+                        <div style="color:#888; font-size:0.55rem; letter-spacing:1.5px; margin-top:6px;">LATENCY<br>ms</div>
+                    </div>
+                    <div>
+                        <div id="speed-jitter" style="color:#fa0; font-weight:800; font-size:1.2rem; line-height:1;">—</div>
+                        <div style="color:#888; font-size:0.55rem; letter-spacing:1.5px; margin-top:6px;">JITTER<br>ms</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Start button -->
+            <div style="margin-top:22px; display:flex; gap:8px; justify-content:center;">
+                <button id="speed-start" class="action-btn" style="min-width:220px; padding:12px 20px; font-weight:700; letter-spacing:2px; font-size:0.78rem;" onclick="window._runSpeedTest()">START SPEED TEST</button>
+            </div>
+
+            <!-- Honest note (smaller) -->
+            <p style="color:#555; font-size:0.6rem; text-align:center; margin-top:14px; line-height:1.5; letter-spacing:0.3px;">
+                Measures real bytes between your device and the Nexus backend.<br>
+                Bottlenecks (Wi-Fi, ISP, server) all reflect honestly in the number.
             </p>
         </div>`;
 };
@@ -151,7 +176,11 @@ window._runSpeedTest = async function() {
     if (phaseEl) phaseEl.textContent = 'CONNECTING';
     status.textContent = 'CONNECTING…';
     const srv = await _serverInfo();
-    if (serverEl) serverEl.textContent = `Nexus backend · ${srv.loc} · your IP ${srv.ip}`;
+    if (serverEl) {
+        // Cleaner server info: "Nexus · Dallas, US · IP 1.2.3.4" (no clutter)
+        const loc = srv.loc && srv.loc !== 'unknown' ? srv.loc : 'unknown region';
+        serverEl.innerHTML = `<b style="color:#fff;">NEXUS</b> · ${loc} · IP <code style="color:#9ce; background:rgba(0,0,0,0.3); padding:1px 5px; border-radius:3px; font-size:0.62rem;">${srv.ip}</code>`;
+    }
 
     if (phaseEl) phaseEl.textContent = 'PINGING';
     status.textContent = 'MEASURING LATENCY…';
