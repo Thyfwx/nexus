@@ -85,6 +85,7 @@ function startWordle() {
     wordleKeyState = {};
 
     guiContainer.classList.remove('gui-hidden');
+    guiContainer.classList.add('gui-game-wide');
     guiTitle.textContent = 'NEXUS WORDLE';
     nexusCanvas.style.display = 'none';
 
