@@ -9,8 +9,9 @@ window.startMaintenanceHub = function() {
     window.nexusCanvas.style.display = 'none';
     window.guiContainer.classList.remove('gui-hidden');
 
-    const cores = navigator.hardwareConcurrency || '?';
-    const memHint = navigator.deviceMemory ? `${navigator.deviceMemory} GB` : 'unknown';
+    const cores = navigator.hardwareConcurrency || null;          // null = not reported by browser
+    const memHint = navigator.deviceMemory ? `${navigator.deviceMemory} GB` : null;
+    const colorDepth = screen.colorDepth || null;
     // OS detection — try userAgentData platform first (modern), fall back to UA string parse.
     const _detectOS = () => {
         try {
@@ -61,30 +62,36 @@ window.startMaintenanceHub = function() {
             <span style="color:#888;">${k}</span><span ${id ? `id="${id}"` : ''} style="color:#fff;">${v}</span>
         </div>`;
 
+    // Helper: dash for missing values (better than "?" or "unknown")
+    const dash = '<span style="color:#444;">—</span>';
+
     window.guiContent.innerHTML = `
-        <div style="padding:12px;">
+        <div style="padding:14px 12px;">
+            <div style="text-align:center; margin-bottom:14px; color:#888; font-size:0.7rem; letter-spacing:1.5px;">
+                Click any card for an honest explanation. Browsers limit what a web page can read about your device — anything below "—" simply isn't available to us.
+            </div>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:start;">
                 ${card('CPU', `
-                    <div style="font-size:1.4rem; color:#0f0; font-weight:bold;">${cores} <span style="font-size:0.6rem; color:#666;">cores</span></div>
-                    <div id="hub-cpu-load" style="font-size:0.62rem; color:#888; margin-top:2px;">load: probing…</div>
-                `, 'Logical core count reported by the browser. The "load" line below is a JS busy-loop heuristic — it estimates how much spare time JS has, NOT actual system CPU usage. A real OS-level reading is not available from a web page.')}
+                    <div style="font-size:1.4rem; color:#0f0; font-weight:bold;">${cores ? cores + ' <span style="font-size:0.6rem; color:#666;">cores</span>' : dash}</div>
+                    <div id="hub-cpu-load" style="font-size:0.62rem; color:#888; margin-top:4px;">${cores ? 'load: probing…' : 'core count not reported'}</div>
+                `, 'Logical core count reported by the browser (when supported). The "load" line is a JS busy-loop heuristic estimating how much spare time JS has — NOT actual OS CPU usage. Real system CPU usage is not available to web pages.')}
 
                 ${card('TAB JS HEAP', `
-                    <div id="hub-mem-used" style="font-size:1.4rem; color:#0ff; font-weight:bold;">—</div>
-                    <div id="hub-mem-line" style="font-size:0.62rem; color:#888; margin-top:2px;">device RAM: ${memHint}</div>
-                `, 'This is the JavaScript heap used by THIS browser tab — NOT total system RAM or even total browser memory. Real system memory usage is not available from a web page. "Device RAM" below is a coarse browser-reported value (rounded to nearest 0.25/0.5/1/2/4/8 GB) used by sites for adaptive loading.')}
+                    <div id="hub-mem-used" style="font-size:1.4rem; color:#0ff; font-weight:bold;">${dash}</div>
+                    <div id="hub-mem-line" style="font-size:0.62rem; color:#888; margin-top:4px;">${memHint ? 'device RAM: ' + memHint : 'device RAM: not reported'}</div>
+                `, 'JavaScript heap used by THIS browser tab — NOT total system RAM or total browser memory. Real system memory is not available to web pages. "Device RAM" below is a coarse browser-reported value (rounded to 0.25/0.5/1/2/4/8 GB) used for adaptive loading.')}
 
                 ${card('NETWORK',
-                    kv('Status',  'online', 'hub-net-online') +
-                    `<div style="font-size:0.65rem; color:#aaa; margin-top:8px; line-height:1.5;">Browsers can't expose your real network bandwidth — only a rough rounded estimate that's often misleading. For an honest transfer-based measurement, run the <button onclick="event.stopPropagation(); window.startSpeedTest()" style="background:rgba(0,255,255,0.15); color:#0ff; border:1px solid rgba(0,255,255,0.4); padding:3px 10px; border-radius:4px; cursor:pointer; font-family:inherit; font-size:0.65rem; font-weight:600;">Speed Test</button> in the sidebar.</div>`,
-                    'A web page cannot accurately read your network bandwidth. The Speed Test in the sidebar runs real transfers against the Nexus backend and reports actual measured speed.')}
+                    kv('Status',  '<span style="color:#0f0;">online</span>', 'hub-net-online') +
+                    `<div style="font-size:0.66rem; color:#aaa; margin-top:8px; line-height:1.5;">For real bandwidth, run the <button onclick="event.stopPropagation(); window.startSpeedTest()" style="background:rgba(0,255,255,0.15); color:#0ff; border:1px solid rgba(0,255,255,0.4); padding:3px 10px; border-radius:4px; cursor:pointer; font-family:inherit; font-size:0.65rem; font-weight:600;">Speed Test</button> — measures actual bytes from your device to the Nexus backend.</div>`,
+                    'A web page cannot accurately read your network bandwidth from the browser API. The Speed Test runs real transfers and reports actual speed.')}
 
                 ${card('DISPLAY',
                     kv('Screen',   `${screen.width}×${screen.height}`) +
                     kv('Viewport', `${window.innerWidth}×${window.innerHeight}`, 'hub-viewport') +
                     kv('Pixel',    `${window.devicePixelRatio || 1}×`) +
-                    kv('Color',    `${screen.colorDepth || '?'}-bit`),
-                    'Your screen + browser window dimensions. Viewport updates if you rotate or resize.')}
+                    kv('Color',    colorDepth ? `${colorDepth}-bit` : dash),
+                    'Your screen + browser window dimensions. Viewport updates live if you rotate or resize.')}
 
                 <div id="hub-battery-card" style="display:none; grid-column:span 2;">
                     ${card('BATTERY', `
@@ -103,11 +110,11 @@ window.startMaintenanceHub = function() {
 
                 <div style="grid-column:span 2;">
                     ${card('ENVIRONMENT',
-                        kv('OS',        platform, 'hub-os') +
-                        kv('Locale',    navigator.language || '—') +
-                        kv('Timezone',  (()=>{try{return Intl.DateTimeFormat().resolvedOptions().timeZone}catch{return '—'}})()) +
-                        kv('Touch',     `${navigator.maxTouchPoints || 0} pts`) +
-                        kv('Nexus',     window.NEXUS_VERSION || '?') +
+                        kv('OS',        platform || dash, 'hub-os') +
+                        kv('Locale',    navigator.language || dash) +
+                        kv('Timezone',  (()=>{try{return Intl.DateTimeFormat().resolvedOptions().timeZone}catch{return dash}})()) +
+                        kv('Touch',     navigator.maxTouchPoints != null ? `${navigator.maxTouchPoints} pts` : dash) +
+                        kv('Nexus',     window.NEXUS_VERSION || dash) +
                         kv('Mode',      (window.currentMode || 'nexus').toUpperCase()),
                         'OS / browser context this session is running in.')}
                 </div>
