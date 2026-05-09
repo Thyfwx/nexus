@@ -88,7 +88,7 @@ window.startMaintenanceHub = function() {
 
                 ${card('NETWORK',
                     kv('Status',  '<span style="color:#0f0;">online</span>', 'hub-net-online') +
-                    `<div style="font-size:0.66rem; color:#aaa; margin-top:8px; line-height:1.5;">For real bandwidth, run the <button onclick="event.stopPropagation(); window.startSpeedTest()" style="background:rgba(0,255,255,0.15); color:#0ff; border:1px solid rgba(0,255,255,0.4); padding:3px 10px; border-radius:4px; cursor:pointer; font-family:inherit; font-size:0.65rem; font-weight:600;">Speed Test</button> — measures actual bytes from your device to the Nexus backend.</div>`,
+                    `<div style="font-size:0.66rem; color:#aaa; margin-top:8px; line-height:1.5;">For real bandwidth, run the <a href="speedtest.html" onclick="event.stopPropagation();" style="background:rgba(0,255,255,0.15); color:#0ff; border:1px solid rgba(0,255,255,0.4); padding:3px 10px; border-radius:4px; cursor:pointer; font-family:inherit; font-size:0.65rem; font-weight:600; text-decoration:none; display:inline-block;">Speed Test</a> — measures actual bytes from your device to the Nexus backend.</div>`,
                     'A web page cannot accurately read your network bandwidth from the browser API. The Speed Test runs real transfers and reports actual speed.')}
 
                 ${card('DISPLAY',
