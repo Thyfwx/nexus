@@ -2,8 +2,14 @@ function startInvaders() {
     stopAllGames();
     invadersActive = true;
     guiContainer.classList.remove('gui-hidden');
+    guiContainer.classList.add('gui-game-wide');
     guiTitle.textContent = 'CYBER INVADERS // MAINFRAME DEFENSE';
     nexusCanvas.style.display = 'block';
+    nexusCanvas.style.maxWidth = '100%';
+    nexusCanvas.style.height = 'auto';
+    nexusCanvas.style.borderRadius = '4px';
+    nexusCanvas.style.border = '1px solid rgba(0,255,255,0.2)';
+    nexusCanvas.style.boxShadow = '0 0 20px rgba(0,255,255,0.15)';
     nexusCanvas.width = 400; nexusCanvas.height = 360;
     const ctx = nexusCanvas.getContext('2d');
 
