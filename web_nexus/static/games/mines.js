@@ -15,6 +15,7 @@ function startMinesweeper() {
     mineFlagged  = Array.from({length: MINE_ROWS}, () => Array(MINE_COLS).fill(false));
 
     guiContainer.classList.remove('gui-hidden');
+    guiContainer.classList.add('gui-game-wide');
     guiTitle.textContent = 'NEXUS MINESWEEPER';
     nexusCanvas.style.display = 'none';
     renderMinesweeper();

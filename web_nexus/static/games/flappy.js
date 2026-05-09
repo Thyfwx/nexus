@@ -4,7 +4,13 @@ function startFlappy() {
     stopAllGames();
     flappyActive = true;
     guiContainer.classList.remove('gui-hidden');
+    guiContainer.classList.add('gui-game-wide');
     guiTitle.textContent = 'FLAPPY NEXUS';
+    nexusCanvas.style.maxWidth = '100%';
+    nexusCanvas.style.height = 'auto';
+    nexusCanvas.style.borderRadius = '4px';
+    nexusCanvas.style.border = '1px solid rgba(0,255,255,0.2)';
+    nexusCanvas.style.boxShadow = '0 0 20px rgba(0,255,255,0.15)';
     guiContent.innerHTML = `<p style="font-size:0.72rem;color:#0ff;text-align:center;margin:0 0 4px;">TAP  SPACE   to flap</p>`;
     nexusCanvas.style.display = 'block';
     nexusCanvas.width = 400; nexusCanvas.height = 300;
