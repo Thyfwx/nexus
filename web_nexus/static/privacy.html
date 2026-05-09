@@ -52,29 +52,29 @@
 
         <p>This policy explains what data <strong>thyfwxit.com</strong> and the <strong>Nexus AI Terminal</strong> at <strong>thyfwxit.com/nexus</strong> collect, how it's used, and which third parties are involved. The site is operated solo by Xavier Scott (THYFWX). It is a personal project, not a commercial product.</p>
 
-        <h2>What we collect from every visitor</h2>
+        <h2>What I collect from every visitor</h2>
         <ul>
             <li><strong>Standard server logs:</strong> IP address, browser user-agent, timestamp, page requested. Used for security, debugging, and basic analytics. Retained ~30 days.</li>
             <li><strong>Approximate geolocation:</strong> derived from IP via ipinfo.io. Used to show region-appropriate content and helplines. Not stored long-term.</li>
             <li><strong>Cookies:</strong> a single session cookie named <code>nexus_session</code> (HTTP-only, Secure, SameSite=None on HTTPS). Holds your sign-in state. Cleared when you sign out.</li>
         </ul>
 
-        <h2>What we collect when you sign in with Google</h2>
+        <h2>What I collect when you sign in with Google</h2>
         <ul>
             <li>Your Google account name, email, and profile picture (via OAuth).</li>
             <li>A persistent ID linking your account to your saved settings (custom AI memory, leaderboard handle, image-generation history).</li>
         </ul>
         <p>Email and profile picture stay on your device's <code>localStorage</code>. The server stores only an account ID hash plus your chosen leaderboard handle.</p>
 
-        <h2>What we collect when you chat with the AI</h2>
+        <h2>What I collect when you chat with the AI</h2>
         <ul>
-            <li>Every chat prompt and AI reply is forwarded to the AI provider (Groq, HuggingFace, or Google Gemini) to generate a response. We do not log the full text on our servers permanently — chats live in your browser's memory only and are cleared when you close the tab.</li>
+            <li>Every chat prompt and AI reply is forwarded to the AI provider (Groq, HuggingFace, or Google Gemini) to generate a response. I do not log the full text on our servers permanently — chats live in your browser's memory only and are cleared when you close the tab.</li>
             <li>If you trigger a critical-content moderation pattern (violence, CSAM, etc.), the offending prompt is forwarded to the operator's private Discord channel for review and a temporary lockout is applied. This is for safety enforcement, not advertising.</li>
             <li><strong>Guests:</strong> chats are session-only. Closing the tab erases everything.</li>
             <li><strong>Google-signed users:</strong> the last few messages per mode persist in your browser's <code>localStorage</code> so the AI can follow context. You can wipe them anytime via the AI Profile panel.</li>
         </ul>
 
-        <h2>What we collect when you generate an image</h2>
+        <h2>What I collect when you generate an image</h2>
         <ul>
             <li>Your text prompt is sent to the image provider (Replicate, Pollinations, or Hugging Face). The generated image is base64-encoded and saved to your browser's storage so you can view your history. Images are NOT stored on our server.</li>
             <li>Quota tracking: a counter of how many images you've generated today is kept server-side, tied to your account ID hash, so we can enforce daily limits.</li>
@@ -83,7 +83,7 @@
         <h2>Third-party services</h2>
         <ul>
             <li><strong>Google AdSense</strong> (ads) — uses cookies and may collect anonymous usage data to show relevant ads. Opt out: <a href="https://adssettings.google.com" target="_blank" rel="noopener">adssettings.google.com</a>. Google's policies: <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">policies.google.com/technologies/partner-sites</a></li>
-            <li><strong>Google OAuth</strong> — sign-in only. We never receive your password.</li>
+            <li><strong>Google OAuth</strong> — sign-in only. I never receive your password.</li>
             <li><strong>Groq, Hugging Face, Replicate, Google Gemini, Pollinations</strong> — AI inference providers. Your prompts and image requests are forwarded to them. Subject to their respective privacy policies.</li>
             <li><strong>ipinfo.io</strong> — IP-to-region lookup. No personal data shared.</li>
             <li><strong>Cloudflare Pages</strong> — frontend hosting. Standard CDN logs.</li>
@@ -92,7 +92,7 @@
 
         <h2>Cookies</h2>
         <ul>
-            <li><strong>nexus_session</strong> — session sign-in state. Set by us. Lasts 30 days.</li>
+            <li><strong>nexus_session</strong> — session sign-in state. Set by Nexus. Lasts 30 days.</li>
             <li><strong>AdSense cookies</strong> — set by Google when ads load. Used for ad personalization and frequency capping. Managed via Google's settings link above.</li>
             <li>No other tracking cookies.</li>
         </ul>
@@ -102,7 +102,7 @@
             <li><strong>Access / deletion:</strong> Email <a href="mailto:xavier@thyfwxit.com">xavier@thyfwxit.com</a> with your account email. Deletion is permanent and immediate.</li>
             <li><strong>Sign out / forget:</strong> The avatar dropdown has Sign Out (clears session) and Forget All (wipes browser-stored memory).</li>
             <li><strong>EU/UK/CA visitors:</strong> Google's funding-choices banner offers consent management for ad personalization.</li>
-            <li><strong>California (CCPA):</strong> we don't sell personal data.</li>
+            <li><strong>California (CCPA):</strong> I don't sell personal data.</li>
         </ul>
 
         <h2>Data retention</h2>
@@ -113,7 +113,7 @@
         </ul>
 
         <h2>Children</h2>
-        <p>Nexus is intended for users 18 and older. The Unfiltered chat mode in particular contains adult-oriented content and requires explicit confirmation. If we learn a child under 13 has provided personal data, we delete it on request.</p>
+        <p>Nexus is intended for users 18 and older. The Unfiltered chat mode in particular contains adult-oriented content and requires explicit confirmation. If I learn a child under 13 has provided personal data, I'll delete it on request.</p>
 
         <h2>Changes to this policy</h2>
         <p>If this policy changes meaningfully, the new version is posted here and the "Last updated" date above is bumped. Major changes are also announced in the changelog (<a href="changelog.html">/changelog</a>).</p>
@@ -124,6 +124,15 @@
         <div class="footer">
             <a href="./">Terminal</a> · <a href="terms.html">Terms</a> · <a href="about.html">About</a> · <a href="changelog.html">Changelog</a>
         </div>
+    </div>
+
+    <!-- Footer nav -->
+    <div style="position:fixed; bottom:0; left:0; right:0; padding:10px 16px; background:rgba(0,0,0,0.7); border-top:1px solid rgba(255,255,255,0.06); text-align:center; font-family:'Fira Code',monospace; font-size:0.65rem; color:#666; letter-spacing:1.5px; z-index:50; backdrop-filter:blur(4px);">
+        <a href="privacy.html" style="color:#888; text-decoration:none; padding:0 10px; border-right:1px solid #333;">PRIVACY</a>
+        <a href="terms.html" style="color:#888; text-decoration:none; padding:0 10px; border-right:1px solid #333;">TERMS</a>
+        <a href="about.html" style="color:#888; text-decoration:none; padding:0 10px; border-right:1px solid #333;">ABOUT</a>
+        <a href="changelog.html" style="color:#888; text-decoration:none; padding:0 10px; border-right:1px solid #333;">CHANGELOG</a>
+        <a href="leaderboard.html" style="color:#888; text-decoration:none; padding:0 10px;">LEADERBOARD</a>
     </div>
 </body>
 </html>

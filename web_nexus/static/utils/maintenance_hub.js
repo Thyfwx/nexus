@@ -86,11 +86,11 @@ window.startMaintenanceHub = function() {
                 ${stat('Architecture', '<span id="hub-arch"></span>', null, 'Chip type — arm (Apple Silicon, phones) or x86 (Intel/AMD).')}
                 ${stat('Thread Load', '<span id="hub-cpu-load">--</span>', null, 'How busy the JS thread is right now. Not real CPU usage — browsers can\'t report that.')}
                 ${stat('Tab Heap', '<span id="hub-mem-heap">--</span>', null, 'JavaScript memory used by this tab only. Not your total system RAM.')}
-                ${stat('OS', '<span id="hub-os">${platform}</span>', null, 'Detected from browser metadata. May not show the exact version on all browsers.')}
+                ${stat('OS', `<span id="hub-os">${platform}</span>`, null, 'Detected from browser metadata. May not show the exact version on all browsers.')}
                 ${stat('Language', navigator.language || '--')}
                 ${stat('Timezone', (()=>{try{return Intl.DateTimeFormat().resolvedOptions().timeZone}catch{return '--'}})())}
-                ${stat('Screen', '${screen.width}x${screen.height}', null, 'Physical display resolution.')}
-                ${stat('Viewport', '<span id="hub-viewport">${window.innerWidth}x${window.innerHeight}</span>', null, 'Browser window size. Updates live if you resize.')}
+                ${stat('Screen', `${screen.width}x${screen.height}`, null, 'Physical display resolution.')}
+                ${stat('Viewport', `<span id="hub-viewport">${window.innerWidth}x${window.innerHeight}</span>`, null, 'Browser window size. Updates live if you resize.')}
             </div>
 
             <div style="background:rgba(0,0,0,0.3); border-radius:6px; padding:10px 14px; margin-bottom:12px;">
