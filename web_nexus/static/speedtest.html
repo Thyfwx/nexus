@@ -138,23 +138,39 @@
         </div>
 
         <!-- Results panel -->
-        <div id="speed-results" style="margin-top:22px; background:rgba(0,0,0,0.35); padding:16px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); display:none;">
-            <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:14px; text-align:center;">
-                <div>
-                    <div id="speed-down" style="color:#0f0; font-weight:800; font-size:1.2rem; line-height:1;">--</div>
-                    <div style="color:#888; font-size:0.55rem; letter-spacing:1.5px; margin-top:6px;">DOWN<br>Mbps</div>
+        <div id="speed-results" style="margin-top:22px; display:none;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div style="background:rgba(0,60,0,0.15); padding:14px; border-radius:8px; border:1px solid rgba(0,255,0,0.1);">
+                    <div style="display:flex; align-items:baseline; gap:6px;">
+                        <span id="speed-down" style="color:#0f0; font-weight:800; font-size:1.6rem; line-height:1;">--</span>
+                        <span style="color:#666; font-size:0.6rem;">Mbps</span>
+                    </div>
+                    <div style="color:#888; font-size:0.6rem; letter-spacing:1px; margin-top:4px;">DOWNLOAD</div>
+                    <div id="speed-down-note" style="color:#555; font-size:0.55rem; margin-top:4px; line-height:1.4;"></div>
                 </div>
-                <div>
-                    <div id="speed-up" style="color:#0ff; font-weight:800; font-size:1.2rem; line-height:1;">--</div>
-                    <div style="color:#888; font-size:0.55rem; letter-spacing:1.5px; margin-top:6px;">UP<br>Mbps</div>
+                <div style="background:rgba(0,40,60,0.15); padding:14px; border-radius:8px; border:1px solid rgba(0,255,255,0.1);">
+                    <div style="display:flex; align-items:baseline; gap:6px;">
+                        <span id="speed-up" style="color:#0ff; font-weight:800; font-size:1.6rem; line-height:1;">--</span>
+                        <span style="color:#666; font-size:0.6rem;">Mbps</span>
+                    </div>
+                    <div style="color:#888; font-size:0.6rem; letter-spacing:1px; margin-top:4px;">UPLOAD</div>
+                    <div id="speed-up-note" style="color:#555; font-size:0.55rem; margin-top:4px; line-height:1.4;"></div>
                 </div>
-                <div>
-                    <div id="speed-ping" style="color:#ff0; font-weight:800; font-size:1.2rem; line-height:1;">--</div>
-                    <div style="color:#888; font-size:0.55rem; letter-spacing:1.5px; margin-top:6px;">LATENCY<br>ms</div>
+                <div style="background:rgba(60,60,0,0.1); padding:14px; border-radius:8px; border:1px solid rgba(255,255,0,0.08);">
+                    <div style="display:flex; align-items:baseline; gap:6px;">
+                        <span id="speed-ping" style="color:#ff0; font-weight:800; font-size:1.6rem; line-height:1;">--</span>
+                        <span style="color:#666; font-size:0.6rem;">ms</span>
+                    </div>
+                    <div style="color:#888; font-size:0.6rem; letter-spacing:1px; margin-top:4px;">LATENCY</div>
+                    <div id="speed-ping-note" style="color:#555; font-size:0.55rem; margin-top:4px; line-height:1.4;"></div>
                 </div>
-                <div>
-                    <div id="speed-jitter" style="color:#fa0; font-weight:800; font-size:1.2rem; line-height:1;">--</div>
-                    <div style="color:#888; font-size:0.55rem; letter-spacing:1.5px; margin-top:6px;">JITTER<br>ms</div>
+                <div style="background:rgba(60,40,0,0.1); padding:14px; border-radius:8px; border:1px solid rgba(255,170,0,0.08);">
+                    <div style="display:flex; align-items:baseline; gap:6px;">
+                        <span id="speed-jitter" style="color:#fa0; font-weight:800; font-size:1.6rem; line-height:1;">--</span>
+                        <span style="color:#666; font-size:0.6rem;">ms</span>
+                    </div>
+                    <div style="color:#888; font-size:0.6rem; letter-spacing:1px; margin-top:4px;">JITTER</div>
+                    <div id="speed-jitter-note" style="color:#555; font-size:0.55rem; margin-top:4px; line-height:1.4;"></div>
                 </div>
             </div>
         </div>
@@ -201,8 +217,7 @@
         <a href="privacy.html" class="sep">PRIVACY</a>
         <a href="terms.html" class="sep">TERMS</a>
         <a href="about.html" class="sep">ABOUT</a>
-        <a href="changelog.html" class="sep">CHANGELOG</a>
-        <a href="leaderboard.html">LEADERBOARD</a>
+        <a href="changelog.html">CHANGELOG</a>
     </div>
 
     <script>
@@ -260,12 +275,17 @@
         return ((bytes * 8) / sec) / 1000000;
     }
 
+    var _COUNTRIES = {US:'United States',GB:'United Kingdom',CA:'Canada',AU:'Australia',DE:'Germany',FR:'France',JP:'Japan',BR:'Brazil',IN:'India',MX:'Mexico',KR:'South Korea',IT:'Italy',ES:'Spain',NL:'Netherlands',SE:'Sweden',NO:'Norway',DK:'Denmark',FI:'Finland',PL:'Poland',RU:'Russia',CN:'China',TW:'Taiwan',SG:'Singapore',NZ:'New Zealand',IE:'Ireland',CH:'Switzerland',AT:'Austria',BE:'Belgium',PT:'Portugal',ZA:'South Africa',AR:'Argentina',CL:'Chile',CO:'Colombia',PH:'Philippines',TH:'Thailand',MY:'Malaysia',ID:'Indonesia',VN:'Vietnam',AE:'UAE',IL:'Israel',TR:'Turkey',EG:'Egypt',NG:'Nigeria',KE:'Kenya'};
+
     async function _serverInfo() {
         try {
             const r = await fetch(_BASE() + '/api/server-info', { cache: 'no-store' });
             const j = await r.json();
-            const loc = (j.city && j.country) ? j.city + ', ' + j.country : (j.country || 'unknown');
-            return { ip: j.client_ip || 'unknown', loc: loc, host: j.host || 'nexus' };
+            var city = (j.city && j.city !== '?' && j.city !== 'unknown') ? j.city : '';
+            var country = j.country || '';
+            var countryName = _COUNTRIES[country] || country;
+            var loc = city ? (city + ', ' + countryName) : countryName;
+            return { ip: j.client_ip || 'unknown', loc: loc || 'unknown', host: j.host || 'nexus' };
         } catch (_) { return { ip: 'unknown', loc: 'unknown', host: 'nexus' }; }
     }
 
@@ -379,7 +399,7 @@
         if (upEl) upEl.textContent = finalUp ? finalUp.toFixed(1) : '0.0';
 
         setLive(finalDown);
-        if (results) results.style.display = 'block';
+        if (results) results.style.display = '';
         if (phaseEl) phaseEl.textContent = 'MBPS · DOWNLOAD';
 
         if (finalDown <= 0 && finalUp <= 0) {
@@ -388,6 +408,42 @@
             status.textContent = 'TEST COMPLETE';
         }
         if (startBtn) { startBtn.disabled = false; startBtn.textContent = 'RUN AGAIN'; }
+
+        // Detail notes per metric
+        var dnNote = document.getElementById('speed-down-note');
+        if (dnNote) {
+            if (finalDown >= 200) dnNote.textContent = '4K streaming, large downloads, no bottleneck';
+            else if (finalDown >= 100) dnNote.textContent = 'HD streaming, video calls, fast downloads';
+            else if (finalDown >= 50) dnNote.textContent = 'Good for streaming and everyday browsing';
+            else if (finalDown >= 25) dnNote.textContent = 'HD video works, large files are slower';
+            else if (finalDown >= 10) dnNote.textContent = 'Basic browsing, SD video, slow downloads';
+            else if (finalDown > 0) dnNote.textContent = 'Below broadband — pages may load slowly';
+            else dnNote.textContent = 'Could not measure';
+        }
+        var upNote = document.getElementById('speed-up-note');
+        if (upNote) {
+            if (finalUp >= 50) upNote.textContent = 'Fast uploads, live streaming, cloud backups';
+            else if (finalUp >= 20) upNote.textContent = 'Video calls and file sharing work well';
+            else if (finalUp >= 10) upNote.textContent = 'Handles uploads and video calls fine';
+            else if (finalUp >= 5) upNote.textContent = 'Basic uploads OK, live streaming may buffer';
+            else if (finalUp > 0) upNote.textContent = 'Slow — large uploads will take a while';
+            else upNote.textContent = 'Could not measure';
+        }
+        var pNote = document.getElementById('speed-ping-note');
+        if (pNote) {
+            if (lat.min < 20) pNote.textContent = 'Excellent — great for gaming and real-time apps';
+            else if (lat.min < 50) pNote.textContent = 'Good — responsive for most uses';
+            else if (lat.min < 100) pNote.textContent = 'Moderate — video calls OK, gaming may lag';
+            else if (lat.min < 200) pNote.textContent = 'High — noticeable delay on interactive apps';
+            else pNote.textContent = 'Very high — expect lag on everything real-time';
+        }
+        var jNote = document.getElementById('speed-jitter-note');
+        if (jNote) {
+            if (lat.jitter < 5) jNote.textContent = 'Rock solid — very stable connection';
+            else if (lat.jitter < 15) jNote.textContent = 'Stable — minor fluctuations, nothing noticeable';
+            else if (lat.jitter < 30) jNote.textContent = 'Some instability — voice/video may hiccup';
+            else jNote.textContent = 'Unstable — expect choppy calls and packet loss';
+        }
 
         // Quality rating
         var rating;
