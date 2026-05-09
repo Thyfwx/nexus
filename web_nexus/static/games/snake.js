@@ -134,8 +134,15 @@ function launchSnake(snakeMode) {
         
         if (stealth) return; // Stay dark for stealth mode
 
-        // Cool Circuit Grid
-        bgCtx.strokeStyle = 'rgba(0, 255, 255, 0.04)';
+        // Subtle radial vignette for depth (canvas is 600×480)
+        const vGrad = bgCtx.createRadialGradient(300, 240, 50, 300, 240, 430);
+        vGrad.addColorStop(0, 'rgba(0,255,255,0.04)');
+        vGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        bgCtx.fillStyle = vGrad;
+        bgCtx.fillRect(0, 0, 600, 480);
+
+        // Visible grid (was 0.04 opacity — barely visible. Now 0.12 — clear but not distracting)
+        bgCtx.strokeStyle = 'rgba(0, 255, 255, 0.12)';
         bgCtx.lineWidth = 1;
         for (let x = 0; x <= COLS; x++) {
             bgCtx.beginPath(); bgCtx.moveTo(x * CELL, 0); bgCtx.lineTo(x * CELL, ROWS * CELL); bgCtx.stroke();

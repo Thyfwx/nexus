@@ -66,6 +66,18 @@ function stopAllGames() {
         nexusCanvas.ontouchmove = null;
         nexusCanvas.ontouchend = null;
         nexusCanvas.style.display = 'none';
+        // Wipe ALL canvas pixels so the next game's first frame doesn't show
+        // ghost remnants of the previous game (Pong/Snake/Flappy bleed-through).
+        try {
+            const ctx = nexusCanvas.getContext('2d');
+            if (ctx) ctx.clearRect(0, 0, nexusCanvas.width, nexusCanvas.height);
+        } catch (_) {}
+        // Also reset any styling we applied
+        nexusCanvas.style.maxWidth = '';
+        nexusCanvas.style.height = '';
+        nexusCanvas.style.borderRadius = '';
+        nexusCanvas.style.border = '';
+        nexusCanvas.style.boxShadow = '';
     }
 
     cancelAnimationFrame(pongRaf);
