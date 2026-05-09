@@ -9,10 +9,10 @@
     <!-- AdSense ad-block recovery — funding choices messages + standalone fallback -->
     <script async src="https://fundingchoicesmessages.google.com/i/pub-3034789470490055?ers=1"></script>
     <script>(function(){function signalGooglefcPresent(){if(!window.frames['googlefcPresent']){if(document.body){const iframe=document.createElement('iframe');iframe.style='width: 0; height: 0; border: none; z-index: -1000; left: -1000px; top: -1000px;';iframe.style.display='none';iframe.name='googlefcPresent';document.body.appendChild(iframe);}else{setTimeout(signalGooglefcPresent,0);}}}signalGooglefcPresent();})();</script>
-    <script src="adblock_recovery.js?v=09cb70"></script>
+    <script src="adblock_recovery.js?v=b61bb4"></script>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=09cb70">
-    <link rel="stylesheet" href="mobile.css?v=09cb70">
+    <link rel="stylesheet" href="style.css?v=b61bb4">
+    <link rel="stylesheet" href="mobile.css?v=b61bb4">
     <link rel="icon" type="image/png" href="https://thyfwxit.com/favicon.png">
     <style>
         /* Accessibility CSS — driven by toggles in System Settings.
@@ -327,36 +327,36 @@
     </div>
 
     <!-- Load scripts in Master Order -->
-    <script src="nexus_globals.js?v=09cb70"></script>
-    <script src="crash_core.js?v=09cb70"></script>
-    <script src="nexus_brain.js?v=09cb70"></script>
-    <script src="config_core.js?v=09cb70"></script>
-    <script src="ai_config.js?v=09cb70"></script>
-    <script src="core_modules/speedtest_logic.js?v=09cb70"></script>
-    <script src="core_modules/hardware_logic.js?v=09cb70"></script>
-    <script src="utils/speedtest.js?v=09cb70"></script>
-    <script src="utils/maintenance_hub.js?v=09cb70"></script>
-    <script src="uplink_core.js?v=09cb70"></script>
-    <script src="stats_core.js?v=09cb70"></script>
-    <script src="audio_core.js?v=09cb70"></script>
-    <script src="tts_core.js?v=09cb70"></script>
-    <script src="games_core.js?v=09cb70"></script>
-    <script src="games/_lifecycle.js?v=09cb70"></script>
-    <script src="games/wordle.js?v=09cb70"></script>
-    <script src="games/snake.js?v=09cb70"></script>
-    <script src="games/pong.js?v=09cb70"></script>
-    <script src="games/flappy.js?v=09cb70"></script>
-    <script src="games/breakout.js?v=09cb70"></script>
-    <script src="games/invaders.js?v=09cb70"></script>
-    <script src="games/mines.js?v=09cb70"></script>
-    <script src="games/breach.js?v=09cb70"></script>
-    <script src="games/typing.js?v=09cb70"></script>
-    <script src="games/matrix.js?v=09cb70"></script>
-    <script src="auth_core.js?v=09cb70"></script>
-    <script src="ai_tools_core.js?v=09cb70"></script>
-    <script src="ai_core.js?v=09cb70"></script>
-    <script src="commands_core.js?v=09cb70"></script>
-    <script src="terminal.js?v=09cb70"></script>
+    <script src="nexus_globals.js?v=b61bb4"></script>
+    <script src="crash_core.js?v=b61bb4"></script>
+    <script src="nexus_brain.js?v=b61bb4"></script>
+    <script src="config_core.js?v=b61bb4"></script>
+    <script src="ai_config.js?v=b61bb4"></script>
+    <script src="core_modules/speedtest_logic.js?v=b61bb4"></script>
+    <script src="core_modules/hardware_logic.js?v=b61bb4"></script>
+    <script src="utils/speedtest.js?v=b61bb4"></script>
+    <script src="utils/maintenance_hub.js?v=b61bb4"></script>
+    <script src="uplink_core.js?v=b61bb4"></script>
+    <script src="stats_core.js?v=b61bb4"></script>
+    <script src="audio_core.js?v=b61bb4"></script>
+    <script src="tts_core.js?v=b61bb4"></script>
+    <script src="games_core.js?v=b61bb4"></script>
+    <script src="games/_lifecycle.js?v=b61bb4"></script>
+    <script src="games/wordle.js?v=b61bb4"></script>
+    <script src="games/snake.js?v=b61bb4"></script>
+    <script src="games/pong.js?v=b61bb4"></script>
+    <script src="games/flappy.js?v=b61bb4"></script>
+    <script src="games/breakout.js?v=b61bb4"></script>
+    <script src="games/invaders.js?v=b61bb4"></script>
+    <script src="games/mines.js?v=b61bb4"></script>
+    <script src="games/breach.js?v=b61bb4"></script>
+    <script src="games/typing.js?v=b61bb4"></script>
+    <script src="games/matrix.js?v=b61bb4"></script>
+    <script src="auth_core.js?v=b61bb4"></script>
+    <script src="ai_tools_core.js?v=b61bb4"></script>
+    <script src="ai_core.js?v=b61bb4"></script>
+    <script src="commands_core.js?v=b61bb4"></script>
+    <script src="terminal.js?v=b61bb4"></script>
 
     <script>
         // OS-level accessibility — silently apply matching CSS classes when the OS reports a preference.
@@ -767,46 +767,12 @@
             document.head.appendChild(css);
         })();
 
-        // NEW BUILD AVAILABLE banner — polls /api/build-id every 30s. When the server
-        // reports a different ID than what this page was loaded with, slide a small
-        // notification down from the top with a REFRESH button.
-        (function() {
-            // Snapshot the build ID this page was loaded with — pulled from any cache buster on the page
-            const _initialBuild = (() => {
-                const link = document.querySelector('link[href*="?v="], script[src*="?v="]');
-                if (!link) return null;
-                const src = link.getAttribute('href') || link.getAttribute('src') || '';
-                const m = src.match(/\?v=([0-9a-zA-Z._-]+)/);
-                return m ? m[1] : null;
-            })();
-            async function checkForUpdate() {
-                if (!_initialBuild) return;
-                try {
-                    const r = await fetch((window.API_BASE || '') + '/api/build-id', { cache: 'no-store' });
-                    const j = await r.json();
-                    if (j.build_id && j.build_id !== _initialBuild && !document.getElementById('nx-build-banner')) {
-                        const banner = document.createElement('div');
-                        banner.id = 'nx-build-banner';
-                        banner.style.cssText = 'position:fixed; top:0; left:50%; transform:translateX(-50%); z-index:99998; background:linear-gradient(135deg, rgba(0,255,136,0.95), rgba(0,255,255,0.95)); color:#001a14; font-family:var(--font-main); font-size:0.72rem; font-weight:800; letter-spacing:2px; padding:8px 16px; border-radius:0 0 10px 10px; box-shadow:0 4px 16px rgba(0,255,136,0.4); display:flex; align-items:center; gap:12px; animation:nxBuildSlide 0.3s ease-out;';
-                        banner.innerHTML = `
-                            <span>NEW BUILD AVAILABLE · ${j.build_id}</span>
-                            <button onclick="location.reload()" style="background:#001a14; color:#0f8; border:none; padding:5px 12px; border-radius:5px; cursor:pointer; font-family:inherit; font-weight:800; letter-spacing:1.5px; font-size:0.68rem;">REFRESH NOW</button>
-                            <button onclick="this.parentElement.remove()" style="background:transparent; color:#001a14; border:none; cursor:pointer; font-size:1rem; padding:0 4px; line-height:1;">×</button>
-                        `;
-                        document.body.appendChild(banner);
-                        // Add the keyframes once
-                        if (!document.getElementById('nx-build-keyframes')) {
-                            const s = document.createElement('style'); s.id = 'nx-build-keyframes';
-                            s.textContent = '@keyframes nxBuildSlide { from { transform:translate(-50%,-100%); opacity:0; } to { transform:translate(-50%,0); opacity:1; } }';
-                            document.head.appendChild(s);
-                        }
-                    }
-                } catch (_) {}
-            }
-            // First check after 5s (let the page settle), then every 30s
-            setTimeout(checkForUpdate, 5000);
-            setInterval(checkForUpdate, 30000);
-        })();
+        // DUPLICATE NEW-BUILD-AVAILABLE banner removed 2026-05-09.
+        // The colorful (green-cyan gradient, centered, REFRESH button) banner
+        // was a SECOND build-update notifier in addition to the cyan one in
+        // nexus_brain.js. Xavier wanted only the cyan one (full-width header)
+        // kept. This colorful one is gone permanently. The nexus_brain.js
+        // banner remains as the single source of build-update notifications.
 
         // High-Fidelity Neural Gate
         (function() {
