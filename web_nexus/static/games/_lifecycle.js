@@ -126,6 +126,7 @@ function submitScore(gameId, score) { return window.submitScore(gameId, score); 
 window._showGameOverAd = function(gameId, score) {
     if (window.NEXUS_DISABLE_ADS) return;
     if (window.NEXUS_DISABLE_GAMEOVER_AD) return;
+    if (!window.OWNER_MODE) return;
     let host = document.getElementById('game-over-ad-host');
     if (!host) {
         const wrapper = document.getElementById('gui-content-wrapper');
@@ -135,18 +136,11 @@ window._showGameOverAd = function(gameId, score) {
         host.style.cssText = 'padding: 0 14px;';
         wrapper.appendChild(host);
     }
-    // Real AdSense unit — responsive (auto + full-width). Same slot ID
-    // works in this 728×90 context and the 300×600 side rail; AdSense
-    // fills the format that fits.
     host.innerHTML = `
-        <ins class="adsbygoogle"
-             style="display:block; margin:14px auto 6px;"
-             data-ad-client="ca-pub-3034789470490055"
-             data-ad-slot="6916029228"
-             data-ad-format="auto"
-             data-full-width-responsive="true"></ins>
+        <div style="margin: 14px auto 6px; padding: 14px; min-height: 90px; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.12); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #6a6a7a; font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase; font-family: 'Fira Code', monospace; text-align: center; line-height: 1.5;">
+            AD SLOT
+        </div>
     `;
-    try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (e) {}
 };
 
 window._hideGameOverAd = function() {
@@ -163,6 +157,7 @@ window._hideGameOverAd = function() {
 window._showGameSideAd = function(gameLabel) {
     if (window.NEXUS_DISABLE_ADS) return;
     if (window.NEXUS_DISABLE_SIDE_AD) return;
+    if (!window.OWNER_MODE) return;
     const wrapper = document.getElementById('gui-content-wrapper');
     if (!wrapper) return;
     let ad = document.getElementById('game-side-ad-host');
@@ -172,16 +167,14 @@ window._showGameSideAd = function(gameLabel) {
         wrapper.appendChild(ad);
     }
     ad.style.cssText = 'flex: 0 0 300px; min-width: 0; display: flex; flex-direction: column; gap: 10px; align-self: stretch;';
-    // Real AdSense — same responsive slot, vertical-friendly rail container.
     ad.innerHTML = `
-        <ins class="adsbygoogle"
-             style="display:block; flex:1 1 auto; min-height:600px;"
-             data-ad-client="ca-pub-3034789470490055"
-             data-ad-slot="6916029228"
-             data-ad-format="auto"
-             data-full-width-responsive="true"></ins>
+        <div style="flex: 1 1 auto; min-height:600px; padding:14px; background:rgba(255,255,255,0.02); border:1px dashed rgba(255,255,255,0.12); border-radius:4px; display:flex; align-items:center; justify-content:center; color:#6a6a7a; font-size:0.7rem; letter-spacing:2px; text-transform:uppercase; font-family:'Fira Code',monospace; text-align:center; line-height:1.5;">
+            <div>
+                <div>AD SLOT · 300 × 600</div>
+                <div style="font-size:0.6rem; opacity:0.6; margin-top:6px;">[ ${(gameLabel || 'GAME').toUpperCase()} · side rail · vertical ]</div>
+            </div>
+        </div>
     `;
-    try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (e) {}
     // Make wrapper a flex row so canvas/content + side ad sit side-by-side
     wrapper.style.display = 'flex';
     wrapper.style.flexDirection = 'row';
