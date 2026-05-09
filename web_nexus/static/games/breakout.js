@@ -4,6 +4,7 @@ let breakoutActive = false;
 function startBreakout() {
     stopAllGames();
     guiContainer.classList.remove('gui-hidden');
+    guiContainer.classList.add('gui-game-wide');
     guiTitle.textContent = 'NEXUS BREAKOUT';
 
     // Difficulty menu with descriptions
