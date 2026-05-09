@@ -170,7 +170,7 @@ async function handleCredentialResponse(response) {
     }
     console.log("[AUTH] Validating token...");
     const statusMsg = document.getElementById('auth-status-msg');
-    if (statusMsg) statusMsg.textContent = "SYNCHRONIZING IDENTITY...";
+    if (statusMsg) { statusMsg.textContent = "Signing in..."; statusMsg.style.color = '#0ff'; }
 
     try {
         const res = await fetch(`${window.API_BASE}/login/google/authorized`, {
@@ -191,7 +191,7 @@ async function handleCredentialResponse(response) {
                 // Stash the user data — only commit it to localStorage AFTER they confirm
                 window._pendingGoogleUser = data;
                 document.getElementById('adult-gate-modal').style.display = 'flex';
-                if (statusMsg) statusMsg.textContent = "ONE MORE STEP — confirm adult gate";
+                if (statusMsg) { statusMsg.textContent = "One more step"; statusMsg.style.color = '#ff0'; }
                 return;
             }
             localStorage.setItem('nexus_user_data', JSON.stringify(data));
@@ -199,10 +199,10 @@ async function handleCredentialResponse(response) {
             window.revealTerminal(data.name);
             renderAuthSection();
         } else {
-            if (statusMsg) statusMsg.textContent = `IDENTITY MISMATCH: ${data.error}`;
+            if (statusMsg) { statusMsg.textContent = data.error || 'Sign-in failed'; statusMsg.style.color = '#f55'; }
         }
     } catch(e) {
-        if (statusMsg) statusMsg.textContent = "CONNECTION FAILURE.";
+        if (statusMsg) { statusMsg.textContent = "Connection failed. Try again."; statusMsg.style.color = '#f55'; }
     }
 }
 
@@ -227,7 +227,7 @@ window._declineAdultGate = function() {
     const modal = document.getElementById('adult-gate-modal');
     if (modal) modal.style.display = 'none';
     const statusMsg = document.getElementById('auth-status-msg');
-    if (statusMsg) statusMsg.textContent = "Sign-in cancelled. You can continue as a guest below.";
+    if (statusMsg) { statusMsg.textContent = "Cancelled"; statusMsg.style.color = '#888'; }
 };
 
 function logout(force = false) {
