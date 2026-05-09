@@ -1,5 +1,5 @@
 // NEXUS MAINTENANCE HUB v5.6.0
-// Dashboard-style device diagnostics. Compact horizontal stat rows.
+// Dashboard-style device diagnostics. Hover any row for details.
 
 window.startMaintenanceHub = function() {
     if (!window.guiContainer) return;
@@ -59,55 +59,57 @@ window.startMaintenanceHub = function() {
     const connType = conn?.effectiveType ? conn.effectiveType.toUpperCase() : '';
     const connDown = conn?.downlink || '';
 
-    // Stat block: colored value on the left, label on the right
-    const stat = (value, label, color, id) => `
-        <div style="display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.04);">
-            <span ${id ? `id="${id}"` : ''} style="color:${color}; font-weight:700; font-size:0.82rem; min-width:90px;">${value}</span>
-            <span style="color:#666; font-size:0.68rem; letter-spacing:0.5px;">${label}</span>
+    // Stat row: value + label, with optional tooltip
+    const stat = (value, label, id, tip) => `
+        <div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.03);"
+             ${tip ? `title="${tip.replace(/"/g, '&quot;')}"` : ''}>
+            <span ${id ? `id="${id}"` : ''} style="color:#ccc; font-size:0.75rem; min-width:100px;">${value}</span>
+            <span style="color:#555; font-size:0.65rem;">${label}</span>
         </div>`;
 
     window.guiContent.innerHTML = `
         <div style="padding:14px 16px; max-width:380px; margin:0 auto;">
 
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px 20px; margin-bottom:14px;">
-                <div style="text-align:center; padding:10px; background:rgba(0,255,0,0.04); border-radius:8px;">
+                <div style="text-align:center; padding:10px; background:rgba(0,255,0,0.04); border-radius:8px;"
+                     title="Logical CPU cores reported by your browser. Not the same as physical cores.">
                     <div style="font-size:1.8rem; color:#0f0; font-weight:800; line-height:1;">${cores || '--'}</div>
-                    <div style="font-size:0.58rem; color:#666; letter-spacing:1px; margin-top:4px;">CPU CORES</div>
+                    <div style="font-size:0.55rem; color:#555; letter-spacing:1px; margin-top:4px;">CPU CORES</div>
                 </div>
-                <div style="text-align:center; padding:10px; background:rgba(0,255,255,0.04); border-radius:8px;">
-                    <div style="font-size:1.8rem; color:#0ff; font-weight:800; line-height:1;">${memGB || '--'}<span style="font-size:0.7rem; color:#666;"> GB</span></div>
-                    <div style="font-size:0.58rem; color:#666; letter-spacing:1px; margin-top:4px;">RAM</div>
+                <div style="text-align:center; padding:10px; background:rgba(0,255,255,0.04); border-radius:8px;"
+                     title="Device RAM rounded by browser (0.25 / 0.5 / 1 / 2 / 4 / 8 GB). Not exact.">
+                    <div style="font-size:1.8rem; color:#0ff; font-weight:800; line-height:1;">${memGB || '--'}<span style="font-size:0.7rem; color:#555;"> GB</span></div>
+                    <div style="font-size:0.55rem; color:#555; letter-spacing:1px; margin-top:4px;">RAM</div>
                 </div>
             </div>
 
-            <div style="background:rgba(0,0,0,0.3); border-radius:6px; padding:6px 14px; margin-bottom:12px;">
-                ${stat(`<span id="hub-arch"></span>`, 'architecture', '#888')}
-                ${stat('<span id="hub-cpu-load">--</span>', 'thread load', '#888')}
-                ${stat('<span id="hub-mem-heap">--</span>', 'tab JS heap', '#888')}
-                ${stat(`<span id="hub-os">${platform}</span>`, 'operating system', '#ddd')}
-                ${stat(navigator.language || '--', 'language', '#ddd')}
-                ${stat((()=>{try{return Intl.DateTimeFormat().resolvedOptions().timeZone}catch{return '--'}})(), 'timezone', '#ddd')}
-                ${stat(`${screen.width}x${screen.height}`, 'screen', '#ddd')}
-                ${stat(`<span id="hub-viewport">${window.innerWidth}x${window.innerHeight}</span>`, 'viewport', '#ddd')}
-                ${stat(`${window.devicePixelRatio || 1}x`, 'pixel ratio', '#ddd')}
+            <div style="background:rgba(0,0,0,0.3); border-radius:6px; padding:4px 14px; margin-bottom:12px;">
+                ${stat('<span id="hub-arch"></span>', 'Architecture', null, 'CPU chip architecture — arm (Apple Silicon, phones) or x86 (Intel/AMD).')}
+                ${stat('<span id="hub-cpu-load">--</span>', 'Thread Load', null, 'Rough estimate of how busy the JS thread is. NOT real CPU usage — browsers cannot report that.')}
+                ${stat('<span id="hub-mem-heap">--</span>', 'Tab Heap', null, 'JavaScript memory used by THIS browser tab only. Not total system RAM.')}
+                ${stat(`<span id="hub-os">${platform}</span>`, 'OS', null, 'Operating system detected from browser metadata.')}
+                ${stat(navigator.language || '--', 'Language', null, 'Your browser language preference.')}
+                ${stat((()=>{try{return Intl.DateTimeFormat().resolvedOptions().timeZone}catch{return '--'}})(), 'Timezone', null, 'Your system timezone.')}
+                ${stat(`${screen.width}x${screen.height}`, 'Screen', null, 'Physical screen resolution in pixels.')}
+                ${stat(`<span id="hub-viewport">${window.innerWidth}x${window.innerHeight}</span>`, 'Viewport', null, 'Current browser window size. Updates live if you resize.')}
             </div>
 
             <!-- Network -->
             <div style="background:rgba(0,0,0,0.3); border-radius:6px; padding:10px 14px; margin-bottom:12px;">
                 <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
                     <span style="width:8px; height:8px; border-radius:50%; background:#0f0; box-shadow:0 0 6px #0f0;" id="hub-net-dot"></span>
-                    <span id="hub-net-online" style="color:#0f0; font-size:0.75rem; font-weight:700;">ONLINE</span>
-                    ${connType ? `<span style="color:#888; font-size:0.65rem; margin-left:auto;">${connType}${connDown ? ' · ' + connDown + ' Mbps' : ''}</span>` : ''}
+                    <span id="hub-net-online" style="color:#0f0; font-size:0.72rem; font-weight:600;">ONLINE</span>
+                    ${connType ? `<span style="color:#666; font-size:0.62rem; margin-left:auto;">${connType}${connDown ? ' · ~' + connDown + ' Mbps' : ''}</span>` : ''}
                 </div>
                 <a href="speedtest.html"
-                   style="display:block; padding:9px; text-align:center; background:rgba(0,255,255,0.06); color:#0ff; border:1px solid rgba(0,255,255,0.25); border-radius:5px; font-size:0.68rem; font-weight:700; letter-spacing:2px; text-decoration:none; transition:0.15s;"
+                   style="display:block; padding:9px; text-align:center; background:rgba(0,255,255,0.06); color:#0ff; border:1px solid rgba(0,255,255,0.25); border-radius:5px; font-size:0.68rem; font-weight:600; letter-spacing:2px; text-decoration:none; transition:0.15s;"
                    onmouseover="this.style.background='rgba(0,255,255,0.14)';"
                    onmouseout="this.style.background='rgba(0,255,255,0.06)';">
                     RUN SPEED TEST
                 </a>
             </div>
 
-            <!-- Battery (hidden until API responds) -->
+            <!-- Battery -->
             <div id="hub-battery-card" style="display:none; background:rgba(0,0,0,0.3); border-radius:6px; padding:10px 14px; margin-bottom:12px;">
                 <div style="display:flex; align-items:center; gap:12px;">
                     <span id="hub-bat-pct" style="font-size:1.3rem; font-weight:800; color:#0f0; min-width:50px;">--</span>
@@ -115,7 +117,7 @@ window.startMaintenanceHub = function() {
                         <div style="height:8px; background:rgba(0,0,0,0.5); border-radius:4px; overflow:hidden;">
                             <div id="hub-bat-bar" style="height:100%; width:0%; background:linear-gradient(90deg,#f55 0%,#ff0 50%,#0f0 100%); transition:width 0.4s; border-radius:4px;"></div>
                         </div>
-                        <div style="display:flex; justify-content:space-between; font-size:0.58rem; color:#666; margin-top:4px;">
+                        <div style="display:flex; justify-content:space-between; font-size:0.58rem; color:#555; margin-top:4px;">
                             <span id="hub-bat-status">--</span>
                             <span id="hub-bat-rem">--</span>
                         </div>
@@ -124,7 +126,7 @@ window.startMaintenanceHub = function() {
             </div>
 
             <div style="text-align:center; font-size:0.55rem; color:#444; letter-spacing:1px; margin-top:4px;">
-                ${window.NEXUS_VERSION || ''} · ${(window.currentMode || 'nexus').toUpperCase()}
+                ${window.NEXUS_VERSION || ''} · <span id="hub-mode">${(window.currentMode || 'nexus').toUpperCase()}</span>
             </div>
 
         </div>`;
@@ -166,6 +168,10 @@ function _hubStartLivePoll() {
 
         const vp = document.getElementById('hub-viewport');
         if (vp) vp.textContent = `${window.innerWidth}x${window.innerHeight}`;
+
+        // Mode — updates live when user switches
+        const modeEl = document.getElementById('hub-mode');
+        if (modeEl) modeEl.textContent = (window.currentMode || 'nexus').toUpperCase();
     };
 
     tick();
