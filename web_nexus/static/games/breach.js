@@ -16,10 +16,10 @@ function startBreach() {
 
     guiContent.innerHTML = `
         <div style="text-align:center; padding:18px 12px; max-width:520px; margin:0 auto;">
-            <div style="color:#0ff; letter-spacing:3px; font-size:0.78rem; font-weight:700; margin-bottom:6px; text-shadow:0 0 10px #0ff;">BREACH PROTOCOL</div>
-            <div style="color:#666; font-size:0.7rem; margin-bottom:18px; line-height:1.5; letter-spacing:0.5px;">
-                Click the hex codes below in the EXACT order shown.<br>
-                One wrong code = game over. You have 30 seconds.
+            <div style="color:#0ff; letter-spacing:3px; font-size:0.85rem; font-weight:700; margin-bottom:6px; text-shadow:0 0 10px #0ff;">CODE-MATCH HACK</div>
+            <div style="color:#888; font-size:0.78rem; margin-bottom:6px;">A simple memory game with a hex-code twist.</div>
+            <div style="color:#666; font-size:0.72rem; margin-bottom:18px; line-height:1.6; letter-spacing:0.3px; max-width:420px; margin-left:auto; margin-right:auto;">
+                <b style="color:#0f0;">HOW TO PLAY:</b> see the green sequence below? You have to click the same codes in the same order from the grid. First wrong click loses. 30 seconds on the clock. Faster = bigger score.
             </div>
             <div style="background:rgba(0,0,0,0.4); border:1px solid #0f0; border-radius:6px; padding:14px; margin-bottom:16px;">
                 <div style="color:#888; font-size:0.65rem; letter-spacing:2px; margin-bottom:6px;">REQUIRED SEQUENCE</div>
