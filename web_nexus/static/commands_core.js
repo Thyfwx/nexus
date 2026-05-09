@@ -7,7 +7,13 @@ function handleCommand(cmd) {
     const pl = `${nexusUser.name.toLowerCase()}@nexus:~$`;
 
     // 1. Silent UI Commands
-    const silent = ['clear', 'history', 'sudo hack', 'sudo override', 'telemetry', 'play wordle', 'play snake', 'play pong', 'play mines', 'play flappy', 'play breakout', 'play invaders', 'matrix', 'monitor', 'type test'];
+    const silent = [
+        'clear', 'history', 'sudo hack', 'sudo override', 'telemetry',
+        'play wordle', 'play snake', 'play pong', 'play mines',
+        'play flappy', 'play breakout', 'play invaders', 'play breach',
+        'matrix', 'monitor', 'type test',
+        'leaderboard', 'changelog', 'privacy', 'terms', 'about',
+    ];
     if (!silent.includes(lc)) {
         printToTerminal(`${pl} ${cmd}`, 'user-cmd');
     }
