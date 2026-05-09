@@ -70,47 +70,81 @@ window.startMaintenanceHub = function() {
     // Helper: dash for missing values (better than "?" or "unknown")
     const dash = '<span style="color:#444;">—</span>';
 
+    // Detect architecture via high-entropy hints (Chrome/Edge). Falls back to UA parse.
+    let _cpuArch = '';
+    try {
+        const uad = navigator.userAgentData;
+        if (uad?.getHighEntropyValues) {
+            uad.getHighEntropyValues(['architecture','bitness']).then(v => {
+                const archEl = document.getElementById('hub-cpu-arch');
+                if (!archEl) return;
+                const a = v.architecture || '';
+                const b = v.bitness || '';
+                archEl.textContent = a ? (a + (b ? '-' + b : '')) : '';
+            }).catch(()=>{});
+        }
+    } catch(_){}
+
+    // Connection type from Network Information API (Chrome only)
+    const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    const connType = conn ? (conn.effectiveType || '').toUpperCase() : '';
+
     window.guiContent.innerHTML = `
-        <div style="padding:14px 12px;">
-            <div style="text-align:center; margin-bottom:14px; color:#888; font-size:0.7rem; letter-spacing:1.5px;">
-                Click any card for an honest explanation. Browsers limit what a web page can read about your device — anything below "—" simply isn't available to us.
+        <div style="padding:14px 12px; max-width:480px; margin:0 auto; overflow:hidden;">
+            <div style="text-align:center; margin-bottom:14px; color:#888; font-size:0.65rem; letter-spacing:1px;">
+                Click any card for details. Browsers limit what a web page can read.
             </div>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:start;">
                 ${card('CPU', `
                     <div style="font-size:1.4rem; color:#0f0; font-weight:bold;">${cores ? cores + ' <span style="font-size:0.6rem; color:#666;">cores</span>' : dash}</div>
-                    <div id="hub-cpu-load" style="font-size:0.62rem; color:#888; margin-top:4px;">${cores ? 'load: probing…' : 'core count not reported'}</div>
-                `, 'Logical core count reported by the browser (when supported). The "load" line is a JS busy-loop heuristic estimating how much spare time JS has — NOT actual OS CPU usage. Real system CPU usage is not available to web pages.')}
+                    <div style="display:flex; gap:8px; align-items:center; margin-top:4px;">
+                        <span id="hub-cpu-arch" style="font-size:0.62rem; color:#888;"></span>
+                        <span id="hub-cpu-load" style="font-size:0.62rem; color:#888;">${cores ? 'probing...' : ''}</span>
+                    </div>
+                `, 'Logical core count from the browser. Architecture (arm/x86) via high-entropy hints. The load value is a rough JS thread-availability estimate, not real CPU usage.')}
 
-                ${card('TAB JS HEAP', `
-                    <div id="hub-mem-used" style="font-size:1.4rem; color:#0ff; font-weight:bold;">${dash}</div>
-                    <div id="hub-mem-line" style="font-size:0.62rem; color:#888; margin-top:4px;">${memHint ? 'device RAM: ' + memHint : 'device RAM: not reported'}</div>
-                `, 'JavaScript heap used by THIS browser tab — NOT total system RAM or total browser memory. Real system memory is not available to web pages. "Device RAM" below is a coarse browser-reported value (rounded to 0.25/0.5/1/2/4/8 GB) used for adaptive loading.')}
+                ${card('MEMORY', `
+                    <div style="font-size:1.4rem; color:#0ff; font-weight:bold;">${memHint || dash}</div>
+                    <div id="hub-mem-line" style="font-size:0.62rem; color:#888; margin-top:4px;">device RAM (rounded by browser)</div>
+                    <div id="hub-mem-used" style="font-size:0.58rem; color:#666; margin-top:2px;"></div>
+                `, 'Device RAM is a coarse value the browser reports (rounded to 0.25/0.5/1/2/4/8 GB). The JS heap line shows memory used by this tab only — not total system RAM.')}
 
-                ${card('NETWORK',
-                    kv('Status',  '<span style="color:#0f0;">online</span>', 'hub-net-online') +
-                    `<div style="font-size:0.66rem; color:#aaa; margin-top:8px; line-height:1.5;">For real bandwidth, run the <a href="speedtest.html" onclick="event.stopPropagation();" style="background:rgba(0,255,255,0.15); color:#0ff; border:1px solid rgba(0,255,255,0.4); padding:3px 10px; border-radius:4px; cursor:pointer; font-family:inherit; font-size:0.65rem; font-weight:600; text-decoration:none; display:inline-block;">Speed Test</a> — measures actual bytes from your device to the Nexus backend.</div>`,
-                    'A web page cannot accurately read your network bandwidth from the browser API. The Speed Test runs real transfers and reports actual speed.')}
+                ${card('NETWORK', `
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            ${kv('Status', '<span style="color:#0f0;">online</span>', 'hub-net-online')}
+                            ${connType ? kv('Type', connType) : ''}
+                        </div>
+                    </div>
+                    <a href="speedtest.html" onclick="event.stopPropagation();"
+                       style="display:block; margin-top:10px; padding:10px; text-align:center; background:rgba(0,255,255,0.08); color:#0ff; border:1px solid rgba(0,255,255,0.35); border-radius:6px; font-family:inherit; font-size:0.7rem; font-weight:700; letter-spacing:2px; text-decoration:none; transition:0.15s;"
+                       onmouseover="this.style.background='rgba(0,255,255,0.18)'; this.style.boxShadow='0 0 12px rgba(0,255,255,0.3)';"
+                       onmouseout="this.style.background='rgba(0,255,255,0.08)'; this.style.boxShadow='none';">
+                        RUN SPEED TEST
+                    </a>
+                `, 'Browser-reported connection type (4G/3G/etc) when available. For real bandwidth, use the Speed Test — it measures actual bytes over your link.')}
 
                 ${card('DISPLAY',
-                    kv('Screen',   `${screen.width}×${screen.height}`) +
-                    kv('Viewport', `${window.innerWidth}×${window.innerHeight}`, 'hub-viewport') +
-                    kv('Pixel',    `${window.devicePixelRatio || 1}×`) +
+                    kv('Screen',   `${screen.width}x${screen.height}`) +
+                    kv('Viewport', `${window.innerWidth}x${window.innerHeight}`, 'hub-viewport') +
+                    kv('Pixel',    `${window.devicePixelRatio || 1}x`) +
                     kv('Color',    colorDepth ? `${colorDepth}-bit` : dash),
-                    'Your screen + browser window dimensions. Viewport updates live if you rotate or resize.')}
+                    'Screen resolution, browser viewport, device pixel ratio, and color depth.')}
 
                 <div id="hub-battery-card" style="display:none; grid-column:span 2;">
                     ${card('BATTERY', `
-                        <div style="display:flex; align-items:center; gap:10px;">
+                        <div style="display:flex; align-items:center; gap:14px;">
                             <div style="flex:1;">
-                                ${kv('Charge',   '—', 'hub-bat-pct')}
-                                ${kv('Charging', '—', 'hub-bat-chg')}
-                                ${kv('Time',     '—', 'hub-bat-rem')}
+                                <div style="font-size:1.4rem; font-weight:bold;" id="hub-bat-pct-big">--</div>
+                                <div style="font-size:0.6rem; color:#888; margin-top:2px;">
+                                    <span id="hub-bat-chg-label">--</span> · <span id="hub-bat-rem">--</span> remaining
+                                </div>
                             </div>
-                            <div style="flex:1; height:10px; background:rgba(0,0,0,0.6); border-radius:5px; overflow:hidden;">
-                                <div id="hub-bat-bar" style="height:100%; width:0%; background:linear-gradient(90deg,#f55,#ff0,#0f0); transition:width 0.4s;"></div>
+                            <div style="flex:0 0 100px; height:14px; background:rgba(0,0,0,0.6); border-radius:7px; overflow:hidden; border:1px solid rgba(255,255,255,0.1);">
+                                <div id="hub-bat-bar" style="height:100%; width:0%; background:linear-gradient(90deg,#f55,#ff0,#0f0); transition:width 0.4s; border-radius:7px;"></div>
                             </div>
                         </div>
-                    `, 'Battery state on phones / laptops that report it. Charge percent + charging status + estimated time remaining.')}
+                    `, 'Battery level, charging status, and estimated time remaining. Only available on devices that expose the Battery API.')}
                 </div>
 
                 <div style="grid-column:span 2;">
@@ -121,16 +155,9 @@ window.startMaintenanceHub = function() {
                         kv('Touch',     navigator.maxTouchPoints != null ? `${navigator.maxTouchPoints} pts` : dash) +
                         kv('Nexus',     window.NEXUS_VERSION || dash) +
                         kv('Mode',      (window.currentMode || 'nexus').toUpperCase()),
-                        'OS / browser context this session is running in.')}
+                        'OS, locale, timezone, and touch capability of this device.')}
                 </div>
             </div>
-
-            <!-- Ad slot at the bottom of the hub. Owner-gated until AdSense slot ID
-                 is dropped in. AdSense will fill this once a real <ins> tag replaces it. -->
-            ${window.OWNER_MODE ? `
-            <div style="margin-top:18px; padding:14px; min-height:90px; background:rgba(255,255,255,0.02); border:1px dashed rgba(255,255,255,0.12); border-radius:4px; display:flex; align-items:center; justify-content:center; color:#6a6a7a; font-size:0.7rem; letter-spacing:2px; text-transform:uppercase; font-family:'Fira Code',monospace; text-align:center;">
-                AD SLOT · 728 × 90 · maintenance hub
-            </div>` : ''}
         </div>`;
 
     _hubStartLivePoll();
@@ -163,35 +190,32 @@ function _hubStartLivePoll() {
         if (!document.getElementById('hub-cpu-load')) {
             clearInterval(_hubLivePoll); _hubLivePoll = null; return;
         }
+        // Memory: show JS heap as a small secondary line
         const memEl = document.getElementById('hub-mem-used');
         if (memEl && performance && performance.memory) {
-            const used = (performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(1);
-            const cap  = (performance.memory.jsHeapSizeLimit / 1024 / 1024).toFixed(0);
-            memEl.textContent = `${used} MB`;
-            const lineEl = document.getElementById('hub-mem-line');
-            if (lineEl) lineEl.textContent = `of ${cap} MB cap`;
+            const used = (performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(0);
+            memEl.textContent = `tab JS heap: ${used} MB`;
         } else if (memEl) {
-            memEl.textContent = 'n/a';
+            memEl.textContent = '';
         }
 
+        // CPU: rough thread-availability estimate
         const cpuEl = document.getElementById('hub-cpu-load');
         if (cpuEl) {
             const t0 = performance.now(); let n = 0; const stop = t0 + 8;
             while (performance.now() < stop) n++;
             const score = Math.min(100, Math.max(1, Math.round(2_000_000 / (n + 1))));
-            cpuEl.textContent = `JS contention estimate: ${score}%`;
+            cpuEl.textContent = `load ~${score}%`;
         }
 
-        const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
         const onlineEl = document.getElementById('hub-net-online');
         if (onlineEl) {
             onlineEl.textContent = navigator.onLine ? 'online' : 'OFFLINE';
             onlineEl.style.color = navigator.onLine ? '#0f0' : '#f55';
         }
-        // Network downlink panel removed — too misleading. Speed Test is the source of truth now.
 
         const vp = document.getElementById('hub-viewport');
-        if (vp) vp.textContent = `${window.innerWidth}×${window.innerHeight}`;
+        if (vp) vp.textContent = `${window.innerWidth}x${window.innerHeight}`;
     };
 
     tick();
@@ -206,13 +230,16 @@ function _hubStartLivePoll() {
             if (!card) return;
             card.style.display = '';
             const pct = Math.round((b.level || 0) * 100);
-            const pctEl = document.getElementById('hub-bat-pct');
-            if (pctEl) { pctEl.textContent = `${pct}%`; pctEl.style.color = pct < 20 ? '#f55' : (pct < 50 ? '#ff0' : '#0f0'); }
-            const chgEl = document.getElementById('hub-bat-chg');
-            if (chgEl) chgEl.textContent = b.charging ? 'yes' : 'no';
+            const bigEl = document.getElementById('hub-bat-pct-big');
+            if (bigEl) {
+                bigEl.textContent = `${pct}%`;
+                bigEl.style.color = pct < 20 ? '#f55' : (pct < 50 ? '#ff0' : '#0f0');
+            }
+            const chgEl = document.getElementById('hub-bat-chg-label');
+            if (chgEl) chgEl.textContent = b.charging ? 'charging' : 'on battery';
             const remEl = document.getElementById('hub-bat-rem');
             const rem = b.charging ? b.chargingTime : b.dischargingTime;
-            if (remEl) remEl.textContent = (!isFinite(rem) || rem === 0) ? '—' :
+            if (remEl) remEl.textContent = (!isFinite(rem) || rem === 0) ? '--' :
                 (rem > 3600 ? `${Math.round(rem/3600*10)/10}h` : `${Math.round(rem/60)}m`);
             const bar = document.getElementById('hub-bat-bar');
             if (bar) bar.style.width = `${pct}%`;
