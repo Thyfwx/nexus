@@ -228,18 +228,37 @@ window._runSpeedTest = async function() {
     }
     if (startBtn) { startBtn.disabled = false; startBtn.textContent = 'RUN AGAIN'; }
 
-    // Transparency panel — shows the actual measurement math so you can verify the number.
-    const log = (window._lastDownLog || []).map(l => `  • ${l}`).join('\n');
-    const existing = document.getElementById('speed-raw'); if (existing) existing.remove();
-    const raw = document.createElement('div');
-    raw.id = 'speed-raw';
-    raw.style.cssText = 'margin-top:14px; padding:10px 14px; background:rgba(0,0,0,0.4); border-left:3px solid #0ff; border-radius:4px; font-family:monospace; font-size:0.62rem; color:#9ce; line-height:1.7; white-space:pre-line;';
-    raw.textContent = `RAW MEASUREMENTS (verify the math yourself):
-${log}
-Final download = median of largest size's runs = ${finalDown.toFixed(1)} Mbps
-Latency = min of 10 pings to /ping = ${lat.min} ms
-Upload  = median of upload runs       = ${finalUp.toFixed(1)} Mbps
+    // QUALITY RATING — tells the user what their result actually means in plain language
+    // instead of leaving them to interpret the bare Mbps number.
+    const rateConnection = (down, up, ping) => {
+        if (down <= 0) return { label: 'NO RESULT', color: '#888', desc: 'Test failed — backend unreachable.' };
+        if (down >= 200 && ping < 30) return { label: 'EXCELLENT', color: '#0f0', desc: 'Pristine connection. Great for 4K streaming, gaming, large file uploads.' };
+        if (down >= 100 && ping < 50) return { label: 'VERY GOOD', color: '#7fff00', desc: 'Strong link. Handles 1080p streams, video calls, and most workloads without issue.' };
+        if (down >= 50  && ping < 80) return { label: 'GOOD',      color: '#0ff', desc: 'Solid for everyday browsing, HD streaming, and Zoom/Discord calls.' };
+        if (down >= 25  && ping < 120) return { label: 'FAIR',     color: '#ff0', desc: 'Streaming HD works; video calls may stutter under load.' };
+        if (down >= 10) return { label: 'BASIC', color: '#fa0', desc: 'Web browsing OK. Streaming is iffy, large downloads slow.' };
+        return { label: 'POOR', color: '#f44', desc: 'Below modern broadband. Pages and videos may struggle.' };
+    };
+    const rating = rateConnection(finalDown, finalUp, lat.min);
 
-Math: bits / seconds / 1,000,000 = Mbps`;
-    if (window.guiContent) window.guiContent.querySelector('div').appendChild(raw);
+    const existing = document.getElementById('speed-raw'); if (existing) existing.remove();
+    const card = document.createElement('div');
+    card.id = 'speed-raw';
+    card.style.cssText = `margin-top:16px; padding:14px 16px; background:rgba(0,0,0,0.4); border-left:3px solid ${rating.color}; border-radius:4px; font-family:'Fira Code',monospace;`;
+    card.innerHTML = `
+        <div style="display:flex; align-items:baseline; gap:12px; margin-bottom:6px;">
+            <span style="color:${rating.color}; font-size:1.1rem; font-weight:800; letter-spacing:2px; text-shadow:0 0 10px ${rating.color};">${rating.label}</span>
+            <span style="color:#888; font-size:0.66rem; letter-spacing:1px;">your connection quality</span>
+        </div>
+        <div style="color:#bbb; font-size:0.74rem; line-height:1.5; margin-bottom:10px;">${rating.desc}</div>
+        <details style="margin-top:10px;">
+            <summary style="color:#888; font-size:0.64rem; letter-spacing:1px; cursor:pointer; user-select:none;">RAW MEASUREMENTS (verify the math)</summary>
+            <pre style="font-size:0.62rem; color:#9ce; line-height:1.7; margin:8px 0 0; white-space:pre-line;">${(window._lastDownLog || []).map(l => '  • ' + l).join('\n')}
+Download = median of largest-size runs = ${finalDown.toFixed(1)} Mbps
+Upload   = median of upload runs       = ${finalUp.toFixed(1)} Mbps
+Latency  = min of 10 pings to /ping    = ${lat.min} ms (jitter ${lat.jitter} ms)
+
+Math: bits / seconds / 1,000,000 = Mbps</pre>
+        </details>`;
+    if (window.guiContent) window.guiContent.querySelector('div').appendChild(card);
 };
