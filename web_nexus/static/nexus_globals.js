@@ -1,5 +1,5 @@
-// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.5.6 — privacy/terms/about + banner removed
-window.NEXUS_VERSION = 'v5.5.6';
+// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.5.7 — ads.txt + lobby footer + canvas wipe + breach copy
+window.NEXUS_VERSION = 'v5.5.7';
 
 // AD KILL SWITCHES — Set any to true to disable that specific ad block. The master
 // `NEXUS_DISABLE_ADS` overrides everything. Per-block flags let us bisect a hot loop.
