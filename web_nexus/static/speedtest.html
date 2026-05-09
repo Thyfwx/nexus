@@ -54,16 +54,18 @@
         }
         .action-btn:hover:not(:disabled) { background: rgba(0,255,255,0.1); box-shadow: 0 0 12px var(--accent-glow); }
         .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        /* Mobile: top+bottom ads visible, side rails hidden */
         .ad-slot { margin: 22px auto; text-align: center; }
-        /* Side-rail layout: content center + ad columns on desktop */
         .page-layout {
             display: flex; gap: 20px; justify-content: center; align-items: flex-start;
         }
-        .side-ad { flex: 0 0 160px; position: sticky; top: 24px; }
+        .side-ad { flex: 0 0 160px; position: sticky; top: 24px; display: none; }
         .main-content { flex: 0 1 640px; min-width: 0; }
-        @media (max-width: 1060px) {
-            .page-layout { flex-direction: column; align-items: center; }
-            .side-ad { display: none; }
+        .ad-mobile { display: block; }
+        /* Desktop: side rails visible, top+bottom hidden */
+        @media (min-width: 1060px) {
+            .side-ad { display: block; }
+            .ad-mobile { display: none; }
         }
         .footer-bar {
             position: fixed; bottom: 0; left: 0; right: 0; padding: 10px 16px;
@@ -101,8 +103,8 @@
             </div>
 
             <div class="main-content">
-        <!-- Ad slot: top (mobile + desktop) -->
-        <div class="ad-slot">
+        <!-- Ad slot: top (mobile only) -->
+        <div class="ad-slot ad-mobile">
             <ins class="adsbygoogle"
                  style="display:block"
                  data-ad-client="ca-pub-3034789470490055"
@@ -169,8 +171,8 @@
             Bottlenecks (Wi-Fi, ISP, server) all reflect honestly in the number.
         </p>
 
-        <!-- Ad slot: bottom (mobile + desktop) -->
-        <div class="ad-slot" style="margin-top:28px;">
+        <!-- Ad slot: bottom (mobile only) -->
+        <div class="ad-slot ad-mobile" style="margin-top:28px;">
             <ins class="adsbygoogle"
                  style="display:block"
                  data-ad-client="ca-pub-3034789470490055"
