@@ -174,6 +174,7 @@ async function handleCredentialResponse(response) {
     try {
         const res = await fetch(`${window.API_BASE}/login/google/authorized`, {
             method: 'POST',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ credential: response.credential })
         });
@@ -362,6 +363,7 @@ async function submitGuestAuth() {
     try {
         const res = await fetch(`${window.API_BASE}/auth/guest`, {
             method: 'POST',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: 'Guest' })
         });
