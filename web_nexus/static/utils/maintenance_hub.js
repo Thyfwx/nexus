@@ -125,18 +125,13 @@ window.startMaintenanceHub = function() {
                 </div>
             </div>
 
-            <!-- Real AdSense unit at the bottom of the hub. Responsive auto-format
-                 — Google fits whatever shape the container allows. -->
-            <ins class="adsbygoogle"
-                 style="display:block; margin-top:18px;"
-                 data-ad-client="ca-pub-3034789470490055"
-                 data-ad-slot="6916029228"
-                 data-ad-format="auto"
-                 data-full-width-responsive="true"></ins>
+            <!-- Ad slot at the bottom of the hub. Owner-gated until AdSense slot ID
+                 is dropped in. AdSense will fill this once a real <ins> tag replaces it. -->
+            ${window.OWNER_MODE ? `
+            <div style="margin-top:18px; padding:14px; min-height:90px; background:rgba(255,255,255,0.02); border:1px dashed rgba(255,255,255,0.12); border-radius:4px; display:flex; align-items:center; justify-content:center; color:#6a6a7a; font-size:0.7rem; letter-spacing:2px; text-transform:uppercase; font-family:'Fira Code',monospace; text-align:center;">
+                AD SLOT · 728 × 90 · maintenance hub
+            </div>` : ''}
         </div>`;
-    // Trigger AdSense fill on this fresh slot — wrapped in try so AdSense
-    // being blocked never breaks the hub render.
-    try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (e) {}
 
     _hubStartLivePoll();
 };
