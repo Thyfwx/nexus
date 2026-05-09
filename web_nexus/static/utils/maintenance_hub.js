@@ -59,12 +59,12 @@ window.startMaintenanceHub = function() {
     const connType = conn?.effectiveType ? conn.effectiveType.toUpperCase() : '';
     const connDown = conn?.downlink || '';
 
-    // Stat row: value + label, with optional tooltip
+    // Stat row: label on the left, value on the right (reads naturally left-to-right)
     const stat = (value, label, id, tip) => `
-        <div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.03);"
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.03);"
              ${tip ? `title="${tip.replace(/"/g, '&quot;')}"` : ''}>
-            <span ${id ? `id="${id}"` : ''} style="color:#ccc; font-size:0.75rem; min-width:100px;">${value}</span>
             <span style="color:#555; font-size:0.65rem;">${label}</span>
+            <span ${id ? `id="${id}"` : ''} style="color:#ccc; font-size:0.75rem;">${value}</span>
         </div>`;
 
     window.guiContent.innerHTML = `
@@ -175,7 +175,9 @@ function _hubStartLivePoll() {
     };
 
     tick();
-    _hubLivePoll = setInterval(tick, 2000);
+    // 1s poll for live values (CPU load, heap, viewport, mode).
+    // Mode switch feels laggy at 2s — 1s is responsive without burning cycles.
+    _hubLivePoll = setInterval(tick, 1000);
     if (window.registerPanelCleanup) {
         window.registerPanelCleanup(() => { if (_hubLivePoll) { clearInterval(_hubLivePoll); _hubLivePoll = null; } });
     }
