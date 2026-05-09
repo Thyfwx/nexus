@@ -1,20 +1,16 @@
-// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.5.12 — real AdSense slot wired (game-over + side rail + hub)
-window.NEXUS_VERSION = 'v5.5.12';
+// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.5.13 — fix cross-origin credentials on auth + API fetches
+window.NEXUS_VERSION = 'v5.5.13';
 
-// AD KILL SWITCHES — flip any to true to disable that block at runtime
-// (e.g. when debugging a layout). Master NEXUS_DISABLE_ADS overrides all.
-// Real AdSense (slot 6916029228) is now wired in:
-//   - games/_lifecycle.js  → game-over + side-rail
-//   - utils/maintenance_hub.js → hub footer
-// Old placeholder ad blocks (boot/footer/path/inmenu) stay disabled —
-// they were dummy phrases for design testing, not real ad units.
-window.NEXUS_DISABLE_ADS         = false;
+// AD KILL SWITCHES — flip any to true to disable that block at runtime.
+// Master NEXUS_DISABLE_ADS overrides all. All disabled until AdSense
+// wiring is re-applied carefully (v5.5.12 ad deploy caused a hang).
+window.NEXUS_DISABLE_ADS         = true;
 window.NEXUS_DISABLE_BOOT_AD     = true;
 window.NEXUS_DISABLE_FOOTER_AD   = true;
 window.NEXUS_DISABLE_PATHC_AD    = true;
 window.NEXUS_DISABLE_INMENU_AD   = true;
-window.NEXUS_DISABLE_SIDE_AD     = false;
-window.NEXUS_DISABLE_GAMEOVER_AD = false;
+window.NEXUS_DISABLE_SIDE_AD     = true;
+window.NEXUS_DISABLE_GAMEOVER_AD = true;
 
 // Core Environment
 window.isLocal = (function() {
