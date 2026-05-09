@@ -27,9 +27,11 @@
                 <div id="main-g_id_signin" class="g-signin-btn"></div>
                 <!-- Server-side OAuth fallback — works without GSI library / when ad blockers
                      interfere. Pure HTTP redirect to Google's consent screen. -->
+                <!-- Hidden by default. Only revealed by JS if the GSI popup library
+                     fails to load (ad blocker, network issue, etc). -->
                 <a id="google-redirect-btn" href="https://api.thyfwxit.com/auth/google-redirect"
                    class="gui-btn"
-                   style="display:flex; align-items:center; justify-content:center; gap:8px; margin-top:8px; text-decoration:none; border-color:#4285f4; color:#4285f4; font-weight:700; letter-spacing:1.5px;">
+                   style="display:none; align-items:center; justify-content:center; gap:8px; margin-top:8px; text-decoration:none; border-color:#4285f4; color:#4285f4; font-weight:700; letter-spacing:1.5px;">
                     SIGN IN WITH GOOGLE (REDIRECT)
                 </a>
                 <div class="auth-divider"><span>OR</span></div>
@@ -129,6 +131,17 @@
                 const btn = document.getElementById('dev-owner-btn');
                 if (btn) btn.style.display = '';
             }
+        })();
+
+        // Show the redirect sign-in button ONLY if GSI library fails to load.
+        // GSI sets window._gsiLoaded = true via the onload handler in auth_core.js.
+        // After 4s, if it hasn't loaded, show the fallback.
+        (function() {
+            setTimeout(function() {
+                if (window._gsiLoaded) return;
+                var btn = document.getElementById('google-redirect-btn');
+                if (btn) btn.style.display = 'flex';
+            }, 4000);
         })();
 
         window.devOwnerLogin = async function() {

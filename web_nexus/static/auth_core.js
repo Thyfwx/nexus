@@ -47,6 +47,7 @@ async function initGoogleAuth() {
             renderBtn('main-g_id_signin');
             renderBtn('sidebar-g_id_signin');
             _authInited = true;
+            window._gsiLoaded = true;
             console.log("[AUTH] Google button rendered.");
             return true;
         } catch (e) {
