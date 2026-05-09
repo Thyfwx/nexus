@@ -1,5 +1,5 @@
-// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.5.8 — speedtest quality rating + maint hub cleanup
-window.NEXUS_VERSION = 'v5.5.8';
+// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.5.9 — colorful banner removed + all games widened
+window.NEXUS_VERSION = 'v5.5.9';
 
 // AD KILL SWITCHES — Set any to true to disable that specific ad block. The master
 // `NEXUS_DISABLE_ADS` overrides everything. Per-block flags let us bisect a hot loop.
