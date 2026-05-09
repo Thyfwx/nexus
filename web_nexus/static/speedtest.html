@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus AI — Speed Test</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="https://thyfwxit.com/favicon.png">
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3034789470490055" crossorigin="anonymous"></script>
+    <script async src="https://fundingchoicesmessages.google.com/i/pub-3034789470490055?ers=1"></script>
+    <script>(function(){function signalGooglefcPresent(){if(!window.frames['googlefcPresent']){if(document.body){const iframe=document.createElement('iframe');iframe.style='width: 0; height: 0; border: none; z-index: -1000; left: -1000px; top: -1000px;';iframe.style.display='none';iframe.name='googlefcPresent';document.body.appendChild(iframe);}else{setTimeout(signalGooglefcPresent,0);}}}signalGooglefcPresent();})();</script>
+    <script src="adblock_recovery.js"></script>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --bg-soft: #12121a;
+            --fg: #c9c9d4;
+            --fg-dim: #6a6a7a;
+            --accent: #0ff;
+            --accent-glow: rgba(0, 255, 255, 0.4);
+            --border: rgba(255, 255, 255, 0.07);
+        }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; min-height: 100vh; background: var(--bg); color: var(--fg); font-family: 'Fira Code', monospace; }
+        body {
+            background: radial-gradient(ellipse at top, rgba(0,255,255,0.03) 0%, transparent 50%), var(--bg);
+            padding: 24px 16px 80px;
+        }
+        body::before {
+            content: ''; position: fixed; inset: 0;
+            background: repeating-linear-gradient(0deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
+            pointer-events: none; z-index: 1;
+        }
+        .container { max-width: 640px; margin: 0 auto; position: relative; z-index: 2; }
+        .topbar {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.7rem; letter-spacing: 2px; color: var(--fg-dim);
+            margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid var(--border);
+        }
+        .topbar .brand { color: var(--accent); font-weight: 700; }
+        .topbar a { color: var(--fg-dim); text-decoration: none; border-bottom: 1px dotted var(--fg-dim); }
+        .topbar a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+        h1 {
+            color: #fff; font-size: 1.6rem; font-weight: 700; margin: 0 0 6px;
+            letter-spacing: 1px; text-shadow: 0 0 16px var(--accent-glow); text-align: center;
+        }
+        .subtitle { color: var(--fg-dim); font-size: 0.75rem; margin-bottom: 28px; line-height: 1.6; text-align: center; }
+        .action-btn {
+            padding: 12px 24px; background: transparent; color: var(--accent);
+            border: 1px solid var(--accent); border-radius: 4px; cursor: pointer;
+            font-family: inherit; font-size: 0.78rem; font-weight: 700;
+            letter-spacing: 2px; text-transform: uppercase; transition: 0.18s;
+        }
+        .action-btn:hover:not(:disabled) { background: rgba(0,255,255,0.1); box-shadow: 0 0 12px var(--accent-glow); }
+        .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .ad-slot { margin: 22px auto; text-align: center; }
+        .footer-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; padding: 10px 16px;
+            background: rgba(0,0,0,0.7); border-top: 1px solid rgba(255,255,255,0.06);
+            text-align: center; font-size: 0.65rem; color: #666; letter-spacing: 1.5px;
+            z-index: 50; backdrop-filter: blur(4px);
+        }
+        .footer-bar a { color: #888; text-decoration: none; padding: 0 10px; }
+        .footer-bar a:hover { color: var(--accent); }
+        .footer-bar .sep { border-right: 1px solid #333; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="topbar">
+            <span class="brand">NEXUS AI</span>
+            <a href="./">Back to Terminal</a>
+        </div>
+
+        <h1>SPEED TEST</h1>
+        <p class="subtitle">Measures real bytes between your device and the Nexus backend.</p>
+
+        <!-- Ad slot: top -->
+        <div class="ad-slot">
+            <ins class="adsbygoogle"
+                 style="display:block"
+                 data-ad-client="ca-pub-3034789470490055"
+                 data-ad-slot="6916029228"
+                 data-ad-format="auto"
+                 data-full-width-responsive="true"></ins>
+            <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+        </div>
+
+        <!-- Status + server info pill -->
+        <div style="text-align:center; margin-bottom:20px;">
+            <h2 id="speed-status" style="color:var(--accent); margin:0 0 6px; letter-spacing:3px; font-size:0.85rem; font-weight:700; text-shadow:0 0 12px var(--accent-glow);">READY</h2>
+            <div id="speed-server-pill" style="display:inline-flex; align-items:center; gap:8px; padding:5px 12px; background:rgba(0,255,255,0.06); border:1px solid rgba(0,255,255,0.2); border-radius:14px; font-size:0.65rem; color:#9ce; letter-spacing:0.5px;">
+                <span style="width:6px; height:6px; background:#0f0; border-radius:50%; box-shadow:0 0 6px #0f0;"></span>
+                <span id="speed-server">Click START to begin</span>
+            </div>
+        </div>
+
+        <!-- Live MBPS readout -->
+        <div style="text-align:center; margin-bottom:14px;">
+            <div id="speed-rate-live" style="color:#0ff; font-weight:800; font-size:3.4rem; letter-spacing:0; line-height:1; text-shadow:0 0 18px rgba(0,255,255,0.4);">--</div>
+            <div id="speed-phase" style="color:#666; font-size:0.65rem; letter-spacing:3px; margin-top:6px; font-weight:600;">MBPS</div>
+        </div>
+
+        <!-- Meter bar -->
+        <div style="height:14px; background:rgba(0,0,0,0.6); border:1px solid rgba(0,255,255,0.2); border-radius:7px; overflow:hidden; position:relative;">
+            <div id="speed-meter-fill" style="position:absolute; left:0; top:0; bottom:0; width:0%; background:linear-gradient(90deg, #0f0 0%, #0ff 30%, #ff0 60%, #f80 80%, #f0f 100%); transition:width 0.18s ease-out;"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:0.55rem; color:#555; letter-spacing:1px; margin-top:5px; padding:0 2px;">
+            <span>0</span><span>25</span><span>100</span><span>250</span><span>500</span><span>1 Gb+</span>
+        </div>
+
+        <!-- Results panel -->
+        <div id="speed-results" style="margin-top:22px; background:rgba(0,0,0,0.35); padding:16px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); display:none;">
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:14px; text-align:center;">
+                <div>
+                    <div id="speed-down" style="color:#0f0; font-weight:800; font-size:1.2rem; line-height:1;">--</div>
+                    <div style="color:#888; font-size:0.55rem; letter-spacing:1.5px; margin-top:6px;">DOWN<br>Mbps</div>
+                </div>
+                <div>
+                    <div id="speed-up" style="color:#0ff; font-weight:800; font-size:1.2rem; line-height:1;">--</div>
+                    <div style="color:#888; font-size:0.55rem; letter-spacing:1.5px; margin-top:6px;">UP<br>Mbps</div>
+                </div>
+                <div>
+                    <div id="speed-ping" style="color:#ff0; font-weight:800; font-size:1.2rem; line-height:1;">--</div>
+                    <div style="color:#888; font-size:0.55rem; letter-spacing:1.5px; margin-top:6px;">LATENCY<br>ms</div>
+                </div>
+                <div>
+                    <div id="speed-jitter" style="color:#fa0; font-weight:800; font-size:1.2rem; line-height:1;">--</div>
+                    <div style="color:#888; font-size:0.55rem; letter-spacing:1.5px; margin-top:6px;">JITTER<br>ms</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quality rating card (appended by JS after run) -->
+        <div id="speed-quality-host"></div>
+
+        <!-- Start button -->
+        <div style="margin-top:22px; display:flex; gap:8px; justify-content:center;">
+            <button id="speed-start" class="action-btn" onclick="_runSpeedTest()">START SPEED TEST</button>
+        </div>
+
+        <p style="color:#555; font-size:0.6rem; text-align:center; margin-top:14px; line-height:1.5; letter-spacing:0.3px;">
+            Bottlenecks (Wi-Fi, ISP, server) all reflect honestly in the number.
+        </p>
+
+        <!-- Ad slot: bottom -->
+        <div class="ad-slot" style="margin-top:28px;">
+            <ins class="adsbygoogle"
+                 style="display:block"
+                 data-ad-client="ca-pub-3034789470490055"
+                 data-ad-slot="6916029228"
+                 data-ad-format="auto"
+                 data-full-width-responsive="true"></ins>
+            <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer-bar">
+        <a href="privacy.html" class="sep">PRIVACY</a>
+        <a href="terms.html" class="sep">TERMS</a>
+        <a href="about.html" class="sep">ABOUT</a>
+        <a href="changelog.html" class="sep">CHANGELOG</a>
+        <a href="leaderboard.html">LEADERBOARD</a>
+    </div>
+
+    <script>
+    // API base — same logic as nexus_globals.js but standalone
+    const _isLocal = ['localhost','127.0.0.1'].includes(location.hostname) || location.hostname.startsWith('192.168.');
+    const _API_HOST = 'api.thyfwxit.com';
+    const _API_BASE = _isLocal ? '' : 'https://' + _API_HOST;
+    const _BASE = () => _API_BASE;
+
+    async function _measureLatency(samples) {
+        samples = samples || 10;
+        const pings = [];
+        for (let i = 0; i < samples; i++) {
+            const t0 = performance.now();
+            try {
+                await fetch(_BASE() + '/ping?t=' + Date.now() + '_' + i, { cache: 'no-store' });
+                pings.push(performance.now() - t0);
+            } catch (_) {}
+        }
+        pings.sort(function(a, b) { return a - b; });
+        if (!pings.length) return { min: 0, jitter: 0 };
+        return { min: Math.round(pings[0]), jitter: Math.round((pings[pings.length - 1] - pings[0]) / 2) };
+    }
+
+    async function _measureDown(bytes, onProgress) {
+        const t0 = performance.now();
+        let received = 0;
+        try {
+            const r = await fetch(_BASE() + '/api/speedtest-blob?bytes=' + bytes + '&t=' + Date.now() + '_' + Math.random(), { cache: 'no-store' });
+            if (!r.ok || !r.body) return 0;
+            const reader = r.body.getReader();
+            while (true) {
+                const chunk = await reader.read();
+                if (chunk.done) break;
+                received += chunk.value.length;
+                if (onProgress) onProgress(received, performance.now() - t0);
+            }
+        } catch (_) { return 0; }
+        const sec = Math.max(0.001, (performance.now() - t0) / 1000);
+        return ((received * 8) / sec) / 1000000;
+    }
+
+    async function _measureUp(bytes) {
+        const data = new Uint8Array(bytes);
+        var CHUNK = 65536;
+        for (var off = 0; off < bytes; off += CHUNK) {
+            crypto.getRandomValues(data.subarray(off, Math.min(off + CHUNK, bytes)));
+        }
+        const t0 = performance.now();
+        try {
+            const r = await fetch(_BASE() + '/api/speedtest-up', { method: 'POST', body: data, cache: 'no-store' });
+            if (!r.ok) return 0;
+        } catch (_) { return 0; }
+        const sec = Math.max(0.001, (performance.now() - t0) / 1000);
+        return ((bytes * 8) / sec) / 1000000;
+    }
+
+    async function _serverInfo() {
+        try {
+            const r = await fetch(_BASE() + '/api/server-info', { cache: 'no-store' });
+            const j = await r.json();
+            const loc = (j.city && j.country) ? j.city + ', ' + j.country : (j.country || 'unknown');
+            return { ip: j.client_ip || 'unknown', loc: loc, host: j.host || 'nexus' };
+        } catch (_) { return { ip: 'unknown', loc: 'unknown', host: 'nexus' }; }
+    }
+
+    var _lastDownLog = [];
+
+    async function _runSpeedTest() {
+        var status   = document.getElementById('speed-status');
+        var meter    = document.getElementById('speed-meter-fill');
+        var rateEl   = document.getElementById('speed-rate-live');
+        var phaseEl  = document.getElementById('speed-phase');
+        var results  = document.getElementById('speed-results');
+        var downEl   = document.getElementById('speed-down');
+        var upEl     = document.getElementById('speed-up');
+        var pingEl   = document.getElementById('speed-ping');
+        var jitEl    = document.getElementById('speed-jitter');
+        var serverEl = document.getElementById('speed-server');
+        var startBtn = document.getElementById('speed-start');
+        if (!status || !meter) return;
+
+        var mbpsToWidth = function(mbps) {
+            if (mbps <= 0) return 0;
+            if (mbps >= 1000) return 100;
+            if (mbps < 25)   return (mbps / 25) * 20;
+            if (mbps < 100)  return 20 + ((mbps - 25) / 75) * 20;
+            if (mbps < 250)  return 40 + ((mbps - 100) / 150) * 20;
+            if (mbps < 500)  return 60 + ((mbps - 250) / 250) * 20;
+            return 80 + ((mbps - 500) / 500) * 20;
+        };
+        var setLive = function(mbps) {
+            if (meter) meter.style.width = mbpsToWidth(mbps).toFixed(1) + '%';
+            if (rateEl) rateEl.textContent = mbps > 0 ? mbps.toFixed(1) : '--';
+        };
+        setLive(0);
+        if (results) results.style.display = 'none';
+        if (startBtn) { startBtn.disabled = true; startBtn.textContent = 'RUNNING...'; }
+
+        // Remove old quality card
+        var oldCard = document.getElementById('speed-raw'); if (oldCard) oldCard.remove();
+
+        if (phaseEl) phaseEl.textContent = 'CONNECTING';
+        status.textContent = 'CONNECTING...';
+        var srv = await _serverInfo();
+        if (serverEl) {
+            var loc = srv.loc && srv.loc !== 'unknown' ? srv.loc : 'unknown region';
+            serverEl.innerHTML = '<b style="color:#fff;">NEXUS</b> · ' + loc + ' · IP <code style="color:#9ce; background:rgba(0,0,0,0.3); padding:1px 5px; border-radius:3px; font-size:0.62rem;">' + srv.ip + '</code>';
+        }
+
+        if (phaseEl) phaseEl.textContent = 'PINGING';
+        status.textContent = 'MEASURING LATENCY...';
+        var lat = await _measureLatency(10);
+        if (pingEl) pingEl.textContent = lat.min;
+        if (jitEl) jitEl.textContent = lat.jitter;
+
+        if (phaseEl) phaseEl.textContent = 'DOWNLOAD';
+        status.textContent = 'MEASURING DOWNLOAD...';
+        var sizes = [
+            { bytes: 1000000, runs: 4 },
+            { bytes: 10000000, runs: 3 },
+            { bytes: 25000000, runs: 2 }
+        ];
+        var downResults = [];
+        _lastDownLog = [];
+        var bestDown = 0;
+        for (var si = 0; si < sizes.length; si++) {
+            var sz = sizes[si];
+            var sizeRuns = [];
+            for (var ri = 0; ri < sz.runs; ri++) {
+                var t0 = performance.now();
+                var m = await _measureDown(sz.bytes);
+                var elapsed = ((performance.now() - t0) / 1000).toFixed(2);
+                if (m > 0) {
+                    sizeRuns.push(m);
+                    _lastDownLog.push((sz.bytes / 1000000).toFixed(0) + 'MB in ' + elapsed + 's = ' + m.toFixed(1) + ' Mbps');
+                    if (m > bestDown) { bestDown = m; setLive(m); }
+                } else {
+                    _lastDownLog.push((sz.bytes / 1000000).toFixed(0) + 'MB FAILED');
+                }
+            }
+            if (sizeRuns.length) {
+                sizeRuns.sort(function(a, b) { return a - b; });
+                downResults.push(sizeRuns[Math.floor(sizeRuns.length / 2)]);
+            }
+            if (downResults.length && downResults[downResults.length - 1] < 5) break;
+        }
+        var finalDown = downResults.length ? downResults[downResults.length - 1] : 0;
+        setLive(finalDown);
+        if (downEl) downEl.textContent = finalDown ? finalDown.toFixed(1) : '0.0';
+
+        if (phaseEl) phaseEl.textContent = 'UPLOAD';
+        status.textContent = 'MEASURING UPLOAD...';
+        var upSizes = [{ bytes: 100000, runs: 4 }, { bytes: 1000000, runs: 3 }, { bytes: 5000000, runs: 2 }];
+        var upResults = [];
+        var bestUp = 0;
+        for (var ui = 0; ui < upSizes.length; ui++) {
+            var usz = upSizes[ui];
+            var uRuns = [];
+            for (var uri = 0; uri < usz.runs; uri++) {
+                var um = await _measureUp(usz.bytes);
+                if (um > 0) {
+                    uRuns.push(um);
+                    if (um > bestUp) { bestUp = um; setLive(um); }
+                }
+            }
+            if (uRuns.length) {
+                uRuns.sort(function(a, b) { return a - b; });
+                upResults.push(uRuns[Math.floor(uRuns.length / 2)]);
+            }
+            if (upResults.length && upResults[upResults.length - 1] < 5) break;
+        }
+        var finalUp = upResults.length ? upResults[upResults.length - 1] : 0;
+        if (upEl) upEl.textContent = finalUp ? finalUp.toFixed(1) : '0.0';
+
+        setLive(finalDown);
+        if (results) results.style.display = 'block';
+        if (phaseEl) phaseEl.textContent = 'MBPS · DOWNLOAD';
+
+        if (finalDown <= 0 && finalUp <= 0) {
+            status.textContent = 'TEST FAILED · backend unreachable';
+        } else {
+            status.textContent = 'TEST COMPLETE';
+        }
+        if (startBtn) { startBtn.disabled = false; startBtn.textContent = 'RUN AGAIN'; }
+
+        // Quality rating
+        var rating;
+        if (finalDown <= 0) { rating = { label: 'NO RESULT', color: '#888', desc: 'Test failed — backend unreachable.' }; }
+        else if (finalDown >= 200 && lat.min < 30) { rating = { label: 'EXCELLENT', color: '#0f0', desc: 'Pristine connection. Great for 4K streaming, gaming, large file uploads.' }; }
+        else if (finalDown >= 100 && lat.min < 50) { rating = { label: 'VERY GOOD', color: '#7fff00', desc: 'Strong link. Handles 1080p streams, video calls, and most workloads without issue.' }; }
+        else if (finalDown >= 50  && lat.min < 80) { rating = { label: 'GOOD', color: '#0ff', desc: 'Solid for everyday browsing, HD streaming, and Zoom/Discord calls.' }; }
+        else if (finalDown >= 25  && lat.min < 120) { rating = { label: 'FAIR', color: '#ff0', desc: 'Streaming HD works; video calls may stutter under load.' }; }
+        else if (finalDown >= 10) { rating = { label: 'BASIC', color: '#fa0', desc: 'Web browsing OK. Streaming is iffy, large downloads slow.' }; }
+        else { rating = { label: 'POOR', color: '#f44', desc: 'Below modern broadband. Pages and videos may struggle.' }; }
+
+        var card = document.createElement('div');
+        card.id = 'speed-raw';
+        card.style.cssText = 'margin-top:16px; padding:14px 16px; background:rgba(0,0,0,0.4); border-left:3px solid ' + rating.color + '; border-radius:4px;';
+        card.innerHTML = '<div style="display:flex; align-items:baseline; gap:12px; margin-bottom:6px;">' +
+            '<span style="color:' + rating.color + '; font-size:1.1rem; font-weight:800; letter-spacing:2px; text-shadow:0 0 10px ' + rating.color + ';">' + rating.label + '</span>' +
+            '<span style="color:#888; font-size:0.66rem; letter-spacing:1px;">your connection quality</span>' +
+            '</div>' +
+            '<div style="color:#bbb; font-size:0.74rem; line-height:1.5; margin-bottom:10px;">' + rating.desc + '</div>' +
+            '<details style="margin-top:10px;">' +
+            '<summary style="color:#888; font-size:0.64rem; letter-spacing:1px; cursor:pointer; user-select:none;">RAW MEASUREMENTS</summary>' +
+            '<pre style="font-size:0.62rem; color:#9ce; line-height:1.7; margin:8px 0 0; white-space:pre-line;">' +
+            _lastDownLog.map(function(l) { return '  - ' + l; }).join('\n') + '\n' +
+            'Download = median of largest-size runs = ' + finalDown.toFixed(1) + ' Mbps\n' +
+            'Upload   = median of upload runs       = ' + finalUp.toFixed(1) + ' Mbps\n' +
+            'Latency  = min of 10 pings to /ping    = ' + lat.min + ' ms (jitter ' + lat.jitter + ' ms)\n\n' +
+            'Math: bits / seconds / 1,000,000 = Mbps</pre>' +
+            '</details>';
+        document.getElementById('speed-quality-host').appendChild(card);
+    }
+    </script>
+</body>
+</html>

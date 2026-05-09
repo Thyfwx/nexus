@@ -242,7 +242,7 @@ window.addEventListener('load', () => window.NexusBrain.init());
     }
     async function _check(){
         try {
-            const r = await fetch((window.API_BASE || '') + '/api/build', { cache: 'no-store' });
+            const r = await fetch((window.API_BASE || '') + '/api/build', { cache: 'no-store', credentials: 'include' });
             if (!r.ok) return;
             const j = await r.json();
             const cur = j.build;
