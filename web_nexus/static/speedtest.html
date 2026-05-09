@@ -55,6 +55,16 @@
         .action-btn:hover:not(:disabled) { background: rgba(0,255,255,0.1); box-shadow: 0 0 12px var(--accent-glow); }
         .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .ad-slot { margin: 22px auto; text-align: center; }
+        /* Side-rail layout: content center + ad columns on desktop */
+        .page-layout {
+            display: flex; gap: 20px; justify-content: center; align-items: flex-start;
+        }
+        .side-ad { flex: 0 0 160px; position: sticky; top: 24px; }
+        .main-content { flex: 0 1 640px; min-width: 0; }
+        @media (max-width: 1060px) {
+            .page-layout { flex-direction: column; align-items: center; }
+            .side-ad { display: none; }
+        }
         .footer-bar {
             position: fixed; bottom: 0; left: 0; right: 0; padding: 10px 16px;
             background: rgba(0,0,0,0.7); border-top: 1px solid rgba(255,255,255,0.06);
@@ -67,16 +77,31 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="topbar">
+    <div style="max-width:1100px; margin:0 auto; position:relative; z-index:2;">
+        <div class="topbar" style="max-width:640px; margin:0 auto 0;">
             <span class="brand">NEXUS AI</span>
             <a href="./">Back to Terminal</a>
         </div>
 
-        <h1>SPEED TEST</h1>
-        <p class="subtitle">Measures real bytes between your device and the Nexus backend.</p>
+        <div style="text-align:center; max-width:640px; margin:0 auto;">
+            <h1>SPEED TEST</h1>
+            <p class="subtitle">Measures real bytes between your device and the Nexus backend.</p>
+        </div>
 
-        <!-- Ad slot: top -->
+        <div class="page-layout">
+            <!-- Left side-rail ad (desktop only) -->
+            <div class="side-ad">
+                <ins class="adsbygoogle"
+                     style="display:block"
+                     data-ad-client="ca-pub-3034789470490055"
+                     data-ad-slot="6916029228"
+                     data-ad-format="vertical"
+                     data-full-width-responsive="false"></ins>
+                <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+            </div>
+
+            <div class="main-content">
+        <!-- Ad slot: top (mobile + desktop) -->
         <div class="ad-slot">
             <ins class="adsbygoogle"
                  style="display:block"
@@ -144,7 +169,7 @@
             Bottlenecks (Wi-Fi, ISP, server) all reflect honestly in the number.
         </p>
 
-        <!-- Ad slot: bottom -->
+        <!-- Ad slot: bottom (mobile + desktop) -->
         <div class="ad-slot" style="margin-top:28px;">
             <ins class="adsbygoogle"
                  style="display:block"
@@ -154,6 +179,19 @@
                  data-full-width-responsive="true"></ins>
             <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
         </div>
+            </div><!-- end .main-content -->
+
+            <!-- Right side-rail ad (desktop only) -->
+            <div class="side-ad">
+                <ins class="adsbygoogle"
+                     style="display:block"
+                     data-ad-client="ca-pub-3034789470490055"
+                     data-ad-slot="6916029228"
+                     data-ad-format="vertical"
+                     data-full-width-responsive="false"></ins>
+                <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+            </div>
+        </div><!-- end .page-layout -->
     </div>
 
     <!-- Footer -->
