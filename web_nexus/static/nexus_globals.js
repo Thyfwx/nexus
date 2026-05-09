@@ -1,15 +1,9 @@
-// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.5.10 — hub collapsibles + speedtest cleanup
-window.NEXUS_VERSION = 'v5.5.10';
+// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.5.13 — fix cross-origin credentials on auth + API fetches
+window.NEXUS_VERSION = 'v5.5.13';
 
-// AD KILL SWITCHES — Set any to true to disable that specific ad block. The master
-// `NEXUS_DISABLE_ADS` overrides everything. Per-block flags let us bisect a hot loop.
-// Default state: master ON, all blocks ENABLED. To disable one block, set its flag in
-// console and reload, e.g.:
-//   window.NEXUS_DISABLE_INMENU_AD = true; location.reload();
-// All placeholder ad code permanently DISABLED — replaced by real AdSense.
-// AdSense's <ins class="adsbygoogle"> tags + the bootstrap script in <head>
-// handle real ads now. Toggle these off ONLY if regression-testing the old
-// placeholder system. Final cleanup of the placeholder code coming next.
+// AD KILL SWITCHES — flip any to true to disable that block at runtime.
+// Master NEXUS_DISABLE_ADS overrides all. All disabled until AdSense
+// wiring is re-applied carefully (v5.5.12 ad deploy caused a hang).
 window.NEXUS_DISABLE_ADS         = true;
 window.NEXUS_DISABLE_BOOT_AD     = true;
 window.NEXUS_DISABLE_FOOTER_AD   = true;

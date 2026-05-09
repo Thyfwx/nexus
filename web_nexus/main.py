@@ -103,7 +103,7 @@ app.add_middleware(
 )
 
 # 1. PRIORITY ROUTES (API & WS)
-NEXUS_VERSION = "v5.5.10"
+NEXUS_VERSION = "v5.5.13"
 
 # Build stamp — read from index.html cache buster on import so the frontend can
 # detect when a new version has shipped and trigger a soft reload without F5.
@@ -1521,6 +1521,143 @@ async def auth_google(request: Request):
 
     resp.set_cookie("nexus_session", token, httponly=True, samesite=samesite,
                     max_age=30 * 24 * 3600, secure=secure)
+    return resp
+
+# ──────────────────────────────────────────────────────────────────────────────
+# SERVER-SIDE OAuth REDIRECT FLOW (added 2026-05-09)
+# Pure HTTP redirect-based Google sign-in. Works without the GSI JavaScript
+# library — bypasses ad blockers / privacy tools that block accounts.google.com
+# scripts. User clicks link → backend redirects to Google → Google redirects
+# back here with auth code → backend exchanges for ID token → sets cookie →
+# redirects user to thyfwxit.com/nexus.
+#
+# REQUIRED setup in Google Cloud Console (one-time):
+#   - Authorized JavaScript origins: https://thyfwxit.com, https://api.thyfwxit.com
+#   - Authorized redirect URIs:      https://api.thyfwxit.com/auth/google-callback
+# ──────────────────────────────────────────────────────────────────────────────
+import secrets as _stdlib_secrets
+from urllib.parse import urlencode
+
+_OAUTH_REDIRECT_URI = "https://api.thyfwxit.com/auth/google-callback"
+_OAUTH_RETURN_URL   = "https://thyfwxit.com/nexus/"
+
+@app.get("/auth/google-redirect")
+async def auth_google_redirect():
+    """Kick off server-side Google OAuth — redirects user to Google's consent screen."""
+    raw_id = _key("GOOGLE_CLIENT_ID")
+    match = re.search(r"[0-9-]+[a-z0-9]+\.apps\.googleusercontent\.com", raw_id)
+    client_id = match.group(0) if match else raw_id.split(',')[0].split(' ')[0].strip()
+    if not client_id:
+        return _JSONResponse({"error": "Google auth not configured"}, status_code=503)
+
+    # CSRF protection — a fresh state token per request, stored in cookie + verified at callback
+    state = _stdlib_secrets.token_urlsafe(32)
+    params = urlencode({
+        "response_type": "code",
+        "client_id":     client_id,
+        "redirect_uri":  _OAUTH_REDIRECT_URI,
+        "scope":         "openid email profile",
+        "access_type":   "online",
+        "prompt":        "select_account",
+        "state":         state,
+    })
+    google_url = f"https://accounts.google.com/o/oauth2/v2/auth?{params}"
+    resp = RedirectResponse(url=google_url, status_code=302)
+    # Stash state in a short-lived cookie for verification at callback. SameSite=lax is
+    # required so the cookie comes back on Google's redirect-back to us.
+    resp.set_cookie("oauth_state", state, httponly=True, samesite="lax",
+                    max_age=600, secure=True, path="/auth")
+    return resp
+
+@app.get("/auth/google-callback")
+async def auth_google_callback(request: Request):
+    """Google sends the user back here after consent. Exchange code → ID token → cookie."""
+    code = request.query_params.get("code")
+    state = request.query_params.get("state")
+    cookie_state = request.cookies.get("oauth_state")
+
+    if not code:
+        return _JSONResponse({"error": "Missing authorization code from Google"}, status_code=400)
+    if not state or state != cookie_state:
+        return _JSONResponse({"error": "OAuth state mismatch — possible CSRF. Try sign-in again."}, status_code=400)
+
+    raw_id = _key("GOOGLE_CLIENT_ID")
+    match = re.search(r"[0-9-]+[a-z0-9]+\.apps\.googleusercontent\.com", raw_id)
+    client_id = match.group(0) if match else raw_id.split(',')[0].split(' ')[0].strip()
+    client_secret = _key("GOOGLE_CLIENT_SECRET") or os.environ.get("GOOGLE_CLIENT_SECRET", "")
+    if not client_id or not client_secret:
+        return _JSONResponse({"error": "Google OAuth credentials not configured on server"}, status_code=503)
+
+    # Exchange code for tokens
+    try:
+        token_resp = req_lib.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "code":          code,
+                "client_id":     client_id,
+                "client_secret": client_secret,
+                "redirect_uri":  _OAUTH_REDIRECT_URI,
+                "grant_type":    "authorization_code",
+            },
+            timeout=10,
+        )
+        if not token_resp.ok:
+            return _JSONResponse({"error": f"Token exchange failed: {token_resp.text[:200]}"}, status_code=502)
+        token_json = token_resp.json()
+        id_token_str = token_json.get("id_token")
+        if not id_token_str:
+            return _JSONResponse({"error": "Google did not return an ID token"}, status_code=502)
+    except Exception as e:
+        return _JSONResponse({"error": f"Token exchange error: {str(e)[:200]}"}, status_code=502)
+
+    # Verify the ID token (same path the popup flow uses)
+    try:
+        idinfo = id_token.verify_oauth2_token(id_token_str, g_req.Request(), client_id)
+        if idinfo.get("aud") != client_id:
+            return _JSONResponse({"error": "Identity mismatch: audience"}, status_code=401)
+    except Exception as e:
+        return _JSONResponse({"error": f"Identity verification failed: {str(e)[:200]}"}, status_code=401)
+
+    # Build session JWT (same shape as popup flow)
+    payload = {
+        "sub":     idinfo["sub"],
+        "name":    idinfo.get("name", "Player"),
+        "email":   idinfo.get("email", ""),
+        "picture": idinfo.get("picture", ""),
+        "exp":     datetime.now(UTC) + timedelta(days=30),
+    }
+    token = jwt.encode(payload, _key("SECRET_KEY") or os.getenv("SECRET_KEY", "nexus-dev-please-change-in-prod"), algorithm="HS256")
+
+    log_login(payload["name"], payload["email"], request)
+
+    # Redirect back to the frontend, with the user-data set on a cookie so the
+    # frontend's localStorage can pick it up. Cookie scoped to .thyfwxit.com so
+    # it works on api.* AND root.
+    is_https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+    samesite = "none" if is_https else "lax"
+
+    resp = RedirectResponse(url=_OAUTH_RETURN_URL, status_code=303)
+    # nexus_session must be readable by api.thyfwxit.com (where XHRs land).
+    # Scoping to .thyfwxit.com lets the cookie ride along on cross-subdomain
+    # XHRs from thyfwxit.com → api.thyfwxit.com.
+    resp.set_cookie("nexus_session", token, httponly=True, samesite=samesite,
+                    max_age=30 * 24 * 3600, secure=is_https,
+                    domain=".thyfwxit.com")
+    # Short-lived non-httpOnly cookie carrying user display info — must be
+    # readable by JS at thyfwxit.com (root frontend), not just api.*. Domain
+    # scope is required for that. Cleared immediately after pickup by the
+    # frontend's _pickupOAuth() in index.html.
+    user_blob = json.dumps({
+        "sub":     payload["sub"],
+        "name":    payload["name"],
+        "email":   payload["email"],
+        "picture": payload["picture"],
+    })
+    resp.set_cookie("nexus_user_pickup", user_blob, httponly=False, samesite=samesite,
+                    max_age=60, secure=is_https,
+                    domain=".thyfwxit.com")
+    # Clear the state cookie
+    resp.delete_cookie("oauth_state", path="/auth")
     return resp
 
 # Basic profanity list (expandable)

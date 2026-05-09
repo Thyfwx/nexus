@@ -277,6 +277,7 @@ If their message is fine, respond normally and do NOT mention strikes.]`;
     try {
         const res = await fetch(`${window.API_BASE}/api/chat`, {
             method: 'POST',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 cmd: prompt,
@@ -727,7 +728,7 @@ window._refreshImageTierStatus = async function() {
     }
 
     try {
-        const r = await fetch(`${window.API_BASE || ''}/api/image-tier-status`, { cache: 'no-store' });
+        const r = await fetch(`${window.API_BASE || ''}/api/image-tier-status`, { credentials: 'include', cache: 'no-store' });
         const s = await r.json();
         let badge = '', color = '#888';
         if (s.local_gpu) {
