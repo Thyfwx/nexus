@@ -136,8 +136,6 @@ window._showGameOverAd = function(gameId, score) {
         host.style.cssText = 'padding: 0 14px;';
         wrapper.appendChild(host);
     }
-    // Single full-width 728×90 placeholder. Narrow 320×50 removed per Xavier's feedback.
-    // Phrasing kept neutral — Google reviews account before ads fill.
     host.innerHTML = `
         <div style="margin: 14px auto 6px; padding: 14px; min-height: 90px; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.12); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #6a6a7a; font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase; font-family: 'Fira Code', monospace; text-align: center; line-height: 1.5;">
             AD SLOT
