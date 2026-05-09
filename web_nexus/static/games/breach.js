@@ -2,6 +2,7 @@ function startBreach() {
     stopAllGames();
     breachActive = true;
     guiContainer.classList.remove('gui-hidden');
+    guiContainer.classList.add('gui-game-wide');
     guiTitle.textContent = 'BREACH PROTOCOL';
 
     const hexCodes = ['E9', '1C', '55', 'BD', '7A', 'FF', 'F0'];
