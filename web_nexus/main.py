@@ -327,6 +327,7 @@ async def whoami_debug(request: Request):
         "session_decoded": bool(user),
         "session_email": email,
         "session_name": (user or {}).get("name"),
+        "session_picture": (user or {}).get("picture", ""),
         "owner_email_const": OWNER_EMAIL,
         "is_owner_check": (email == OWNER_EMAIL) if email else False,
         "_is_owner_result": _is_owner(request),
