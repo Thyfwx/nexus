@@ -20,3 +20,10 @@ web_nexus/_*.json
 # nohup.out — uvicorn stdout/stderr from background runs. Local-only.
 nohup.out
 web_nexus/nohup.out
+
+# AI instruction files — contain architecture docs, security rules, deployment
+# details. Keep local, don't expose on public GitHub.
+CLAUDE.md
+GEMINI.md
+.claude/
+.gemini/
