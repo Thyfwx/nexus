@@ -127,9 +127,9 @@
                 const desc = document.querySelector('.auth-desc');
                 if (desc) desc.textContent = 'Welcome back, ' + user.name + '.';
                 if (methods) {
-                    methods.innerHTML = '<button class="gui-btn" style="width:100%; padding:14px; font-weight:700; letter-spacing:2px; border-color:#0f0; color:#0f0;" onclick="window.location.href=\'./\'">'
+                    methods.innerHTML = '<button onclick="window.location.href=\'./\'" style="width:100%; padding:14px; font-weight:700; letter-spacing:2px; font-family:\'Fira Code\',monospace; font-size:0.85rem; background:rgba(0,255,0,0.08); border:2px solid #0f0; color:#0f0; border-radius:6px; cursor:pointer; transition:0.15s;" onmouseover="this.style.background=\'rgba(0,255,0,0.2)\'; this.style.boxShadow=\'0 0 14px rgba(0,255,0,0.3)\';" onmouseout="this.style.background=\'rgba(0,255,0,0.08)\'; this.style.boxShadow=\'none\';">'
                         + 'ENTER TERMINAL</button>'
-                        + '<button class="gui-btn guest-btn" style="margin-top:8px; width:100%; opacity:0.6;" onclick="localStorage.removeItem(\'nexus_user_data\'); location.reload();">'
+                        + '<button onclick="localStorage.removeItem(\'nexus_user_data\'); location.reload();" style="width:100%; margin-top:10px; padding:10px; font-family:\'Fira Code\',monospace; font-size:0.72rem; letter-spacing:1.5px; background:transparent; border:1px solid #444; color:#666; border-radius:6px; cursor:pointer; transition:0.15s;" onmouseover="this.style.borderColor=\'#888\'; this.style.color=\'#aaa\';" onmouseout="this.style.borderColor=\'#444\'; this.style.color=\'#666\';">'
                         + 'SIGN OUT</button>';
                 }
             }
