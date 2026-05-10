@@ -330,7 +330,7 @@ async def report_error(request: Request):
         return _JSONResponse({"error": "Transmission failure"}, status_code=500)
 
 # ── Owner gating ──────────────────────────────────────────────────────────────
-OWNER_EMAIL = "lovexdgamer@gmail.com"
+OWNER_EMAIL = os.environ.get("OWNER_EMAIL", "").lower().strip()
 
 def _is_owner(request: Request) -> bool:
     user = _get_session(request)
@@ -1587,12 +1587,13 @@ async def auth_google(request: Request):
         # Traditional Redirect: Return to home with cookie set
         resp = RedirectResponse(url="/", status_code=303)
     else:
-        # Popup Flow: Return JSON
+        # Popup Flow: Return JSON — includes is_owner so frontend doesn't need hardcoded email
         resp = _JSONResponse({
             "ok":      True,
             "name":    payload["name"],
             "email":   payload["email"],
             "picture": payload["picture"],
+            "is_owner": (payload["email"].lower() == OWNER_EMAIL) if OWNER_EMAIL else False,
         })
 
     # Cookie scoped to .thyfwxit.com so it works across thyfwxit.com + api.thyfwxit.com.
