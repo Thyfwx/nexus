@@ -99,7 +99,7 @@ window.startMaintenanceHub = function() {
                     <span id="hub-net-online" style="color:#0f0; font-size:0.72rem; font-weight:600;">ONLINE</span>
                     ${connType ? '<span style="color:#666; font-size:0.62rem; margin-left:auto;">' + connType + (connDown ? ' · ~' + connDown + ' Mbps' : '') + '</span>' : ''}
                 </div>
-                <a href="speedtest.html"
+                <a href="speedtest"
                    style="display:block; padding:9px; text-align:center; background:rgba(0,255,255,0.06); color:#0ff; border:1px solid rgba(0,255,255,0.25); border-radius:5px; font-size:0.68rem; font-weight:600; letter-spacing:2px; text-decoration:none; transition:0.15s;"
                    onmouseover="this.style.background='rgba(0,255,255,0.14)';"
                    onmouseout="this.style.background='rgba(0,255,255,0.06)';">
