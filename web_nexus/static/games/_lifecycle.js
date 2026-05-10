@@ -413,7 +413,7 @@ window._showMiniLeaderboard = function(gameId, score) {
                     ${rows}
                     <div class="mlb-actions">
                         ${submitBtn}
-                        <a href="leaderboard.html" class="mlb-full-link">FULL LEADERBOARD →</a>
+                        <a href="leaderboard" class="mlb-full-link">FULL LEADERBOARD →</a>
                     </div>
                     <div id="mlb-msg" class="mlb-msg" style="display:none;"></div>
                 `;
@@ -423,7 +423,7 @@ window._showMiniLeaderboard = function(gameId, score) {
                 panel.innerHTML = `
                     <div class="mlb-empty">Couldn't reach leaderboard service.</div>
                     <div class="mlb-actions">
-                        <a href="leaderboard.html" target="_blank" rel="noopener" class="mlb-full-link">VIEW BOARDS →</a>
+                        <a href="leaderboard" target="_blank" rel="noopener" class="mlb-full-link">VIEW BOARDS →</a>
                     </div>
                 `;
             });
