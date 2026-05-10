@@ -793,15 +793,35 @@
         })();
 
         // High-Fidelity Neural Gate
-        (function() {
+        // If localStorage is empty but the session cookie is still valid, recover
+        // the session from the backend instead of forcing a re-login.
+        (async function() {
             const user = JSON.parse(localStorage.getItem('nexus_user_data') || sessionStorage.getItem('nexus_user_data') || 'null');
-            if (!user || !user.name) {
-                console.warn("[GATE] Identity missing. Redirecting to Lobby...");
-                window.location.replace('./login.html');
-            } else {
+            if (user && user.name) {
                 console.log("[GATE] Identity verified. Access granted.");
                 if (window.initiateBootSequence) window.initiateBootSequence();
+                return;
             }
+            // No localStorage — try recovering from cookie via backend
+            try {
+                const r = await fetch((window.API_BASE || '') + '/api/me/whoami-debug', { credentials: 'include', cache: 'no-store' });
+                if (r.ok) {
+                    const d = await r.json();
+                    if (d.session_decoded && d.session_email && d.session_name) {
+                        console.log("[GATE] Recovered session from cookie for", d.session_email);
+                        localStorage.setItem('nexus_user_data', JSON.stringify({
+                            ok: true,
+                            name: d.session_name,
+                            email: d.session_email,
+                            picture: ''
+                        }));
+                        if (window.initiateBootSequence) window.initiateBootSequence();
+                        return;
+                    }
+                }
+            } catch (e) { console.warn("[GATE] Cookie recovery failed:", e); }
+            console.warn("[GATE] Identity missing. Redirecting to Lobby...");
+            window.location.replace('./login.html');
         })();
     </script>
 </body>
