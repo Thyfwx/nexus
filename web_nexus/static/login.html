@@ -16,6 +16,13 @@
     <script src="https://accounts.google.com/gsi/client" async defer onload="window.initGoogleAuth()"></script>
 </head>
 <body class="crt-mode">
+    <script>
+    // Mobile redirect — send small screens to the mobile notice page.
+    // Users can still "Continue Anyway" from that page to come back here.
+    if (window.innerWidth <= 768 && !sessionStorage.getItem('nexus_mobile_bypass')) {
+        window.location.replace('mobile');
+    }
+    </script>
 
     <!-- Login Wall -->
     <div id="auth-screen" class="auth-overlay">
