@@ -118,10 +118,21 @@
     <script src="config_core.js?v=b2d4e8"></script>
     <script src="auth_core.js?v=b2d4e8"></script>
     <script>
-        // If already logged in, go straight to terminal
+        // If already logged in, show a quick "Enter Terminal" flow instead of
+        // the sign-in buttons. Visitors always see the lobby first.
         (function() {
             const user = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
-            if (user && user.name) window.location.href = './';
+            if (user && user.name) {
+                const methods = document.querySelector('.auth-methods');
+                const desc = document.querySelector('.auth-desc');
+                if (desc) desc.textContent = 'Welcome back, ' + user.name + '.';
+                if (methods) {
+                    methods.innerHTML = '<button class="gui-btn" style="width:100%; padding:14px; font-weight:700; letter-spacing:2px; border-color:#0f0; color:#0f0;" onclick="window.location.href=\'./\'">'
+                        + 'ENTER TERMINAL</button>'
+                        + '<button class="gui-btn guest-btn" style="margin-top:8px; width:100%; opacity:0.6;" onclick="localStorage.removeItem(\'nexus_user_data\'); location.reload();">'
+                        + 'SIGN OUT</button>';
+                }
+            }
         })();
 
         // Reveal the dev-owner button only on localhost / 127.0.0.1
