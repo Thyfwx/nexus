@@ -12,7 +12,7 @@
     <script src="adblock_recovery.js?v=b2d4e8"></script>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=b2d4e8">
-    <link rel="icon" type="image/png" href="https://thyfwxit.com/favicon.png">
+    <link rel="icon" href="favicon.ico">
     <script src="https://accounts.google.com/gsi/client" async defer onload="window.initGoogleAuth()"></script>
 </head>
 <body class="crt-mode">
@@ -153,13 +153,13 @@
 
         // Show the redirect sign-in button ONLY if GSI library fails to load.
         // GSI sets window._gsiLoaded = true via the onload handler in auth_core.js.
-        // After 4s, if it hasn't loaded, show the fallback.
+        // After 2s, if it hasn't loaded, show the fallback.
         (function() {
             setTimeout(function() {
                 if (window._gsiLoaded) return;
                 var btn = document.getElementById('google-redirect-btn');
                 if (btn) btn.style.display = 'flex';
-            }, 4000);
+            }, 2000);
         })();
 
         window.devOwnerLogin = async function() {
