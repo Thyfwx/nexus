@@ -413,7 +413,7 @@ window._showMiniLeaderboard = function(gameId, score) {
                     ${rows}
                     <div class="mlb-actions">
                         ${submitBtn}
-                        <a href="leaderboard.html" target="_blank" rel="noopener" class="mlb-full-link">FULL LEADERBOARD →</a>
+                        <a href="leaderboard.html" class="mlb-full-link">FULL LEADERBOARD →</a>
                     </div>
                     <div id="mlb-msg" class="mlb-msg" style="display:none;"></div>
                 `;
