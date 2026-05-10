@@ -594,9 +594,8 @@ async function initiateBootSequence() {
     // bypasses the lobby, or first visit before any auth happened). Compute identity defensively.
     const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || sessionStorage.getItem('nexus_user_data') || 'null') || { name: 'Guest', email: 'guest@local' };
 
-    // Owner Identity Check
-    const ownerEmail = window.NEXUS_CONFIG?.OWNER_EMAIL || '***REMOVED***';
-    if (nexusUser.email === ownerEmail) {
+    // Owner Identity Check — uses is_owner flag from server, no hardcoded email
+    if (nexusUser.is_owner) {
         window.OWNER_MODE = true;
         console.log("[SEC] Owner Identity Verified. Unlocking privileged nodes.");
     }
@@ -1542,7 +1541,7 @@ function _renderNeuralProfileInner() {
 
     const user = JSON.parse(localStorage.getItem('nexus_user_data') || '{}');
     const isGuest = !user.email || user.email === 'guest@local';
-    const isOwner = user && user.email === '***REMOVED***';
+    const isOwner = user && !!user.is_owner;
     const savedMem = localStorage.getItem('nexus_neural_memory') || '';
     const mode = (window.currentMode || 'nexus').toUpperCase();
     const accent = (window.MODE_COLORS && window.MODE_COLORS[window.currentMode]) || '#0ff';

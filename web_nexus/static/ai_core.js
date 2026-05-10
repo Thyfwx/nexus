@@ -211,7 +211,7 @@ async function prompt_ai_proxy(prompt, imageB64, mode, retryCount = 0) {
     // Identity packet — tells the AI who it's talking to so it stops calling everyone Xavier.
     const u = JSON.parse(localStorage.getItem('nexus_user_data') || '{}');
     const isGoogle = !!u.email && u.email !== 'guest@local';
-    const isOwner  = u.email === '***REMOVED***';
+    const isOwner  = !!u.is_owner;
     const role     = isOwner ? 'OWNER' : (isGoogle ? 'GOOGLE' : 'GUEST');
     const memory = isGoogle ? (localStorage.getItem('nexus_neural_memory') || '') : '';
     const memoryLine = memory ? `\nUSER MEMORY: ${memory}` : '';

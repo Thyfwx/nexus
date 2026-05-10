@@ -222,8 +222,7 @@ function runNeofetch() {
 
 function showDiagnostics() {
     const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || '{}');
-    const ownerEmail = '***REMOVED***';
-    if (nexusUser.email !== ownerEmail) {
+    if (!nexusUser.is_owner) {
         printToTerminal("[ERROR] ACCESS DENIED. Privileged diagnostic node restricted to OWNER.", "sys-msg-colored");
         return;
     }
