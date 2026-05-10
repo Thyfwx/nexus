@@ -86,11 +86,11 @@ function handleCommand(cmd) {
     if (lc === 'play breakout')       { startBreakout(); return; }
     if (lc === 'play invaders')       { startInvaders(); return; }
     if (lc === 'play breach')         { startBreach(); return; }
-    if (lc === 'leaderboard')         { window.open('leaderboard.html', '_blank'); return; }
-    if (lc === 'changelog')           { window.open('changelog.html', '_blank'); return; }
-    if (lc === 'privacy')             { window.open('privacy.html', '_blank'); return; }
-    if (lc === 'terms')               { window.open('terms.html', '_blank'); return; }
-    if (lc === 'about')               { window.open('about.html', '_blank'); return; }
+    if (lc === 'leaderboard')         { window.location.href = 'leaderboard.html'; return; }
+    if (lc === 'changelog')           { window.location.href = 'changelog.html'; return; }
+    if (lc === 'privacy')             { window.location.href = 'privacy.html'; return; }
+    if (lc === 'terms')               { window.location.href = 'terms.html'; return; }
+    if (lc === 'about')               { window.location.href = 'about.html'; return; }
     if (lc === 'matrix')              { startMatrixSaver(); return; }
     if (lc === 'monitor')             { startMonitor(); return; }
     if (lc === 'type test')           { startTypingTest(); return; }
