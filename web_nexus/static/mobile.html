@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nexus AI — Mobile</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="https://thyfwxit.com/favicon.png">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            min-height: 100vh;
+            background: #0a0a0f;
+            color: #c9c9d4;
+            font-family: 'Fira Code', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            text-align: center;
+            background: radial-gradient(ellipse at top, rgba(0,255,255,0.03) 0%, transparent 50%), #0a0a0f;
+        }
+        .icon {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            opacity: 0.8;
+        }
+        h1 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            text-shadow: 0 0 16px rgba(0,255,255,0.3);
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            background: rgba(255,170,0,0.1);
+            border: 1px solid rgba(255,170,0,0.3);
+            border-radius: 12px;
+            color: #fa0;
+            font-size: 0.65rem;
+            font-weight: 600;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+        }
+        p {
+            font-size: 0.78rem;
+            color: #888;
+            line-height: 1.7;
+            max-width: 320px;
+            margin-bottom: 24px;
+        }
+        .btn {
+            display: block;
+            width: 100%;
+            max-width: 280px;
+            padding: 14px;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            text-align: center;
+            transition: 0.15s;
+            margin-bottom: 10px;
+        }
+        .btn-primary {
+            background: rgba(0,255,255,0.08);
+            border: 2px solid #0ff;
+            color: #0ff;
+        }
+        .btn-primary:active { background: rgba(0,255,255,0.2); }
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid #333;
+            color: #666;
+        }
+        .btn-secondary:active { border-color: #666; color: #aaa; }
+        .footer {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            padding: 10px 16px;
+            background: rgba(0,0,0,0.7);
+            border-top: 1px solid rgba(255,255,255,0.06);
+            text-align: center;
+            font-size: 0.6rem;
+            color: #444;
+            letter-spacing: 1px;
+        }
+        .footer a { color: #666; text-decoration: none; padding: 0 8px; }
+    </style>
+</head>
+<body>
+    <div class="icon">NEXUS</div>
+    <h1>Mobile Version</h1>
+    <div class="status">IN DEVELOPMENT</div>
+    <p>The Nexus AI Terminal is built for desktop right now. I'm actively working on a mobile-optimized version with touch controls, responsive layouts, and a proper mobile UI.</p>
+    <p style="font-size:0.7rem; color:#555;">You can still use the desktop version on your phone — it works, but it's not optimized for smaller screens yet.</p>
+    <a href="login" class="btn btn-primary" onclick="sessionStorage.setItem('nexus_mobile_bypass','1');">CONTINUE ANYWAY</a>
+    <a href="https://thyfwxit.com" class="btn btn-secondary">BACK TO MAIN SITE</a>
+
+    <div class="footer">
+        <a href="privacy">PRIVACY</a>
+        <a href="terms">TERMS</a>
+        <a href="about">ABOUT</a>
+    </div>
+</body>
+</html>
