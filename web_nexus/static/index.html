@@ -813,7 +813,8 @@
                             ok: true,
                             name: d.session_name,
                             email: d.session_email,
-                            picture: d.session_picture || ''
+                            picture: d.session_picture || '',
+                            is_owner: d._is_owner_result || false
                         }));
                         if (window.initiateBootSequence) window.initiateBootSequence();
                         return;
