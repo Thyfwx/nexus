@@ -91,8 +91,7 @@ function renderAuthSection() {
     if (!authSection) return;
 
     const user = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
-    const ownerEmail = '***REMOVED***';
-    const isOwner = user && user.email === ownerEmail;
+    const isOwner = user && !!user.is_owner;
 
     if (user && user.name) {
         const isGoogle = !!user.email && user.email !== 'guest@local';
@@ -184,8 +183,7 @@ async function handleCredentialResponse(response) {
             // Owner is exempt from the adult gate (their own site, already 18+).
             // Other Google users see the 18+ confirmation modal once. After confirming,
             // it's stored locally and not re-shown unless they clear browser data.
-            const ownerEmail = '***REMOVED***';
-            const isOwner = data.email === ownerEmail;
+            const isOwner = !!data.is_owner;
             const alreadyConfirmed = localStorage.getItem('nexus_adult_confirmed') === 'true';
             if (!isOwner && !alreadyConfirmed && document.getElementById('adult-gate-modal')) {
                 // Stash the user data — only commit it to localStorage AFTER they confirm

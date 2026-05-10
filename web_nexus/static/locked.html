@@ -314,9 +314,8 @@
             // Owner-gate ad placeholders — only Xavier sees the gray dashed boxes
             // until real AdSense units are wired in. Public visitors see no ad UI.
             try {
-                const OWNER_EMAIL = '***REMOVED***';
                 const u = JSON.parse(localStorage.getItem('nexus_user_data') || '{}');
-                const isOwner = u && u.email === OWNER_EMAIL;
+                const isOwner = u && !!u.is_owner;
                 if (!isOwner) {
                     document.querySelectorAll('.ad-slot').forEach(el => el.remove());
                 }
