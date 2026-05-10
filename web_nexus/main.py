@@ -40,6 +40,30 @@ if os.path.exists(_ENV_PATH):
 # Use timezone.utc for compatibility and correctness
 UTC = timezone.utc
 
+# ── In-memory log ring buffer ──────────────────────────────────────────────
+# Captures stdout (print statements) to a ring buffer so the DevPanel log-tail
+# can show backend output on Render where /tmp/nexus_backend.log doesn't exist.
+import io, collections, threading
+
+_LOG_BUFFER = collections.deque(maxlen=500)
+_LOG_LOCK = threading.Lock()
+
+class _TeeWriter:
+    """Writes to the original stream AND captures lines to the ring buffer."""
+    def __init__(self, original):
+        self._original = original
+    def write(self, text):
+        self._original.write(text)
+        if text and text.strip():
+            with _LOG_LOCK:
+                for line in text.rstrip('\n').split('\n'):
+                    _LOG_BUFFER.append(line)
+    def flush(self):
+        self._original.flush()
+
+sys.stdout = _TeeWriter(sys.stdout)
+sys.stderr = _TeeWriter(sys.stderr)
+
 def _key(name: str) -> str:
     """Read key from environment and sanitize aggressively."""
     # Load from .env if local
@@ -311,6 +335,60 @@ OWNER_EMAIL = "lovexdgamer@gmail.com"
 def _is_owner(request: Request) -> bool:
     user = _get_session(request)
     return bool(user and (user.get("email") or "").lower() == OWNER_EMAIL)
+
+# ── Account-level banning ────────────────────────────────────────────────────
+# Bans by Google email — persists across IP changes. Owner can manage via DevPanel.
+_BANNED_FILE = os.path.join(base_dir, "_banned_accounts.json")
+
+def _load_banned() -> set:
+    try:
+        with open(_BANNED_FILE) as f:
+            return set(e.lower() for e in json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return set()
+
+def _save_banned(banned: set):
+    with open(_BANNED_FILE, "w") as f:
+        json.dump(sorted(banned), f)
+
+def _is_banned(request: Request) -> bool:
+    user = _get_session(request)
+    if not user:
+        return False
+    email = (user.get("email") or "").lower()
+    return email in _load_banned()
+
+@app.post("/api/dev/ban-account")
+async def dev_ban_account(request: Request):
+    if not _is_owner(request):
+        return _JSONResponse({"error": "owner only"}, status_code=403)
+    data = await request.json()
+    email = (data.get("email") or "").lower().strip()
+    if not email or "@" not in email:
+        return _JSONResponse({"error": "invalid email"}, status_code=400)
+    banned = _load_banned()
+    banned.add(email)
+    _save_banned(banned)
+    print(f"[BAN] Account banned: {email}")
+    return {"ok": True, "banned": sorted(banned)}
+
+@app.post("/api/dev/unban-account")
+async def dev_unban_account(request: Request):
+    if not _is_owner(request):
+        return _JSONResponse({"error": "owner only"}, status_code=403)
+    data = await request.json()
+    email = (data.get("email") or "").lower().strip()
+    banned = _load_banned()
+    banned.discard(email)
+    _save_banned(banned)
+    print(f"[UNBAN] Account unbanned: {email}")
+    return {"ok": True, "banned": sorted(banned)}
+
+@app.get("/api/dev/banned-accounts")
+async def dev_list_banned(request: Request):
+    if not _is_owner(request):
+        return _JSONResponse({"error": "owner only"}, status_code=403)
+    return {"ok": True, "banned": sorted(_load_banned())}
 
 @app.get("/api/me/whoami-debug")
 async def whoami_debug(request: Request):
@@ -685,27 +763,32 @@ async def build_id(request: Request):
 
 @app.get("/api/dev/log-tail")
 async def dev_log_tail(request: Request):
-    """Owner-only: return the last N lines of /tmp/nexus_backend.log so DevPanel can show
-    live backend output without you needing a terminal window."""
+    """Owner-only: return the last N lines of backend output. Reads from the
+    in-memory ring buffer (captures all print/stderr since boot). Falls back
+    to /tmp/nexus_backend.log if the file exists (restart script mode)."""
     if not _is_owner(request):
         return _JSONResponse({"error": "owner only"}, status_code=403)
+    # Primary: in-memory ring buffer (always available)
+    with _LOG_LOCK:
+        mem_lines = list(_LOG_BUFFER)
+    if mem_lines:
+        return {"ok": True, "lines": mem_lines[-100:], "source": "memory", "total_captured": len(mem_lines)}
+    # Fallback: log file from restart script
     log_path = "/tmp/nexus_backend.log"
-    if not os.path.exists(log_path):
-        return {"ok": True, "lines": [], "note": f"no log file at {log_path} (backend started without redirect)"}
-    try:
-        with open(log_path, "rb") as f:
-            # Tail-style read — seek near end + grab last 8 KB
-            f.seek(0, os.SEEK_END)
-            size = f.tell()
-            f.seek(max(0, size - 8192))
-            tail_bytes = f.read()
-        text = tail_bytes.decode("utf-8", errors="replace")
-        # Drop the first (likely truncated) line
-        lines = text.split("\n")
-        if size > 8192 and lines: lines = lines[1:]
-        return {"ok": True, "lines": lines[-100:], "size_bytes": size}
-    except Exception as e:
-        return {"ok": False, "error": str(e)[:200]}
+    if os.path.exists(log_path):
+        try:
+            with open(log_path, "rb") as f:
+                f.seek(0, os.SEEK_END)
+                size = f.tell()
+                f.seek(max(0, size - 8192))
+                tail_bytes = f.read()
+            text = tail_bytes.decode("utf-8", errors="replace")
+            lines = text.split("\n")
+            if size > 8192 and lines: lines = lines[1:]
+            return {"ok": True, "lines": lines[-100:], "source": "file", "size_bytes": size}
+        except Exception as e:
+            return {"ok": False, "error": str(e)[:200]}
+    return {"ok": True, "lines": ["(no log output captured yet — backend just started)"], "source": "empty"}
 
 
 @app.post("/api/dev/restart-backend")
@@ -1401,6 +1484,8 @@ async def api_chat(request: Request):
     client_ip = request.client.host if request.client else ""
     if client_ip in _BLOCKED_IPS:
         return _JSONResponse({"ok": False, "error": "Your IP has been blocked from the AI terminal."}, status_code=403)
+    if _is_banned(request):
+        return _JSONResponse({"ok": False, "error": "Your account has been permanently banned."}, status_code=403)
     # Server-side lockout enforcement — owner exempt, regular users blocked even if they
     # cleared their localStorage. Returns 429 (rate-limited) with seconds remaining.
     if not _is_owner(request):
@@ -1510,18 +1595,14 @@ async def auth_google(request: Request):
             "picture": payload["picture"],
         })
 
-    # Robust cookie settings for Render/HTTPS.
-    # Production frontend (thyfwxit.com) talks to backend on Render (onrender.com) — different
-    # origins → cross-site request. SameSite=Lax blocks cross-site cookies entirely, so the
-    # backend never sees the JWT and rejects all /api/dev/* endpoints with 403.
-    # On HTTPS we set SameSite=None + Secure to allow cross-origin auth. On localhost (HTTP)
-    # we keep Lax since same-origin handles it fine and SameSite=None requires Secure.
+    # Cookie scoped to .thyfwxit.com so it works across thyfwxit.com + api.thyfwxit.com.
     is_https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
     samesite = "none" if is_https else "lax"
     secure   = True if is_https else False
 
     resp.set_cookie("nexus_session", token, httponly=True, samesite=samesite,
-                    max_age=30 * 24 * 3600, secure=secure)
+                    max_age=30 * 24 * 3600, secure=secure,
+                    domain=".thyfwxit.com" if is_https else None)
     return resp
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -1708,7 +1789,8 @@ async def auth_guest(request: Request):
     secure   = True if is_https else False
 
     resp.set_cookie("nexus_session", token, httponly=True, samesite=samesite,
-                    max_age=30 * 24 * 3600, secure=secure)
+                    max_age=30 * 24 * 3600, secure=secure,
+                    domain=".thyfwxit.com" if is_https else None)
     return resp
 # ── Localhost-only owner login (dev shortcut for when Google sign-in is broken) ──
 @app.post("/auth/dev-owner")
