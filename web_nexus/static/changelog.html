@@ -236,6 +236,35 @@
             For the full git history, see <a href="https://github.com/Thyfwx/nexus" target="_blank" rel="noopener" style="color:var(--accent);">github.com/Thyfwx/nexus</a>.
         </p>
 
+        <!-- v5.6.0 -->
+        <div class="release major">
+            <div class="release-head">
+                <span class="release-version">v5.6.0</span>
+                <span>
+                    <span class="release-tag">RELEASE</span>
+                </span>
+                <span class="release-date">2026-05-09</span>
+            </div>
+            <div class="release-summary">
+                Backend moved to api.thyfwxit.com (same-site cookies), server-side OAuth fallback, Speed Test as standalone page with ads, Maintenance Hub redesigned, cross-origin auth fixed.
+            </div>
+            <ul class="changes">
+                <li class="added">Backend migrated from nexus-terminalnexus.onrender.com to api.thyfwxit.com (DNS CNAME). Cookies now flow correctly without 3rd-party blocking.</li>
+                <li class="added">Server-side Google OAuth redirect flow as a fallback when the popup library is blocked by ad blockers or privacy settings.</li>
+                <li class="added">Speed Test moved to its own standalone page (speedtest.html) with side-rail ads on desktop and top/bottom ads on mobile.</li>
+                <li class="added">Speed Test results now show human-readable notes for each metric (e.g. "4K streaming, no bottleneck" for 200+ Mbps).</li>
+                <li class="added">Maintenance Hub redesigned with dashboard layout, tappable info tips, live mode updates, and CPU architecture detection.</li>
+                <li class="added">Standalone pages (privacy, terms, about, changelog, leaderboard, speedtest) now have consistent footer navigation.</li>
+                <li class="added">AdSense ad units wired on speedtest.html and leaderboard.html.</li>
+                <li class="added">ads.txt added at domain root for AdSense full account approval.</li>
+                <li class="fixed">Owner cookie never being set in production: auth fetch was missing credentials:'include' on cross-origin requests.</li>
+                <li class="fixed">Image quota header showing 0/5 for owner: same credentials:'include' bug on the quota poll.</li>
+                <li class="fixed">Server info showing "?" for city: now maps country codes to full names and hides unknown cities.</li>
+                <li class="fixed">Login status messages cleaned up ("Signing in..." instead of "SYNCHRONIZING IDENTITY...").</li>
+                <li class="removed">Speed Test button from sidebar tools (access via Maintenance Hub only now).</li>
+            </ul>
+        </div>
+
         <!-- v5.5.1 -->
         <div class="release fix">
             <div class="release-head">
@@ -316,7 +345,8 @@
         <a href="privacy.html" style="color:#888; text-decoration:none; padding:0 10px; border-right:1px solid #333;">PRIVACY</a>
         <a href="terms.html" style="color:#888; text-decoration:none; padding:0 10px; border-right:1px solid #333;">TERMS</a>
         <a href="about.html" style="color:#888; text-decoration:none; padding:0 10px; border-right:1px solid #333;">ABOUT</a>
-        <a href="changelog.html" style="color:#888; text-decoration:none; padding:0 10px;">CHANGELOG</a>
+        <a href="changelog.html" style="color:#888; text-decoration:none; padding:0 10px; border-right:1px solid #333;">CHANGELOG</a>
+        <a href="leaderboard.html" style="color:#888; text-decoration:none; padding:0 10px;">LEADERBOARD</a>
     </div>
 
 </body>
