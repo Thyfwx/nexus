@@ -141,7 +141,7 @@
     <div class="container">
         <div class="topbar">
             <span class="brand">● NEXUS AI · LEADERBOARD</span>
-            <a href="./">← Return to terminal</a>
+            <a href="./" onclick="if(history.length>1){history.back();return false;}">Back</a>
         </div>
 
         <h1>Top players</h1>
@@ -163,10 +163,6 @@
             <div class="board-empty">Loading…</div>
         </div>
 
-        <div class="footer">
-            Built solo by Xavier Scott (THYFWX). Spotted a cheater?
-            <a href="mailto:xavier@thyfwxit.com">Email me</a>.
-        </div>
     </div>
 
     <script>
@@ -243,7 +239,8 @@
             const period = activePeriod;
             boardEl.innerHTML = '<div class="board-empty">Loading…</div>';
             try {
-                const r = await fetch(`/api/leaderboard/${encodeURIComponent(game)}?period=${period}&limit=10`, {
+                const _apiBase = (['localhost','127.0.0.1'].includes(location.hostname) || location.hostname.startsWith('192.168.')) ? '' : 'https://api.thyfwxit.com';
+                const r = await fetch(`${_apiBase}/api/leaderboard/${encodeURIComponent(game)}?period=${period}&limit=10`, {
                     credentials: 'include'
                 });
                 if (!r.ok) throw new Error(`HTTP ${r.status}`);
