@@ -1,69 +1,64 @@
-// Phrases for the typing test — extracted from the original games_core.js
-const TYPE_PHRASES = [
-    // Classic
-    'the quick brown fox jumps over the lazy dog near the riverbank',
-    'pack my box with five dozen liquor jugs and a small wax candle',
-    'sphinx of black quartz judge my vow of vengeance against time',
-    'how vexingly quick daft zebras jump across the moonlit field',
-    'amazingly few discotheques provide jukeboxes for their patrons',
+// NEXUS TYPING TEST v2.0 — MonkeyType-style with mode selection
+// 200+ word pool, timer/word-count modes, live WPM, leaderboard submission
 
-    // Network / sysadmin
-    'packets travel across networks at the speed of light through fiber optic cables',
-    'a clean network is a fast network and a fast network is a happy homelab',
-    'every system has a vulnerability if you know exactly where to look for it',
-    'security is not a product it is a process that never really ends',
-    'the firewall is your friend until it is silently dropping the wrong port',
-    'dns is the answer when nothing else makes sense and also the cause of every outage',
-    'a server only goes down on a friday afternoon when you have plans for the weekend',
-    'route flaps and bgp leaks ruin more sundays than any operator wants to admit',
-
-    // Code / engineering
-    'code is just instructions that tell machines what to do until they do it wrong',
-    'debug twice deploy once or just push to prod and hope nothing catches fire',
-    'the best way to learn something is to break it and then figure out how to fix it',
-    'open source software runs most of the internet and nobody really talks about that',
-    'trust the process unless the process is a shell script you wrote at midnight',
-    'first make it work then make it right then make it fast in that order',
-    'two hard problems in computer science are naming things and cache invalidation',
-    'reading other peoples code is the fastest way to become a better engineer',
-    'every refactor is a chance to break something that was already working fine',
-    'a comment that says what instead of why is a comment that should not exist',
-
-    // Aphorisms / wit
-    'any sufficiently advanced technology is indistinguishable from magic',
-    'the only winning move in a flame war is not to play in the first place',
-    'patience is bitter but its fruit is sweet for those who wait long enough',
-    'do not let perfect be the enemy of shipped this week before friday at five',
-    'simplicity is the ultimate sophistication and also the hardest thing to ship',
-
-    // Nexus / xavier flavor
-    'xavier scott built this terminal so you could talk to an ai without a search bar',
-    'nexus runs on coffee fastapi and a stubborn refusal to use a heavy framework',
-    'the lobby loads in under two seconds because nobody likes waiting on a login page',
-    'cloudflare pages is what happens when a cdn marries a build pipeline and they have a kid',
-    'proxmox plus a noctua fan is the closest thing you can get to a quiet datacenter at home',
-
-    // Long-form pangrams to push the test
-    'jaded zombies acted quaintly but kept driving their oxen forward through the muddy fields',
-    'the five boxing wizards jump quickly over the bridge while reciting ancient spells',
-    'crazy fredrick bought many very exquisite opal jewels for the queen of the underworld',
+const TYPE_WORDS = [
+    // Common English
+    'the','be','to','of','and','a','in','that','have','it','for','not','on','with','he','as','you',
+    'do','at','this','but','his','by','from','they','we','say','her','she','or','an','will','my',
+    'one','all','would','there','their','what','so','up','out','if','about','who','get','which',
+    'go','me','when','make','can','like','time','no','just','him','know','take','people','into',
+    'year','your','good','some','could','them','see','other','than','then','now','look','only',
+    'come','its','over','think','also','back','after','use','two','how','our','work','first',
+    'well','way','even','new','want','because','any','these','give','day','most','us','great',
+    // Tech / coding
+    'server','network','system','code','debug','deploy','build','test','data','cloud','stack',
+    'docker','linux','proxy','cache','query','token','route','parse','render','fetch','async',
+    'socket','buffer','thread','kernel','driver','module','config','script','binary','compile',
+    'runtime','process','daemon','shell','terminal','console','output','input','stream','packet',
+    'firewall','gateway','router','switch','bridge','tunnel','cipher','encrypt','decrypt','hash',
+    'protocol','header','payload','request','response','status','error','warning','timeout',
+    // Hardware
+    'cpu','gpu','ram','disk','board','chip','wire','power','signal','clock','voltage','current',
+    'solder','repair','diagnostic','component','capacitor','resistor','transistor','circuit',
+    'motherboard','heatsink','thermal','battery','display','sensor','controller','interface',
+    // Descriptive
+    'fast','slow','broken','clean','secure','stable','active','offline','online','live','dead',
+    'fresh','stale','heavy','light','sharp','smooth','rough','quiet','loud','bright','dark',
+    'simple','complex','basic','advanced','modern','legacy','custom','default','manual','auto',
+    // Action
+    'run','stop','start','push','pull','send','load','save','read','write','copy','move',
+    'delete','create','update','check','scan','mount','boot','sync','ping','trace','dump',
+    'flash','wipe','clone','patch','lock','unlock','grant','revoke','block','allow','deny',
+    // Abstract
+    'speed','quality','control','access','power','memory','storage','network','security',
+    'performance','reliability','efficiency','bandwidth','latency','throughput','capacity',
+    'uptime','downtime','backup','restore','monitor','alert','notify','report','audit',
 ];
 
-let typePhrase = '', typeStart = 0;
-let typeErrors = 0, typeCharsTyped = 0;
+let typeTestActive = false;
+let typeTimerInterval = null;
+let _typeMode = null;   // { type: 'time', seconds: N } or { type: 'words', count: N }
+let _typeTarget = '';
+let _typeStart = 0;
+let _typeErrors = 0;
 
-const TYPING_LIMIT_SEC = 60;
+function _generatePassage(wordCount) {
+    const words = [];
+    for (let i = 0; i < wordCount; i++) {
+        words.push(TYPE_WORDS[Math.floor(Math.random() * TYPE_WORDS.length)]);
+    }
+    return words.join(' ');
+}
 
 function startTypingTest() {
     if (typeof stopAllGames === 'function') stopAllGames();
-    typeTestActive = true;
-    typePhrase = TYPE_PHRASES[Math.floor(Math.random() * TYPE_PHRASES.length)];
-    typeStart = 0;
-    typeErrors = 0;
-    typeCharsTyped = 0;
+    typeTestActive = false;
+    _typeMode = null;
+    _typeTarget = '';
+    _typeStart = 0;
+    _typeErrors = 0;
+    clearInterval(typeTimerInterval);
 
-    // Hide the terminal input bar — typing happens INSIDE the modal so it doesn't
-    // bleed into the chat or look like the user is typing in two places.
     const termInputWrap = document.querySelector('.terminal-input-wrapper');
     if (termInputWrap) { termInputWrap._origDisplay = termInputWrap.style.display; termInputWrap.style.display = 'none'; }
 
@@ -71,54 +66,283 @@ function startTypingTest() {
     guiTitle.textContent = 'TYPING TEST';
     nexusCanvas.style.display = 'none';
 
-    // Build the modal ONCE — separate sub-elements for phrase, stats, and input.
-    // Subsequent updates only touch the inner spans, so the <input> is never destroyed
-    // (which is what was killing focus/events after the first keystroke).
+    // Mode select screen
+    const modeBtn = (label, sub, mode) => `
+        <button onclick="window._startTypeMode(${JSON.stringify(mode).replace(/"/g, '&quot;')})"
+            style="flex:1; min-width:120px; padding:16px 12px; background:rgba(0,255,255,0.04); border:1px solid rgba(0,255,255,0.2); border-radius:8px; cursor:pointer; font-family:'Fira Code',monospace; text-align:center; transition:0.15s; color:#ccc;"
+            onmouseover="this.style.borderColor='#0ff'; this.style.background='rgba(0,255,255,0.1)';"
+            onmouseout="this.style.borderColor='rgba(0,255,255,0.2)'; this.style.background='rgba(0,255,255,0.04)';">
+            <div style="font-size:1.3rem; font-weight:800; color:#0ff;">${label}</div>
+            <div style="font-size:0.6rem; color:#666; margin-top:4px; letter-spacing:1px;">${sub}</div>
+        </button>`;
+
     guiContent.innerHTML = `
-        <div style="margin-bottom:10px;">
-            <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:#555;margin-bottom:4px;">
-                <span>PROGRESS</span><span id="type-progress-pct">0%</span>
+        <div style="padding:20px 16px; max-width:480px; margin:0 auto;">
+            <div style="text-align:center; margin-bottom:20px;">
+                <div style="font-size:0.7rem; color:#888; letter-spacing:2px; margin-bottom:6px;">CHOOSE A MODE</div>
             </div>
-            <div style="height:3px;background:#111;border-radius:2px;">
-                <div id="type-progress-bar" style="height:3px;width:0%;background:#0ff;border-radius:2px;transition:width 0.1s;"></div>
-            </div>
-        </div>
-        <div id="type-phrase-view" style="font-size:0.88rem;line-height:1.9;letter-spacing:0.03em;word-break:break-word;margin-bottom:14px;font-family:'Fira Code',monospace;"></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
-            <div style="background:#0a0a1a;border:1px solid #1a1a2e;padding:8px;border-radius:4px;">
-                <div id="type-timer-val" style="font-size:1.4rem;font-weight:bold;color:#0ff;">${TYPING_LIMIT_SEC}s</div>
-                <div style="font-size:0.62rem;color:#555;letter-spacing:1px;margin-top:2px;">TIME LEFT</div>
-            </div>
-            <div style="background:#0a0a1a;border:1px solid #1a1a2e;padding:8px;border-radius:4px;">
-                <div id="type-wpm-val" style="font-size:1.4rem;font-weight:bold;color:#0ff;">0</div>
-                <div style="font-size:0.62rem;color:#555;letter-spacing:1px;margin-top:2px;">WPM</div>
-            </div>
-            <div style="background:#0a0a1a;border:1px solid #1a1a2e;padding:8px;border-radius:4px;">
-                <div id="type-err-val" style="font-size:1.4rem;font-weight:bold;color:#0f0;">0</div>
-                <div style="font-size:0.62rem;color:#555;letter-spacing:1px;margin-top:2px;">ERRORS</div>
-            </div>
-        </div>
-        <input id="type-own-input" type="text" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="start typing here…"
-               style="width:100%; box-sizing:border-box; margin-top:14px; padding:10px 12px; font-family:'Fira Code',monospace; font-size:0.95rem; background:#000; color:#0ff; border:1px solid var(--accent); border-radius:6px; outline:none;">
-        <div id="type-result-overlay"></div>
-        <p style="font-size:0.7rem;color:#333;text-align:center;margin-top:8px;">${TYPING_LIMIT_SEC}s timer · close X to cancel</p>`;
 
-    // Initial paint of the phrase view
-    renderTypeTest('');
+            <div style="font-size:0.62rem; color:#666; letter-spacing:1.5px; margin-bottom:8px;">TIMED</div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;">
+                ${modeBtn('15s', 'SPRINT', {type:'time',seconds:15})}
+                ${modeBtn('30s', 'SHORT', {type:'time',seconds:30})}
+                ${modeBtn('60s', 'STANDARD', {type:'time',seconds:60})}
+                ${modeBtn('120s', 'ENDURANCE', {type:'time',seconds:120})}
+            </div>
 
-    // Wire up the input once + steal focus
+            <div style="font-size:0.62rem; color:#666; letter-spacing:1.5px; margin-bottom:8px;">WORD COUNT</div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                ${modeBtn('25', 'WORDS', {type:'words',count:25})}
+                ${modeBtn('50', 'WORDS', {type:'words',count:50})}
+                ${modeBtn('100', 'WORDS', {type:'words',count:100})}
+            </div>
+
+            <p style="font-size:0.6rem; color:#444; text-align:center; margin-top:16px; line-height:1.5;">
+                Timed: type as many words as you can before time runs out.<br>
+                Word count: finish the passage as fast as you can.
+            </p>
+        </div>`;
+}
+
+window._startTypeMode = function(mode) {
+    _typeMode = mode;
+    typeTestActive = true;
+    _typeStart = 0;
+    _typeErrors = 0;
+    clearInterval(typeTimerInterval);
+
+    // Generate passage
+    if (mode.type === 'time') {
+        _typeTarget = _generatePassage(200); // plenty of words for any timer
+    } else {
+        _typeTarget = _generatePassage(mode.count);
+    }
+
+    const limitLabel = mode.type === 'time' ? `${mode.seconds}s` : `${mode.count} words`;
+
+    guiContent.innerHTML = `
+        <div style="padding:14px 16px; max-width:520px; margin:0 auto;">
+            <!-- Progress bar -->
+            <div style="margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; font-size:0.62rem; color:#555; margin-bottom:4px;">
+                    <span>${limitLabel}</span><span id="type-progress-pct">0%</span>
+                </div>
+                <div style="height:3px; background:#111; border-radius:2px;">
+                    <div id="type-progress-bar" style="height:3px; width:0%; background:#0ff; border-radius:2px; transition:width 0.1s;"></div>
+                </div>
+            </div>
+
+            <!-- Phrase display -->
+            <div id="type-phrase-view" style="font-size:0.88rem; line-height:1.9; letter-spacing:0.03em; word-break:break-word; margin-bottom:14px; font-family:'Fira Code',monospace; max-height:180px; overflow-y:auto; scrollbar-width:none;"></div>
+
+            <!-- Stats -->
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; text-align:center;">
+                <div style="background:#0a0a1a; border:1px solid #1a1a2e; padding:8px; border-radius:6px;">
+                    <div id="type-timer-val" style="font-size:1.4rem; font-weight:bold; color:#0ff;">${mode.type === 'time' ? mode.seconds + 's' : '--'}</div>
+                    <div style="font-size:0.58rem; color:#555; letter-spacing:1px; margin-top:2px;">${mode.type === 'time' ? 'TIME LEFT' : 'ELAPSED'}</div>
+                </div>
+                <div style="background:#0a0a1a; border:1px solid #1a1a2e; padding:8px; border-radius:6px;">
+                    <div id="type-wpm-val" style="font-size:1.4rem; font-weight:bold; color:#0ff;">0</div>
+                    <div style="font-size:0.58rem; color:#555; letter-spacing:1px; margin-top:2px;">WPM</div>
+                </div>
+                <div style="background:#0a0a1a; border:1px solid #1a1a2e; padding:8px; border-radius:6px;">
+                    <div id="type-acc-val" style="font-size:1.4rem; font-weight:bold; color:#0f0;">100%</div>
+                    <div style="font-size:0.58rem; color:#555; letter-spacing:1px; margin-top:2px;">ACCURACY</div>
+                </div>
+            </div>
+
+            <!-- Input -->
+            <input id="type-own-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                   placeholder="start typing..."
+                   style="width:100%; box-sizing:border-box; margin-top:14px; padding:12px 14px; font-family:'Fira Code',monospace; font-size:0.95rem; background:#000; color:#0ff; border:1px solid rgba(0,255,255,0.3); border-radius:8px; outline:none;">
+
+            <!-- Result overlay -->
+            <div id="type-result-overlay"></div>
+
+            <!-- Buttons -->
+            <div style="display:flex; gap:8px; margin-top:12px;">
+                <button onclick="window._startTypeMode(${JSON.stringify(_typeMode).replace(/"/g, '&quot;')})"
+                    style="flex:1; padding:10px; font-family:'Fira Code',monospace; font-size:0.72rem; font-weight:600; letter-spacing:1.5px; background:transparent; border:1px solid #444; color:#888; border-radius:6px; cursor:pointer;">
+                    RESTART</button>
+                <button onclick="startTypingTest()"
+                    style="flex:1; padding:10px; font-family:'Fira Code',monospace; font-size:0.72rem; font-weight:600; letter-spacing:1.5px; background:transparent; border:1px solid #444; color:#888; border-radius:6px; cursor:pointer;">
+                    CHANGE MODE</button>
+            </div>
+        </div>`;
+
+    // Render initial phrase
+    _renderTypePhrase('');
+
+    // Focus input
     setTimeout(() => {
-        const own = document.getElementById('type-own-input');
-        if (own) {
-            own.value = '';
-            own.focus();
-            own.addEventListener('input', () => {
-                if (!typeStart) typeStart = Date.now();
-                if (!typeTimerInterval) typeTimerInterval = setInterval(tickTypeTimer, 200);
-                checkTypingTest(own.value);
+        const inp = document.getElementById('type-own-input');
+        if (inp) {
+            inp.value = '';
+            inp.focus();
+            inp.addEventListener('input', () => {
+                if (!_typeStart) {
+                    _typeStart = Date.now();
+                    typeTimerInterval = setInterval(_tickTypeTimer, 100);
+                }
+                _checkTyping(inp.value);
             });
         }
     }, 50);
+};
+
+function _renderTypePhrase(typed) {
+    const target = _typeTarget;
+    let chars = '';
+    for (let i = 0; i < Math.min(target.length, typed.length + 80); i++) {
+        if (i < typed.length) {
+            if (typed[i] === target[i]) {
+                chars += `<span style="color:#0f0">${target[i] === ' ' ? '&nbsp;' : target[i]}</span>`;
+            } else {
+                chars += `<span style="color:#f55;text-decoration:underline">${target[i] === ' ' ? '&nbsp;' : target[i]}</span>`;
+            }
+        } else if (i === typed.length) {
+            chars += `<span style="color:#0ff;border-left:2px solid #0ff">${target[i] === ' ' ? '&nbsp;' : target[i]}</span>`;
+        } else {
+            chars += `<span style="color:#333">${target[i] === ' ' ? '&nbsp;' : target[i]}</span>`;
+        }
+    }
+    const el = document.getElementById('type-phrase-view');
+    if (el) el.innerHTML = chars;
+}
+
+function _tickTypeTimer() {
+    if (!typeTestActive || !_typeStart) return;
+    const elapsed = (Date.now() - _typeStart) / 1000;
+    const timerEl = document.getElementById('type-timer-val');
+    const inp = document.getElementById('type-own-input');
+    const typed = inp ? inp.value : '';
+
+    if (_typeMode.type === 'time') {
+        const remain = Math.max(0, _typeMode.seconds - elapsed);
+        if (timerEl) timerEl.textContent = `${Math.ceil(remain)}s`;
+        // Progress
+        const pct = Math.min(100, (elapsed / _typeMode.seconds) * 100);
+        const bar = document.getElementById('type-progress-bar');
+        const pctEl = document.getElementById('type-progress-pct');
+        if (bar) bar.style.width = `${pct}%`;
+        if (pctEl) pctEl.textContent = `${Math.round(pct)}%`;
+
+        if (remain <= 0) {
+            _finishTyping(typed, elapsed);
+            return;
+        }
+    } else {
+        if (timerEl) timerEl.textContent = `${Math.round(elapsed)}s`;
+    }
+
+    // Live WPM
+    const words = typed.trim().split(/\s+/).filter(w => w).length;
+    const wpm = elapsed > 1 ? Math.round(words / (elapsed / 60)) : 0;
+    const wpmEl = document.getElementById('type-wpm-val');
+    if (wpmEl) wpmEl.textContent = wpm;
+
+    // Live accuracy
+    const accEl = document.getElementById('type-acc-val');
+    if (accEl && typed.length > 0) {
+        const correct = [...typed].filter((c, i) => c === _typeTarget[i]).length;
+        const acc = Math.round((correct / typed.length) * 100);
+        accEl.textContent = `${acc}%`;
+        accEl.style.color = acc >= 95 ? '#0f0' : acc >= 80 ? '#ff0' : '#f55';
+    }
+}
+
+function _checkTyping(typed) {
+    if (!typeTestActive) return;
+    _renderTypePhrase(typed);
+
+    // Count errors
+    _typeErrors = 0;
+    for (let i = 0; i < typed.length; i++) {
+        if (typed[i] !== _typeTarget[i]) _typeErrors++;
+    }
+
+    // Word count mode: check if finished
+    if (_typeMode.type === 'words' && typed.length >= _typeTarget.length) {
+        const elapsed = (Date.now() - _typeStart) / 1000;
+        _finishTyping(typed, elapsed);
+        return;
+    }
+
+    // Progress for word count mode
+    if (_typeMode.type === 'words') {
+        const pct = Math.min(100, (typed.length / _typeTarget.length) * 100);
+        const bar = document.getElementById('type-progress-bar');
+        const pctEl = document.getElementById('type-progress-pct');
+        if (bar) bar.style.width = `${pct}%`;
+        if (pctEl) pctEl.textContent = `${Math.round(pct)}%`;
+    }
+}
+
+function _finishTyping(typed, elapsed) {
+    clearInterval(typeTimerInterval);
+    typeTestActive = false;
+
+    const inp = document.getElementById('type-own-input');
+    if (inp) inp.disabled = true;
+
+    const words = typed.trim().split(/\s+/).filter(w => w).length;
+    const wpm = elapsed > 1 ? Math.round(words / (elapsed / 60)) : 0;
+    const correct = [...typed].filter((c, i) => c === _typeTarget[i]).length;
+    const accuracy = typed.length > 0 ? Math.round((correct / typed.length) * 100) : 0;
+    const adjustedWpm = Math.round(wpm * (accuracy / 100));
+
+    // Rating
+    let rating, ratingColor;
+    if (adjustedWpm >= 120) { rating = 'LEGENDARY'; ratingColor = '#f0f'; }
+    else if (adjustedWpm >= 80) { rating = 'ELITE'; ratingColor = '#0f0'; }
+    else if (adjustedWpm >= 60) { rating = 'FAST'; ratingColor = '#0ff'; }
+    else if (adjustedWpm >= 40) { rating = 'SOLID'; ratingColor = '#ff0'; }
+    else if (adjustedWpm >= 25) { rating = 'AVERAGE'; ratingColor = '#fa0'; }
+    else { rating = 'BEGINNER'; ratingColor = '#f55'; }
+
+    const modeLabel = _typeMode.type === 'time' ? `${_typeMode.seconds}s` : `${_typeMode.count} words`;
+
+    const overlay = document.getElementById('type-result-overlay');
+    if (overlay) {
+        overlay.innerHTML = `
+            <div style="margin-top:14px; padding:16px; border:2px solid ${ratingColor}; border-radius:8px; text-align:center; background:rgba(0,0,0,0.5);">
+                <div style="color:${ratingColor}; font-size:1.2rem; font-weight:800; letter-spacing:3px; text-shadow:0 0 10px ${ratingColor};">${rating}</div>
+                <div style="margin-top:10px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                    <div>
+                        <div style="font-size:1.6rem; font-weight:800; color:#0ff;">${wpm}</div>
+                        <div style="font-size:0.55rem; color:#666; letter-spacing:1px;">RAW WPM</div>
+                    </div>
+                    <div>
+                        <div style="font-size:1.6rem; font-weight:800; color:#0f0;">${adjustedWpm}</div>
+                        <div style="font-size:0.55rem; color:#666; letter-spacing:1px;">ADJ WPM</div>
+                    </div>
+                    <div>
+                        <div style="font-size:1.6rem; font-weight:800; color:${accuracy >= 95 ? '#0f0' : accuracy >= 80 ? '#ff0' : '#f55'};">${accuracy}%</div>
+                        <div style="font-size:0.55rem; color:#666; letter-spacing:1px;">ACCURACY</div>
+                    </div>
+                </div>
+                <div style="margin-top:8px; font-size:0.65rem; color:#555;">${modeLabel} · ${elapsed.toFixed(1)}s · ${words} words · ${_typeErrors} errors</div>
+            </div>`;
+    }
+
+    // Update the main stats
+    const wpmEl = document.getElementById('type-wpm-val');
+    if (wpmEl) wpmEl.textContent = adjustedWpm;
+    const timerEl = document.getElementById('type-timer-val');
+    if (timerEl) timerEl.textContent = _typeMode.type === 'time' ? '0s' : `${elapsed.toFixed(1)}s`;
+
+    // Submit to leaderboard
+    if (typeof window.submitScore === 'function') {
+        window.submitScore('typing', adjustedWpm);
+    }
+
+    // Print to terminal
+    if (typeof printToTerminal === 'function') {
+        printToTerminal(`Typing test (${modeLabel}): ${adjustedWpm} WPM adjusted · ${wpm} raw · ${accuracy}% accuracy · ${elapsed.toFixed(1)}s`, 'conn-ok');
+    }
+
+    // Restore terminal input
+    if (typeof _restoreTerminalInputBar === 'function') _restoreTerminalInputBar();
 }
 
 // Restore terminal input bar when test ends/closes
@@ -129,118 +353,3 @@ function _restoreTerminalInputBar() {
     clearInterval(typeTimerInterval);
 }
 window._restoreTerminalInputBar = _restoreTerminalInputBar;
-
-function renderTypeTest(typed) {
-    const target = typePhrase;
-    // Build character-by-character highlighted target
-    let chars = '';
-    for (let i = 0; i < target.length; i++) {
-        if (i < typed.length) {
-            if (typed[i] === target[i]) {
-                chars += `<span style="color:#0f0">${target[i] === ' ' ? '&nbsp;' : target[i]}</span>`;
-            } else {
-                chars += `<span style="color:#f55;text-decoration:underline">${target[i] === ' ' ? '' : target[i]}</span>`;
-            }
-        } else if (i === typed.length) {
-            chars += `<span style="color:#0ff;border-left:2px solid #0ff">${target[i] === ' ' ? '&nbsp;' : target[i]}</span>`;
-        } else {
-            chars += `<span style="color:#444">${target[i] === ' ' ? '&nbsp;' : target[i]}</span>`;
-        }
-    }
-
-    const elapsed = typeStart ? ((Date.now() - typeStart) / 1000) : 0;
-    const remain = Math.max(0, TYPING_LIMIT_SEC - elapsed);
-    const wordsTyped = typed.trim().split(/\s+/).filter(w => w).length;
-    const wpm = elapsed > 1 ? Math.round(wordsTyped / (elapsed / 60)) : 0;
-    const pct = Math.min(100, Math.round((typed.length / Math.max(1, target.length)) * 100));
-
-    // Update sub-elements only — never replace the whole guiContent (would destroy the input)
-    const phraseEl = document.getElementById('type-phrase-view');
-    if (phraseEl) phraseEl.innerHTML = chars;
-    const pctTxt = document.getElementById('type-progress-pct');
-    if (pctTxt) pctTxt.textContent = `${pct}%`;
-    const pctBar = document.getElementById('type-progress-bar');
-    if (pctBar) pctBar.style.width = `${pct}%`;
-    const timerEl = document.getElementById('type-timer-val');
-    if (timerEl) timerEl.textContent = `${Math.ceil(remain)}s`;
-    const wpmEl = document.getElementById('type-wpm-val');
-    if (wpmEl) wpmEl.textContent = wpm;
-    const errEl = document.getElementById('type-err-val');
-    if (errEl) {
-        errEl.textContent = typeErrors;
-        errEl.style.color = typeErrors > 0 ? '#f55' : '#0f0';
-    }
-}
-
-function tickTypeTimer() {
-    if (!typeTestActive || !typeStart) return;
-    const secs = (Date.now() - typeStart) / 1000;
-    const remain = Math.max(0, TYPING_LIMIT_SEC - secs);
-    const el = document.getElementById('type-timer-val');
-    if (el) el.textContent = `${Math.ceil(remain)}s`;
-    const own = document.getElementById('type-own-input');
-    const typed = own ? own.value : '';
-    const wordsTyped = typed.trim().split(/\s+/).filter(w => w).length;
-    const wpm = secs > 1 ? Math.round(wordsTyped / (secs / 60)) : 0;
-    const wEl = document.getElementById('type-wpm-val');
-    if (wEl) wEl.textContent = wpm;
-    if (remain <= 0) {
-        clearInterval(typeTimerInterval);
-        typeTestActive = false;
-        const acc = typed ? Math.round(((typed.length - typeErrors) / Math.max(1, typed.length)) * 100) : 0;
-        const overlay = document.getElementById('type-result-overlay');
-        if (overlay) {
-            overlay.innerHTML = `
-                <div style="margin-top:12px;padding:12px;border:2px solid #f55;text-align:center;background:#1a0a0a;">
-                    <div style="color:#f55;font-size:1.05rem;font-weight:bold;letter-spacing:2px;">TIME UP</div>
-                    <div style="margin-top:6px;font-size:0.85rem;color:#fff;">${wpm} WPM · ${acc}% accuracy</div>
-                </div>`;
-        }
-        if (typeof _restoreTerminalInputBar === 'function') _restoreTerminalInputBar();
-    }
-}
-
-function checkTypingTest(typed) {
-    if (!typeTestActive) return false;
-    if (typeStart === 0) {
-        typeStart = Date.now();
-        clearInterval(typeTimerInterval);
-        typeTimerInterval = setInterval(tickTypeTimer, 100);
-    }
-
-    // Count errors
-    typeErrors = 0;
-    for (let i = 0; i < typed.length; i++) {
-        if (typed[i] !== typePhrase[i]) typeErrors++;
-    }
-
-    renderTypeTest(typed);
-
-    if (typed === typePhrase) {
-        const elapsed = (Date.now() - typeStart) / 1000;
-        const wpm = Math.round((typePhrase.split(' ').length) / (elapsed / 60));
-        const accuracy = Math.round(((typePhrase.length - typeErrors) / typePhrase.length) * 100);
-        clearInterval(typeTimerInterval);
-        typeTestActive = false;
-
-        // Show final result overlay in the dedicated overlay div (not by replacing guiContent)
-        const overlay = document.getElementById('type-result-overlay');
-        if (overlay) {
-            overlay.innerHTML = `
-                <div style="margin-top:12px;padding:12px;border:2px solid #0ff;text-align:center;background:#0a0f1a;">
-                    <div style="color:#0ff;font-size:1.1rem;font-weight:bold;letter-spacing:2px;">COMPLETE</div>
-                    <div style="margin-top:6px;font-size:0.85rem;color:#fff;">${wpm} WPM &nbsp;&nbsp; ${accuracy}% accuracy &nbsp;&nbsp; ${elapsed.toFixed(1)}s</div>
-                    ${wpm > 80 ? '<div style="color:#0f0;font-size:0.75rem;margin-top:4px;">Elite typist</div>' : wpm > 50 ? '<div style="color:#ff0;font-size:0.75rem;margin-top:4px;">Nice speed!</div>' : '<div style="color:#888;font-size:0.75rem;margin-top:4px;">Keep practicing.</div>'}
-                </div>`;
-        }
-        printToTerminal(`Typing test complete: ${wpm} WPM  ${accuracy}% accuracy  ${elapsed.toFixed(1)}s`, 'conn-ok');
-        return true;
-    }
-    return false;
-}
-
-// Expose to global so commands_core.js startTypingTest call works + terminal.js typeof checks find them
-window.startTypingTest  = startTypingTest;
-window.renderTypeTest   = renderTypeTest;
-window.checkTypingTest  = checkTypingTest;
-window.tickTypeTimer    = tickTypeTimer;
