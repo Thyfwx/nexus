@@ -54,8 +54,8 @@
         #words .correct { color: #0f0; }
         #words .wrong { color: #f55; text-decoration: underline; }
         #words .current { color: #fff; border-bottom: 2px solid #0ff; }
-        #words .upcoming { color: #333; }
-        #words .done { color: rgba(0,255,0,0.25); }
+        #words .upcoming { color: #555; }
+        #words .done { color: rgba(0,255,0,0.2); }
 
         /* Prompt */
         .prompt-text { color: #333; font-size: 0.72rem; text-align: center; margin-bottom: 16px; }
@@ -116,10 +116,7 @@
     </div>
 
     <div class="container">
-        <!-- Settings -->
-        <div class="settings-bar">
-            <label><input type="checkbox" id="tt-ads-toggle" checked onchange="document.querySelectorAll('.ad-slot').forEach(a=>a.classList.toggle('hidden',!this.checked))"> ads</label>
-        </div>
+        <!-- Settings will go here in future updates -->
 
         <!-- Mode tabs -->
         <div class="tabs">
@@ -140,13 +137,6 @@
             <button class="opt" data-mode="words-100">100</button>
         </div>
 
-        <!-- Ad: top -->
-        <div class="ad-slot">
-            <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-3034789470490055"
-                 data-ad-slot="6916029228" data-ad-format="auto" data-full-width-responsive="true"></ins>
-            <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
-        </div>
-
         <!-- Prompt -->
         <div class="prompt-text" id="prompt">click here or start typing</div>
 
@@ -163,11 +153,10 @@
         <!-- Result (hidden until done) -->
         <div id="result" style="display:none;"></div>
 
-        <!-- Ad: bottom -->
-        <div class="ad-slot">
+        <!-- Ad: shows after test completes (injected by finish()) -->
+        <div id="result-ad" class="ad-slot" style="display:none;">
             <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-3034789470490055"
                  data-ad-slot="6916029228" data-ad-format="auto" data-full-width-responsive="true"></ins>
-            <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
         </div>
     </div>
 
@@ -221,6 +210,7 @@
         words = gen(mode.type === 'time' ? 200 : mode.value);
         document.getElementById('result').style.display = 'none';
         document.getElementById('words').style.display = '';
+        const adSlot = document.getElementById('result-ad'); if (adSlot) adSlot.style.display = 'none';
         document.getElementById('prompt').style.display = '';
         document.getElementById('s-wpm').textContent = '0 wpm';
         document.getElementById('s-wpm').style.color = '#444';
@@ -396,6 +386,13 @@
                 <div class="result-hint">tab to restart</div>
             </div>`;
 
+        // Show ad on results
+        const adEl = document.getElementById('result-ad');
+        if (adEl) {
+            adEl.style.display = '';
+            try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (_) {}
+        }
+
         // Leaderboard submit
         try {
             const apiBase = location.hostname === 'localhost' || location.hostname === '127.0.0.1' ? '' : 'https://api.thyfwxit.com';
@@ -433,6 +430,11 @@
             mode = { type: m[0], value: parseInt(m[1]) };
             prepare();
         });
+    });
+
+    // Prevent space from scrolling the page — ALWAYS
+    document.addEventListener('keydown', (e) => {
+        if (e.key === ' ' || e.key === 'Backspace') e.preventDefault();
     });
 
     // Init
