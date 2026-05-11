@@ -58,70 +58,110 @@
         </div>
 
         <h2>What I collect from every visitor</h2>
+        <p>If you visit thyfwxit.com or thyfwxit.com/nexus, the following is collected automatically:</p>
         <ul>
-            <li><strong>Standard server logs:</strong> IP address, browser user-agent, timestamp, page requested. Used for security, debugging, and basic analytics. Retained ~30 days.</li>
-            <li><strong>Approximate geolocation:</strong> derived from IP via ipinfo.io. Used to show region-appropriate content and helplines. Not stored long-term.</li>
-            <li><strong>Cookies:</strong> a single session cookie named <code>nexus_session</code> (HTTP-only, Secure, SameSite=None on HTTPS). Holds your sign-in state. Cleared when you sign out.</li>
+            <li><strong>IP address:</strong> logged by the server on every request. Used for security (blocking abusive users), debugging errors, and basic traffic analytics. Your IP is also used to determine your approximate geographic region via ipinfo.io so the speed test can show your location. IP logs are kept for approximately 30 days, then automatically rotated.</li>
+            <li><strong>Browser information:</strong> your browser name, version, operating system, and device type (the "user-agent" string). This helps me understand what devices people use and debug rendering issues.</li>
+            <li><strong>Page requests:</strong> which pages you visit and when. Standard web server behavior.</li>
+            <li><strong>Connection metadata:</strong> the Maintenance Hub reads your browser's reported CPU core count, device memory, screen resolution, connection type, and battery status. This data is displayed to YOU on your screen — it is not sent to or stored on my server.</li>
         </ul>
 
         <h2>What I collect when you sign in with Google</h2>
+        <p>Nexus uses Google OAuth for sign-in. When you sign in:</p>
         <ul>
-            <li>Your Google account name, email, and profile picture (via OAuth).</li>
-            <li>A persistent ID linking your account to your saved settings (custom AI memory, leaderboard handle, image-generation history).</li>
+            <li>Google sends me your <strong>name, email address, and profile picture</strong>. I never see or receive your Google password.</li>
+            <li>Your name, email, and profile picture are stored in your browser's <code>localStorage</code> so the terminal can display your identity. They are NOT stored on my server in plain text.</li>
+            <li>My server stores a <strong>hashed account ID</strong> (derived from your Google ID) linked to your leaderboard handle and image generation quota counter. This is how I track how many images you've generated today without storing your email on the server.</li>
+            <li>Google OAuth only requests the <strong>openid, email, and profile</strong> scopes. I cannot access your Google Drive, Gmail, contacts, calendar, or any other Google service.</li>
         </ul>
-        <p>Email and profile picture stay on your device's <code>localStorage</code>. The server stores only an account ID hash plus your chosen leaderboard handle.</p>
 
         <h2>What I collect when you chat with the AI</h2>
+        <p>This is the most important section. Read it carefully.</p>
         <ul>
-            <li>Every chat prompt and AI reply is forwarded to the AI provider (Groq, HuggingFace, or Google Gemini) to generate a response. I do not log the full text on our servers permanently — chats live in your browser's memory only and are cleared when you close the tab.</li>
-            <li>If you trigger a critical-content moderation pattern (violence, CSAM, etc.), the offending prompt is forwarded to the operator's private Discord channel for review and a temporary lockout is applied. This is for safety enforcement, not advertising.</li>
-            <li><strong>Guests:</strong> chats are session-only. Closing the tab erases everything.</li>
-            <li><strong>Google-signed users:</strong> the last few messages per mode persist in your browser's <code>localStorage</code> so the AI can follow context. You can wipe them anytime via the AI Profile panel.</li>
+            <li><strong>Your prompts leave my server.</strong> Every message you type is forwarded to a third-party AI provider (Groq, Google Gemini, or Hugging Face) to generate a response. I do not permanently store the full text of your conversations on my server.</li>
+            <li><strong>I cannot control what AI providers do with your input.</strong> Once your prompt leaves my server, it is subject to that provider's own privacy policy and data handling practices. This is why you should never enter sensitive personal information.</li>
+            <li><strong>Conversations live in your browser only.</strong> Chat history is stored in your browser's memory (RAM) during the session and in <code>localStorage</code> for signed-in users. Closing the tab clears session memory. Signed-in users can clear localStorage anytime via the AI Profile panel.</li>
+            <li><strong>Moderation logging:</strong> if you trigger a critical-content moderation pattern (prompts involving violence toward specific people, CSAM, weapon synthesis, school violence, kidnapping, or body disposal), the offending prompt text and your IP address are forwarded to my private Discord channel for manual review. A temporary lockout is applied automatically. This is a safety measure, not advertising or data mining.</li>
+            <li><strong>Guests:</strong> everything is session-only. Close the tab and it's gone. No account, no persistent data.</li>
+            <li><strong>Signed-in users:</strong> the last several messages per chat mode persist in your browser's <code>localStorage</code> so the AI can maintain context across page reloads. You can wipe this anytime. It never leaves your browser.</li>
         </ul>
 
         <h2>What I collect when you generate an image</h2>
         <ul>
-            <li>Your text prompt is sent to the image provider (Replicate, Pollinations, or Hugging Face). The generated image is base64-encoded and saved to your browser's storage so you can view your history. Images are NOT stored on our server.</li>
-            <li>Quota tracking: a counter of how many images you've generated today is kept server-side, tied to your account ID hash, so we can enforce daily limits.</li>
+            <li><strong>Your text prompt is sent to the image provider.</strong> Depending on availability, this is Replicate (paid, higher quality), Pollinations (free), or Hugging Face (free fallback). The provider generates the image and returns it.</li>
+            <li><strong>Generated images are stored in your browser only.</strong> The image data (base64 encoded) is saved to your browser's <code>localStorage</code> so you can view your generation history. Images are NOT uploaded to or stored on my server.</li>
+            <li><strong>Quota tracking:</strong> my server keeps a counter of how many images you've generated today, tied to your hashed account ID. This is how I enforce daily limits (15/day for signed-in users, 150/day for premium). The counter resets at midnight UTC. I do not store what you generated — just how many times.</li>
         </ul>
 
-        <h2>Third-party services</h2>
+        <h2>What I collect when you play games</h2>
         <ul>
-            <li><strong>Google AdSense</strong> (ads) — uses cookies and may collect anonymous usage data to show relevant ads. Opt out: <a href="https://adssettings.google.com" target="_blank" rel="noopener">adssettings.google.com</a>. Google's policies: <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">policies.google.com/technologies/partner-sites</a></li>
-            <li><strong>Google OAuth</strong> — sign-in only. I never receive your password.</li>
-            <li><strong>Groq, Hugging Face, Replicate, Google Gemini, Pollinations</strong> — AI inference providers. Your prompts and image requests are forwarded to them. Subject to their respective privacy policies.</li>
-            <li><strong>ipinfo.io</strong> — IP-to-region lookup. No personal data shared.</li>
-            <li><strong>Cloudflare Pages</strong> — frontend hosting. Standard CDN logs.</li>
-            <li><strong>Render.com</strong> — backend hosting.</li>
+            <li><strong>Leaderboard submissions:</strong> if you submit a high score, your chosen handle, score, game name, and timestamp are stored on my server. Your email is NOT attached to leaderboard entries — only your handle.</li>
+            <li><strong>Game state:</strong> nothing about your gameplay is sent to the server in real-time. Games run entirely in your browser. Only final scores are submitted if you choose to.</li>
         </ul>
 
-        <h2>Cookies</h2>
+        <h2>What I collect from the speed test</h2>
         <ul>
-            <li><strong>nexus_session</strong> — session sign-in state. Set by Nexus. Lasts 30 days.</li>
-            <li><strong>AdSense cookies</strong> — set by Google when ads load. Used for ad personalization and frequency capping. Managed via Google's settings link above.</li>
-            <li>No other tracking cookies.</li>
+            <li>The speed test sends and receives random data between your browser and my server to measure bandwidth. No personal data is transmitted during the test. Your IP address is visible to the server (as with any web request) and is shown to you in the results. Speed test results are not stored on my server.</li>
+        </ul>
+
+        <h2>Browser storage (localStorage)</h2>
+        <p>Nexus stores the following in your browser's <code>localStorage</code> — this data never leaves your device unless you explicitly share it:</p>
+        <ul>
+            <li>Your sign-in identity (name, email, profile picture, owner status)</li>
+            <li>Chat history per mode (last several messages for AI context)</li>
+            <li>AI memory notes you've written in the AI Profile</li>
+            <li>Generated image history</li>
+            <li>Command history (terminal input history)</li>
+            <li>Accessibility preferences</li>
+            <li>Current chat mode selection</li>
+        </ul>
+        <p>You can clear all of this at any time by signing out, using "Forget All" in the profile dropdown, or clearing your browser's site data for thyfwxit.com.</p>
+
+        <h2>Third-party services and what they receive</h2>
+        <ul>
+            <li><strong>Groq</strong> (groq.com) — receives your chat prompts to generate AI text responses. Primary AI provider. Subject to <a href="https://groq.com/privacy-policy/" target="_blank" rel="noopener">Groq's privacy policy</a>.</li>
+            <li><strong>Google Gemini</strong> (ai.google.dev) — receives your chat prompts as a fallback AI provider. Subject to <a href="https://ai.google.dev/terms" target="_blank" rel="noopener">Google's AI terms</a>.</li>
+            <li><strong>Hugging Face</strong> (huggingface.co) — receives prompts for intent classification, text-to-speech, and image generation fallback. Subject to <a href="https://huggingface.co/privacy" target="_blank" rel="noopener">HF's privacy policy</a>.</li>
+            <li><strong>Replicate</strong> (replicate.com) — receives image generation prompts. Paid provider with $15/month budget cap. Subject to <a href="https://replicate.com/privacy" target="_blank" rel="noopener">Replicate's privacy policy</a>.</li>
+            <li><strong>Pollinations</strong> (pollinations.ai) — receives image generation prompts as free fallback.</li>
+            <li><strong>Google OAuth</strong> (accounts.google.com) — handles sign-in authentication. I never receive your Google password. Only name, email, and profile picture are shared with me.</li>
+            <li><strong>Google AdSense</strong> (googlesyndication.com) — displays ads on standalone pages (speed test, leaderboard, etc.). May use cookies for ad personalization. You can manage ad preferences at <a href="https://adssettings.google.com" target="_blank" rel="noopener">adssettings.google.com</a>. Full details: <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">Google partner site policies</a>.</li>
+            <li><strong>ipinfo.io</strong> — receives your IP address to determine approximate geographic location (country, city). Used by the speed test server info display. No other personal data is shared.</li>
+            <li><strong>Cloudflare Pages</strong> (cloudflare.com) — hosts the frontend. Standard CDN request logs.</li>
+            <li><strong>Render</strong> (render.com) — hosts the backend API server. Standard application hosting logs.</li>
+        </ul>
+
+        <h2>Cookies — exactly what's set</h2>
+        <ul>
+            <li><strong><code>nexus_session</code></strong> — a JWT (JSON Web Token) containing your hashed user ID, display name, and email. HTTP-only (JavaScript cannot read it), Secure (only sent over HTTPS), SameSite=None, scoped to <code>.thyfwxit.com</code>. Expires after 30 days. Set when you sign in with Google or continue as guest. Cleared when you sign out.</li>
+            <li><strong>AdSense cookies</strong> — set by Google's ad scripts when ads load. Used for ad personalization, frequency capping, and performance measurement. I do not control these cookies. You can opt out via Google's ad settings.</li>
+            <li><strong>Google OAuth cookies</strong> — set temporarily during the sign-in flow. Managed by Google, not by me.</li>
+            <li>I do not set any analytics cookies, tracking pixels, or fingerprinting scripts.</li>
         </ul>
 
         <h2>Your rights</h2>
         <ul>
-            <li><strong>Access / deletion:</strong> Email <a href="mailto:xavier@thyfwxit.com">xavier@thyfwxit.com</a> with your account email. Deletion is permanent and immediate.</li>
-            <li><strong>Sign out / forget:</strong> The avatar dropdown has Sign Out (clears session) and Forget All (wipes browser-stored memory).</li>
-            <li><strong>EU/UK/CA visitors:</strong> Google's funding-choices banner offers consent management for ad personalization.</li>
-            <li><strong>California (CCPA):</strong> I don't sell personal data.</li>
+            <li><strong>See your data:</strong> email <a href="mailto:xavier@thyfwxit.com">xavier@thyfwxit.com</a> with your account email and I'll tell you exactly what's stored under your account ID.</li>
+            <li><strong>Delete your data:</strong> email me and I'll permanently delete your leaderboard entries, handle, quota counter, and any moderation logs tied to your account. Deletion is immediate and irreversible.</li>
+            <li><strong>Sign out and forget:</strong> the profile dropdown in the terminal has "Sign Out" (clears your session cookie) and "Forget All" (wipes all browser-stored data including chat history, image history, and preferences).</li>
+            <li><strong>EU/UK/CA visitors:</strong> Google's funding-choices consent banner manages ad personalization preferences. I do not track you independently of Google's ad system.</li>
+            <li><strong>California (CCPA):</strong> I do not sell personal data to anyone. I do not share personal data for advertising purposes beyond what Google AdSense does automatically on pages where ads are displayed.</li>
         </ul>
 
         <h2>Data retention</h2>
         <ul>
-            <li>Server logs: ~30 days then rotated.</li>
-            <li>Account data (handle, image quota counter): until you request deletion or stop using the site for 12+ months.</li>
-            <li>Generated images: 30 days max in your browser, then auto-deleted from your local history.</li>
+            <li><strong>Server logs:</strong> approximately 30 days, then automatically rotated by the hosting provider.</li>
+            <li><strong>Account data</strong> (leaderboard handle, image quota counter): kept until you request deletion or your account is inactive for 12+ months.</li>
+            <li><strong>Moderation logs</strong> (flagged prompts from critical-content triggers): kept indefinitely for safety enforcement. Can be deleted on request.</li>
+            <li><strong>Browser data</strong> (chat history, images, preferences): stored on YOUR device only. Cleared when you clear browser data or use "Forget All." I have no access to your browser's localStorage.</li>
         </ul>
 
         <h2>Children</h2>
-        <p>Nexus is intended for users 18 and older. The Unfiltered chat mode in particular contains adult-oriented content and requires explicit confirmation. If I learn a child under 13 has provided personal data, I'll delete it on request.</p>
+        <p>Nexus is intended for users <strong>18 and older</strong>. The Unfiltered chat mode contains adult-oriented content and requires explicit age confirmation before access. All image generation is SFW (safe for work), but the AI chat itself may discuss adult topics in Unfiltered mode.</p>
+        <p>I do not knowingly collect data from children under 13. If I learn that a child under 13 has provided personal data through the site, I will delete it immediately upon request. Contact <a href="mailto:xavier@thyfwxit.com">xavier@thyfwxit.com</a>.</p>
 
         <h2>Changes to this policy</h2>
-        <p>If this policy changes meaningfully, the new version is posted here and the "Last updated" date above is bumped. Major changes are also announced in the changelog (<a href="changelog">/changelog</a>).</p>
+        <p>If this policy changes in any meaningful way, the updated version is posted here and the "Last updated" date at the top is bumped. Significant changes are also announced in the <a href="changelog">changelog</a>. Continuing to use the site after a policy change means you accept the updated version.</p>
 
         <h2>Contact</h2>
         <p>Xavier Scott (THYFWX) — <a href="mailto:xavier@thyfwxit.com">xavier@thyfwxit.com</a></p>
