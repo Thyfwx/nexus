@@ -35,8 +35,7 @@ const TYPE_WORDS = [
     'uptime','downtime','backup','restore','monitor','alert','notify','report','audit',
 ];
 
-let typeTestActive = false;
-let typeTimerInterval = null;
+// typeTestActive and typeTimerInterval are declared in _lifecycle.js — reuse them
 let _typeMode = null;   // { type: 'time', seconds: N } or { type: 'words', count: N }
 let _typeTarget = '';
 let _typeStart = 0;
