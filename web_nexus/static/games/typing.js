@@ -65,42 +65,99 @@ function startTypingTest() {
     guiTitle.textContent = 'TYPING TEST';
     nexusCanvas.style.display = 'none';
 
-    // Mode select screen
-    const modeBtn = (label, sub, mode) => `
-        <button onclick="window._startTypeMode(${JSON.stringify(mode).replace(/"/g, '&quot;')})"
-            style="flex:1; min-width:120px; padding:16px 12px; background:rgba(0,255,255,0.04); border:1px solid rgba(0,255,255,0.2); border-radius:8px; cursor:pointer; font-family:'Fira Code',monospace; text-align:center; transition:0.15s; color:#ccc;"
-            onmouseover="this.style.borderColor='#0ff'; this.style.background='rgba(0,255,255,0.1)';"
-            onmouseout="this.style.borderColor='rgba(0,255,255,0.2)'; this.style.background='rgba(0,255,255,0.04)';">
-            <div style="font-size:1.3rem; font-weight:800; color:#0ff;">${label}</div>
-            <div style="font-size:0.6rem; color:#666; margin-top:4px; letter-spacing:1px;">${sub}</div>
+    // Mode descriptions
+    const MODE_INFO = {
+        'time-15':  { label: '15s', sub: 'SPRINT', desc: 'Quick burst — type as fast as you can for 15 seconds. Tests peak speed under pressure.' },
+        'time-30':  { label: '30s', sub: 'SHORT', desc: 'Short round — 30 seconds of typing. Good balance of speed and consistency.' },
+        'time-60':  { label: '60s', sub: 'STANDARD', desc: 'The standard test — one full minute. The most common way to measure typing speed.' },
+        'time-120': { label: '120s', sub: 'ENDURANCE', desc: 'Endurance run — 2 minutes of sustained typing. Tests stamina and consistency over time.' },
+        'words-25': { label: '25', sub: 'WORDS', desc: 'Short passage — 25 random words. Finish as fast as you can. Great for quick practice.' },
+        'words-50': { label: '50', sub: 'WORDS', desc: 'Medium passage — 50 words. A solid test of speed and accuracy without the time pressure.' },
+        'words-100':{ label: '100', sub: 'WORDS', desc: 'Long passage — 100 words. The real deal. Measures sustained focus and typing endurance.' },
+    };
+
+    const modeBtn = (id) => `
+        <button class="type-mode-btn" data-mode-id="${id}"
+            style="flex:1; min-width:70px; padding:14px 10px; background:rgba(0,255,255,0.04); border:1px solid rgba(0,255,255,0.15); border-radius:8px; cursor:pointer; font-family:'Fira Code',monospace; text-align:center; transition:0.15s; color:#ccc;">
+            <div style="font-size:1.2rem; font-weight:800; color:#0ff;">${MODE_INFO[id].label}</div>
+            <div style="font-size:0.55rem; color:#666; margin-top:3px; letter-spacing:1px;">${MODE_INFO[id].sub}</div>
         </button>`;
 
     guiContent.innerHTML = `
         <div style="padding:20px 16px; max-width:480px; margin:0 auto;">
-            <div style="text-align:center; margin-bottom:20px;">
-                <div style="font-size:0.7rem; color:#888; letter-spacing:2px; margin-bottom:6px;">CHOOSE A MODE</div>
+            <div style="text-align:center; margin-bottom:18px;">
+                <div style="font-size:0.7rem; color:#888; letter-spacing:2px;">SELECT A MODE</div>
             </div>
 
-            <div style="font-size:0.62rem; color:#666; letter-spacing:1.5px; margin-bottom:8px;">TIMED</div>
-            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;">
-                ${modeBtn('15s', 'SPRINT', {type:'time',seconds:15})}
-                ${modeBtn('30s', 'SHORT', {type:'time',seconds:30})}
-                ${modeBtn('60s', 'STANDARD', {type:'time',seconds:60})}
-                ${modeBtn('120s', 'ENDURANCE', {type:'time',seconds:120})}
+            <div style="font-size:0.6rem; color:#555; letter-spacing:1.5px; margin-bottom:6px;">TIMED</div>
+            <div style="display:flex; gap:6px; margin-bottom:14px;">
+                ${modeBtn('time-15')}${modeBtn('time-30')}${modeBtn('time-60')}${modeBtn('time-120')}
             </div>
 
-            <div style="font-size:0.62rem; color:#666; letter-spacing:1.5px; margin-bottom:8px;">WORD COUNT</div>
-            <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                ${modeBtn('25', 'WORDS', {type:'words',count:25})}
-                ${modeBtn('50', 'WORDS', {type:'words',count:50})}
-                ${modeBtn('100', 'WORDS', {type:'words',count:100})}
+            <div style="font-size:0.6rem; color:#555; letter-spacing:1.5px; margin-bottom:6px;">WORD COUNT</div>
+            <div style="display:flex; gap:6px; margin-bottom:14px;">
+                ${modeBtn('words-25')}${modeBtn('words-50')}${modeBtn('words-100')}
             </div>
 
-            <p style="font-size:0.6rem; color:#444; text-align:center; margin-top:16px; line-height:1.5;">
-                Timed: type as many words as you can before time runs out.<br>
-                Word count: finish the passage as fast as you can.
-            </p>
+            <!-- Description of selected mode -->
+            <div id="type-mode-desc" style="min-height:50px; padding:12px 14px; background:rgba(0,255,255,0.03); border:1px solid rgba(0,255,255,0.1); border-radius:8px; font-size:0.75rem; color:#888; line-height:1.6; margin-bottom:14px; text-align:center;">
+                Tap a mode above to see what it does.
+            </div>
+
+            <!-- Start button — disabled until a mode is selected -->
+            <button id="type-start-btn" disabled
+                style="width:100%; padding:14px; font-family:'Fira Code',monospace; font-size:0.85rem; font-weight:700; letter-spacing:2px; background:rgba(0,255,255,0.06); border:2px solid rgba(0,255,255,0.2); color:#555; border-radius:8px; cursor:not-allowed; transition:0.15s;">
+                SELECT A MODE
+            </button>
         </div>`;
+
+    // Wire up mode selection
+    let selectedMode = null;
+    document.querySelectorAll('.type-mode-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-mode-id');
+            const info = MODE_INFO[id];
+            selectedMode = id;
+
+            // Highlight selected, dim others
+            document.querySelectorAll('.type-mode-btn').forEach(b => {
+                b.style.borderColor = 'rgba(0,255,255,0.15)';
+                b.style.background = 'rgba(0,255,255,0.04)';
+            });
+            btn.style.borderColor = '#0ff';
+            btn.style.background = 'rgba(0,255,255,0.12)';
+
+            // Show description
+            const desc = document.getElementById('type-mode-desc');
+            if (desc) {
+                desc.textContent = info.desc;
+                desc.style.color = '#aac';
+                desc.style.borderColor = 'rgba(0,255,255,0.25)';
+            }
+
+            // Enable start button
+            const startBtn = document.getElementById('type-start-btn');
+            if (startBtn) {
+                startBtn.disabled = false;
+                startBtn.textContent = 'START';
+                startBtn.style.cursor = 'pointer';
+                startBtn.style.borderColor = '#0ff';
+                startBtn.style.color = '#0ff';
+                startBtn.style.background = 'rgba(0,255,255,0.08)';
+            }
+        });
+    });
+
+    // Wire start button
+    document.getElementById('type-start-btn')?.addEventListener('click', () => {
+        if (!selectedMode) return;
+        const parts = selectedMode.split('-');
+        if (parts[0] === 'time') {
+            window._startTypeMode({ type: 'time', seconds: parseInt(parts[1]) });
+        } else {
+            window._startTypeMode({ type: 'words', count: parseInt(parts[1]) });
+        }
+    });
 }
 
 window._startTypeMode = function(mode) {
