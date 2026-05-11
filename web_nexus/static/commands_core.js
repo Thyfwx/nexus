@@ -93,7 +93,7 @@ function handleCommand(cmd) {
     if (lc === 'about')               { window.location.href = 'about'; return; }
     if (lc === 'matrix')              { startMatrixSaver(); return; }
     if (lc === 'monitor')             { startMonitor(); return; }
-    if (lc === 'type test')           { startTypingTest(); return; }
+    if (lc === 'type test')           { window.location.href = 'typing'; return; }
 
     // 5. AI Routing
     prompt_ai_proxy(cmd, null, window.currentMode);
