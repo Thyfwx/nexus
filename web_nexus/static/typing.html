@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus AI — Typing Test</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="favicon.ico">
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3034789470490055" crossorigin="anonymous"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            min-height: 100vh; background: #0a0a0f; color: #c9c9d4;
+            font-family: 'Fira Code', monospace;
+            display: flex; flex-direction: column; align-items: center;
+            padding: 0; overflow-x: hidden;
+        }
+        .topbar {
+            width: 100%; max-width: 900px; display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 20px; font-size: 0.7rem; letter-spacing: 2px; color: #555;
+        }
+        .topbar .brand { color: #0ff; font-weight: 700; }
+        .topbar a { color: #555; text-decoration: none; }
+        .topbar a:hover { color: #0ff; }
+
+        .container { width: 100%; max-width: 750px; padding: 0 20px; flex: 1; }
+
+        /* Mode tabs */
+        .tabs { display: flex; gap: 4px; justify-content: center; margin-bottom: 6px; }
+        .tab {
+            padding: 6px 16px; font-family: 'Fira Code', monospace; font-size: 0.72rem;
+            font-weight: 600; letter-spacing: 1px; background: transparent; border: none;
+            color: #444; cursor: pointer; border-bottom: 2px solid transparent; transition: 0.15s;
+        }
+        .tab.active { color: #0ff; border-bottom-color: #0ff; }
+        .tab:hover:not(.active) { color: #888; }
+
+        /* Options */
+        .opts { display: flex; gap: 6px; justify-content: center; margin-bottom: 30px; }
+        .opt {
+            padding: 5px 14px; font-family: 'Fira Code', monospace; font-size: 0.78rem;
+            font-weight: 700; background: transparent; border: 1px solid #222; color: #444;
+            border-radius: 4px; cursor: pointer; transition: 0.15s;
+        }
+        .opt.sel { border-color: #0ff; color: #0ff; }
+        .opt:hover:not(.sel) { border-color: #555; color: #888; }
+
+        /* Word display */
+        #words {
+            font-size: 1.25rem; line-height: 2.2; text-align: left; min-height: 160px;
+            color: #333; user-select: none; cursor: text; outline: none;
+            margin-bottom: 20px; padding: 10px 0;
+        }
+        #words .correct { color: #0f0; }
+        #words .wrong { color: #f55; text-decoration: underline; }
+        #words .current { color: #fff; border-bottom: 2px solid #0ff; }
+        #words .upcoming { color: #333; }
+        #words .done { color: rgba(0,255,0,0.25); }
+
+        /* Prompt */
+        .prompt-text { color: #333; font-size: 0.72rem; text-align: center; margin-bottom: 16px; }
+
+        /* Stats */
+        .stats {
+            display: flex; justify-content: center; gap: 30px;
+            font-size: 0.8rem; color: #444; margin-bottom: 20px;
+        }
+        .stats span { transition: color 0.2s; }
+
+        /* Result */
+        .result { text-align: center; padding: 20px 0; }
+        .result-rating { font-size: 1.2rem; font-weight: 800; letter-spacing: 4px; margin-bottom: 20px; }
+        .result-big { display: flex; justify-content: center; gap: 40px; margin-bottom: 16px; }
+        .result-num { font-size: 2.8rem; font-weight: 800; line-height: 1; }
+        .result-label { font-size: 0.58rem; color: #555; letter-spacing: 1.5px; margin-top: 4px; }
+        .result-detail { font-size: 0.68rem; color: #444; margin-bottom: 20px; }
+        .result-btn {
+            padding: 12px 24px; font-family: 'Fira Code', monospace; font-size: 0.78rem;
+            font-weight: 600; letter-spacing: 1px; background: transparent;
+            border: 1px solid #0ff; color: #0ff; border-radius: 6px; cursor: pointer; transition: 0.15s;
+        }
+        .result-btn:hover { background: rgba(0,255,255,0.1); }
+        .result-hint { font-size: 0.55rem; color: #333; margin-top: 10px; }
+
+        /* Settings bar */
+        .settings-bar {
+            display: flex; justify-content: center; gap: 16px; margin-bottom: 20px;
+            font-size: 0.62rem; color: #333;
+        }
+        .settings-bar label { cursor: pointer; display: flex; align-items: center; gap: 4px; }
+        .settings-bar input[type="checkbox"] { accent-color: #0ff; }
+
+        /* Ad slots */
+        .ad-slot { margin: 16px auto; text-align: center; }
+        .ad-slot.hidden { display: none; }
+
+        /* Footer */
+        .footer-bar {
+            width: 100%; padding: 10px 16px; background: rgba(0,0,0,0.7);
+            border-top: 1px solid rgba(255,255,255,0.06); text-align: center;
+            font-size: 0.6rem; color: #333; letter-spacing: 1px; margin-top: auto;
+        }
+        .footer-bar a { color: #555; text-decoration: none; padding: 0 8px; }
+
+        @media (max-width: 600px) {
+            #words { font-size: 1rem; line-height: 2; }
+            .result-num { font-size: 2rem; }
+            .result-big { gap: 24px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <span class="brand">NEXUS · TYPING TEST</span>
+        <a href="./" onclick="if(history.length>1){history.back();return false;}">Back</a>
+    </div>
+
+    <div class="container">
+        <!-- Settings -->
+        <div class="settings-bar">
+            <label><input type="checkbox" id="tt-ads-toggle" checked onchange="document.querySelectorAll('.ad-slot').forEach(a=>a.classList.toggle('hidden',!this.checked))"> ads</label>
+        </div>
+
+        <!-- Mode tabs -->
+        <div class="tabs">
+            <button class="tab active" data-cat="time">time</button>
+            <button class="tab" data-cat="words">words</button>
+        </div>
+
+        <!-- Time options -->
+        <div class="opts" id="time-opts">
+            <button class="opt" data-mode="time-15">15</button>
+            <button class="opt sel" data-mode="time-30">30</button>
+            <button class="opt" data-mode="time-60">60</button>
+            <button class="opt" data-mode="time-120">120</button>
+        </div>
+        <div class="opts" id="word-opts" style="display:none;">
+            <button class="opt" data-mode="words-25">25</button>
+            <button class="opt sel" data-mode="words-50">50</button>
+            <button class="opt" data-mode="words-100">100</button>
+        </div>
+
+        <!-- Ad: top -->
+        <div class="ad-slot">
+            <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-3034789470490055"
+                 data-ad-slot="6916029228" data-ad-format="auto" data-full-width-responsive="true"></ins>
+            <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+        </div>
+
+        <!-- Prompt -->
+        <div class="prompt-text" id="prompt">click here or start typing</div>
+
+        <!-- Words -->
+        <div id="words" tabindex="0"></div>
+
+        <!-- Stats -->
+        <div class="stats">
+            <span id="s-wpm">0 wpm</span>
+            <span id="s-acc">100%</span>
+            <span id="s-timer">30s</span>
+        </div>
+
+        <!-- Result (hidden until done) -->
+        <div id="result" style="display:none;"></div>
+
+        <!-- Ad: bottom -->
+        <div class="ad-slot">
+            <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-3034789470490055"
+                 data-ad-slot="6916029228" data-ad-format="auto" data-full-width-responsive="true"></ins>
+            <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+        </div>
+    </div>
+
+    <div class="footer-bar">
+        <a href="privacy">PRIVACY</a>
+        <a href="terms">TERMS</a>
+        <a href="about">ABOUT</a>
+        <a href="changelog">CHANGELOG</a>
+        <a href="leaderboard">LEADERBOARD</a>
+    </div>
+
+    <script>
+    const WORDS = [
+        'the','be','to','of','and','a','in','that','have','it','for','not','on','with','he','as','you',
+        'do','at','this','but','his','by','from','they','we','say','her','she','or','an','will','my',
+        'one','all','would','there','their','what','so','up','out','if','about','who','get','which',
+        'go','me','when','make','can','like','time','no','just','him','know','take','people','into',
+        'year','your','good','some','could','them','see','other','than','then','now','look','only',
+        'come','its','over','think','also','back','after','use','two','how','our','work','first',
+        'well','way','even','new','want','because','any','these','give','day','most','us','great',
+        'server','network','system','code','debug','deploy','build','test','data','cloud','stack',
+        'docker','linux','proxy','cache','query','token','route','parse','render','fetch','async',
+        'socket','buffer','thread','kernel','module','config','script','compile','process','shell',
+        'terminal','console','output','input','stream','packet','firewall','gateway','router',
+        'protocol','header','request','response','status','error','warning','timeout','encrypt',
+        'cpu','gpu','ram','disk','board','chip','wire','power','signal','clock','voltage','repair',
+        'fast','slow','broken','clean','secure','stable','active','offline','online','live','dark',
+        'simple','complex','basic','advanced','modern','legacy','custom','default','manual','auto',
+        'run','stop','start','push','pull','send','load','save','read','write','copy','move',
+        'delete','create','update','check','scan','boot','sync','ping','lock','unlock','block',
+        'speed','quality','control','access','memory','storage','security','performance','monitor',
+    ];
+
+    let mode = { type: 'time', value: 30 };
+    let words = [], wordIdx = 0, charIdx = 0, input = '';
+    let startTime = 0, active = false, errors = 0, correct = 0, total = 0;
+    let timer = null, keyHandler = null;
+
+    function gen(n) {
+        const w = [];
+        for (let i = 0; i < n; i++) w.push(WORDS[Math.floor(Math.random() * WORDS.length)]);
+        return w;
+    }
+
+    function prepare() {
+        active = false; startTime = 0; errors = 0; correct = 0; total = 0;
+        wordIdx = 0; charIdx = 0; input = '';
+        clearInterval(timer);
+        if (keyHandler) { document.removeEventListener('keydown', keyHandler); keyHandler = null; }
+
+        words = gen(mode.type === 'time' ? 200 : mode.value);
+        document.getElementById('result').style.display = 'none';
+        document.getElementById('words').style.display = '';
+        document.getElementById('prompt').style.display = '';
+        document.getElementById('s-wpm').textContent = '0 wpm';
+        document.getElementById('s-wpm').style.color = '#444';
+        document.getElementById('s-acc').textContent = '100%';
+        document.getElementById('s-acc').style.color = '#444';
+        document.getElementById('s-timer').textContent = mode.type === 'time' ? mode.value + 's' : '0/' + mode.value;
+        render();
+        listenForStart();
+    }
+
+    function render() {
+        const el = document.getElementById('words');
+        let html = '';
+        const start = Math.max(0, wordIdx - 3);
+        const end = Math.min(words.length, wordIdx + 30);
+        for (let w = start; w < end; w++) {
+            const word = words[w];
+            if (w < wordIdx) {
+                html += '<span class="done">' + word + '</span> ';
+            } else if (w === wordIdx) {
+                for (let c = 0; c < word.length; c++) {
+                    if (c < input.length) {
+                        html += input[c] === word[c]
+                            ? '<span class="correct">' + word[c] + '</span>'
+                            : '<span class="wrong">' + word[c] + '</span>';
+                    } else if (c === input.length) {
+                        html += '<span class="current">' + word[c] + '</span>';
+                    } else {
+                        html += '<span class="upcoming">' + word[c] + '</span>';
+                    }
+                }
+                // Extra typed chars beyond word length
+                if (input.length > word.length) {
+                    for (let c = word.length; c < input.length; c++) {
+                        html += '<span class="wrong">' + input[c] + '</span>';
+                    }
+                }
+                html += ' ';
+            } else {
+                html += '<span class="upcoming">' + word + '</span> ';
+            }
+        }
+        el.innerHTML = html;
+    }
+
+    function listenForStart() {
+        const wordsEl = document.getElementById('words');
+        const clickHandler = () => { wordsEl.removeEventListener('click', clickHandler); beginTyping(); };
+        wordsEl.addEventListener('click', clickHandler);
+
+        const earlyKey = (e) => {
+            if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                document.removeEventListener('keydown', earlyKey);
+                beginTyping();
+                handleKey(e);
+            }
+            if (e.key === 'Tab') { e.preventDefault(); prepare(); }
+        };
+        document.addEventListener('keydown', earlyKey);
+        window._earlyKey = earlyKey;
+    }
+
+    function beginTyping() {
+        if (active) return;
+        active = true;
+        startTime = Date.now();
+        document.getElementById('prompt').style.display = 'none';
+        timer = setInterval(tick, 200);
+
+        keyHandler = handleKey;
+        document.addEventListener('keydown', keyHandler);
+    }
+
+    function handleKey(e) {
+        if (!active) return;
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        if (e.key === 'Tab') { e.preventDefault(); prepare(); return; }
+
+        const word = words[wordIdx];
+        if (!word) return;
+
+        if (e.key === ' ') {
+            e.preventDefault();
+            // Score the word
+            for (let i = 0; i < Math.max(input.length, word.length); i++) {
+                total++;
+                if (i < input.length && i < word.length && input[i] === word[i]) correct++;
+                else errors++;
+            }
+            wordIdx++;
+            input = '';
+            if (mode.type === 'words' && wordIdx >= mode.value) { finish(); return; }
+            render();
+            return;
+        }
+
+        if (e.key === 'Backspace') {
+            e.preventDefault();
+            if (input.length > 0) input = input.slice(0, -1);
+            render();
+            return;
+        }
+
+        if (e.key.length === 1) {
+            e.preventDefault();
+            input += e.key;
+            render();
+        }
+    }
+
+    function tick() {
+        if (!active || !startTime) return;
+        const elapsed = (Date.now() - startTime) / 1000;
+
+        // WPM based on completed words
+        const completedChars = words.slice(0, wordIdx).join(' ').length;
+        const wpm = elapsed > 0.5 ? Math.round((completedChars / 5) / (elapsed / 60)) : 0;
+        const wpmEl = document.getElementById('s-wpm');
+        wpmEl.textContent = wpm + ' wpm';
+        wpmEl.style.color = wpm > 0 ? '#0ff' : '#444';
+
+        // Accuracy
+        const acc = total > 0 ? Math.round((correct / total) * 100) : 100;
+        const accEl = document.getElementById('s-acc');
+        accEl.textContent = acc + '%';
+        accEl.style.color = total > 0 ? (acc >= 95 ? '#0f0' : acc >= 80 ? '#ff0' : '#f55') : '#444';
+
+        // Timer
+        const timerEl = document.getElementById('s-timer');
+        if (mode.type === 'time') {
+            const remain = Math.max(0, mode.value - elapsed);
+            timerEl.textContent = Math.ceil(remain) + 's';
+            if (remain <= 0) { finish(); return; }
+        } else {
+            timerEl.textContent = wordIdx + '/' + mode.value;
+        }
+    }
+
+    function finish() {
+        clearInterval(timer);
+        active = false;
+        if (keyHandler) { document.removeEventListener('keydown', keyHandler); keyHandler = null; }
+        if (window._earlyKey) { document.removeEventListener('keydown', window._earlyKey); }
+
+        const elapsed = (Date.now() - startTime) / 1000;
+        const completedChars = words.slice(0, wordIdx).join(' ').length;
+        const wpm = elapsed > 0 ? Math.round((completedChars / 5) / (elapsed / 60)) : 0;
+        const acc = total > 0 ? Math.round((correct / total) * 100) : 100;
+        const raw = elapsed > 0 ? Math.round(((correct + errors) / 5) / (elapsed / 60)) : 0;
+
+        let rating, rc;
+        if (wpm >= 120) { rating = 'LEGENDARY'; rc = '#f0f'; }
+        else if (wpm >= 80) { rating = 'ELITE'; rc = '#0f0'; }
+        else if (wpm >= 60) { rating = 'FAST'; rc = '#0ff'; }
+        else if (wpm >= 40) { rating = 'SOLID'; rc = '#ff0'; }
+        else if (wpm >= 25) { rating = 'AVERAGE'; rc = '#fa0'; }
+        else { rating = 'BEGINNER'; rc = '#f55'; }
+
+        const ml = mode.type === 'time' ? mode.value + 's' : mode.value + ' words';
+
+        document.getElementById('words').style.display = 'none';
+        const r = document.getElementById('result');
+        r.style.display = 'block';
+        r.innerHTML = `
+            <div class="result">
+                <div class="result-rating" style="color:${rc}; text-shadow:0 0 12px ${rc};">${rating}</div>
+                <div class="result-big">
+                    <div><div class="result-num" style="color:#0ff;">${wpm}</div><div class="result-label">WPM</div></div>
+                    <div><div class="result-num" style="color:${acc >= 95 ? '#0f0' : acc >= 80 ? '#ff0' : '#f55'};">${acc}%</div><div class="result-label">ACCURACY</div></div>
+                </div>
+                <div class="result-detail">${ml} · ${elapsed.toFixed(1)}s · ${raw} raw · ${wordIdx} words · ${errors} errors</div>
+                <button class="result-btn" onclick="prepare()">RESTART</button>
+                <div class="result-hint">tab to restart</div>
+            </div>`;
+
+        // Leaderboard submit
+        try {
+            const apiBase = location.hostname === 'localhost' || location.hostname === '127.0.0.1' ? '' : 'https://api.thyfwxit.com';
+            fetch(apiBase + '/api/leaderboard/submit', {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ game: 'typing', score: wpm })
+            }).catch(() => {});
+        } catch (_) {}
+
+        // Tab to restart
+        const rh = (e) => { if (e.key === 'Tab') { e.preventDefault(); document.removeEventListener('keydown', rh); prepare(); } };
+        document.addEventListener('keydown', rh);
+    }
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(t => {
+        t.addEventListener('click', () => {
+            document.querySelectorAll('.tab').forEach(x => { x.classList.remove('active'); });
+            t.classList.add('active');
+            const cat = t.getAttribute('data-cat');
+            document.getElementById('time-opts').style.display = cat === 'time' ? 'flex' : 'none';
+            document.getElementById('word-opts').style.display = cat === 'words' ? 'flex' : 'none';
+            const sel = document.querySelector('#' + cat + '-opts .opt.sel');
+            if (sel) sel.click();
+        });
+    });
+
+    // Option selection
+    document.querySelectorAll('.opt').forEach(o => {
+        o.addEventListener('click', () => {
+            o.parentElement.querySelectorAll('.opt').forEach(x => { x.classList.remove('sel'); });
+            o.classList.add('sel');
+            const m = o.getAttribute('data-mode').split('-');
+            mode = { type: m[0], value: parseInt(m[1]) };
+            prepare();
+        });
+    });
+
+    // Init
+    prepare();
+    </script>
+</body>
+</html>
