@@ -9,387 +9,396 @@
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3034789470490055" crossorigin="anonymous"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; }
         body {
-            min-height: 100vh; background: #0a0a0f; color: #c9c9d4;
+            background: #0a0a0f; color: #646669;
             font-family: 'Fira Code', monospace;
             display: flex; flex-direction: column; align-items: center;
-            padding: 0; overflow-x: hidden;
+            overflow-x: hidden;
         }
-        .topbar {
-            width: 100%; max-width: 900px; display: flex; justify-content: space-between; align-items: center;
-            padding: 16px 20px; font-size: 0.7rem; letter-spacing: 2px; color: #555;
+
+        .top { width: 100%; max-width: 850px; padding: 20px 24px 0; display: flex; justify-content: space-between; align-items: center; }
+        .top .brand { color: #0ff; font-size: 0.75rem; font-weight: 700; letter-spacing: 2px; }
+        .top a { color: #444; font-size: 0.7rem; text-decoration: none; }
+        .top a:hover { color: #0ff; }
+
+        .container { width: 100%; max-width: 850px; padding: 0 24px; flex: 1; display: flex; flex-direction: column; justify-content: center; }
+
+        /* Mode bar */
+        .mode-bar { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+        .mode-group { display: flex; gap: 4px; align-items: center; }
+        .mode-sep { width: 1px; height: 16px; background: #222; }
+        .mode-btn {
+            padding: 4px 10px; font-family: 'Fira Code', monospace; font-size: 0.7rem;
+            background: transparent; border: none; color: #444; cursor: pointer; border-radius: 3px;
+            transition: 0.1s;
         }
-        .topbar .brand { color: #0ff; font-weight: 700; }
-        .topbar a { color: #555; text-decoration: none; }
-        .topbar a:hover { color: #0ff; }
+        .mode-btn:hover { color: #888; }
+        .mode-btn.active { color: #0ff; }
 
-        .container { width: 100%; max-width: 750px; padding: 0 20px; flex: 1; }
-
-        /* Mode tabs */
-        .tabs { display: flex; gap: 4px; justify-content: center; margin-bottom: 6px; }
-        .tab {
-            padding: 6px 16px; font-family: 'Fira Code', monospace; font-size: 0.72rem;
-            font-weight: 600; letter-spacing: 1px; background: transparent; border: none;
-            color: #444; cursor: pointer; border-bottom: 2px solid transparent; transition: 0.15s;
+        /* Words area */
+        #words-wrapper {
+            position: relative; overflow: hidden;
+            font-size: 1.3rem; line-height: 2.1;
+            height: calc(1.3rem * 2.1 * 3); /* 3 lines */
+            margin-bottom: 16px; cursor: text;
+            user-select: none; -webkit-user-select: none;
         }
-        .tab.active { color: #0ff; border-bottom-color: #0ff; }
-        .tab:hover:not(.active) { color: #888; }
-
-        /* Options */
-        .opts { display: flex; gap: 6px; justify-content: center; margin-bottom: 30px; }
-        .opt {
-            padding: 5px 14px; font-family: 'Fira Code', monospace; font-size: 0.78rem;
-            font-weight: 700; background: transparent; border: 1px solid #222; color: #444;
-            border-radius: 4px; cursor: pointer; transition: 0.15s;
-        }
-        .opt.sel { border-color: #0ff; color: #0ff; }
-        .opt:hover:not(.sel) { border-color: #555; color: #888; }
-
-        /* Word display */
         #words {
-            font-size: 1.25rem; line-height: 2.2; text-align: left; min-height: 160px;
-            color: #333; user-select: none; cursor: text; outline: none;
-            margin-bottom: 20px; padding: 10px 0;
+            display: flex; flex-wrap: wrap; gap: 0 8px;
+            transition: margin-top 0.15s ease;
         }
-        #words .correct { color: #0f0; }
-        #words .wrong { color: #f55; text-decoration: underline; }
-        #words .current { color: #fff; border-bottom: 2px solid #0ff; }
-        #words .upcoming { color: #555; }
-        #words .done { color: rgba(0,255,0,0.2); }
+        .word { display: inline-flex; }
+        .word letter {
+            display: inline-block;
+            transition: color 0.05s;
+        }
+        .word letter.correct { color: #0ff; }
+        .word letter.incorrect { color: #f44; text-decoration: underline; }
+        .word letter.extra { color: #7a2828; font-size: 0.85em; }
+        .word.typed { opacity: 0.35; }
+        .word.error { text-decoration: underline; text-decoration-color: #f44; text-underline-offset: 4px; }
 
-        /* Prompt */
-        .prompt-text { color: #333; font-size: 0.72rem; text-align: center; margin-bottom: 16px; }
+        /* Caret */
+        #caret {
+            position: absolute; top: 0; left: 0;
+            width: 2px; height: 1.3rem;
+            background: #0ff; border-radius: 1px;
+            transition: left 0.08s ease, top 0.08s ease;
+            animation: caretBlink 1s infinite;
+            z-index: 2;
+        }
+        @keyframes caretBlink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+        #caret.typing { animation: none; opacity: 1; }
+
+        /* Focus prompt */
+        #focus-prompt {
+            position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+            color: #333; font-size: 0.8rem; letter-spacing: 1px; z-index: 3;
+            background: rgba(10,10,15,0.85); cursor: pointer;
+        }
+        #focus-prompt.hidden { display: none; }
 
         /* Stats */
-        .stats {
-            display: flex; justify-content: center; gap: 30px;
-            font-size: 0.8rem; color: #444; margin-bottom: 20px;
-        }
-        .stats span { transition: color 0.2s; }
+        .stats { display: flex; justify-content: center; gap: 24px; font-size: 0.8rem; color: #333; margin-bottom: 8px; min-height: 24px; }
 
         /* Result */
-        .result { text-align: center; padding: 20px 0; }
-        .result-rating { font-size: 1.2rem; font-weight: 800; letter-spacing: 4px; margin-bottom: 20px; }
-        .result-big { display: flex; justify-content: center; gap: 40px; margin-bottom: 16px; }
-        .result-num { font-size: 2.8rem; font-weight: 800; line-height: 1; }
-        .result-label { font-size: 0.58rem; color: #555; letter-spacing: 1.5px; margin-top: 4px; }
-        .result-detail { font-size: 0.68rem; color: #444; margin-bottom: 20px; }
-        .result-btn {
-            padding: 12px 24px; font-family: 'Fira Code', monospace; font-size: 0.78rem;
+        #result { display: none; text-align: center; padding: 10px 0; }
+        .r-rating { font-size: 1.1rem; font-weight: 800; letter-spacing: 4px; margin-bottom: 20px; }
+        .r-big { display: flex; justify-content: center; gap: 40px; margin-bottom: 14px; }
+        .r-num { font-size: 2.6rem; font-weight: 800; line-height: 1; }
+        .r-label { font-size: 0.55rem; color: #444; letter-spacing: 1.5px; margin-top: 4px; }
+        .r-detail { font-size: 0.66rem; color: #333; margin-bottom: 16px; }
+        .r-btn {
+            padding: 10px 22px; font-family: 'Fira Code', monospace; font-size: 0.75rem;
             font-weight: 600; letter-spacing: 1px; background: transparent;
-            border: 1px solid #0ff; color: #0ff; border-radius: 6px; cursor: pointer; transition: 0.15s;
+            border: 1px solid #0ff; color: #0ff; border-radius: 6px; cursor: pointer;
         }
-        .result-btn:hover { background: rgba(0,255,255,0.1); }
-        .result-hint { font-size: 0.55rem; color: #333; margin-top: 10px; }
+        .r-btn:hover { background: rgba(0,255,255,0.08); }
+        .r-hint { font-size: 0.52rem; color: #222; margin-top: 8px; }
 
-        /* Settings bar */
-        .settings-bar {
-            display: flex; justify-content: center; gap: 16px; margin-bottom: 20px;
-            font-size: 0.62rem; color: #333;
+        /* Hidden input for mobile keyboard */
+        #hiddenInput {
+            position: absolute; opacity: 0; width: 1px; height: 1px;
+            top: -100px; left: -100px; pointer-events: none;
         }
-        .settings-bar label { cursor: pointer; display: flex; align-items: center; gap: 4px; }
-        .settings-bar input[type="checkbox"] { accent-color: #0ff; }
 
-        /* Ad slots */
-        .ad-slot { margin: 16px auto; text-align: center; }
-        .ad-slot.hidden { display: none; }
-
-        /* Footer */
         .footer-bar {
-            width: 100%; padding: 10px 16px; background: rgba(0,0,0,0.7);
-            border-top: 1px solid rgba(255,255,255,0.06); text-align: center;
-            font-size: 0.6rem; color: #333; letter-spacing: 1px; margin-top: auto;
+            width: 100%; padding: 10px 16px; text-align: center;
+            font-size: 0.58rem; color: #222; letter-spacing: 1px;
         }
-        .footer-bar a { color: #555; text-decoration: none; padding: 0 8px; }
+        .footer-bar a { color: #444; text-decoration: none; padding: 0 8px; }
+
+        .ad-slot { max-width: 850px; margin: 12px auto; padding: 0 24px; }
 
         @media (max-width: 600px) {
-            #words { font-size: 1rem; line-height: 2; }
-            .result-num { font-size: 2rem; }
-            .result-big { gap: 24px; }
+            #words-wrapper { font-size: 1rem; line-height: 2; height: calc(1rem * 2 * 3); }
+            #caret { height: 1rem; }
+            .r-num { font-size: 2rem; }
+            .r-big { gap: 24px; }
         }
     </style>
 </head>
 <body>
-    <div class="topbar">
-        <span class="brand">NEXUS · TYPING TEST</span>
-        <a href="./" onclick="if(history.length>1){history.back();return false;}">Back</a>
+    <div class="top">
+        <span class="brand">NEXUS TYPE</span>
+        <a href="./" onclick="if(history.length>1){history.back();return false;}">back</a>
     </div>
 
     <div class="container">
-        <!-- Settings will go here in future updates -->
-
-        <!-- Mode tabs -->
-        <div class="tabs">
-            <button class="tab active" data-cat="time">time</button>
-            <button class="tab" data-cat="words">words</button>
+        <!-- Mode bar -->
+        <div class="mode-bar">
+            <div class="mode-group" id="cat-btns">
+                <button class="mode-btn active" data-cat="time">time</button>
+                <button class="mode-btn" data-cat="words">words</button>
+            </div>
+            <div class="mode-sep"></div>
+            <div class="mode-group" id="val-btns-time">
+                <button class="mode-btn" data-val="15">15</button>
+                <button class="mode-btn active" data-val="30">30</button>
+                <button class="mode-btn" data-val="60">60</button>
+                <button class="mode-btn" data-val="120">120</button>
+            </div>
+            <div class="mode-group" id="val-btns-words" style="display:none;">
+                <button class="mode-btn" data-val="25">25</button>
+                <button class="mode-btn active" data-val="50">50</button>
+                <button class="mode-btn" data-val="100">100</button>
+            </div>
         </div>
 
-        <!-- Time options -->
-        <div class="opts" id="time-opts">
-            <button class="opt" data-mode="time-15">15</button>
-            <button class="opt sel" data-mode="time-30">30</button>
-            <button class="opt" data-mode="time-60">60</button>
-            <button class="opt" data-mode="time-120">120</button>
+        <!-- Stats (live during test) -->
+        <div class="stats">
+            <span id="s-wpm"></span>
+            <span id="s-acc"></span>
+            <span id="s-timer"></span>
         </div>
-        <div class="opts" id="word-opts" style="display:none;">
-            <button class="opt" data-mode="words-25">25</button>
-            <button class="opt sel" data-mode="words-50">50</button>
-            <button class="opt" data-mode="words-100">100</button>
-        </div>
-
-        <!-- Prompt -->
-        <div class="prompt-text" id="prompt">click here or start typing</div>
 
         <!-- Words -->
-        <div id="words" tabindex="0"></div>
-
-        <!-- Stats -->
-        <div class="stats">
-            <span id="s-wpm">0 wpm</span>
-            <span id="s-acc">100%</span>
-            <span id="s-timer">30s</span>
+        <div id="words-wrapper">
+            <div id="caret"></div>
+            <div id="words"></div>
+            <div id="focus-prompt">click here or press any key to start</div>
         </div>
 
-        <!-- Result (hidden until done) -->
-        <div id="result" style="display:none;"></div>
+        <!-- Result -->
+        <div id="result"></div>
 
-        <!-- Ad: shows after test completes (injected by finish()) -->
-        <div id="result-ad" class="ad-slot" style="display:none;">
+        <!-- Ad: result only -->
+        <div class="ad-slot" id="result-ad" style="display:none;">
             <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-3034789470490055"
                  data-ad-slot="6916029228" data-ad-format="auto" data-full-width-responsive="true"></ins>
         </div>
     </div>
 
     <div class="footer-bar">
-        <a href="privacy">PRIVACY</a>
-        <a href="terms">TERMS</a>
-        <a href="about">ABOUT</a>
-        <a href="changelog">CHANGELOG</a>
-        <a href="leaderboard">LEADERBOARD</a>
+        <a href="privacy">PRIVACY</a> <a href="terms">TERMS</a> <a href="about">ABOUT</a>
+        <a href="changelog">CHANGELOG</a> <a href="leaderboard">LEADERBOARD</a>
     </div>
 
+    <!-- Hidden input for capturing keystrokes -->
+    <input id="hiddenInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+
     <script>
-    const WORDS = [
-        'the','be','to','of','and','a','in','that','have','it','for','not','on','with','he','as','you',
-        'do','at','this','but','his','by','from','they','we','say','her','she','or','an','will','my',
-        'one','all','would','there','their','what','so','up','out','if','about','who','get','which',
-        'go','me','when','make','can','like','time','no','just','him','know','take','people','into',
-        'year','your','good','some','could','them','see','other','than','then','now','look','only',
-        'come','its','over','think','also','back','after','use','two','how','our','work','first',
-        'well','way','even','new','want','because','any','these','give','day','most','us','great',
-        'server','network','system','code','debug','deploy','build','test','data','cloud','stack',
-        'docker','linux','proxy','cache','query','token','route','parse','render','fetch','async',
-        'socket','buffer','thread','kernel','module','config','script','compile','process','shell',
-        'terminal','console','output','input','stream','packet','firewall','gateway','router',
-        'protocol','header','request','response','status','error','warning','timeout','encrypt',
-        'cpu','gpu','ram','disk','board','chip','wire','power','signal','clock','voltage','repair',
-        'fast','slow','broken','clean','secure','stable','active','offline','online','live','dark',
-        'simple','complex','basic','advanced','modern','legacy','custom','default','manual','auto',
-        'run','stop','start','push','pull','send','load','save','read','write','copy','move',
-        'delete','create','update','check','scan','boot','sync','ping','lock','unlock','block',
-        'speed','quality','control','access','memory','storage','security','performance','monitor',
-    ];
+    const WORDS = 'the be to of and a in that have it for not on with he as you do at this but his by from they we say her she or an will my one all would there their what so up out if about who get which go me when make can like time no just him know take people into year your good some could them see other than then now look only come its over think also back after use two how our work first well way even new want because any these give day most us great server network system code debug deploy build test data cloud stack docker linux proxy cache query token route parse render fetch async socket buffer thread kernel module config script compile process shell terminal console output input stream packet firewall gateway router protocol header request response status error warning timeout encrypt cpu gpu ram disk board chip wire power signal clock voltage repair fast slow broken clean secure stable active offline online live dark simple complex basic advanced modern legacy custom default manual auto run stop start push pull send load save read write copy move delete create update check scan boot sync ping lock unlock block speed quality control access memory storage security performance monitor'.split(' ');
 
-    let mode = { type: 'time', value: 30 };
-    let words = [], wordIdx = 0, charIdx = 0, input = '';
-    let startTime = 0, active = false, errors = 0, correct = 0, total = 0;
-    let timer = null, keyHandler = null;
-    let wordResults = []; // track per-word: { typed, correct }
+    let cat = 'time', val = 30;
+    let words = [], wordEls = [];
+    let wIdx = 0, cIdx = 0, inputBuf = '';
+    let active = false, startTime = 0;
+    let correct = 0, errors = 0, total = 0;
+    let tick = null, focused = false;
+    let caretBlinkTimeout = null;
 
-    function gen(n) {
-        const w = [];
-        for (let i = 0; i < n; i++) w.push(WORDS[Math.floor(Math.random() * WORDS.length)]);
-        return w;
+    // Generate words
+    function gen(n) { return Array.from({length:n}, () => WORDS[Math.floor(Math.random()*WORDS.length)]); }
+
+    // Build word DOM elements (ONE TIME per test — never rebuild)
+    function buildWords() {
+        const container = document.getElementById('words');
+        container.innerHTML = '';
+        container.style.marginTop = '0px';
+        wordEls = [];
+        words.forEach((w, wi) => {
+            const div = document.createElement('div');
+            div.className = 'word';
+            div.dataset.idx = wi;
+            w.split('').forEach(ch => {
+                const letter = document.createElement('letter');
+                letter.textContent = ch;
+                div.appendChild(letter);
+            });
+            container.appendChild(div);
+            wordEls.push(div);
+        });
     }
 
-    function prepare() {
-        active = false; startTime = 0; errors = 0; correct = 0; total = 0;
-        wordIdx = 0; charIdx = 0; input = '';
-        wordResults = [];
-        clearInterval(timer);
-        if (keyHandler) { document.removeEventListener('keydown', keyHandler); keyHandler = null; }
-
-        words = gen(mode.type === 'time' ? 200 : mode.value);
-        document.getElementById('result').style.display = 'none';
-        document.getElementById('words').style.display = '';
-        const adSlot = document.getElementById('result-ad'); if (adSlot) adSlot.style.display = 'none';
-        document.getElementById('prompt').style.display = '';
-        document.getElementById('s-wpm').textContent = '0 wpm';
-        document.getElementById('s-wpm').style.color = '#444';
-        document.getElementById('s-acc').textContent = '100%';
-        document.getElementById('s-acc').style.color = '#444';
-        document.getElementById('s-timer').textContent = mode.type === 'time' ? mode.value + 's' : '0/' + mode.value;
-        render();
-        listenForStart();
-    }
-
-    function render() {
-        const el = document.getElementById('words');
-        let html = '';
-        const start = Math.max(0, wordIdx - 3);
-        const end = Math.min(words.length, wordIdx + 30);
-        for (let w = start; w < end; w++) {
-            const word = words[w];
-            if (w < wordIdx) {
-                // Completed word — show per-character result from wordResults
-                const wr = wordResults[w];
-                if (wr) {
-                    for (let c = 0; c < word.length; c++) {
-                        if (c < wr.typed.length) {
-                            html += wr.typed[c] === word[c]
-                                ? '<span class="correct">' + word[c] + '</span>'
-                                : '<span class="wrong">' + word[c] + '</span>';
-                        } else {
-                            // Untyped chars (skipped via space)
-                            html += '<span class="wrong">' + word[c] + '</span>';
-                        }
-                    }
-                } else {
-                    html += '<span class="done">' + word + '</span>';
-                }
-                html += ' ';
-            } else if (w === wordIdx) {
-                // Current word
-                for (let c = 0; c < word.length; c++) {
-                    if (c < input.length) {
-                        html += input[c] === word[c]
-                            ? '<span class="correct">' + word[c] + '</span>'
-                            : '<span class="wrong">' + word[c] + '</span>';
-                    } else if (c === input.length) {
-                        html += '<span class="current">' + word[c] + '</span>';
-                    } else {
-                        html += '<span class="upcoming">' + word[c] + '</span>';
-                    }
-                }
-                if (input.length > word.length) {
-                    for (let c = word.length; c < input.length; c++) {
-                        html += '<span class="wrong">' + input[c] + '</span>';
-                    }
-                }
-                html += ' ';
-            } else {
-                html += '<span class="upcoming">' + word + '</span> ';
-            }
+    // Update caret position based on current letter
+    function updateCaret() {
+        const caret = document.getElementById('caret');
+        const wordEl = wordEls[wIdx];
+        if (!wordEl) return;
+        const letters = wordEl.querySelectorAll('letter');
+        let target;
+        if (cIdx < letters.length) {
+            target = letters[cIdx];
+        } else if (letters.length > 0) {
+            // Past end of word — position after last letter
+            target = letters[letters.length - 1];
+            const rect = target.getBoundingClientRect();
+            const wrapRect = document.getElementById('words-wrapper').getBoundingClientRect();
+            caret.style.left = (rect.right - wrapRect.left) + 'px';
+            caret.style.top = (rect.top - wrapRect.top) + 'px';
+            return;
         }
-        el.innerHTML = html;
+        if (target) {
+            const rect = target.getBoundingClientRect();
+            const wrapRect = document.getElementById('words-wrapper').getBoundingClientRect();
+            caret.style.left = (rect.left - wrapRect.left) + 'px';
+            caret.style.top = (rect.top - wrapRect.top) + 'px';
+        }
     }
 
-    function listenForStart() {
-        const wordsEl = document.getElementById('words');
-        const clickHandler = () => { wordsEl.removeEventListener('click', clickHandler); beginTyping(); };
-        wordsEl.addEventListener('click', clickHandler);
-
-        const earlyKey = (e) => {
-            if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-                document.removeEventListener('keydown', earlyKey);
-                beginTyping();
-                handleKey(e);
-            }
-            if (e.key === 'Tab') { e.preventDefault(); prepare(); }
-        };
-        document.addEventListener('keydown', earlyKey);
-        window._earlyKey = earlyKey;
+    // Check if we need to scroll lines
+    function checkLineScroll() {
+        const wordEl = wordEls[wIdx];
+        if (!wordEl) return;
+        const wrapper = document.getElementById('words-wrapper');
+        const container = document.getElementById('words');
+        const wrapTop = wrapper.getBoundingClientRect().top;
+        const wordTop = wordEl.getBoundingClientRect().top;
+        const lineHeight = parseFloat(getComputedStyle(wrapper).fontSize) * parseFloat(getComputedStyle(wrapper).lineHeight);
+        const offset = wordTop - wrapTop;
+        // If the current word is below the first line, scroll up
+        if (offset > lineHeight * 1.2) {
+            const currentMargin = parseFloat(container.style.marginTop) || 0;
+            container.style.marginTop = (currentMargin - lineHeight) + 'px';
+        }
     }
 
-    function beginTyping() {
+    // Prepare test
+    function prepare() {
+        active = false; startTime = 0; correct = 0; errors = 0; total = 0;
+        wIdx = 0; cIdx = 0; inputBuf = '';
+        clearInterval(tick);
+        words = gen(cat === 'time' ? 200 : val);
+        buildWords();
+        document.getElementById('result').style.display = 'none';
+        document.getElementById('words-wrapper').style.display = '';
+        document.getElementById('focus-prompt').classList.remove('hidden');
+        document.getElementById('caret').className = '';
+        document.getElementById('s-wpm').textContent = '';
+        document.getElementById('s-acc').textContent = '';
+        document.getElementById('s-timer').textContent = '';
+        const ad = document.getElementById('result-ad'); if (ad) ad.style.display = 'none';
+        updateCaret();
+    }
+
+    // Focus
+    function gainFocus() {
+        if (focused) return;
+        focused = true;
+        document.getElementById('focus-prompt').classList.add('hidden');
+        document.getElementById('hiddenInput').focus();
+    }
+
+    // Start typing
+    function beginTest() {
         if (active) return;
         active = true;
         startTime = Date.now();
-        document.getElementById('prompt').style.display = 'none';
-        timer = setInterval(tick, 200);
-
-        keyHandler = handleKey;
-        document.addEventListener('keydown', keyHandler);
+        document.getElementById('s-timer').textContent = cat === 'time' ? val + 's' : '0/' + val;
+        tick = setInterval(tickUpdate, 200);
     }
 
-    function handleKey(e) {
-        if (!active) return;
-        if (e.ctrlKey || e.metaKey || e.altKey) return;
-        if (e.key === 'Tab') { e.preventDefault(); prepare(); return; }
+    // Handle input
+    function handleInput(key) {
+        if (!focused) { gainFocus(); }
+        if (!active && key !== 'Tab') { beginTest(); }
 
-        const word = words[wordIdx];
-        if (!word) return;
+        const caret = document.getElementById('caret');
+        // Stop blink while typing
+        caret.classList.add('typing');
+        clearTimeout(caretBlinkTimeout);
+        caretBlinkTimeout = setTimeout(() => caret.classList.remove('typing'), 500);
 
-        if (e.key === ' ') {
-            e.preventDefault();
-            // Don't advance if nothing was typed
-            if (input.length === 0) return;
-            // Score the word
-            for (let i = 0; i < Math.max(input.length, word.length); i++) {
-                total++;
-                if (i < input.length && i < word.length && input[i] === word[i]) correct++;
-                else errors++;
+        if (key === 'Tab') { prepare(); return; }
+
+        const word = words[wIdx];
+        const wordEl = wordEls[wIdx];
+        if (!word || !wordEl) return;
+        const letters = wordEl.querySelectorAll('letter');
+
+        if (key === ' ') {
+            if (inputBuf.length === 0) return; // no empty space advances
+            // Mark remaining untyped letters as incorrect
+            for (let i = inputBuf.length; i < word.length; i++) {
+                letters[i].classList.add('incorrect');
+                errors++; total++;
             }
-            // Save result for this word so completed words show errors
-            wordResults[wordIdx] = { typed: input, correct: input === word };
-            wordIdx++;
-            input = '';
-            if (mode.type === 'words' && wordIdx >= mode.value) { finish(); return; }
-            render();
+            // Mark word as typed
+            wordEl.classList.add('typed');
+            if (inputBuf !== word) wordEl.classList.add('error');
+            wIdx++; cIdx = 0; inputBuf = '';
+            // Check word count finish
+            if (cat === 'words' && wIdx >= val) { finish(); return; }
+            checkLineScroll();
+            updateCaret();
             return;
         }
 
-        if (e.key === 'Backspace') {
-            e.preventDefault();
-            if (input.length > 0) input = input.slice(0, -1);
-            render();
+        if (key === 'Backspace') {
+            if (cIdx > 0) {
+                cIdx--;
+                inputBuf = inputBuf.slice(0, -1);
+                // Remove extra letters
+                if (cIdx >= word.length) {
+                    const extras = wordEl.querySelectorAll('letter.extra');
+                    if (extras.length) extras[extras.length - 1].remove();
+                } else {
+                    letters[cIdx].className = '';
+                }
+            }
+            updateCaret();
             return;
         }
 
-        if (e.key.length === 1) {
-            e.preventDefault();
-            input += e.key;
-            render();
+        if (key.length !== 1) return;
+
+        if (cIdx < word.length) {
+            // Within word bounds
+            total++;
+            if (key === word[cIdx]) {
+                letters[cIdx].classList.add('correct');
+                correct++;
+            } else {
+                letters[cIdx].classList.add('incorrect');
+                errors++;
+            }
+        } else {
+            // Extra characters beyond word length
+            total++; errors++;
+            const extra = document.createElement('letter');
+            extra.textContent = key;
+            extra.className = 'extra';
+            wordEl.appendChild(extra);
         }
+        inputBuf += key;
+        cIdx++;
+        updateCaret();
     }
 
-    function tick() {
+    // Tick
+    function tickUpdate() {
         if (!active || !startTime) return;
         const elapsed = (Date.now() - startTime) / 1000;
-
-        // WPM based on correctly typed characters only
         const wpm = elapsed > 0.5 ? Math.round((correct / 5) / (elapsed / 60)) : 0;
-        const wpmEl = document.getElementById('s-wpm');
-        wpmEl.textContent = wpm + ' wpm';
-        wpmEl.style.color = wpm > 0 ? '#0ff' : '#444';
-
-        // Accuracy
         const acc = total > 0 ? Math.round((correct / total) * 100) : 100;
-        const accEl = document.getElementById('s-acc');
-        accEl.textContent = acc + '%';
-        accEl.style.color = total > 0 ? (acc >= 95 ? '#0f0' : acc >= 80 ? '#ff0' : '#f55') : '#444';
 
-        // Timer
-        const timerEl = document.getElementById('s-timer');
-        if (mode.type === 'time') {
-            const remain = Math.max(0, mode.value - elapsed);
-            timerEl.textContent = Math.ceil(remain) + 's';
-            if (remain <= 0) { finish(); return; }
+        document.getElementById('s-wpm').textContent = wpm + ' wpm';
+        document.getElementById('s-wpm').style.color = wpm > 0 ? '#0ff' : '#333';
+        document.getElementById('s-acc').textContent = acc + '%';
+        document.getElementById('s-acc').style.color = total > 0 ? (acc >= 95 ? '#0f0' : acc >= 80 ? '#ff0' : '#f55') : '#333';
+
+        if (cat === 'time') {
+            const remain = Math.max(0, val - elapsed);
+            document.getElementById('s-timer').textContent = Math.ceil(remain) + 's';
+            if (remain <= 0) finish();
         } else {
-            timerEl.textContent = wordIdx + '/' + mode.value;
+            document.getElementById('s-timer').textContent = wIdx + '/' + val;
         }
     }
 
+    // Finish
     function finish() {
-        clearInterval(timer);
-        active = false;
-        if (keyHandler) { document.removeEventListener('keydown', keyHandler); keyHandler = null; }
-        if (window._earlyKey) { document.removeEventListener('keydown', window._earlyKey); }
-
-        // Score any partially typed current word before finishing
-        if (input.length > 0) {
-            const word = words[wordIdx];
+        clearInterval(tick); active = false;
+        // Score current partial word
+        if (inputBuf.length > 0) {
+            const word = words[wIdx];
             if (word) {
-                for (let i = 0; i < Math.max(input.length, word.length); i++) {
-                    total++;
-                    if (i < input.length && i < word.length && input[i] === word[i]) correct++;
-                    else errors++;
-                }
-                wordResults[wordIdx] = { typed: input, correct: input === word };
-                wordIdx++;
+                for (let i = inputBuf.length; i < word.length; i++) { errors++; total++; }
+                wIdx++;
             }
         }
-
         const elapsed = (Date.now() - startTime) / 1000;
         const wpm = elapsed > 0 ? Math.round((correct / 5) / (elapsed / 60)) : 0;
         const acc = total > 0 ? Math.round((correct / total) * 100) : 100;
@@ -403,72 +412,71 @@
         else if (wpm >= 25) { rating = 'AVERAGE'; rc = '#fa0'; }
         else { rating = 'BEGINNER'; rc = '#f55'; }
 
-        const ml = mode.type === 'time' ? mode.value + 's' : mode.value + ' words';
-
-        document.getElementById('words').style.display = 'none';
+        const ml = cat === 'time' ? val + 's' : val + ' words';
+        document.getElementById('words-wrapper').style.display = 'none';
         const r = document.getElementById('result');
         r.style.display = 'block';
         r.innerHTML = `
-            <div class="result">
-                <div class="result-rating" style="color:${rc}; text-shadow:0 0 12px ${rc};">${rating}</div>
-                <div class="result-big">
-                    <div><div class="result-num" style="color:#0ff;">${wpm}</div><div class="result-label">WPM</div></div>
-                    <div><div class="result-num" style="color:${acc >= 95 ? '#0f0' : acc >= 80 ? '#ff0' : '#f55'};">${acc}%</div><div class="result-label">ACCURACY</div></div>
-                </div>
-                <div class="result-detail">${ml} · ${elapsed.toFixed(1)}s · ${raw} raw · ${wordIdx} words · ${errors} errors</div>
-                <button class="result-btn" onclick="prepare()">RESTART</button>
-                <div class="result-hint">tab to restart</div>
-            </div>`;
+            <div class="r-rating" style="color:${rc}; text-shadow:0 0 12px ${rc};">${rating}</div>
+            <div class="r-big">
+                <div><div class="r-num" style="color:#0ff;">${wpm}</div><div class="r-label">WPM</div></div>
+                <div><div class="r-num" style="color:${acc>=95?'#0f0':acc>=80?'#ff0':'#f55'};">${acc}%</div><div class="r-label">ACCURACY</div></div>
+            </div>
+            <div class="r-detail">${ml} · ${elapsed.toFixed(1)}s · ${raw} raw · ${wIdx} words · ${errors} errors</div>
+            <button class="r-btn" onclick="prepare()">restart</button>
+            <div class="r-hint">tab to restart</div>`;
 
-        // Show ad on results
-        const adEl = document.getElementById('result-ad');
-        if (adEl) {
-            adEl.style.display = '';
-            try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (_) {}
-        }
+        // Show ad
+        const ad = document.getElementById('result-ad');
+        if (ad) { ad.style.display = ''; try { (window.adsbygoogle=window.adsbygoogle||[]).push({}); } catch(_){} }
 
-        // Leaderboard submit
+        // Leaderboard
         try {
-            const apiBase = location.hostname === 'localhost' || location.hostname === '127.0.0.1' ? '' : 'https://api.thyfwxit.com';
-            fetch(apiBase + '/api/leaderboard/submit', {
-                method: 'POST', credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ game: 'typing', score: wpm })
-            }).catch(() => {});
-        } catch (_) {}
+            const api = ['localhost','127.0.0.1'].includes(location.hostname) ? '' : 'https://api.thyfwxit.com';
+            fetch(api+'/api/leaderboard/submit',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({game:'typing',score:wpm})}).catch(()=>{});
+        } catch(_){}
 
-        // Tab to restart
-        const rh = (e) => { if (e.key === 'Tab') { e.preventDefault(); document.removeEventListener('keydown', rh); prepare(); } };
+        // Tab restart listener
+        const rh = (e) => { if (e.key==='Tab'){e.preventDefault();document.removeEventListener('keydown',rh);prepare();} };
         document.addEventListener('keydown', rh);
     }
 
-    // Tab switching
-    document.querySelectorAll('.tab').forEach(t => {
-        t.addEventListener('click', () => {
-            document.querySelectorAll('.tab').forEach(x => { x.classList.remove('active'); });
-            t.classList.add('active');
-            const cat = t.getAttribute('data-cat');
-            document.getElementById('time-opts').style.display = cat === 'time' ? 'flex' : 'none';
-            document.getElementById('word-opts').style.display = cat === 'words' ? 'flex' : 'none';
-            const sel = document.querySelector('#' + cat + '-opts .opt.sel');
-            if (sel) sel.click();
-        });
+    // Event wiring
+    document.addEventListener('keydown', (e) => {
+        if (e.key === ' ' || e.key === 'Backspace') e.preventDefault();
+        if (e.key === 'Tab') { e.preventDefault(); prepare(); return; }
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        if (e.key.length === 1 || e.key === 'Backspace' || e.key === ' ') {
+            handleInput(e.key);
+        }
     });
 
-    // Option selection
-    document.querySelectorAll('.opt').forEach(o => {
-        o.addEventListener('click', () => {
-            o.parentElement.querySelectorAll('.opt').forEach(x => { x.classList.remove('sel'); });
-            o.classList.add('sel');
-            const m = o.getAttribute('data-mode').split('-');
-            mode = { type: m[0], value: parseInt(m[1]) };
+    // Click to focus
+    document.getElementById('words-wrapper').addEventListener('click', () => {
+        gainFocus();
+        if (!active) beginTest();
+    });
+
+    // Mode switching
+    document.querySelectorAll('#cat-btns .mode-btn').forEach(b => {
+        b.addEventListener('click', () => {
+            document.querySelectorAll('#cat-btns .mode-btn').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            cat = b.dataset.cat;
+            document.getElementById('val-btns-time').style.display = cat === 'time' ? 'flex' : 'none';
+            document.getElementById('val-btns-words').style.display = cat === 'words' ? 'flex' : 'none';
+            const sel = document.querySelector('#val-btns-' + cat + ' .mode-btn.active');
+            if (sel) val = parseInt(sel.dataset.val);
             prepare();
         });
     });
-
-    // Prevent space from scrolling the page — ALWAYS
-    document.addEventListener('keydown', (e) => {
-        if (e.key === ' ' || e.key === 'Backspace') e.preventDefault();
+    document.querySelectorAll('.mode-group .mode-btn[data-val]').forEach(b => {
+        b.addEventListener('click', () => {
+            b.parentElement.querySelectorAll('.mode-btn').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            val = parseInt(b.dataset.val);
+            prepare();
+        });
     });
 
     // Init
