@@ -53,12 +53,13 @@
             display: inline-block;
             transition: color 0.05s;
         }
-        .word letter { color: #555; }
-        .word letter.correct { color: #0ff; }
-        .word letter.incorrect { color: #f44; text-decoration: underline; text-decoration-color: #f44; }
+        .word letter { color: #666; }
+        .word letter.correct { color: #fff; }
+        .word letter.incorrect { color: #f44; }
         .word letter.extra { color: #7a2828; font-size: 0.85em; }
-        .word.typed letter { opacity: 0.4; }
-        .word.error { border-bottom: 2px solid rgba(255,68,68,0.4); }
+        .word.active { background: rgba(0,255,255,0.04); border-radius: 3px; padding: 0 2px; margin: 0 -2px; }
+        .word.typed letter { color: #333; }
+        .word.typed.error { border-bottom: 2px solid rgba(255,68,68,0.3); }
 
         /* Caret — thick visible line with glow */
         #caret {
@@ -271,6 +272,7 @@
         // key handling is done via the global listener — no separate handler to clean up
         words = gen(cat === 'time' ? 200 : val);
         buildWords();
+        if (wordEls[0]) wordEls[0].classList.add('active');
         document.getElementById('result').style.display = 'none';
         document.getElementById('words-wrapper').style.display = '';
         document.getElementById('focus-prompt').classList.remove('hidden');
@@ -334,10 +336,12 @@
                 letters[i].classList.add('incorrect');
                 errors++; total++;
             }
-            // Mark word as typed
+            // Mark word as typed, move active highlight
+            wordEl.classList.remove('active');
             wordEl.classList.add('typed');
             if (inputBuf !== word) wordEl.classList.add('error');
             wIdx++; cIdx = 0; inputBuf = '';
+            if (wordEls[wIdx]) wordEls[wIdx].classList.add('active');
             // Check word count finish
             if (cat === 'words' && wIdx >= val) { finish(); return; }
             checkLineScroll();
