@@ -300,6 +300,7 @@
     // Start typing
     function beginTest() {
         if (active) return;
+        if (words.length === 0 || wordEls.length === 0) { prepare(); return; }
         active = true;
         startTime = Date.now();
         document.getElementById('s-timer').textContent = cat === 'time' ? val + 's' : '0/' + val;
@@ -502,8 +503,8 @@
         });
     });
 
-    // Init
-    prepare();
+    // Init — delay slightly to ensure DOM is fully ready
+    setTimeout(prepare, 50);
     </script>
 </body>
 </html>
