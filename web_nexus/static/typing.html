@@ -150,6 +150,15 @@
             </div>
         </div>
 
+        <!-- Difficulty -->
+        <div class="mode-bar" style="margin-bottom:8px;">
+            <div class="mode-group" id="diff-btns">
+                <button class="mode-btn active" data-diff="easy">easy</button>
+                <button class="mode-btn" data-diff="normal">normal</button>
+                <button class="mode-btn" data-diff="hard">hard</button>
+            </div>
+        </div>
+
         <!-- Mode indicator — shows what's selected -->
         <div id="mode-label" style="text-align:center; font-size:0.65rem; color:#333; letter-spacing:1px; margin-bottom:12px; min-height:16px; transition:color 0.3s;"></div>
 
@@ -186,9 +195,16 @@
     <input id="hiddenInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
 
     <script>
-    const WORDS = 'the be to of and a in that have it for not on with he as you do at this but his by from they we say her she or an will my one all would there their what so up out if about who get which go me when make can like time no just him know take people into year your good some could them see other than then now look only come its over think also back after use two how our work first well way even new want because any these give day most us great server network system code debug deploy build test data cloud stack docker linux proxy cache query token route parse render fetch async socket buffer thread kernel module config script compile process shell terminal console output input stream packet firewall gateway router protocol header request response status error warning timeout encrypt cpu gpu ram disk board chip wire power signal clock voltage repair fast slow broken clean secure stable active offline online live dark simple complex basic advanced modern legacy custom default manual auto run stop start push pull send load save read write copy move delete create update check scan boot sync ping lock unlock block speed quality control access memory storage security performance monitor'.split(' ');
+    const EASY_WORDS = 'the be to of and a in that have it for not on with he as you do at this but his by from they we say her she or an will my one all would there their what so up out if about who get which go me when make can like time no just him know take people into year your good some could them see other than then now look only come its over think also back after use two how our work first well way even new want because any these give day most us great'.split(' ');
 
-    let cat = 'time', val = 30;
+    const NORMAL_WORDS = 'server network system code debug deploy build test data cloud stack docker linux proxy cache query token route parse render fetch async socket buffer thread kernel module config script compile process shell terminal console output input stream packet firewall gateway router protocol header request response status error warning timeout encrypt security performance monitor storage memory access control speed quality'.split(' ');
+
+    const HARD_WORDS = 'implementation infrastructure authentication authorization configuration documentation troubleshooting optimization vulnerability compatibility functionality cryptocurrency semiconductor motherboard architecture specification synchronization'.split(' ');
+
+    const PUNCTUATION = ['.', '.', '.', ',', ',', '?', '!', ';', ':'];
+    const NUMBERS = ['0','1','2','3','4','5','6','7','8','9','10','15','20','42','64','100','128','192','256','404','500','1024','2048'];
+
+    let cat = 'time', val = 30, diff = 'easy';
     let words = [], wordEls = [];
     let wIdx = 0, cIdx = 0, inputBuf = '';
     let active = false, startTime = 0;
@@ -196,8 +212,59 @@
     let tick = null, focused = false;
     let caretBlinkTimeout = null;
 
-    // Generate words
-    function gen(n) { return Array.from({length:n}, () => WORDS[Math.floor(Math.random()*WORDS.length)]); }
+    // Personal best storage
+    function getPB(key) { try { return JSON.parse(localStorage.getItem('nexus_type_pb') || '{}')[key] || 0; } catch(_) { return 0; } }
+    function setPB(key, wpm) {
+        try {
+            const all = JSON.parse(localStorage.getItem('nexus_type_pb') || '{}');
+            all[key] = wpm;
+            localStorage.setItem('nexus_type_pb', JSON.stringify(all));
+        } catch(_) {}
+    }
+    function pbKey() { return `${diff}_${cat}_${val}`; }
+
+    // Generate words based on difficulty
+    function gen(n) {
+        const result = [];
+        let afterPunc = true; // capitalize first word
+        for (let i = 0; i < n; i++) {
+            let word;
+            if (diff === 'easy') {
+                word = EASY_WORDS[Math.floor(Math.random() * EASY_WORDS.length)];
+            } else if (diff === 'normal') {
+                const pool = Math.random() < 0.6 ? EASY_WORDS : NORMAL_WORDS;
+                word = pool[Math.floor(Math.random() * pool.length)];
+                // Add punctuation sometimes
+                if (Math.random() < 0.12 && i > 0) {
+                    result[result.length - 1] += PUNCTUATION[Math.floor(Math.random() * PUNCTUATION.length)];
+                    afterPunc = true;
+                }
+            } else { // hard
+                const r = Math.random();
+                if (r < 0.1) {
+                    word = NUMBERS[Math.floor(Math.random() * NUMBERS.length)];
+                } else if (r < 0.3) {
+                    word = HARD_WORDS[Math.floor(Math.random() * HARD_WORDS.length)];
+                } else if (r < 0.6) {
+                    word = NORMAL_WORDS[Math.floor(Math.random() * NORMAL_WORDS.length)];
+                } else {
+                    word = EASY_WORDS[Math.floor(Math.random() * EASY_WORDS.length)];
+                }
+                // More punctuation in hard mode
+                if (Math.random() < 0.18 && i > 0) {
+                    result[result.length - 1] += PUNCTUATION[Math.floor(Math.random() * PUNCTUATION.length)];
+                    afterPunc = true;
+                }
+            }
+            // Capitalize after punctuation (normal + hard only)
+            if (afterPunc && diff !== 'easy') {
+                word = word.charAt(0).toUpperCase() + word.slice(1);
+                afterPunc = false;
+            }
+            result.push(word);
+        }
+        return result;
+    }
 
     // Build word DOM elements (ONE TIME per test — never rebuild)
     function buildWords() {
@@ -283,9 +350,11 @@
         // Show mode label
         const mLabel = document.getElementById('mode-label');
         if (mLabel) {
-            mLabel.textContent = cat === 'time' ? val + ' seconds' : val + ' words';
+            const pb = getPB(pbKey());
+            const pbText = pb > 0 ? ' · pb: ' + pb + ' wpm' : '';
+            mLabel.textContent = diff + ' · ' + (cat === 'time' ? val + 's' : val + ' words') + pbText;
             mLabel.style.color = '#0ff';
-            setTimeout(() => { mLabel.style.color = '#333'; }, 600);
+            setTimeout(() => { mLabel.style.color = '#444'; }, 600);
         }
         const ad = document.getElementById('result-ad'); if (ad) ad.style.display = 'none';
         updateCaret();
@@ -436,11 +505,18 @@
         else if (wpm >= 25) { rating = 'AVERAGE'; rc = '#fa0'; }
         else { rating = 'BEGINNER'; rc = '#f55'; }
 
-        const ml = cat === 'time' ? val + 's' : val + ' words';
+        // Personal best check
+        const key = pbKey();
+        const prevPB = getPB(key);
+        const isNewPB = wpm > prevPB && wpm > 0;
+        if (isNewPB) setPB(key, wpm);
+
+        const ml = diff + ' · ' + (cat === 'time' ? val + 's' : val + ' words');
         document.getElementById('words-wrapper').style.display = 'none';
         const r = document.getElementById('result');
         r.style.display = 'block';
         r.innerHTML = `
+            ${isNewPB ? '<div style="color:#f0f; font-size:0.8rem; font-weight:700; letter-spacing:3px; margin-bottom:8px; animation:caretBlink 0.5s 6;">NEW PERSONAL BEST!</div>' : ''}
             <div class="r-rating" style="color:${rc}; text-shadow:0 0 12px ${rc};">${rating}</div>
             <div class="r-big">
                 <div><div class="r-num" style="color:#0ff;">${wpm}</div><div class="r-label">WPM</div></div>
@@ -503,6 +579,16 @@
             b.parentElement.querySelectorAll('.mode-btn').forEach(x => x.classList.remove('active'));
             b.classList.add('active');
             val = parseInt(b.dataset.val);
+            prepare();
+        });
+    });
+
+    // Difficulty switching
+    document.querySelectorAll('#diff-btns .mode-btn').forEach(b => {
+        b.addEventListener('click', () => {
+            document.querySelectorAll('#diff-btns .mode-btn').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            diff = b.dataset.diff;
             prepare();
         });
     });
