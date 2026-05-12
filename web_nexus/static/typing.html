@@ -11,7 +11,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html, body { height: 100%; }
         body {
-            background: #0a0a0f; color: #646669;
+            background: #0a0a0f; color: #888;
             font-family: 'Fira Code', monospace;
             display: flex; flex-direction: column; align-items: center;
             overflow-x: hidden;
@@ -53,22 +53,24 @@
             display: inline-block;
             transition: color 0.05s;
         }
+        .word letter { color: #555; }
         .word letter.correct { color: #0ff; }
-        .word letter.incorrect { color: #f44; text-decoration: underline; }
+        .word letter.incorrect { color: #f44; text-decoration: underline; text-decoration-color: #f44; }
         .word letter.extra { color: #7a2828; font-size: 0.85em; }
-        .word.typed { opacity: 0.35; }
-        .word.error { text-decoration: underline; text-decoration-color: #f44; text-underline-offset: 4px; }
+        .word.typed letter { opacity: 0.4; }
+        .word.error { border-bottom: 2px solid rgba(255,68,68,0.4); }
 
-        /* Caret */
+        /* Caret — thick visible line with glow */
         #caret {
             position: absolute; top: 0; left: 0;
-            width: 2px; height: 1.3rem;
-            background: #0ff; border-radius: 1px;
+            width: 3px; height: 1.8rem;
+            background: #0ff; border-radius: 2px;
+            box-shadow: 0 0 8px #0ff, 0 0 16px rgba(0,255,255,0.3);
             transition: left 0.08s ease, top 0.08s ease;
             animation: caretBlink 1s infinite;
             z-index: 2;
         }
-        @keyframes caretBlink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+        @keyframes caretBlink { 0%,100% { opacity: 1; } 50% { opacity: 0.2; } }
         #caret.typing { animation: none; opacity: 1; }
 
         /* Focus prompt */
@@ -145,6 +147,9 @@
                 <button class="mode-btn" data-val="100">100</button>
             </div>
         </div>
+
+        <!-- Mode indicator — shows what's selected -->
+        <div id="mode-label" style="text-align:center; font-size:0.65rem; color:#333; letter-spacing:1px; margin-bottom:12px; min-height:16px; transition:color 0.3s;"></div>
 
         <!-- Stats (live during test) -->
         <div class="stats">
@@ -269,6 +274,13 @@
         document.getElementById('s-wpm').textContent = '';
         document.getElementById('s-acc').textContent = '';
         document.getElementById('s-timer').textContent = '';
+        // Show mode label
+        const mLabel = document.getElementById('mode-label');
+        if (mLabel) {
+            mLabel.textContent = cat === 'time' ? val + ' seconds' : val + ' words';
+            mLabel.style.color = '#0ff';
+            setTimeout(() => { mLabel.style.color = '#333'; }, 600);
+        }
         const ad = document.getElementById('result-ad'); if (ad) ad.style.display = 'none';
         updateCaret();
     }
