@@ -194,6 +194,7 @@
     let words = [], wordIdx = 0, charIdx = 0, input = '';
     let startTime = 0, active = false, errors = 0, correct = 0, total = 0;
     let timer = null, keyHandler = null;
+    let wordResults = []; // track per-word: { typed, correct }
 
     function gen(n) {
         const w = [];
@@ -204,6 +205,7 @@
     function prepare() {
         active = false; startTime = 0; errors = 0; correct = 0; total = 0;
         wordIdx = 0; charIdx = 0; input = '';
+        wordResults = [];
         clearInterval(timer);
         if (keyHandler) { document.removeEventListener('keydown', keyHandler); keyHandler = null; }
 
@@ -229,8 +231,25 @@
         for (let w = start; w < end; w++) {
             const word = words[w];
             if (w < wordIdx) {
-                html += '<span class="done">' + word + '</span> ';
+                // Completed word — show per-character result from wordResults
+                const wr = wordResults[w];
+                if (wr) {
+                    for (let c = 0; c < word.length; c++) {
+                        if (c < wr.typed.length) {
+                            html += wr.typed[c] === word[c]
+                                ? '<span class="correct">' + word[c] + '</span>'
+                                : '<span class="wrong">' + word[c] + '</span>';
+                        } else {
+                            // Untyped chars (skipped via space)
+                            html += '<span class="wrong">' + word[c] + '</span>';
+                        }
+                    }
+                } else {
+                    html += '<span class="done">' + word + '</span>';
+                }
+                html += ' ';
             } else if (w === wordIdx) {
+                // Current word
                 for (let c = 0; c < word.length; c++) {
                     if (c < input.length) {
                         html += input[c] === word[c]
@@ -242,7 +261,6 @@
                         html += '<span class="upcoming">' + word[c] + '</span>';
                     }
                 }
-                // Extra typed chars beyond word length
                 if (input.length > word.length) {
                     for (let c = word.length; c < input.length; c++) {
                         html += '<span class="wrong">' + input[c] + '</span>';
@@ -294,12 +312,16 @@
 
         if (e.key === ' ') {
             e.preventDefault();
+            // Don't advance if nothing was typed
+            if (input.length === 0) return;
             // Score the word
             for (let i = 0; i < Math.max(input.length, word.length); i++) {
                 total++;
                 if (i < input.length && i < word.length && input[i] === word[i]) correct++;
                 else errors++;
             }
+            // Save result for this word so completed words show errors
+            wordResults[wordIdx] = { typed: input, correct: input === word };
             wordIdx++;
             input = '';
             if (mode.type === 'words' && wordIdx >= mode.value) { finish(); return; }
@@ -325,9 +347,8 @@
         if (!active || !startTime) return;
         const elapsed = (Date.now() - startTime) / 1000;
 
-        // WPM based on completed words
-        const completedChars = words.slice(0, wordIdx).join(' ').length;
-        const wpm = elapsed > 0.5 ? Math.round((completedChars / 5) / (elapsed / 60)) : 0;
+        // WPM based on correctly typed characters only
+        const wpm = elapsed > 0.5 ? Math.round((correct / 5) / (elapsed / 60)) : 0;
         const wpmEl = document.getElementById('s-wpm');
         wpmEl.textContent = wpm + ' wpm';
         wpmEl.style.color = wpm > 0 ? '#0ff' : '#444';
@@ -355,9 +376,22 @@
         if (keyHandler) { document.removeEventListener('keydown', keyHandler); keyHandler = null; }
         if (window._earlyKey) { document.removeEventListener('keydown', window._earlyKey); }
 
+        // Score any partially typed current word before finishing
+        if (input.length > 0) {
+            const word = words[wordIdx];
+            if (word) {
+                for (let i = 0; i < Math.max(input.length, word.length); i++) {
+                    total++;
+                    if (i < input.length && i < word.length && input[i] === word[i]) correct++;
+                    else errors++;
+                }
+                wordResults[wordIdx] = { typed: input, correct: input === word };
+                wordIdx++;
+            }
+        }
+
         const elapsed = (Date.now() - startTime) / 1000;
-        const completedChars = words.slice(0, wordIdx).join(' ').length;
-        const wpm = elapsed > 0 ? Math.round((completedChars / 5) / (elapsed / 60)) : 0;
+        const wpm = elapsed > 0 ? Math.round((correct / 5) / (elapsed / 60)) : 0;
         const acc = total > 0 ? Math.round((correct / total) * 100) : 100;
         const raw = elapsed > 0 ? Math.round(((correct + errors) / 5) / (elapsed / 60)) : 0;
 
