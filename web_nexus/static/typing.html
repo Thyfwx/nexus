@@ -22,7 +22,7 @@
         .top a { color: #444; font-size: 0.7rem; text-decoration: none; }
         .top a:hover { color: #0ff; }
 
-        .container { width: 100%; max-width: 850px; padding: 0 24px; flex: 1; display: flex; flex-direction: column; justify-content: center; }
+        .container { width: 100%; max-width: 850px; padding: 40px 24px 0; flex: 1; }
 
         /* Mode bar */
         .mode-bar { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
@@ -74,8 +74,8 @@
         /* Focus prompt */
         #focus-prompt {
             position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-            color: #333; font-size: 0.8rem; letter-spacing: 1px; z-index: 3;
-            background: rgba(10,10,15,0.85); cursor: pointer;
+            color: #555; font-size: 0.8rem; letter-spacing: 1px; z-index: 3;
+            background: #0a0a0f; cursor: pointer; border-radius: 4px;
         }
         #focus-prompt.hidden { display: none; }
 
