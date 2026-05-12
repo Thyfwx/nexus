@@ -264,7 +264,10 @@
     function prepare() {
         active = false; startTime = 0; correct = 0; errors = 0; total = 0;
         wIdx = 0; cIdx = 0; inputBuf = '';
+        focused = false;
         clearInterval(tick);
+        // Remove any leftover key handlers
+        if (keyHandler) { document.removeEventListener('keydown', keyHandler); keyHandler = null; }
         words = gen(cat === 'time' ? 200 : val);
         buildWords();
         document.getElementById('result').style.display = 'none';
@@ -304,6 +307,8 @@
 
     // Handle input
     function handleInput(key) {
+        // Don't accept input if result screen is showing — must restart first
+        if (document.getElementById('result').style.display === 'block') return;
         if (!focused) { gainFocus(); }
         if (!active && key !== 'Tab') { beginTest(); }
 
@@ -402,7 +407,8 @@
 
     // Finish
     function finish() {
-        clearInterval(tick); active = false;
+        clearInterval(tick); active = false; focused = false;
+        if (keyHandler) { document.removeEventListener('keydown', keyHandler); keyHandler = null; }
         // Score current partial word
         if (inputBuf.length > 0) {
             const word = words[wIdx];
