@@ -76,8 +76,9 @@
         /* Focus prompt */
         #focus-prompt {
             position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-            color: #555; font-size: 0.8rem; letter-spacing: 1px; z-index: 3;
-            background: #0a0a0f; cursor: pointer; border-radius: 4px;
+            color: #666; font-size: 0.85rem; letter-spacing: 1px; z-index: 3;
+            background: rgba(10,10,15,0.95); cursor: pointer; border-radius: 4px;
+            backdrop-filter: blur(4px);
         }
         #focus-prompt.hidden { display: none; }
 
@@ -469,8 +470,12 @@
         }
     });
 
-    // Click to focus
+    // Click to focus — both the wrapper and the prompt
     document.getElementById('words-wrapper').addEventListener('click', () => {
+        gainFocus();
+        if (!active) beginTest();
+    });
+    document.getElementById('focus-prompt').addEventListener('click', () => {
         gainFocus();
         if (!active) beginTest();
     });
