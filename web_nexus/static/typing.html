@@ -268,7 +268,7 @@
         focused = false;
         clearInterval(tick);
         // Remove any leftover key handlers
-        if (keyHandler) { document.removeEventListener('keydown', keyHandler); keyHandler = null; }
+        // key handling is done via the global listener — no separate handler to clean up
         words = gen(cat === 'time' ? 200 : val);
         buildWords();
         document.getElementById('result').style.display = 'none';
@@ -410,7 +410,7 @@
     // Finish
     function finish() {
         clearInterval(tick); active = false; focused = false;
-        if (keyHandler) { document.removeEventListener('keydown', keyHandler); keyHandler = null; }
+        // key handling is done via the global listener — no separate handler to clean up
         // Score current partial word
         if (inputBuf.length > 0) {
             const word = words[wIdx];
