@@ -217,6 +217,20 @@ window._confirmAdultGate = function() {
     window._pendingGoogleUser = null;
     const modal = document.getElementById('adult-gate-modal');
     if (modal) modal.style.display = 'none';
+    // Log the age confirmation to the backend
+    try {
+        fetch((window.API_BASE || '') + '/api/log-conversation', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_key: data.email || 'unknown',
+                user_name: data.name || 'unknown',
+                prompt: '[SYSTEM] 18+ age confirmation accepted',
+                reply: 'User confirmed they are 18 or older.',
+                mode: 'system'
+            })
+        }).catch(function(){});
+    } catch(_) {}
     // On login.html, redirect to terminal. On terminal page, reveal it.
     if (window.revealTerminal) {
         window.revealTerminal(data.name);
