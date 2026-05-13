@@ -1971,9 +1971,22 @@ async function renderDevPanel() {
             </div>
 
             <div class="fp-section" data-tab="users">
-                <h3 class="fp-section-title">BAN SCREEN PREVIEW</h3>
-                <p class="fp-section-help">See what a banned user actually sees. Owner doesn't trigger the ban screen normally, so this is the only way to inspect what they encounter.</p>
-                <button class="fp-btn-primary" style="padding:10px 18px; border:none; cursor:pointer;" onclick="window._showBanScreen('PREVIEW · This is what a banned user sees. Click X to close.')">PREVIEW BAN SCREEN</button>
+                <h3 class="fp-section-title">ACCOUNT BANS</h3>
+                <p class="fp-section-help">Permanently ban a Google account by email. Banned users get redirected to the ban page and cannot use AI chat, image gen, games, or leaderboards. Persists across IP changes.</p>
+                <div id="dev-banned-list" style="margin-bottom:10px;"><em style="color:#666;">loading...</em></div>
+                <div style="display:flex; gap:8px; margin-top:10px; align-items:stretch;">
+                    <input type="email" id="dev-ban-email" class="fp-select" style="flex:1; height:40px; box-sizing:border-box;" placeholder="user@gmail.com">
+                    <button onclick="window._devBanAccount()"
+                            style="padding:0 22px; height:40px; cursor:pointer; background:rgba(255,68,68,0.12); color:#f88; border:1px solid #f55; border-radius:6px; font-family:var(--font-main); font-weight:800; letter-spacing:2px; font-size:0.75rem; text-transform:uppercase; transition:0.18s;"
+                            onmouseover="this.style.background='#f55'; this.style.color='#000';"
+                            onmouseout="this.style.background='rgba(255,68,68,0.12)'; this.style.color='#f88';">BAN</button>
+                </div>
+            </div>
+
+            <div class="fp-section" data-tab="users">
+                <h3 class="fp-section-title">BAN PAGE PREVIEW</h3>
+                <p class="fp-section-help">See what a banned user sees when they try to access Nexus.</p>
+                <button class="fp-btn-primary" style="padding:10px 18px; border:none; cursor:pointer;" onclick="window.open('banned', '_blank')">OPEN BAN PAGE</button>
             </div>
 
             <div class="fp-section" data-tab="routing">
@@ -2040,6 +2053,9 @@ async function renderDevPanel() {
 
     // Load image-model selection (populates the IMAGE MODEL SELECTOR dropdowns)
     if (window._devLoadImageModels) try { window._devLoadImageModels(); } catch(_) {}
+
+    // Load banned accounts list
+    if (window._devLoadBanned) try { window._devLoadBanned(); } catch(_) {}
 
     // Load API key editor — owner can paste/save any key without touching .env directly
     (async function loadEnvEditor() {
@@ -2231,6 +2247,48 @@ window._devUnblockIp = async function(ip) {
     });
     if (r.ok) renderDevPanel();
 };
+// Account ban management
+window._devBanAccount = async function() {
+    const inp = document.getElementById('dev-ban-email');
+    if (!inp || !inp.value.trim()) return;
+    const r = await fetch(`${window.API_BASE || ''}/api/dev/ban-account`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: inp.value.trim() })
+    });
+    inp.value = '';
+    if (r.ok) window._devLoadBanned();
+};
+window._devUnbanAccount = async function(email) {
+    if (!confirm('Unban ' + email + '?')) return;
+    const r = await fetch(`${window.API_BASE || ''}/api/dev/unban-account`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+    });
+    if (r.ok) window._devLoadBanned();
+};
+window._devLoadBanned = async function() {
+    const host = document.getElementById('dev-banned-list');
+    if (!host) return;
+    try {
+        const r = await fetch(`${window.API_BASE || ''}/api/dev/banned-accounts`, { credentials: 'include' });
+        const d = await r.json();
+        if (!d.banned || d.banned.length === 0) {
+            host.innerHTML = '<em style="color:#666; font-size:0.72rem;">no banned accounts</em>';
+            return;
+        }
+        host.innerHTML = d.banned.map(email =>
+            `<div style="display:flex; align-items:center; gap:10px; padding:6px 10px; border:1px solid rgba(255,68,68,0.15); border-radius:6px; background:rgba(255,68,68,0.04); margin:4px 0;">
+                <code style="flex:1; color:#f88; font-size:0.72rem;">${email}</code>
+                <button class="fp-btn-ghost" style="padding:4px 10px; cursor:pointer; color:#0f8; border-color:#0f8;" onclick="window._devUnbanAccount('${email}')">UNBAN</button>
+            </div>`
+        ).join('');
+    } catch (e) {
+        host.innerHTML = '<em style="color:#f55;">failed to load</em>';
+    }
+};
+
 window._devFilterPremium = function(needle) {
     needle = (needle || '').toLowerCase().trim();
     const host = document.getElementById('dev-premium-list');
