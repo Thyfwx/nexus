@@ -432,7 +432,7 @@
         const mLabel = document.getElementById('mode-label');
         if (mLabel) {
             const pb = getPB(pbKey());
-            const pbText = pb > 0 ? ' · pb: ' + pb + ' wpm' : '';
+            const pbText = pb > 0 ? ' · personal best: ' + pb + ' wpm' : '';
             mLabel.textContent = diff + ' · ' + (cat === 'time' ? val + 's' : val + ' words') + pbText;
             mLabel.style.color = '#0ff';
             setTimeout(() => { mLabel.style.color = '#444'; }, 600);
@@ -674,12 +674,28 @@
         });
     });
 
-    // Difficulty switching
+    // Difficulty switching — auto-set punctuation/numbers based on difficulty
+    function syncToggles() {
+        const puncBtn = document.querySelector('[data-toggle="punctuation"]');
+        const numsBtn = document.querySelector('[data-toggle="numbers"]');
+        if (puncBtn) { puncBtn.classList.toggle('on', usePunctuation); }
+        if (numsBtn) { numsBtn.classList.toggle('on', useNumbers); }
+    }
+
     document.querySelectorAll('#diff-btns .mode-btn').forEach(b => {
         b.addEventListener('click', () => {
             document.querySelectorAll('#diff-btns .mode-btn').forEach(x => x.classList.remove('active'));
             b.classList.add('active');
             diff = b.dataset.diff;
+            // Normal and hard auto-enable punctuation; hard auto-enables numbers
+            if (diff === 'easy') {
+                usePunctuation = false; useNumbers = false;
+            } else if (diff === 'normal') {
+                usePunctuation = true; useNumbers = false;
+            } else {
+                usePunctuation = true; useNumbers = true;
+            }
+            syncToggles();
             prepare();
         });
     });
