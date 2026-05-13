@@ -1,5 +1,5 @@
-// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.6.0 — credentials fix + speedtest standalone page + ads
-window.NEXUS_VERSION = 'v5.6.0';
+// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.6.1 — credentials fix + speedtest standalone page + ads
+window.NEXUS_VERSION = 'v5.6.1';
 
 // AD KILL SWITCHES — flip any to true to disable that block at runtime.
 // Master NEXUS_DISABLE_ADS overrides all. All disabled until AdSense
