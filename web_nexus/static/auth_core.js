@@ -194,8 +194,12 @@ async function handleCredentialResponse(response) {
             }
             localStorage.setItem('nexus_user_data', JSON.stringify(data));
             if (isOwner) localStorage.setItem('nexus_adult_confirmed', 'true');
-            window.revealTerminal(data.name);
-            renderAuthSection();
+            if (window.revealTerminal) {
+                window.revealTerminal(data.name);
+                renderAuthSection();
+            } else {
+                window.location.href = './';
+            }
         } else {
             if (statusMsg) { statusMsg.textContent = data.error || 'Sign-in failed'; statusMsg.style.color = '#f55'; }
         }
@@ -213,8 +217,13 @@ window._confirmAdultGate = function() {
     window._pendingGoogleUser = null;
     const modal = document.getElementById('adult-gate-modal');
     if (modal) modal.style.display = 'none';
-    window.revealTerminal(data.name);
-    renderAuthSection();
+    // On login.html, redirect to terminal. On terminal page, reveal it.
+    if (window.revealTerminal) {
+        window.revealTerminal(data.name);
+        renderAuthSection();
+    } else {
+        window.location.href = './';
+    }
 };
 
 window._declineAdultGate = function() {
