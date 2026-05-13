@@ -798,11 +798,36 @@
         })();
 
         // High-Fidelity Neural Gate
-        // If localStorage is empty but the session cookie is still valid, recover
-        // the session from the backend instead of forcing a re-login.
+        // If the user didn't come from the lobby (login page), send them there.
+        // This ensures shared links always land on login first.
         (async function() {
+            const fromLobby = document.referrer.includes('/nexus/login') || document.referrer.includes('/nexus/login.html') || sessionStorage.getItem('nexus_from_lobby');
             const user = JSON.parse(localStorage.getItem('nexus_user_data') || sessionStorage.getItem('nexus_user_data') || 'null');
+
+            if (user && user.name && !fromLobby) {
+                window.location.replace('./login');
+                return;
+            }
+            if (fromLobby || (user && user.name)) sessionStorage.setItem('nexus_from_lobby', '1');
+
             if (user && user.name) {
+                // Check if this account is banned before granting access
+                try {
+                    const banCheck = await fetch((window.API_BASE || '') + '/api/chat', {
+                        method: 'POST', credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ command: '__ban_check__', history: [], mode: 'nexus' })
+                    });
+                    if (banCheck.status === 403) {
+                        const d = await banCheck.json().catch(() => ({}));
+                        if (d.error && d.error.includes('banned')) {
+                            console.warn('[GATE] Account is banned. Redirecting.');
+                            window.location.replace('./banned');
+                            return;
+                        }
+                    }
+                } catch(_) {}
+
                 console.log("[GATE] Identity verified. Access granted.");
                 if (window.initiateBootSequence) window.initiateBootSequence();
                 return;
