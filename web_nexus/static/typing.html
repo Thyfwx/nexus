@@ -35,6 +35,8 @@
         }
         .mode-btn:hover { color: #888; }
         .mode-btn.active { color: #0ff; }
+        .toggle-btn.on { color: #0ff; }
+        .toggle-btn { font-size: 0.65rem; }
 
         /* Words area */
         #words-wrapper {
@@ -130,13 +132,27 @@
     </div>
 
     <div class="container">
-        <!-- Mode bar -->
-        <div class="mode-bar">
+        <!-- Mode bar — single clean row like MonkeyType -->
+        <div class="mode-bar" style="background:rgba(255,255,255,0.02); border-radius:8px; padding:8px 12px;">
+            <div class="mode-group" id="toggle-btns">
+                <button class="mode-btn toggle-btn" data-toggle="punctuation">@ punctuation</button>
+                <button class="mode-btn toggle-btn" data-toggle="numbers"># numbers</button>
+            </div>
+            <div class="mode-sep"></div>
             <div class="mode-group" id="cat-btns">
                 <button class="mode-btn active" data-cat="time">time</button>
                 <button class="mode-btn" data-cat="words">words</button>
             </div>
             <div class="mode-sep"></div>
+            <div class="mode-group" id="diff-btns">
+                <button class="mode-btn active" data-diff="easy">easy</button>
+                <button class="mode-btn" data-diff="normal">normal</button>
+                <button class="mode-btn" data-diff="hard">hard</button>
+            </div>
+        </div>
+
+        <!-- Duration/count row -->
+        <div class="mode-bar" style="margin-top:6px;">
             <div class="mode-group" id="val-btns-time">
                 <button class="mode-btn" data-val="15">15</button>
                 <button class="mode-btn active" data-val="30">30</button>
@@ -144,18 +160,10 @@
                 <button class="mode-btn" data-val="120">120</button>
             </div>
             <div class="mode-group" id="val-btns-words" style="display:none;">
+                <button class="mode-btn" data-val="10">10</button>
                 <button class="mode-btn" data-val="25">25</button>
                 <button class="mode-btn active" data-val="50">50</button>
                 <button class="mode-btn" data-val="100">100</button>
-            </div>
-        </div>
-
-        <!-- Difficulty -->
-        <div class="mode-bar" style="margin-bottom:8px;">
-            <div class="mode-group" id="diff-btns">
-                <button class="mode-btn active" data-diff="easy">easy</button>
-                <button class="mode-btn" data-diff="normal">normal</button>
-                <button class="mode-btn" data-diff="hard">hard</button>
             </div>
         </div>
 
@@ -205,6 +213,7 @@
     const NUMBERS = ['0','1','2','3','4','5','6','7','8','9','10','15','20','42','64','100','128','192','256','404','500','1024','2048'];
 
     let cat = 'time', val = 30, diff = 'easy';
+    let usePunctuation = false, useNumbers = false;
     let words = [], wordEls = [];
     let wIdx = 0, cIdx = 0, inputBuf = '';
     let active = false, startTime = 0;
@@ -256,8 +265,17 @@
                     afterPunc = true;
                 }
             }
-            // Capitalize after punctuation (normal + hard only)
-            if (afterPunc && diff !== 'easy') {
+            // Override: punctuation toggle adds punctuation regardless of difficulty
+            if (usePunctuation && !afterPunc && Math.random() < 0.15 && i > 0 && diff === 'easy') {
+                result[result.length - 1] += PUNCTUATION[Math.floor(Math.random() * PUNCTUATION.length)];
+                afterPunc = true;
+            }
+            // Override: numbers toggle adds numbers regardless of difficulty
+            if (useNumbers && Math.random() < 0.1 && diff === 'easy') {
+                word = NUMBERS[Math.floor(Math.random() * NUMBERS.length)];
+            }
+            // Capitalize after punctuation
+            if (afterPunc && (diff !== 'easy' || usePunctuation)) {
                 word = word.charAt(0).toUpperCase() + word.slice(1);
                 afterPunc = false;
             }
@@ -579,6 +597,16 @@
             b.parentElement.querySelectorAll('.mode-btn').forEach(x => x.classList.remove('active'));
             b.classList.add('active');
             val = parseInt(b.dataset.val);
+            prepare();
+        });
+    });
+
+    // Toggle buttons (punctuation, numbers)
+    document.querySelectorAll('.toggle-btn').forEach(b => {
+        b.addEventListener('click', () => {
+            b.classList.toggle('on');
+            if (b.dataset.toggle === 'punctuation') usePunctuation = b.classList.contains('on');
+            if (b.dataset.toggle === 'numbers') useNumbers = b.classList.contains('on');
             prepare();
         });
     });
