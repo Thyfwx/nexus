@@ -68,6 +68,45 @@
         <a href="leaderboard" style="color:#888; text-decoration:none; padding:0 10px;">LEADERBOARD</a>
     </div>
 
+    <!-- 18+ Age Confirmation Modal — shown to non-owner Google users on first sign-in -->
+    <div id="adult-gate-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:10000; align-items:center; justify-content:center; font-family:'Fira Code',monospace;">
+        <div style="background:#111; border:2px solid #fa0; border-radius:10px; padding:24px; max-width:400px; width:90%; text-align:center;">
+            <div style="color:#fa0; font-size:1rem; font-weight:700; letter-spacing:2px; margin-bottom:12px;">AGE VERIFICATION</div>
+            <p style="color:#aaa; font-size:0.78rem; line-height:1.6; margin-bottom:16px;">Nexus AI contains an Unfiltered chat mode with adult-oriented content. By continuing, you confirm that you are <strong style="color:#fff;">18 years or older</strong>.</p>
+            <label style="display:flex; align-items:center; gap:8px; justify-content:center; margin-bottom:16px; cursor:pointer; font-size:0.75rem; color:#888;">
+                <input type="checkbox" id="age-confirm-check" style="accent-color:#0ff; width:18px; height:18px;">
+                I confirm I am 18 or older
+            </label>
+            <div style="display:flex; gap:8px; justify-content:center;">
+                <button onclick="window._confirmAdultGate()" id="age-confirm-btn" disabled
+                    style="padding:10px 20px; font-family:'Fira Code',monospace; font-size:0.75rem; font-weight:600; background:rgba(0,255,255,0.08); border:1px solid rgba(0,255,255,0.2); color:#555; border-radius:6px; cursor:not-allowed; letter-spacing:1px;">
+                    CONTINUE</button>
+                <button onclick="window._rejectAdultGate()"
+                    style="padding:10px 20px; font-family:'Fira Code',monospace; font-size:0.75rem; font-weight:600; background:transparent; border:1px solid #444; color:#666; border-radius:6px; cursor:pointer; letter-spacing:1px;">
+                    SIGN OUT</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Enable continue button only when checkbox is checked
+        document.getElementById('age-confirm-check')?.addEventListener('change', function() {
+            const btn = document.getElementById('age-confirm-btn');
+            if (btn) {
+                btn.disabled = !this.checked;
+                btn.style.cursor = this.checked ? 'pointer' : 'not-allowed';
+                btn.style.color = this.checked ? '#0ff' : '#555';
+                btn.style.borderColor = this.checked ? '#0ff' : 'rgba(0,255,255,0.2)';
+            }
+        });
+        // Reject = sign out
+        window._rejectAdultGate = function() {
+            localStorage.removeItem('nexus_user_data');
+            localStorage.removeItem('nexus_adult_confirmed');
+            document.getElementById('adult-gate-modal').style.display = 'none';
+            location.reload();
+        };
+    </script>
+
     <!-- Terms and Conditions Modal -->
     <div id="terms-modal" class="modal-overlay" style="display:none;">
         <div class="modal-box" id="terms-box">
