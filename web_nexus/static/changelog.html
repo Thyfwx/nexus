@@ -262,7 +262,7 @@
         </p>
 
         <!-- v5.6.2: 12 added, 4 fixed, 2 removed -->
-        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, var(--green) 0%, var(--green) 67%, var(--orange) 67%, var(--orange) 89%, var(--red) 89%, var(--red) 100%)">
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 66%, #ff9500 66%, #ff9500 89%, #ff3333 89%, #ff3333 100%)">
             <div class="release-head">
                 <span class="release-version">v5.6.2</span>
                 <span>
@@ -299,7 +299,7 @@
         </div>
 
         <!-- v5.6.1: 10 added, 4 fixed, 1 removed -->
-        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, var(--green) 0%, var(--green) 67%, var(--orange) 67%, var(--orange) 93%, var(--red) 93%, var(--red) 100%)">
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 67%, #ff9500 67%, #ff9500 93%, #ff3333 93%, #ff3333 100%)">
             <div class="release-head">
                 <span class="release-version">v5.6.1</span>
                 <span>
@@ -332,7 +332,7 @@
         </div>
 
         <!-- v5.6.0: 8 added, 4 fixed, 1 removed -->
-        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, var(--green) 0%, var(--green) 62%, var(--orange) 62%, var(--orange) 92%, var(--red) 92%, var(--red) 100%)">
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 62%, #ff9500 62%, #ff9500 92%, #ff3333 92%, #ff3333 100%)">
             <div class="release-head">
                 <span class="release-version">v5.6.0</span>
                 <span>
@@ -363,7 +363,7 @@
         </div>
 
         <!-- v5.5.1: 4 added, 5 fixed, 1 removed -->
-        <div class="release fix" style="--bar-gradient: linear-gradient(to bottom, var(--green) 0%, var(--green) 40%, var(--orange) 40%, var(--orange) 90%, var(--red) 90%, var(--red) 100%)">
+        <div class="release fix" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 40%, #ff9500 40%, #ff9500 90%, #ff3333 90%, #ff3333 100%)">
             <div class="release-head">
                 <span class="release-version">v5.5.1</span>
                 <span>
@@ -390,8 +390,8 @@
             </ul>
         </div>
 
-        <!-- v5.5.0: 6 added, 0 fixed, 3 removed (no orange — no patches) -->
-        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, var(--green) 0%, var(--green) 67%, var(--red) 67%, var(--red) 100%)">
+        <!-- v5.5.0: 6 added, 0 fixed, 3 removed (no patches) -->
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 67%, #ff3333 67%, #ff3333 100%)">
             <div class="release-head">
                 <span class="release-version">v5.5.0</span>
                 <span>
@@ -418,7 +418,7 @@
         </div>
 
         <!-- v5.4.x — placeholder for older releases, to be backfilled -->
-        <div class="release" style="--bar-gradient: var(--accent)">
+        <div class="release" style="--bar-gradient: #00b4ff">
             <div class="release-head">
                 <span class="release-version">v5.4.x</span>
                 <span>
@@ -443,64 +443,6 @@
         <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
     </div>
 
-    <script>
-    // Dynamically align sidebar color bars to actual content positions
-    // Bar runs full height — first color extends to top, last color extends to bottom, blends between
-    document.querySelectorAll('.release').forEach(rel => {
-        const h = rel.offsetHeight;
-        if (!h) return;
-        const items = rel.querySelectorAll('ul.changes li');
-        if (!items.length) return;
-
-        let firstAdded = null, lastAdded = null, firstFixed = null, lastFixed = null, firstRemoved = null, lastRemoved = null;
-        items.forEach(li => {
-            const top = li.offsetTop - rel.offsetTop;
-            const bot = top + li.offsetHeight;
-            if (li.classList.contains('added')) {
-                if (firstAdded === null) firstAdded = top;
-                lastAdded = bot;
-            } else if (li.classList.contains('fixed')) {
-                if (firstFixed === null) firstFixed = top;
-                lastFixed = bot;
-            } else if (li.classList.contains('removed')) {
-                if (firstRemoved === null) firstRemoved = top;
-                lastRemoved = bot;
-            }
-        });
-
-        const green = 'var(--green)', orange = 'var(--orange)', red = 'var(--red)';
-        const stops = [];
-
-        // Collect which sections exist in order
-        const sections = [];
-        if (firstAdded !== null) sections.push({ color: green, start: firstAdded, end: lastAdded });
-        if (firstFixed !== null) sections.push({ color: orange, start: firstFixed, end: lastFixed });
-        if (firstRemoved !== null) sections.push({ color: red, start: firstRemoved, end: lastRemoved });
-
-        if (!sections.length) return;
-
-        // First color starts from 0% (covers header area)
-        stops.push(`${sections[0].color} 0%`);
-
-        for (let i = 0; i < sections.length; i++) {
-            const s = sections[i];
-            const startPct = (s.start / h * 100).toFixed(1);
-            const endPct = (s.end / h * 100).toFixed(1);
-
-            if (i > 0) {
-                // Blend point between previous section and this one
-                stops.push(`${sections[i - 1].color} ${startPct}%`);
-                stops.push(`${s.color} ${startPct}%`);
-            }
-            stops.push(`${s.color} ${endPct}%`);
-        }
-
-        // Last color extends to 100%
-        stops.push(`${sections[sections.length - 1].color} 100%`);
-
-        rel.style.setProperty('--bar-gradient', `linear-gradient(to bottom, ${stops.join(', ')})`);
-    });
-    </script>
 
     <!-- Footer nav -->
     <div style="position:fixed; bottom:0; left:0; right:0; padding:10px 16px; background:rgba(0,0,0,0.7); border-top:1px solid rgba(255,255,255,0.06); text-align:center; font-family:'Fira Code',monospace; font-size:0.65rem; color:#666; letter-spacing:1.5px; z-index:50; backdrop-filter:blur(4px);">
