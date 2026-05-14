@@ -172,11 +172,12 @@ async function handleCredentialResponse(response) {
     if (statusMsg) { statusMsg.textContent = "Signing in..."; statusMsg.style.color = '#0ff'; }
 
     try {
+        const fp = window._nexusFingerprint ? await window._nexusFingerprint() : null;
         const res = await fetch(`${window.API_BASE}/login/google/authorized`, {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ credential: response.credential })
+            body: JSON.stringify({ credential: response.credential, fingerprint: fp })
         });
         const data = await res.json();
         if (data.ok) {
@@ -383,11 +384,12 @@ async function submitGuestAuth() {
     await new Promise(r => setTimeout(r, 400));
 
     try {
+        const fp = window._nexusFingerprint ? await window._nexusFingerprint() : null;
         const res = await fetch(`${window.API_BASE}/auth/guest`, {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: 'Guest' })
+            body: JSON.stringify({ name: 'Guest', fingerprint: fp })
         });
         const data = await res.json();
         if (data.ok) {

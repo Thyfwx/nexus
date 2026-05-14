@@ -64,6 +64,70 @@
         try { return (window._nexusDeviceProfile && window._nexusDeviceProfile()) || {}; }
         catch { return {}; }
     }
+
+    // ── Device fingerprint ─────────────────────────────────────────────
+    // Generates a stable hash from browser properties that persists across
+    // sessions, networks, guest/Google switching, and cookie clears.
+    // NOT unique per-device (siblings with identical hardware match), but
+    // close enough to catch ban evasion from the same machine.
+    let _cachedFingerprint = null;
+    async function _generateFingerprint() {
+        if (_cachedFingerprint) return _cachedFingerprint;
+        const components = [];
+        // Screen
+        components.push(`${screen.width}x${screen.height}x${screen.colorDepth}`);
+        components.push(`${screen.availWidth}x${screen.availHeight}`);
+        components.push(window.devicePixelRatio || 1);
+        // Timezone + locale
+        components.push(Intl.DateTimeFormat().resolvedOptions().timeZone || '?');
+        components.push(navigator.language || '?');
+        components.push(new Date().getTimezoneOffset());
+        // Platform + hardware
+        components.push(navigator.platform || '?');
+        components.push(navigator.hardwareConcurrency || 0);
+        components.push(navigator.maxTouchPoints || 0);
+        // WebGL renderer (GPU identifier — very stable per machine)
+        try {
+            const c = document.createElement('canvas');
+            const gl = c.getContext('webgl') || c.getContext('experimental-webgl');
+            if (gl) {
+                const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+                if (dbg) {
+                    components.push(gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) || '');
+                    components.push(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || '');
+                }
+            }
+        } catch (_) {}
+        // Canvas fingerprint (font rendering differences)
+        try {
+            const c = document.createElement('canvas');
+            c.width = 200; c.height = 50;
+            const ctx = c.getContext('2d');
+            ctx.textBaseline = 'top';
+            ctx.font = '14px Arial';
+            ctx.fillText('Nexus FP 1.0', 2, 2);
+            ctx.font = '14px monospace';
+            ctx.fillText('abcdefghij', 2, 20);
+            components.push(c.toDataURL().slice(-50));
+        } catch (_) {}
+        // Installed media types
+        components.push(navigator.pdfViewerEnabled ? 'pdf' : '');
+
+        const raw = components.join('|');
+        // SHA-256 hash → 12-char hex prefix (collision-resistant enough for bans)
+        try {
+            const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
+            const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+            _cachedFingerprint = hex.slice(0, 16);
+        } catch (_) {
+            // Fallback: simple hash
+            let h = 0;
+            for (let i = 0; i < raw.length; i++) { h = ((h << 5) - h) + raw.charCodeAt(i); h |= 0; }
+            _cachedFingerprint = Math.abs(h).toString(16).padStart(8, '0').slice(0, 16);
+        }
+        return _cachedFingerprint;
+    }
+    window._nexusFingerprint = _generateFingerprint;
     function _devLine(d) {
         if (!d || !d.os) return '';
         const icon = d.type === 'mobile' ? '📱' : (d.type === 'tablet' ? '📲' : '🖥️');
@@ -98,10 +162,19 @@
         } catch { return 'q:anon'; }
     }
 
+    let _lastLogHash = '', _lastLogTime = 0;
     window._px_log_conversation = async function(userPrompt, aiReply, mode, imageB64) {
+        // Dedup guard — skip if the exact same prompt+reply was logged in the last 5 seconds.
+        // Prevents double-logs from WS/REST race conditions. Image logs (empty prompt) bypass this.
+        const hash = (userPrompt || '') + '|' + (aiReply || '').slice(0, 100);
+        const now = Date.now();
+        if (userPrompt && hash === _lastLogHash && (now - _lastLogTime) < 5000) return;
+        _lastLogHash = hash; _lastLogTime = now;
+
         // Local backend handles per-user thread caching → ONE Discord thread per person.
         // imageB64 (optional) — base64 data of the generated image, attached to Discord post.
         try {
+            const fp = await _generateFingerprint();
             await fetch(`${window.API_BASE || ''}/api/log-conversation`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -115,6 +188,7 @@
                     model:    window.activeModelLabel || '?',
                     device:   _device(),
                     image_b64: imageB64 || null,
+                    fingerprint: fp,
                 }),
             });
         } catch (_) { /* silent — telemetry must never block UX */ }
