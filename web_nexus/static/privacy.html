@@ -48,7 +48,7 @@
         </div>
 
         <h1>Privacy Policy</h1>
-        <p class="updated">Last updated: May 11, 2026</p>
+        <p class="updated">Last updated: May 14, 2026</p>
 
         <p>This policy explains what data <strong>thyfwxit.com</strong> and the <strong>Nexus AI Terminal</strong> at <strong>thyfwxit.com/nexus</strong> collect, how it's used, and which third parties are involved. The site is operated solo by Xavier Scott (THYFWX). It is a personal project, not a commercial product.</p>
 
@@ -64,6 +64,7 @@
             <li><strong>Browser information:</strong> your browser name, version, operating system, and device type (the "user-agent" string). This helps me understand what devices people use and debug rendering issues.</li>
             <li><strong>Page requests:</strong> which pages you visit and when. Standard web server behavior.</li>
             <li><strong>Connection metadata:</strong> the Maintenance Hub reads your browser's reported CPU core count, device memory, screen resolution, connection type, and battery status. This data is displayed to YOU on your screen — it is not sent to or stored on my server.</li>
+            <li><strong>Device fingerprint:</strong> a short hash is generated from your screen resolution, GPU renderer, timezone, and browser rendering characteristics. This hash <strong>cannot identify you personally</strong> — it identifies your device configuration. It is included in conversation logs for security purposes and is stored on the server <strong>only if your account is banned</strong>, to prevent ban evasion via guest mode or network switching. If you are not banned, your fingerprint is not stored.</li>
         </ul>
 
         <h2>What I collect when you sign in with Google</h2>
@@ -141,8 +142,8 @@
 
         <h2>Your rights</h2>
         <ul>
-            <li><strong>See your data:</strong> email <a href="mailto:xavier@thyfwxit.com">xavier@thyfwxit.com</a> with your account email and I'll tell you exactly what's stored under your account ID.</li>
-            <li><strong>Delete your data:</strong> email me and I'll permanently delete your leaderboard entries, handle, quota counter, and any moderation logs tied to your account. Deletion is immediate and irreversible.</li>
+            <li><strong>See your data:</strong> email <a href="mailto:xavier@thyfwxit.com">xavier@thyfwxit.com</a> with the Google account email you signed in with. I'll look up what's stored under your account: leaderboard scores, display handle, and whether any moderation flags exist. This is a manual process — expect a response within a few business days.</li>
+            <li><strong>Delete your data:</strong> email me and I'll remove your leaderboard entries, display handle, and any moderation logs tied to your account. Conversation logs sent to my private Discord channel will also be deleted. This is done manually and may take a few business days. Once deleted, it cannot be recovered.</li>
             <li><strong>Sign out and forget:</strong> the profile dropdown in the terminal has "Sign Out" (clears your session cookie) and "Forget All" (wipes all browser-stored data including chat history, image history, and preferences).</li>
             <li><strong>EU/UK/CA visitors:</strong> Google's funding-choices consent banner manages ad personalization preferences. I do not track you independently of Google's ad system.</li>
             <li><strong>California (CCPA):</strong> I do not sell personal data to anyone. I do not share personal data for advertising purposes beyond what Google AdSense does automatically on pages where ads are displayed.</li>
@@ -151,8 +152,10 @@
         <h2>Data retention</h2>
         <ul>
             <li><strong>Server logs:</strong> approximately 30 days, then automatically rotated by the hosting provider.</li>
-            <li><strong>Account data</strong> (leaderboard handle, image quota counter): kept until you request deletion or your account is inactive for 12+ months.</li>
-            <li><strong>Moderation logs</strong> (flagged prompts from critical-content triggers): kept indefinitely for safety enforcement. Can be deleted on request.</li>
+            <li><strong>Account data</strong> (leaderboard handle, image quota counter): kept until you request deletion. Image quota counters reset daily automatically.</li>
+            <li><strong>Conversation logs</strong> (sent to a private Discord channel): kept indefinitely for safety review. Deleted on request.</li>
+            <li><strong>Moderation logs</strong> (flagged prompts from critical-content triggers): kept indefinitely for safety enforcement. Deleted on request.</li>
+            <li><strong>Device fingerprints:</strong> only stored if your account is banned. Used solely for ban enforcement. Deleted if your ban is lifted.</li>
             <li><strong>Browser data</strong> (chat history, images, preferences): stored on YOUR device only. Cleared when you clear browser data or use "Forget All." I have no access to your browser's localStorage.</li>
         </ul>
 

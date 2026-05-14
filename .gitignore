@@ -27,3 +27,7 @@ CLAUDE.md
 GEMINI.md
 .claude/
 .gemini/
+
+# Cloudflare Worker — deployed separately via wrangler, not part of Pages
+worker/
+.wrangler/

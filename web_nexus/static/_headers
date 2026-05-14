@@ -1,7 +1,21 @@
 /*
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
-  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
+  X-XSS-Protection: 1; mode=block
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://static.cloudflareinsights.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.googletagservices.com https://*.googleadservices.com https://*.adtrafficquality.google https://*.google.com https://fundingchoicesmessages.google.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://thyfwxit.com https://*.googleusercontent.com https://*.googlesyndication.com https://*.googleadservices.com https://*.doubleclick.net https://*.google.com; connect-src 'self' https://api.thyfwxit.com wss://api.thyfwxit.com https://nexus-api.xavierscott300.workers.dev https://ipinfo.io https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com https://*.adtrafficquality.google https://fundingchoicesmessages.google.com; frame-src https://accounts.google.com https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com;
+
+/*.css
+  Cache-Control: public, max-age=2592000
+
+/*.js
+  Cache-Control: public, max-age=2592000
+
+/*.png
+  Cache-Control: public, max-age=2592000
+
+/*.ico
+  Cache-Control: public, max-age=2592000
 
