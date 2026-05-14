@@ -298,9 +298,12 @@
                 <li class="added">PWA support — Nexus can now be installed as a desktop app. Manifest, service worker, and icons added. Works on Chrome, Edge, Safari.</li>
                 <li class="added">Typing test: "impossible" difficulty — literary prose, legal language, scientific text, complex punctuation. 368 total sentences across 4 difficulties.</li>
                 <li class="added">Typing test: 200-word count option. Auto-finish when last word is typed. Visible "submit to leaderboard" button on results screen.</li>
-                <li class="added">Device fingerprinting — non-identifying device hash for ban enforcement. Prevents ban evasion via guest mode, network switching, or cookie clearing.</li>
                 <li class="added">Cloudflare Worker: 48+ endpoints now live — image generation proxy, lockout system, moderation alerts, rate limiting (15/min browser, 10/min bot), origin gate.</li>
                 <li class="added">Discord bot integration ready — Nexus Core personality available via API with shared-secret auth. Other modes redirect users to the website.</li>
+            </ul>
+            <div class="section-label sl-purple">— SECURITY</div>
+            <ul class="changes">
+                <li class="added">Device fingerprinting — non-identifying device hash for ban enforcement. Prevents ban evasion via guest mode, network switching, or cookie clearing.</li>
                 <li class="added">Content Security Policy headers on both frontend sites (portfolio + Nexus).</li>
                 <li class="added">HSTS preload submitted — thyfwxit.com pending inclusion in browser preload lists.</li>
                 <li class="added">Certificate Transparency Monitoring enabled — alerts if someone issues a cert for thyfwxit.com.</li>
@@ -315,7 +318,7 @@
                 <li class="fixed">Render backend security headers — added HSTS, Referrer-Policy, Permissions-Policy, X-Robots-Tag (were missing).</li>
                 <li class="fixed">Worker API responses now include X-Robots-Tag (noindex) and X-Content-Type-Options (nosniff).</li>
             </ul>
-            <div class="section-label sl-red">— REMOVED</div>
+            <div class="section-label sl-cyan">— CLEANUP</div>
             <ul class="changes">
                 <li class="removed">nexus-evil-proxy Worker deleted from Cloudflare. All references cleaned from code and CSP.</li>
                 <li class="removed">Stale "thyfwxit" Pages project deleted (old manual deploy, 2 months unused).</li>
@@ -356,7 +359,7 @@
                 <li class="fixed">Portfolio mobile — single-column status grid, accessibility bottom sheet with no scrollbar, tighter spacing.</li>
                 <li class="fixed">Nexus preview on portfolio — removed fake boot words, shows live data, "open full console" references removed.</li>
             </ul>
-            <div class="section-label sl-red">— REMOVED</div>
+            <div class="section-label sl-cyan">— CLEANUP</div>
             <ul class="changes">
                 <li class="removed">"Open Console" buttons from portfolio — entry point is now PING + Enter Nexus only.</li>
             </ul>
@@ -394,7 +397,7 @@
                 <li class="fixed">Server info showing "?" for city: now maps country codes to full names and hides unknown cities.</li>
                 <li class="fixed">Login status messages cleaned up ("Signing in..." instead of "SYNCHRONIZING IDENTITY...").</li>
             </ul>
-            <div class="section-label sl-red">— REMOVED</div>
+            <div class="section-label sl-cyan">— CLEANUP</div>
             <ul class="changes">
                 <li class="removed">Speed Test button from sidebar tools (access via Maintenance Hub only now).</li>
             </ul>
@@ -429,7 +432,7 @@
                 <li class="fixed">Critical-content moderation: 18/18 prompts caught (was 5/18). New patterns for arson, kidnapping, body disposal, school violence.</li>
                 <li class="fixed">Cross-domain cookies now work on production (SameSite=None on HTTPS). Owner DevPanel API endpoints stop returning 403 after re-login.</li>
             </ul>
-            <div class="section-label sl-red">— REMOVED</div>
+            <div class="section-label sl-cyan">— CLEANUP</div>
             <ul class="changes">
                 <li class="removed">Critical-lockout auto-redirect to dedicated locked page (caused a tight reload loop with rehydrate-on-boot).</li>
             </ul>
@@ -458,7 +461,7 @@
                 <li class="added">Discord moderation webhook severity routing (silent for low/medium, owner-mention for high/critical).</li>
                 <li class="added">Live commit-status indicator on portfolio Nexus preview (sandbox-ahead-of-main shows as ONGOING).</li>
             </ul>
-            <div class="section-label sl-red">— REMOVED</div>
+            <div class="section-label sl-red">— SFW PIVOT</div>
             <ul class="changes">
                 <li class="removed">All explicit/NSFW image generation system-wide. Image generation is now SFW only in every mode.</li>
                 <li class="removed">ComfyUI provider entirely (was running on GTX 1070 Ti home GPU).</li>
