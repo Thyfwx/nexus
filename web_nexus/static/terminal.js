@@ -123,6 +123,16 @@ function handleImageUplink(file) {
 }
 
 function connectTerminalWS() {
+    // REST-only mode — skip WebSocket entirely when WS_URL is null (Cloudflare Worker backend)
+    if (!window.WS_URL) {
+        console.log('[WS] REST-only mode — WebSocket disabled (Cloudflare Worker backend)');
+        window.backendReady = true;
+        const dot = document.getElementById('conn-dot');
+        if (dot) { dot.style.background = '#0f0'; dot.style.boxShadow = '0 0 6px #0f0'; }
+        const stat = document.getElementById('header-status');
+        if (stat) { stat.textContent = 'ONLINE'; stat.style.color = '#0f0'; }
+        return;
+    }
     if (window.termWs) window.termWs.close();
     window.termWs = new WebSocket(window.WS_URL);
 
@@ -222,6 +232,7 @@ function connectTerminalWS() {
 
 let statsWs;
 function connectStats() {
+    if (!window.STATS_URL) return; // REST-only mode — no stats WebSocket
     if (statsWs) statsWs.close();
     statsWs = new WebSocket(window.STATS_URL);
     statsWs.onmessage = (e) => {
