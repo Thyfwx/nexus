@@ -236,6 +236,37 @@
             For the full git history, see <a href="https://github.com/Thyfwx/nexus" target="_blank" rel="noopener" style="color:var(--accent);">github.com/Thyfwx/nexus</a>.
         </p>
 
+        <!-- v5.6.1 -->
+        <div class="release fix">
+            <div class="release-head">
+                <span class="release-version">v5.6.1</span>
+                <span>
+                    <span class="release-tag">PATCH</span>
+                </span>
+                <span class="release-date">2026-05-12</span>
+            </div>
+            <div class="release-summary">
+                Typing test (NEXUS TYPE) standalone page, ban page with ads, 18+ age gate, DevPanel ban management, shared link lobby redirect, AI disclaimer.
+            </div>
+            <ul class="changes">
+                <li class="added">NEXUS TYPE — standalone typing test page with easy/normal/hard difficulty, real sentences, punctuation and numbers toggles, personal best tracking, leaderboard submission.</li>
+                <li class="added">Ban page (banned.html) — dedicated page for permanently banned users with explanation, appeal info, and AdSense ads.</li>
+                <li class="added">18+ age gate modal — non-owner Google users must confirm they are 18 or older before accessing the terminal. Logged to backend.</li>
+                <li class="added">DevPanel account ban tab — list, ban, and unban Google accounts by email directly from the owner panel.</li>
+                <li class="added">Ban check on page load — banned accounts automatically redirected to the ban page.</li>
+                <li class="added">Shared link redirect — anyone opening thyfwxit.com/nexus/ directly (bookmarks, shared links) goes through the lobby first.</li>
+                <li class="added">AI disclaimer bar in terminal — permanent warning about AI accuracy and personal data. Matches terminal theme.</li>
+                <li class="added">AdSense on about, changelog, and leaderboard pages.</li>
+                <li class="added">robots.txt at domain root for AdSense crawler.</li>
+                <li class="added">Cloudflare Worker foundation deployed (nexus-api) — AI chat working, zero cold starts. Migration from Render in progress.</li>
+                <li class="fixed">Cross-origin auth — revealTerminal() crash on login.html fixed for 18+ gate flow.</li>
+                <li class="fixed">Typing test restart — fixed state cleanup so tests can be repeated without page reload.</li>
+                <li class="fixed">Portfolio mobile — single-column status grid, accessibility bottom sheet with no scrollbar, tighter spacing.</li>
+                <li class="fixed">Nexus preview on portfolio — removed fake boot words, shows live data, "open full console" references removed.</li>
+                <li class="removed">"Open Console" buttons from portfolio — entry point is now PING + Enter Nexus only.</li>
+            </ul>
+        </div>
+
         <!-- v5.6.0 -->
         <div class="release major">
             <div class="release-head">
