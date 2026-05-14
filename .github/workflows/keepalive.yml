@@ -1,13 +1,20 @@
-name: Keep Render Server Awake
+name: Keep API Alive
 
 on:
   schedule:
-    - cron: '*/14 * * * *' # Runs every 14 minutes
-  workflow_dispatch: # Allows manual trigger
+    - cron: '*/14 * * * *'
+  workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping HTTPS URL
-        run: curl -s https://nexus-terminalnexus.onrender.com/ > /dev/null
+      - name: Ping Cloudflare Worker API
+        run: |
+          STATUS=$(curl -sf --max-time 10 -o /dev/null -w "%{http_code}" https://api.thyfwxit.com/ping)
+          if [ "$STATUS" = "200" ]; then
+            echo "API is up (HTTP $STATUS)"
+          else
+            echo "API returned HTTP $STATUS"
+            exit 1
+          fi
