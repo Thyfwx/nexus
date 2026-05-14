@@ -275,6 +275,7 @@ If their message is fine, respond normally and do NOT mention strikes.]`;
 
     // Fallback: REST
     try {
+        const chatFp = window._nexusFingerprint ? await window._nexusFingerprint() : null;
         const res = await fetch(`${window.API_BASE}/api/chat`, {
             method: 'POST',
             credentials: 'include',
@@ -285,7 +286,8 @@ If their message is fine, respond normally and do NOT mention strikes.]`;
                 mode,
                 imageB64,
                 context: personalContext,
-                owner_mode: window.OWNER_MODE
+                owner_mode: window.OWNER_MODE,
+                fingerprint: chatFp
             })
         });
         if (res.status === 403) {
