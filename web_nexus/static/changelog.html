@@ -167,6 +167,28 @@
             border-color: var(--orange);
         }
 
+        /* Individual tag colors — override parent when specific classes used */
+        .release-tag.tag-green {
+            background: rgba(0, 255, 136, 0.15);
+            color: var(--green);
+            border-color: var(--green);
+        }
+        .release-tag.tag-orange {
+            background: rgba(255, 149, 0, 0.15);
+            color: var(--orange);
+            border-color: var(--orange);
+        }
+        .release-tag.tag-red {
+            background: rgba(255, 51, 51, 0.15);
+            color: var(--red);
+            border-color: var(--red);
+        }
+        .release-tag.tag-cyan {
+            background: rgba(0, 180, 255, 0.15);
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+
         .release-summary {
             color: var(--fg);
             font-size: 0.88rem;
@@ -241,7 +263,10 @@
             <div class="release-head">
                 <span class="release-version">v5.6.2</span>
                 <span>
-                    <span class="release-tag">SECURITY + FEATURES</span>
+                    <span class="release-tag tag-green">FEATURES</span>
+                    <span class="release-tag tag-cyan">SECURITY</span>
+                    <span class="release-tag tag-orange">PATCHES</span>
+                    <span class="release-tag tag-red">CLEANUP</span>
                 </span>
                 <span class="release-date">2026-05-14</span>
             </div>
@@ -271,11 +296,13 @@
         </div>
 
         <!-- v5.6.1 -->
-        <div class="release fix">
+        <div class="release major">
             <div class="release-head">
                 <span class="release-version">v5.6.1</span>
                 <span>
-                    <span class="release-tag">PATCH</span>
+                    <span class="release-tag tag-green">FEATURES</span>
+                    <span class="release-tag tag-orange">PATCHES</span>
+                    <span class="release-tag tag-red">CLEANUP</span>
                 </span>
                 <span class="release-date">2026-05-12</span>
             </div>
@@ -306,7 +333,9 @@
             <div class="release-head">
                 <span class="release-version">v5.6.0</span>
                 <span>
-                    <span class="release-tag">RELEASE</span>
+                    <span class="release-tag tag-green">FEATURES</span>
+                    <span class="release-tag tag-orange">PATCHES</span>
+                    <span class="release-tag tag-red">CLEANUP</span>
                 </span>
                 <span class="release-date">2026-05-09</span>
             </div>
@@ -331,11 +360,13 @@
         </div>
 
         <!-- v5.5.1 -->
-        <div class="release fix">
+        <div class="release major">
             <div class="release-head">
                 <span class="release-version">v5.5.1</span>
                 <span>
-                    <span class="release-tag">PATCH</span>
+                    <span class="release-tag tag-green">FEATURES</span>
+                    <span class="release-tag tag-orange">PATCHES</span>
+                    <span class="release-tag tag-red">CLEANUP</span>
                 </span>
                 <span class="release-date">2026-05-08</span>
             </div>
@@ -361,7 +392,9 @@
             <div class="release-head">
                 <span class="release-version">v5.5.0</span>
                 <span>
-                    <span class="release-tag">RELEASE</span>
+                    <span class="release-tag tag-green">FEATURES</span>
+                    <span class="release-tag tag-cyan">MODERATION</span>
+                    <span class="release-tag tag-red">SFW PIVOT</span>
                 </span>
                 <span class="release-date">2026-05-07</span>
             </div>
@@ -386,7 +419,7 @@
             <div class="release-head">
                 <span class="release-version">v5.4.x</span>
                 <span>
-                    <span class="release-tag">EARLIER</span>
+                    <span class="release-tag tag-cyan">EARLIER</span>
                 </span>
                 <span class="release-date">~2026-04</span>
             </div>
