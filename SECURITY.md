@@ -2,20 +2,41 @@
 
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
-
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+| Version | Supported |
+| ------- | --------- |
+| 5.6.x   | ✅ Current |
+| 5.5.x   | ⚠️ Critical fixes only |
+| < 5.5   | ❌ No longer supported |
 
 ## Reporting a Vulnerability
 
-Use this section to tell people how to report a vulnerability.
+If you discover a security vulnerability in Nexus AI Terminal, please report it responsibly:
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+**Email:** xavier@thyfwxit.com
+
+**What to include:**
+- Description of the vulnerability
+- Steps to reproduce
+- Potential impact
+- Your suggested fix (optional)
+
+**Response timeline:**
+- Acknowledgment within 48 hours
+- Assessment within 7 days
+- Fix deployed within 14 days for critical issues
+
+**Please do NOT:**
+- Open a public GitHub issue for security vulnerabilities
+- Exploit the vulnerability beyond what is necessary to demonstrate it
+- Access or modify other users' data
+
+## Scope
+
+This policy covers:
+- The Nexus AI Terminal at thyfwxit.com/nexus/
+- The API at api.thyfwxit.com
+- This GitHub repository
+
+## Recognition
+
+Security researchers who report valid vulnerabilities responsibly will be credited (with permission) in the changelog.
