@@ -1,15 +1,16 @@
-name: Keep Backend Alive
+# DISABLED — Render decommissioned 2026-05-14. Backend runs on Cloudflare Workers now.
+# Keeping file for reference. Delete when Render account is fully closed.
 
-on:
-  schedule:
-    - cron: '*/14 * * * *'
-  workflow_dispatch:
-
-jobs:
-  ping:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Ping API
-        run: |
-          curl -sf --max-time 10 https://api.thyfwxit.com/ping > /dev/null
-          echo "API is up"
+# name: Keep Backend Alive
+# on:
+#   schedule:
+#     - cron: '*/14 * * * *'
+#   workflow_dispatch:
+# jobs:
+#   ping:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Ping API
+#         run: |
+#           curl -sf --max-time 10 https://api.thyfwxit.com/ping > /dev/null
+#           echo "API is up"
