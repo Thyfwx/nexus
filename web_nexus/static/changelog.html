@@ -236,6 +236,40 @@
             For the full git history, see <a href="https://github.com/Thyfwx/nexus" target="_blank" rel="noopener" style="color:var(--accent);">github.com/Thyfwx/nexus</a>.
         </p>
 
+        <!-- v5.6.2 -->
+        <div class="release major">
+            <div class="release-head">
+                <span class="release-version">v5.6.2</span>
+                <span>
+                    <span class="release-tag">SECURITY + FEATURES</span>
+                </span>
+                <span class="release-date">2026-05-14</span>
+            </div>
+            <div class="release-summary">
+                PWA install support, typing test expansion, device fingerprinting, Cloudflare security hardening, Worker migration progress, Discord bot integration.
+            </div>
+            <ul class="changes">
+                <li class="added">PWA support — Nexus can now be installed as a desktop app. Manifest, service worker, and icons added. Works on Chrome, Edge, Safari.</li>
+                <li class="added">Typing test: "impossible" difficulty — literary prose, legal language, scientific text, complex punctuation. 368 total sentences across 4 difficulties.</li>
+                <li class="added">Typing test: 200-word count option. Auto-finish when last word is typed. Visible "submit to leaderboard" button on results screen.</li>
+                <li class="added">Device fingerprinting — non-identifying device hash for ban enforcement. Prevents ban evasion via guest mode, network switching, or cookie clearing.</li>
+                <li class="added">Cloudflare Worker: 48+ endpoints now live — image generation proxy, lockout system, moderation alerts, rate limiting (15/min browser, 10/min bot), origin gate.</li>
+                <li class="added">Discord bot integration ready — Nexus Core personality available via API with shared-secret auth. Other modes redirect users to the website.</li>
+                <li class="added">Content Security Policy headers on both frontend sites (portfolio + Nexus).</li>
+                <li class="added">HSTS preload submitted — thyfwxit.com pending inclusion in browser preload lists.</li>
+                <li class="added">Certificate Transparency Monitoring enabled — alerts if someone issues a cert for thyfwxit.com.</li>
+                <li class="added">AI bot blocking — all known AI training crawlers blocked on all pages.</li>
+                <li class="added">AI Labyrinth enabled — traps scraper bots in generated content.</li>
+                <li class="added">Hotlink protection — prevents other sites from embedding images.</li>
+                <li class="fixed">Ban bypass closed — guest mode, network switching, and cookie clearing no longer bypass account bans. Three-layer enforcement: email + IP + device fingerprint.</li>
+                <li class="fixed">Duplicate Discord logs — dedup guard prevents the same message from being logged twice within 5 seconds.</li>
+                <li class="fixed">Render backend security headers — added HSTS, Referrer-Policy, Permissions-Policy, X-Robots-Tag (were missing).</li>
+                <li class="fixed">Worker API responses now include X-Robots-Tag (noindex) and X-Content-Type-Options (nosniff).</li>
+                <li class="removed">nexus-evil-proxy Worker deleted from Cloudflare. All references cleaned from code and CSP.</li>
+                <li class="removed">Stale "thyfwxit" Pages project deleted (old manual deploy, 2 months unused).</li>
+            </ul>
+        </div>
+
         <!-- v5.6.1 -->
         <div class="release fix">
             <div class="release-head">

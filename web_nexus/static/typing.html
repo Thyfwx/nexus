@@ -101,6 +101,7 @@
             border: 1px solid #0ff; color: #0ff; border-radius: 6px; cursor: pointer;
         }
         .r-btn:hover { background: rgba(0,255,255,0.08); }
+        .r-btn:disabled { cursor: default; opacity: 0.5; }
         .r-hint { font-size: 0.52rem; color: #222; margin-top: 8px; }
 
         /* Hidden input for mobile keyboard */
@@ -148,6 +149,7 @@
                 <button class="mode-btn active" data-diff="easy">easy</button>
                 <button class="mode-btn" data-diff="normal">normal</button>
                 <button class="mode-btn" data-diff="hard">hard</button>
+                <button class="mode-btn" data-diff="impossible">impossible</button>
             </div>
         </div>
 
@@ -164,6 +166,7 @@
                 <button class="mode-btn" data-val="25">25</button>
                 <button class="mode-btn active" data-val="50">50</button>
                 <button class="mode-btn" data-val="100">100</button>
+                <button class="mode-btn" data-val="200">200</button>
             </div>
         </div>
 
@@ -254,6 +257,76 @@
         'she found an old photo from when she was young',
         'the room was dark but we could see the moon',
         'i tried to fix it but it was too far gone',
+        'the old man sat on the bench and fed the birds',
+        'she ran to catch the bus but it left too soon',
+        'the sky turned pink as the sun went down',
+        'he drank his tea and watched the rain fall',
+        'the dog barked at the cat across the street',
+        'i found a coin on the ground by the door',
+        'she sang a song while she did the dishes',
+        'the fish swam in the pond near the rocks',
+        'we rode our bikes to the end of the trail',
+        'the bell rang and the class came to an end',
+        'he threw the ball and the dog went to get it',
+        'she drew a map to show them the way home',
+        'the leaves fell from the trees in the fall',
+        'i sat in the shade and ate my lunch in peace',
+        'the boat moved slow across the still water',
+        'he tied his shoes and walked out the door',
+        'she hung the clothes on the line to dry',
+        'the moon was full and the night was bright',
+        'we made a fire and roasted food on sticks',
+        'the kids ran through the yard with bare feet',
+        'he read the sign but could not make sense of it',
+        'she pulled the door shut and locked it tight',
+        'the rain stopped and a rainbow came out',
+        'i took the long way home and saw a deer',
+        'the bread was fresh and the butter was soft',
+        'he fixed the leak in the roof by hand',
+        'she clipped the roses and put them in a vase',
+        'the path led through the woods to a stream',
+        'we sat on the porch and watched the clouds go by',
+        'the phone rang but no one was there to pick it up',
+        'he painted the wall a light shade of blue',
+        'she folded the sheets and put them in the drawer',
+        'the lamp on the desk gave off a warm glow',
+        'i closed my eyes and tried to fall asleep',
+        'the ice cream melted fast in the hot sun',
+        'he stacked the wood by the side of the house',
+        'she poured the soup into a big white bowl',
+        'the horse ran free in the open field all day',
+        'we dug a hole in the sand and filled it with water',
+        'the fence was old and some of the posts were loose',
+        'he counted the coins and put them in a jar',
+        'she waved from the car as she drove away slow',
+        'the grass was wet from the rain that fell last night',
+        'i cut the cake and gave a piece to each of them',
+        'the fire cracked and sparks flew up in the air',
+        'he tossed the old rug out the back door',
+        'she peeled the fruit and cut it into small bites',
+        'the owl hooted twice and then flew off into the dark',
+        'we laid out a blanket and had a meal in the park',
+        'the river flowed south and ran into the sea',
+        'he swept the floor and took the trash to the curb',
+        'she turned the page and kept on with her book',
+        'the bugs buzzed near the light on the porch at night',
+        'i stretched my arms and got up from the chair',
+        'the pie cooled on the shelf near the open window',
+        'he rolled up his sleeves and got to work right away',
+        'she tied a bow on the gift and set it by the tree',
+        'the sand was warm and the waves were calm and low',
+        'we watched the ships come in from far out at sea',
+        'the frog jumped off the rock and into the pond',
+        'he hung a new shelf on the wall in the hall',
+        'she put on her hat and went out for a walk',
+        'the rain came down hard but we stayed dry inside',
+        'i fed the birds and they came back the next day',
+        'the sky was dark and the air was cold and still',
+        'he carved his name into the tree with a small knife',
+        'she placed the cup down and wiped her hands clean',
+        'the smell of food filled the whole house by noon',
+        'we climbed to the top of the hill and looked down',
+        'the light from the fire made the walls look gold',
     ];
 
     const NORMAL_SENTENCES = [
@@ -297,6 +370,65 @@
         'The incident postmortem revealed that the root cause was a misconfigured timeout.',
         'He built a custom CLI tool that saved the team 20 minutes on every deployment.',
         'The best documentation is the kind that gets updated every time the code changes.',
+        'After the outage, the team decided to add redundant failover to every critical service.',
+        'She wrote integration tests that caught three regressions in the payment pipeline.',
+        'The new developer broke the build on their first day, and nobody blamed them.',
+        'We replaced the monolith with microservices, and the complexity just moved elsewhere.',
+        'The logging framework was eating 30% of the CPU because nobody tuned the log levels.',
+        'He found the race condition by adding timestamps to every step in the pipeline.',
+        'She rolled back the deployment in under two minutes using the automated revert script.',
+        'The code review caught a SQL injection vulnerability that the linter had missed.',
+        'Every time the cron job ran at midnight, it generated 10GB of temporary files.',
+        'He wrote a Makefile that handled building, testing, linting, and deploying in one command.',
+        'The system processed 8 million events per day, and the queue never backed up once.',
+        'She discovered that the timeout was set to 3 seconds instead of 30, causing constant failures.',
+        'The frontend made 47 API calls on page load, and each one blocked the render.',
+        'He moved the static files to a CDN and the page load time dropped by half.',
+        'The intern accidentally deleted the production database, but the backups saved us.',
+        'She enabled gzip compression and the payload size dropped from 4MB to 600KB.',
+        'The team spent a week hunting a bug that turned out to be a timezone issue.',
+        'He configured the rate limiter to allow bursts during peak hours without throttling users.',
+        'The mobile app crashed on startup because the API response format had changed.',
+        'She set up canary deployments so only 5% of traffic hit the new version first.',
+        'The build server ran out of disk space every Friday because nobody cleaned up artifacts.',
+        'He added retry logic with exponential backoff to handle transient network failures.',
+        'The function was 800 lines long, and nobody wanted to be the one to refactor it.',
+        'She replaced the polling mechanism with WebSockets, cutting latency from 5s to 50ms.',
+        'The test suite took 45 minutes to run, so the team started skipping it before merges.',
+        'He parallelized the batch job and reduced processing time from 6 hours to 40 minutes.',
+        'The error was in a third-party library, so we had to fork it and patch it ourselves.',
+        'She set up a local development environment that mirrored production exactly.',
+        'The database connection pool was exhausted because queries were not being closed properly.',
+        'He wrote a health check endpoint that verified the database, cache, and message queue.',
+        'The config file had a trailing comma that broke parsing on the staging server.',
+        'She automated certificate renewal so SSL would never expire without warning again.',
+        'The API gateway handled authentication, routing, and rate limiting in a single layer.',
+        'He realized the performance issue was caused by N+1 queries in the ORM layer.',
+        'The team adopted trunk-based development and their deployment frequency tripled.',
+        'She added structured logging so they could search and filter logs by request ID.',
+        'The webhook delivery failed silently because the retry mechanism had a logic error.',
+        'He profiled the application and found that string concatenation was the biggest bottleneck.',
+        'The service mesh added observability but also increased network overhead by 15%.',
+        'She documented every API endpoint with examples, error codes, and expected response times.',
+        'The migration script ran for 12 hours, transforming 500 million rows without downtime.',
+        'He implemented circuit breakers to prevent cascading failures across dependent services.',
+        'The deployment checklist had 23 steps, and step 17 was always the one that failed.',
+        'She noticed that the memory usage pattern suggested a slow leak in the event handler.',
+        'The team held a blameless postmortem and identified five action items to prevent recurrence.',
+        'He set up alerts for when the error rate exceeded 1% over any five-minute window.',
+        'The API versioning strategy used URL paths, and clients were given six months to migrate.',
+        'She built a feature flag system that let them toggle features without redeploying.',
+        'The database was running on a single node, which was both the biggest risk and easiest fix.',
+        'He reduced the Docker image size from 1.2GB to 180MB by switching to Alpine Linux.',
+        'The caching layer reduced database load by 80%, but cache invalidation was still tricky.',
+        'She ran a chaos engineering experiment that revealed three previously unknown failure modes.',
+        'The team switched from REST to GraphQL and immediately regretted the complexity increase.',
+        'He wrote a script that compared production and staging configs to catch drift automatically.',
+        'The service had 99.97% uptime last quarter, missing the SLA target by just 0.02%.',
+        'She implemented graceful shutdown so in-flight requests could complete before the pod died.',
+        'The search index rebuild took 4 hours, during which users saw stale results.',
+        'He found that the bottleneck was not the code but the network hop between availability zones.',
+        'The team used feature branches for everything, and merging became a full-time job.',
     ];
 
     const HARD_SENTENCES = [
@@ -330,7 +462,130 @@
         'Firefox DevTools showed 847 layout recalculations triggered by a single CSS transition on the nav element.',
         'The ARM64 build completed in 3 minutes; the equivalent x86_64 build took 11 minutes on identical specs.',
         'MongoDB sharding distributed 2.8 billion documents across 12 replica sets with a chunk size of 64MB.',
+        'The connection string contained postgresql://admin:p@55w0rd@db-primary.internal:5432/nexus_prod?sslmode=require.',
+        'CORS preflight requests added 150ms of overhead to every cross-origin API call from the frontend.',
+        'The WAF blocked 14,327 requests matching the OWASP ModSecurity Core Rule Set v3.3.4.',
+        'ElasticSearch ingested 2.4 million documents per hour with a p95 indexing latency of 180ms.',
+        'The S3 bucket policy allowed s3:GetObject from arn:aws:iam::123456789012:role/cdn-reader only.',
+        'Ansible playbooks provisioned 48 EC2 instances in 3 availability zones with t3.xlarge instance types.',
+        'The gRPC streaming endpoint maintained 12,000 bidirectional connections with an average throughput of 340MB/s.',
+        'Istio service mesh injected sidecar proxies into 67 pods, adding 23MB of memory overhead per container.',
+        'The crontab entry */5 * * * * /usr/local/bin/health-check.sh >> /var/log/health.log 2>&1 ran every 5 minutes.',
+        'HashiCorp Vault rotated 234 database credentials across 8 clusters every 72 hours via dynamic secrets.',
+        'The TCP keepalive was configured with tcp_keepalive_time=600, tcp_keepalive_intvl=30, tcp_keepalive_probes=5.',
+        'ArgoCD synced 89 Kubernetes manifests from the GitOps repository in 4.7 seconds with zero drift detected.',
+        'The npm audit found 12 critical vulnerabilities in the dependency tree, 8 of which were in transitive packages.',
+        'Nginx location blocks matched requests in order: = /exact first, ^~ /prefix second, ~* /regex.(jpg|png) third.',
+        'The EXPLAIN ANALYZE output showed a Hash Join with an estimated cost of 1,247.83..2,891.47 rows=15,000.',
+        'Grafana dashboards displayed 128 panels pulling data from Prometheus, Loki, and Tempo simultaneously.',
+        'The GitHub webhook payload included X-Hub-Signature-256: sha256=a1b2c3d4e5f6 for HMAC verification.',
+        'CloudWatch Logs Insights parsed 47GB of log data using the query: filter @message like /ERROR/ | stats count() by bin(5m).',
+        'The systemd unit file specified Restart=on-failure, RestartSec=5s, StartLimitBurst=3, and StartLimitIntervalSec=60.',
+        'OpenTelemetry exported 2.3 million spans per minute to Jaeger with a sampling rate of 0.01 (1%).',
+        'The iptables rule -A INPUT -p tcp --dport 443 -m connlimit --connlimit-above 50 -j DROP prevented SYN floods.',
+        'Webpack bundle analysis revealed that moment.js accounted for 287KB (32%) of the total 896KB JavaScript payload.',
+        'The etcd cluster maintained consensus across 5 nodes with a leader election timeout of 1,500 milliseconds.',
+        'PostgreSQL vacuum analyzed 23 tables with dead tuple ratios exceeding 15%, reclaiming 4.7GB of disk space.',
+        'The rsync command transferred 847 files (12.3GB) over SSH with --compress --checksum in 23 minutes.',
+        'Let\'s Encrypt renewed 34 certificates via certbot renew --post-hook "systemctl reload nginx" automatically.',
+        'The HAProxy configuration set maxconn 50000, timeout client 30s, timeout server 45s, and timeout connect 5s.',
+        'Falco detected 23 suspicious syscalls matching the rule "Terminal shell in container" across 8 production pods.',
+        'The Terraform state file grew to 47MB after managing 1,234 resources across AWS, GCP, and Cloudflare.',
+        'Jenkins pipeline stages ran in parallel: [build: 2m, test: 8m, lint: 1m, security-scan: 4m, deploy: 3m].',
+        'The Linux kernel OOM killer terminated process 14523 (java) with an oom_score_adj of 0 and RSS of 14.2GB.',
+        'BIND9 served 847,000 DNS queries per hour with a cache hit rate of 94.3% and an average response of 0.4ms.',
+        'The ZFS pool reported 99.7% capacity with deduplication ratio 2.34x across 8 mirrored vdevs totaling 96TB.',
+        'The Kafka topic had 24 partitions with a replication factor of 3, consuming 1.2TB of storage per broker.',
+        'WireGuard established a VPN tunnel with endpoint 203.0.113.42:51820 using Curve25519 key exchange.',
+        'The Node.js event loop lag exceeded 150ms when handling 8,000 concurrent HTTP/2 connections with keep-alive.',
+        'Containerd pulled the 2.3GB container image in 45 seconds using parallel layer downloads across 6 threads.',
+        'The MySQL slow query log captured 347 queries exceeding 2 seconds, with the worst offender at 47.3 seconds.',
+        'Caddy reverse proxy served HTTPS automatically using ACME with ZeroSSL as the default CA provider.',
+        'The Prometheus alerting rule expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05 fired 3 times today.',
+        'Cilium eBPF programs processed 12.7 million packets per second with per-pod network policies enforced.',
+        'The GitLab runner executed 234 CI jobs in 24 hours using Docker-in-Docker with --privileged mode enabled.',
+        'Envoy proxy applied circuit breaking with max_connections=1024, max_pending_requests=512, and max_retries=3.',
+        'The SSH config entry specified ProxyJump bastion.internal, IdentityFile ~/.ssh/prod_ed25519, and Port 2222.',
+        'Vault PKI issued 1,247 TLS certificates with 720-hour TTLs and automatic renewal at 66% lifetime.',
+        'The sed command sed -i "s/listen 80;/listen 443 ssl;/g" /etc/nginx/sites-enabled/* updated 23 server blocks.',
+        'Fluentd collected 4.7 million log lines per hour, buffering to disk at /var/log/fluentd-buffer/ with chunk_limit_size 8m.',
+        'The AWS IAM policy allowed sts:AssumeRole on resource arn:aws:iam::987654321098:role/cross-account-reader.',
+        'OPA Gatekeeper enforced 12 constraint templates across 847 namespaces with 0 violations in the last 30 days.',
     ];
+
+    const IMPOSSIBLE_SENTENCES = [
+        'The question of whether consciousness arises from neural complexity alone, or whether it requires some additional substrate, remains one of the most fiercely debated topics in contemporary philosophy of mind.',
+        'According to the terms set forth in Section 14(b) of the agreement, neither party shall be held liable for consequential damages arising from force majeure events, including but not limited to natural disasters, acts of war, or pandemic-related disruptions.',
+        'She paused at the threshold, her hand resting on the doorframe; the light behind her cast a long, trembling shadow across the floorboards, and for a moment, the entire house seemed to hold its breath.',
+        'The Fourier transform decomposes a time-domain signal into its constituent frequencies, enabling analysis of periodic components that would otherwise remain hidden within the raw waveform.',
+        'In his landmark 1943 paper, Warren McCulloch and Walter Pitts proposed that neurons could be modeled as logical gates, a radical simplification that nevertheless laid the groundwork for all subsequent neural network research.',
+        'Notwithstanding the foregoing provisions, the indemnifying party shall not be obligated to defend, indemnify, or hold harmless any claim to the extent that such claim arises from the gross negligence or willful misconduct of the indemnified party.',
+        'The conductor raised her baton, and the orchestra, which had been murmuring through their final adjustments, fell silent; then, with a downbeat so precise it seemed to divide time itself, the first notes of the symphony filled the hall.',
+        'Quantum entanglement, described by Einstein as "spooky action at a distance," allows two particles to share correlated quantum states instantaneously, regardless of the spatial separation between them.',
+        'It was not the coldness of the water that shocked him, nor the darkness beneath the surface, but the absolute, terrifying silence that swallowed every sound the moment his head went under.',
+        'The Haber-Bosch process, which synthesizes ammonia from atmospheric nitrogen and hydrogen gas at temperatures exceeding 400 degrees Celsius and pressures of approximately 200 atmospheres, revolutionized global agriculture in the early twentieth century.',
+        'Pursuant to the modifications outlined in Addendum C, the licensee agrees to remit quarterly royalty payments equal to 4.75% of gross revenue derived from the licensed intellectual property, net of applicable returns and allowances.',
+        'He had always believed that the measure of a person was not what they accomplished in moments of comfort and convenience, but what they chose to do when the cost of doing the right thing was unbearably high.',
+        'The double-slit experiment demonstrates that particles such as electrons exhibit wave-like interference patterns when both slits are open, but behave as discrete particles when a detector is placed at one of the slits, collapsing the wave function.',
+        'Whereas the first party has represented and warranted that all information provided herein is accurate, complete, and not misleading in any material respect, any breach of such representation shall constitute grounds for immediate termination.',
+        'The river wound through the valley like a silver thread, disappearing behind ridgelines and reemerging in unexpected places, carrying with it the sediment of a thousand years of slow, patient erosion.',
+        'In thermodynamics, entropy is a measure of the number of specific ways in which a system may be arranged; it is often understood as a measure of disorder, though this characterization, while intuitive, is technically imprecise.',
+        'She had written the letter three times, each draft more honest than the last; but honesty, she realized, was not the same as clarity, and what she most needed to say remained stubbornly beyond the reach of words.',
+        'The Riemann hypothesis, which posits that all non-trivial zeros of the Riemann zeta function have a real part equal to one-half, has remained unproven since 1859 and carries a one-million-dollar Millennium Prize.',
+        'The witness testified that on the evening of March 14th, at approximately 9:47 PM, she observed the defendant exit the rear entrance of the building carrying a large, rectangular object wrapped in dark fabric.',
+        'Despite the superficial similarities between the two proposals, their underlying assumptions about market behavior, regulatory compliance, and long-term scalability diverge so fundamentally that any comparison must be drawn with extreme caution.',
+        'The smell of woodsmoke and damp earth hung in the air, mingling with the faint sweetness of overripe apples that had fallen, unnoticed, into the tall grass at the edge of the orchard.',
+        'Bayesian inference provides a mathematical framework for updating the probability of a hypothesis as more evidence becomes available; it is distinguished from frequentist approaches by its use of prior distributions and the posterior probability.',
+        'To the extent permitted by applicable law, the aggregate liability of the service provider under this agreement shall not exceed the total fees paid by the client during the twelve-month period immediately preceding the claim.',
+        'He spoke slowly, choosing each word as if it were a stone he was placing in a wall, and when he finished, the silence that followed was not empty but full of the weight of everything he had left unsaid.',
+        'The mitochondrial electron transport chain consists of four protein complexes embedded in the inner mitochondrial membrane, through which electrons are transferred in a series of redox reactions that ultimately drive the synthesis of adenosine triphosphate.',
+        'The committee shall convene no fewer than four times per fiscal year, with a quorum consisting of at least two-thirds of its appointed members, and all proceedings shall be recorded in the official minutes.',
+        'What struck her most about the painting was not its technical mastery, nor the boldness of its palette, but the way the artist had captured, in a single frozen moment, the precise instant when hope turns to resignation.',
+        'Godel\'s incompleteness theorems, published in 1931, demonstrated that any sufficiently powerful and consistent formal system contains statements that are true but unprovable within the system itself, fundamentally limiting the scope of mathematical proof.',
+        'The arbitration panel, having reviewed the submissions of both parties and the testimony of four expert witnesses, hereby finds in favor of the claimant and orders the respondent to pay compensatory damages in the amount specified in Exhibit D.',
+        'There is a particular quality of light that occurs only in the last ten minutes before sunset, when the world seems to glow from within, and every ordinary surface becomes briefly, impossibly beautiful.',
+        'The Nash equilibrium, a foundational concept in game theory, describes a state in which no player can improve their expected outcome by unilaterally changing their strategy, given the strategies of all other players.',
+        'She understood, with the kind of clarity that comes only after years of confusion, that forgiveness is not a single act but a practice, something that must be chosen again and again, often in the face of every instinct to the contrary.',
+        'Heisenberg\'s uncertainty principle states that the product of the uncertainties in the position and momentum of a particle cannot be less than half of the reduced Planck constant, imposing a fundamental limit on measurement precision.',
+        'The lessee shall maintain comprehensive general liability insurance with minimum coverage limits of $2,000,000 per occurrence and $5,000,000 in the aggregate, naming the lessor as an additional insured on all such policies.',
+        'The road narrowed to a single lane, hemmed in on both sides by walls of dark pine, and the headlights carved a tunnel of light through the trees that seemed to close behind them as soon as they passed.',
+        'In information theory, the Shannon entropy of a discrete random variable quantifies the expected amount of information contained in each message, measured in bits, and serves as a lower bound on the average length of the optimal prefix-free code.',
+        'The board of directors, acting in accordance with Article VII of the corporate bylaws, voted unanimously to authorize the issuance of up to 10,000,000 shares of Series B preferred stock at a par value of $0.001 per share.',
+        'He had spent thirty years building something he believed would outlast him, and now, standing in the ruins of it, he felt not grief but a strange, exhausted relief, as though a burden he had never acknowledged had finally been set down.',
+        'The central limit theorem establishes that the sum of a large number of independent, identically distributed random variables, each with finite mean and variance, will be approximately normally distributed, regardless of the underlying distribution.',
+        'Any notice required or permitted under this agreement shall be deemed duly given when delivered personally, sent by certified mail (return receipt requested), or transmitted by facsimile with machine confirmation of receipt.',
+        'The garden had gone wild in her absence; the roses, unchecked, had climbed the trellis and spread across the wall, their thorns intertwined so thickly that the gate could no longer be opened from the outside.',
+        'Lagrangian mechanics reformulates classical mechanics using the principle of least action, expressing the equations of motion in terms of generalized coordinates and the Lagrangian function, defined as the difference between kinetic and potential energy.',
+        'Notwithstanding any provision of this agreement to the contrary, the obligations of the parties under Sections 8, 9, 12, and 15 shall survive the termination or expiration of this agreement for a period of five years.',
+        'There are moments in every life when the accumulated weight of small decisions suddenly reveals itself, and one sees, with painful clarity, the shape of the path that was chosen, and the ghost of every path that was not.',
+        'Maxwell\'s equations, formulated in the 1860s, unified the previously separate theories of electricity and magnetism into a single coherent framework, predicting the existence of electromagnetic waves that travel at the speed of light.',
+        'The escrow agent shall hold the deposited funds in a non-interest-bearing trust account at a federally insured financial institution, disbursing them only upon receipt of joint written instructions from both the buyer and the seller.',
+        'She could hear the rain on the roof above her, a steady drumming that filled the attic with sound, and beneath it, barely audible, the ticking of the clock on the mantelpiece two floors below.',
+        'The Navier-Stokes equations describe the motion of viscous fluid substances, and while solutions are known to exist for certain boundary conditions, the question of whether smooth solutions always exist in three dimensions remains one of the great open problems in mathematics.',
+        'In consideration of the mutual covenants and agreements set forth herein, and for other good and valuable consideration, the receipt and sufficiency of which are hereby acknowledged, the parties agree as follows.',
+        'He thought of all the letters he had never sent, the apologies that had calcified into silence, the questions he had been too proud to ask; and he understood, at last, that courage is not the absence of fear but the willingness to speak in spite of it.',
+        'The Carnot efficiency, defined as one minus the ratio of the cold reservoir temperature to the hot reservoir temperature (both in kelvins), represents the theoretical maximum efficiency of any heat engine operating between two thermal reservoirs.',
+        'This warranty shall not apply to any defect, malfunction, or failure resulting from (a) misuse, abuse, or neglect; (b) unauthorized modification or repair; (c) operation outside the specified environmental conditions; or (d) normal wear and tear.',
+        'The old house stood at the end of the lane, half-hidden by overgrown hedgerows; its windows, dark and unblinking, watched the road with the patience of something that has been waiting a very long time.',
+        'Euler\'s identity, expressed as e to the power of i times pi plus one equals zero, is frequently cited as the most beautiful equation in mathematics because it connects five fundamental constants in a single, elegant relationship.',
+        'The parties acknowledge that monetary damages would be an inadequate remedy for any breach of the confidentiality provisions contained herein, and accordingly, either party shall be entitled to seek equitable relief, including injunction and specific performance, without the necessity of proving actual damages.',
+        'It is a truth that most people discover too late: that the things we postpone saying to the people we love do not wait for us, and that silence, over time, becomes its own irrevocable answer.',
+        'The Stefan-Boltzmann law states that the total energy radiated per unit surface area of a black body per unit time is directly proportional to the fourth power of the absolute temperature of the body.',
+        'Neither the failure of either party to enforce any provision of this agreement at any time, nor the election of any remedy, shall constitute a waiver of such party\'s right to enforce each and every provision of this agreement thereafter.',
+        'The morning light fell through the curtains in thin, golden bars, illuminating the dust motes that drifted through the air like constellations; and for a moment, lying still, she could not remember where she was.',
+        'Kolmogorov complexity, also known as algorithmic complexity, defines the complexity of a string as the length of the shortest program that produces that string as output, providing a rigorous foundation for the informal notion of randomness.',
+        'All intellectual property rights in and to the deliverables created under this agreement, including but not limited to copyrights, patents, trade secrets, and trademarks, shall vest exclusively in the client upon full payment of all fees.',
+        'He had always known, in the way that one knows a thing without ever having been told, that the world is not divided into good people and bad people, but into people who have been tested and people who have not.',
+        'The second law of thermodynamics, in its statistical formulation by Boltzmann, asserts that the entropy of an isolated system tends to increase over time, approaching a maximum value at thermodynamic equilibrium.',
+        'The undersigned hereby certifies, under penalty of perjury, that the foregoing statements are true, correct, and complete to the best of his or her knowledge, information, and belief, formed after a reasonable inquiry.',
+        'Somewhere in the distance, a church bell was ringing, its sound carried and distorted by the wind until it seemed to come from everywhere and nowhere at once, a pulse marking time in a world that had, for a moment, stopped.',
+        'The halting problem, proven undecidable by Alan Turing in 1936, demonstrates that no general algorithm can determine, for every possible program-input pair, whether the program will eventually halt or continue running indefinitely.',
+        'This agreement shall be governed by and construed in accordance with the laws of the State of Delaware, without regard to its conflict of laws principles, and each party irrevocably submits to the exclusive jurisdiction of the courts thereof.',
+        'They stood together at the edge of the cliff, the ocean spread out before them like a great gray mirror, and neither spoke, because some silences are not empty but are instead the only adequate response to immensity.',
+        'The P versus NP problem asks whether every problem whose solution can be verified quickly by a computer can also be solved quickly by a computer; a resolution in either direction would have profound implications for cryptography, optimization, and computational complexity theory.',
+        'In witness whereof, the parties hereto have executed this agreement as of the date first written above, each by their duly authorized representative, intending to be legally bound by its terms and conditions.',
+    ];
+
 
     const PUNCTUATION = ['.', '.', '.', ',', ',', '?', '!', ';', ':'];
     const NUMBERS = ['0','1','2','3','4','5','6','7','8','9','10','15','20','42','64','100','128','192','256','404','500','1024','2048'];
@@ -361,7 +616,8 @@
         let pool;
         if (diff === 'easy') pool = EASY_SENTENCES;
         else if (diff === 'normal') pool = NORMAL_SENTENCES;
-        else pool = HARD_SENTENCES;
+        else if (diff === 'hard') pool = HARD_SENTENCES;
+        else pool = IMPOSSIBLE_SENTENCES;
 
         // Shuffle and concat sentences until we have enough words
         const shuffled = [...pool].sort(() => Math.random() - 0.5);
@@ -473,7 +729,7 @@
         clearInterval(tick);
         // Remove any leftover key handlers
         // key handling is done via the global listener — no separate handler to clean up
-        words = gen(cat === 'time' ? 200 : val);
+        words = gen(cat === 'time' ? Math.max(300, val * 3) : val);
         buildWords();
         if (wordEls[0]) wordEls[0].classList.add('active');
         document.getElementById('result').style.display = 'none';
@@ -593,6 +849,27 @@
         inputBuf += key;
         cIdx++;
         updateCaret();
+
+        // Auto-finish: last word fully typed (all letters matched or exceeded)
+        if (cat === 'words' && wIdx === val - 1 && cIdx >= word.length && inputBuf.length >= word.length) {
+            // Mark the word as typed
+            wordEl.classList.remove('active');
+            wordEl.classList.add('typed');
+            if (inputBuf !== word) wordEl.classList.add('error');
+            wIdx++;
+            finish();
+            return;
+        }
+
+        // Time mode: if all generated words are typed, auto-finish early
+        if (cat === 'time' && wIdx >= words.length - 1 && cIdx >= word.length && inputBuf.length >= word.length) {
+            wordEl.classList.remove('active');
+            wordEl.classList.add('typed');
+            if (inputBuf !== word) wordEl.classList.add('error');
+            wIdx++;
+            finish();
+            return;
+        }
     }
 
     // Tick
@@ -659,22 +936,57 @@
                 <div><div class="r-num" style="color:${acc>=95?'#0f0':acc>=80?'#ff0':'#f55'};">${acc}%</div><div class="r-label">ACCURACY</div></div>
             </div>
             <div class="r-detail">${ml} · ${elapsed.toFixed(1)}s · ${raw} raw · ${wIdx} words · ${errors} errors</div>
-            <button class="r-btn" onclick="prepare()">restart</button>
+            <div style="display:flex; gap:10px; justify-content:center; margin-top:16px; flex-wrap:wrap;">
+                <button class="r-btn" onclick="prepare()">restart</button>
+                <button class="r-btn" id="lb-submit-btn" onclick="submitToLeaderboard(${wpm})" style="background:rgba(0,255,255,0.08); border:1px solid rgba(0,255,255,0.2);">submit to leaderboard</button>
+            </div>
+            <div id="lb-status" style="font-size:0.65rem; color:#444; margin-top:8px;"></div>
             <div class="r-hint">tab to restart</div>`;
 
         // Show ad
         const ad = document.getElementById('result-ad');
         if (ad) { ad.style.display = ''; try { (window.adsbygoogle=window.adsbygoogle||[]).push({}); } catch(_){} }
 
-        // Leaderboard
-        try {
-            const api = ['localhost','127.0.0.1'].includes(location.hostname) ? '' : 'https://api.thyfwxit.com';
-            fetch(api+'/api/leaderboard/submit',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({game:'typing',score:wpm})}).catch(()=>{});
-        } catch(_){}
-
         // Tab restart listener
         const rh = (e) => { if (e.key==='Tab'){e.preventDefault();document.removeEventListener('keydown',rh);prepare();} };
         document.addEventListener('keydown', rh);
+    }
+
+    // Leaderboard submission
+    function submitToLeaderboard(wpm) {
+        const btn = document.getElementById('lb-submit-btn');
+        const status = document.getElementById('lb-status');
+        if (!btn || !status) return;
+        btn.disabled = true;
+        btn.textContent = 'submitting...';
+        btn.style.opacity = '0.5';
+        status.textContent = '';
+        const api = ['localhost','127.0.0.1'].includes(location.hostname) ? '' : 'https://api.thyfwxit.com';
+        fetch(api + '/api/leaderboard/submit', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ game: 'typing', score: wpm }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                btn.textContent = 'submitted';
+                btn.style.borderColor = 'rgba(0,255,0,0.4)';
+                btn.style.color = '#0f0';
+                status.textContent = 'score submitted to leaderboard';
+                status.style.color = '#0f0';
+            } else {
+                throw new Error(data.error || 'submission failed');
+            }
+        })
+        .catch(err => {
+            btn.textContent = 'submit to leaderboard';
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            status.textContent = 'failed — sign in to submit scores';
+            status.style.color = '#f55';
+        });
     }
 
     // Event wiring
@@ -742,7 +1054,7 @@
             document.querySelectorAll('#diff-btns .mode-btn').forEach(x => x.classList.remove('active'));
             b.classList.add('active');
             diff = b.dataset.diff;
-            // Normal and hard auto-enable punctuation; hard auto-enables numbers
+            // Normal+ auto-enable punctuation; hard+ auto-enables numbers
             if (diff === 'easy') {
                 usePunctuation = false; useNumbers = false;
             } else if (diff === 'normal') {
@@ -750,6 +1062,7 @@
             } else {
                 usePunctuation = true; useNumbers = true;
             }
+            // Impossible already has full punctuation/numbers baked into the sentences
             syncToggles();
             prepare();
         });
