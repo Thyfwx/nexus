@@ -1,5 +1,5 @@
-// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.6.1 — credentials fix + speedtest standalone page + ads
-window.NEXUS_VERSION = 'v5.6.1';
+// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.6.2 — PWA, fingerprinting, typing expansion, Cloudflare security
+window.NEXUS_VERSION = 'v5.6.2';
 
 // AD KILL SWITCHES — flip any to true to disable that block at runtime.
 // Master NEXUS_DISABLE_ADS overrides all. All disabled until AdSense
@@ -22,7 +22,7 @@ window.isLocal = (function() {
 // cookies flow correctly). DNS CNAME → onrender.com, Render handles SSL.
 window.API_HOST   = 'api.thyfwxit.com';
 window.RENDER_HOST = 'nexus-terminalnexus.onrender.com';  // legacy reference
-window.PACIFIC_HUB = 'https://nexus-evil-proxy.REMOVED.workers.dev';
+window.PACIFIC_HUB = ''; // deleted — relay worker no longer used
 window.isRender = window.location.hostname.includes('onrender.com');
 window.proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 window.BACKEND_URL = (window.isLocal || window.isRender) ? window.location.host : window.API_HOST;
