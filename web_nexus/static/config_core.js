@@ -5,6 +5,6 @@ window.BOOT_WORDS = [
     { label: 'BOOT',  text: 'Initializing Pacific Kernel...' },
     { label: 'KERN',  text: 'Neural Bridge established.' },
     { label: 'LINK',  text: 'Identity verified: Xavier Scott.' },
-    { label: 'SYNC',  text: 'Syncing with Render Node...' },
+    { label: 'SYNC',  text: 'Syncing with Cloudflare Edge...' },
     { label: 'READY', text: 'Nexus online.' },
 ];
