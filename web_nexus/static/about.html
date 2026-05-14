@@ -68,14 +68,14 @@
         <h2>How it's built</h2>
         <ul>
             <li><strong>Frontend:</strong> vanilla JS (no React/Vue), CSS variables, custom canvas rendering, WebSocket terminal stream. Hosted on Cloudflare Pages.</li>
-            <li><strong>Backend:</strong> Python + FastAPI on Render. Routes to Groq, Hugging Face, Replicate, and Google Gemini for AI work.</li>
+            <li><strong>Backend:</strong> Cloudflare Worker (JavaScript). Routes to Groq, Hugging Face, Replicate, and Google Gemini for AI. Zero cold starts, edge performance.</li>
             <li><strong>Auth:</strong> Google OAuth + JWT cookies. Same-site subdomain (api.thyfwxit.com) so cookies flow without 3rd-party blocking.</li>
-            <li><strong>Storage:</strong> JSON files server-side for low-volume state (handles, leaderboards, image quotas). Browser localStorage for per-user UI state.</li>
+            <li><strong>Storage:</strong> Cloudflare KV for persistent state (handles, leaderboards, bans, image quotas). Browser localStorage for per-user UI state.</li>
             <li><strong>Moderation:</strong> 50+ regex patterns covering CSAM, weapon synthesis, body disposal, school violence, slurs, etc. Critical hits trigger 30-min lockouts and Discord webhook alerts to me.</li>
         </ul>
 
         <h2>What it costs me to run</h2>
-        <p>Roughly $20-30/month — Cloudflare Pages (free), Render hosting (~$7), Replicate image gen (capped at $15), domain renewal (~$10/year amortized). When you donate via the link below, you're directly offsetting that. Every $5 covers ~1,500 SFW image generations.</p>
+        <p>Roughly $15-25/month — Cloudflare (Pages + Workers + KV, free tier), Replicate image gen (capped at $15), domain renewal (~$10/year amortized). When you donate via the link below, you're directly offsetting that. Every $5 covers ~1,500 SFW image generations.</p>
 
         <h2>Support the project</h2>
         <ul>
