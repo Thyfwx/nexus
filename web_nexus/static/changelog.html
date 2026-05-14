@@ -445,13 +445,13 @@
 
     <script>
     // Dynamically align sidebar color bars to actual content positions
+    // Bar runs full height — first color extends to top, last color extends to bottom, blends between
     document.querySelectorAll('.release').forEach(rel => {
         const h = rel.offsetHeight;
         if (!h) return;
         const items = rel.querySelectorAll('ul.changes li');
         if (!items.length) return;
 
-        // Find the pixel position of the first item of each type relative to the release div
         let firstAdded = null, lastAdded = null, firstFixed = null, lastFixed = null, firstRemoved = null, lastRemoved = null;
         items.forEach(li => {
             const top = li.offsetTop - rel.offsetTop;
@@ -468,38 +468,37 @@
             }
         });
 
-        // Build gradient stops based on what exists
+        const green = 'var(--green)', orange = 'var(--orange)', red = 'var(--red)';
         const stops = [];
-        const green = 'var(--green)', orange = 'var(--orange)', red = 'var(--red)', transparent = 'transparent';
 
-        // Before content starts — no color
-        const contentStart = (firstAdded ?? firstFixed ?? firstRemoved ?? 0);
-        if (contentStart > 0) {
-            stops.push(`${transparent} 0%`, `${transparent} ${(contentStart / h * 100).toFixed(1)}%`);
-        }
+        // Collect which sections exist in order
+        const sections = [];
+        if (firstAdded !== null) sections.push({ color: green, start: firstAdded, end: lastAdded });
+        if (firstFixed !== null) sections.push({ color: orange, start: firstFixed, end: lastFixed });
+        if (firstRemoved !== null) sections.push({ color: red, start: firstRemoved, end: lastRemoved });
 
-        if (firstAdded !== null) {
-            stops.push(`${green} ${(firstAdded / h * 100).toFixed(1)}%`);
-            stops.push(`${green} ${(lastAdded / h * 100).toFixed(1)}%`);
-        }
-        if (firstFixed !== null) {
-            stops.push(`${orange} ${(firstFixed / h * 100).toFixed(1)}%`);
-            stops.push(`${orange} ${(lastFixed / h * 100).toFixed(1)}%`);
-        }
-        if (firstRemoved !== null) {
-            stops.push(`${red} ${(firstRemoved / h * 100).toFixed(1)}%`);
-            stops.push(`${red} ${(lastRemoved / h * 100).toFixed(1)}%`);
-        }
+        if (!sections.length) return;
 
-        // After content ends — no color
-        const contentEnd = lastRemoved ?? lastFixed ?? lastAdded ?? h;
-        if (contentEnd < h) {
-            stops.push(`${transparent} ${(contentEnd / h * 100).toFixed(1)}%`);
+        // First color starts from 0% (covers header area)
+        stops.push(`${sections[0].color} 0%`);
+
+        for (let i = 0; i < sections.length; i++) {
+            const s = sections[i];
+            const startPct = (s.start / h * 100).toFixed(1);
+            const endPct = (s.end / h * 100).toFixed(1);
+
+            if (i > 0) {
+                // Blend point between previous section and this one
+                stops.push(`${sections[i - 1].color} ${startPct}%`);
+                stops.push(`${s.color} ${startPct}%`);
+            }
+            stops.push(`${s.color} ${endPct}%`);
         }
 
-        if (stops.length) {
-            rel.style.setProperty('--bar-gradient', `linear-gradient(to bottom, ${stops.join(', ')})`);
-        }
+        // Last color extends to 100%
+        stops.push(`${sections[sections.length - 1].color} 100%`);
+
+        rel.style.setProperty('--bar-gradient', `linear-gradient(to bottom, ${stops.join(', ')})`);
     });
     </script>
 
