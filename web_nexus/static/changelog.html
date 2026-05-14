@@ -199,6 +199,23 @@
             margin-bottom: 12px;
         }
 
+        /* Section labels within each version */
+        .section-label {
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 6px 0 4px;
+            margin-top: 6px;
+            opacity: 0.7;
+        }
+        .section-label:first-child { margin-top: 0; }
+        .section-label.sl-green   { color: var(--green); }
+        .section-label.sl-orange  { color: var(--orange); }
+        .section-label.sl-red     { color: var(--red); }
+        .section-label.sl-purple  { color: #b44dff; }
+        .section-label.sl-cyan    { color: var(--accent); }
+
         ul.changes {
             list-style: none;
             padding: 0;
@@ -276,6 +293,7 @@
             <div class="release-summary">
                 PWA install support, typing test expansion, device fingerprinting, Cloudflare security hardening, Worker migration progress, Discord bot integration.
             </div>
+            <div class="section-label sl-green">— FEATURES</div>
             <ul class="changes">
                 <li class="added">PWA support — Nexus can now be installed as a desktop app. Manifest, service worker, and icons added. Works on Chrome, Edge, Safari.</li>
                 <li class="added">Typing test: "impossible" difficulty — literary prose, legal language, scientific text, complex punctuation. 368 total sentences across 4 difficulties.</li>
@@ -289,10 +307,16 @@
                 <li class="added">AI bot blocking — all known AI training crawlers blocked on all pages.</li>
                 <li class="added">AI Labyrinth enabled — traps scraper bots in generated content.</li>
                 <li class="added">Hotlink protection — prevents other sites from embedding images.</li>
+            </ul>
+            <div class="section-label sl-orange">— PATCHES</div>
+            <ul class="changes">
                 <li class="fixed">Ban bypass closed — guest mode, network switching, and cookie clearing no longer bypass account bans. Three-layer enforcement: email + IP + device fingerprint.</li>
                 <li class="fixed">Duplicate Discord logs — dedup guard prevents the same message from being logged twice within 5 seconds.</li>
                 <li class="fixed">Render backend security headers — added HSTS, Referrer-Policy, Permissions-Policy, X-Robots-Tag (were missing).</li>
                 <li class="fixed">Worker API responses now include X-Robots-Tag (noindex) and X-Content-Type-Options (nosniff).</li>
+            </ul>
+            <div class="section-label sl-red">— REMOVED</div>
+            <ul class="changes">
                 <li class="removed">nexus-evil-proxy Worker deleted from Cloudflare. All references cleaned from code and CSP.</li>
                 <li class="removed">Stale "thyfwxit" Pages project deleted (old manual deploy, 2 months unused).</li>
             </ul>
@@ -312,6 +336,7 @@
             <div class="release-summary">
                 Typing test (NEXUS TYPE) standalone page, ban page with ads, 18+ age gate, DevPanel ban management, shared link lobby redirect, AI disclaimer.
             </div>
+            <div class="section-label sl-green">— FEATURES</div>
             <ul class="changes">
                 <li class="added">NEXUS TYPE — standalone typing test page with easy/normal/hard difficulty, real sentences, punctuation and numbers toggles, personal best tracking, leaderboard submission.</li>
                 <li class="added">Ban page (banned.html) — dedicated page for permanently banned users with explanation, appeal info, and AdSense ads.</li>
@@ -323,10 +348,16 @@
                 <li class="added">AdSense on about, changelog, and leaderboard pages.</li>
                 <li class="added">robots.txt at domain root for AdSense crawler.</li>
                 <li class="added">Cloudflare Worker foundation deployed (nexus-api) — AI chat working, zero cold starts. Migration from Render in progress.</li>
+            </ul>
+            <div class="section-label sl-orange">— PATCHES</div>
+            <ul class="changes">
                 <li class="fixed">Cross-origin auth — revealTerminal() crash on login.html fixed for 18+ gate flow.</li>
                 <li class="fixed">Typing test restart — fixed state cleanup so tests can be repeated without page reload.</li>
                 <li class="fixed">Portfolio mobile — single-column status grid, accessibility bottom sheet with no scrollbar, tighter spacing.</li>
                 <li class="fixed">Nexus preview on portfolio — removed fake boot words, shows live data, "open full console" references removed.</li>
+            </ul>
+            <div class="section-label sl-red">— REMOVED</div>
+            <ul class="changes">
                 <li class="removed">"Open Console" buttons from portfolio — entry point is now PING + Enter Nexus only.</li>
             </ul>
         </div>
@@ -345,6 +376,7 @@
             <div class="release-summary">
                 Backend moved to api.thyfwxit.com (same-site cookies), server-side OAuth fallback, Speed Test as standalone page with ads, Maintenance Hub redesigned, cross-origin auth fixed.
             </div>
+            <div class="section-label sl-green">— FEATURES</div>
             <ul class="changes">
                 <li class="added">Backend migrated from nexus-terminalnexus.onrender.com to api.thyfwxit.com (DNS CNAME). Cookies now flow correctly without 3rd-party blocking.</li>
                 <li class="added">Server-side Google OAuth redirect flow as a fallback when the popup library is blocked by ad blockers or privacy settings.</li>
@@ -354,10 +386,16 @@
                 <li class="added">Standalone pages (privacy, terms, about, changelog, leaderboard, speedtest) now have consistent footer navigation.</li>
                 <li class="added">AdSense ad units wired on speedtest.html and leaderboard.html.</li>
                 <li class="added">ads.txt added at domain root for AdSense full account approval.</li>
+            </ul>
+            <div class="section-label sl-orange">— PATCHES</div>
+            <ul class="changes">
                 <li class="fixed">Owner cookie never being set in production: auth fetch was missing credentials:'include' on cross-origin requests.</li>
                 <li class="fixed">Image quota header showing 0/5 for owner: same credentials:'include' bug on the quota poll.</li>
                 <li class="fixed">Server info showing "?" for city: now maps country codes to full names and hides unknown cities.</li>
                 <li class="fixed">Login status messages cleaned up ("Signing in..." instead of "SYNCHRONIZING IDENTITY...").</li>
+            </ul>
+            <div class="section-label sl-red">— REMOVED</div>
+            <ul class="changes">
                 <li class="removed">Speed Test button from sidebar tools (access via Maintenance Hub only now).</li>
             </ul>
         </div>
@@ -376,16 +414,23 @@
             <div class="release-summary">
                 AdSense wired in, ad-loop bugs fixed, moderation patterns hardened, three game bugs squashed.
             </div>
+            <div class="section-label sl-green">— FEATURES</div>
             <ul class="changes">
                 <li class="added">Google AdSense bootstrap script integrated for monetization (publisher ID + ad-block recovery).</li>
                 <li class="added">AI Profile rebuilt with 4 tabs: IDENTITY · MEMORY · MODE · TOOLS.</li>
                 <li class="added">System Settings rebuilt with 4 tabs: VISUAL · TEXT · INPUT · AUDIO + automatic OS-preference detection (reduce-motion, contrast, etc.).</li>
                 <li class="added">Hard refusal policy now applies in every chat mode for critical content.</li>
+            </ul>
+            <div class="section-label sl-orange">— PATCHES</div>
+            <ul class="changes">
                 <li class="fixed">Pong crash on game-over (submitScore was undefined).</li>
                 <li class="fixed">Wordle physical keyboard now works (Backspace, Enter, A-Z).</li>
                 <li class="fixed">Snake cells no longer visually overlap the wall border.</li>
                 <li class="fixed">Critical-content moderation: 18/18 prompts caught (was 5/18). New patterns for arson, kidnapping, body disposal, school violence.</li>
                 <li class="fixed">Cross-domain cookies now work on production (SameSite=None on HTTPS). Owner DevPanel API endpoints stop returning 403 after re-login.</li>
+            </ul>
+            <div class="section-label sl-red">— REMOVED</div>
+            <ul class="changes">
                 <li class="removed">Critical-lockout auto-redirect to dedicated locked page (caused a tight reload loop with rehydrate-on-boot).</li>
             </ul>
         </div>
@@ -404,6 +449,7 @@
             <div class="release-summary">
                 Major SFW pivot: NSFW image generation removed entirely. ComfyUI retired. Replicate becomes the paid SFW image generator. AdSense-eligible build.
             </div>
+            <div class="section-label sl-green">— FEATURES</div>
             <ul class="changes">
                 <li class="added">Replicate Flux-schnell as the primary paid SFW image provider ($0.003 per image, $15/mo cap).</li>
                 <li class="added">Dedicated lockout page (<code>/nexus/locked.html</code>) with countdown timer and access-restoration UI.</li>
@@ -411,6 +457,9 @@
                 <li class="added">Unfiltered chaos rage system with role-aware rates and smart lockout ladder.</li>
                 <li class="added">Discord moderation webhook severity routing (silent for low/medium, owner-mention for high/critical).</li>
                 <li class="added">Live commit-status indicator on portfolio Nexus preview (sandbox-ahead-of-main shows as ONGOING).</li>
+            </ul>
+            <div class="section-label sl-red">— REMOVED</div>
+            <ul class="changes">
                 <li class="removed">All explicit/NSFW image generation system-wide. Image generation is now SFW only in every mode.</li>
                 <li class="removed">ComfyUI provider entirely (was running on GTX 1070 Ti home GPU).</li>
                 <li class="removed">Coder and Education modes can no longer generate images (per topic-lock policy).</li>
