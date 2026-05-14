@@ -13,6 +13,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=b2d4e8">
     <link rel="icon" href="favicon.ico">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta name="theme-color" content="#00ffff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Nexus">
     <script src="https://accounts.google.com/gsi/client" async defer onload="window.initGoogleAuth()"></script>
 </head>
 <body class="crt-mode">
@@ -213,6 +219,14 @@
                 }
             } catch (e) { alert('Owner login error: ' + e.message); }
         };
+    </script>
+    <script>
+        // Register service worker for PWA install
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/nexus/sw.js', { scope: '/nexus/' })
+                .then(() => console.log('[PWA] Service worker registered'))
+                .catch(e => console.warn('[PWA] SW registration failed:', e));
+        }
     </script>
 </body>
 </html>

@@ -102,13 +102,17 @@ async def add_security_headers(request: Request, call_next):
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; "
         "img-src 'self' data: https://thyfwxit.com https://*.googleusercontent.com https://*.agilebits.com https://*.googlesyndication.com https://*.googleadservices.com https://*.doubleclick.net https://*.google.com; "
-        "connect-src 'self' https://api.thyfwxit.com wss://api.thyfwxit.com https://nexus-terminalnexus.onrender.com wss://nexus-terminalnexus.onrender.com https://api.groq.com https://router.huggingface.co https://nexus-evil-proxy.REMOVED.workers.dev https://ipinfo.io https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com https://*.adtrafficquality.google https://fundingchoicesmessages.google.com; "
+        "connect-src 'self' https://api.thyfwxit.com wss://api.thyfwxit.com https://nexus-terminalnexus.onrender.com wss://nexus-terminalnexus.onrender.com https://api.groq.com https://router.huggingface.co https://ipinfo.io https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com https://*.adtrafficquality.google https://fundingchoicesmessages.google.com; "
         "frame-src https://accounts.google.com https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com;"
     )
     response.headers["Content-Security-Policy"] = csp
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["X-Robots-Tag"] = "noindex, nofollow"
     return response
 
 app.add_middleware(
@@ -127,7 +131,7 @@ app.add_middleware(
 )
 
 # 1. PRIORITY ROUTES (API & WS)
-NEXUS_VERSION = "v5.6.1"
+NEXUS_VERSION = "v5.6.2"
 
 # Build stamp — read from index.html cache buster on import so the frontend can
 # detect when a new version has shipped and trigger a soft reload without F5.
@@ -351,12 +355,51 @@ def _save_banned(banned: set):
     with open(_BANNED_FILE, "w") as f:
         json.dump(sorted(banned), f)
 
-def _is_banned(request: Request) -> bool:
+def _is_banned(request: Request, fingerprint: str = None) -> bool:
+    # Check by email (Google account ban)
     user = _get_session(request)
-    if not user:
-        return False
-    email = (user.get("email") or "").lower()
-    return email in _load_banned()
+    if user:
+        email = (user.get("email") or "").lower()
+        if email and email != "guest@local" and email in _load_banned():
+            return True
+    # Check by IP (banned users' IPs are tracked to prevent guest bypass)
+    client_ip = request.client.host if request.client else ""
+    if client_ip and client_ip in _load_banned_ips():
+        return True
+    # Check by device fingerprint (catches network + account switching)
+    fp = fingerprint or ""
+    if fp and fp in _load_banned_fps():
+        return True
+    return False
+
+# Banned IPs — when a Google account is banned, their last-known IP is stored here
+# so they can't just switch to guest mode to bypass the ban.
+_BANNED_IPS_FILE = os.path.join(base_dir, "_banned_account_ips.json")
+
+def _load_banned_ips() -> set:
+    try:
+        with open(_BANNED_IPS_FILE) as f:
+            return set(json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return set()
+
+def _save_banned_ips(ips: set):
+    with open(_BANNED_IPS_FILE, "w") as f:
+        json.dump(sorted(ips), f)
+
+# Device fingerprint bans — catches users who switch networks/accounts
+_BANNED_FP_FILE = os.path.join(base_dir, "_banned_fingerprints.json")
+
+def _load_banned_fps() -> set:
+    try:
+        with open(_BANNED_FP_FILE) as f:
+            return set(json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return set()
+
+def _save_banned_fps(fps: set):
+    with open(_BANNED_FP_FILE, "w") as f:
+        json.dump(sorted(fps), f)
 
 @app.post("/api/dev/ban-account")
 async def dev_ban_account(request: Request):
@@ -369,7 +412,18 @@ async def dev_ban_account(request: Request):
     banned = _load_banned()
     banned.add(email)
     _save_banned(banned)
-    print(f"[BAN] Account banned: {email}")
+    # Also store their IP and fingerprint (prevents guest/network bypass)
+    ban_ip = (data.get("ip") or "").strip()
+    if ban_ip:
+        ips = _load_banned_ips()
+        ips.add(ban_ip)
+        _save_banned_ips(ips)
+    ban_fp = (data.get("fingerprint") or "").strip()
+    if ban_fp:
+        fps = _load_banned_fps()
+        fps.add(ban_fp)
+        _save_banned_fps(fps)
+    print(f"[BAN] Account banned: {email}" + (f" IP: {ban_ip}" if ban_ip else "") + (f" FP: {ban_fp}" if ban_fp else ""))
     return {"ok": True, "banned": sorted(banned)}
 
 @app.post("/api/dev/unban-account")
@@ -1385,6 +1439,7 @@ async def log_conversation(request: Request):
         model  = (data.get("model")  or "?")[:32]
         device = data.get("device") or {}
         image_b64 = data.get("image_b64")  # optional — generated image as base64
+        fingerprint = (data.get("fingerprint") or "")[:20]
         client_ip = request.client.host if request.client else "unknown"
 
         webhook_url = os.getenv("DISCORD_WEBHOOK") or ""
@@ -1416,7 +1471,7 @@ async def log_conversation(request: Request):
                 {"name": "Viewport",   "value": d_viewport, "inline": True},
                 {"name": "Locale",     "value": f"{d_lang} · {d_tz}", "inline": True},
             ],
-            "footer": {"text": f"key {user_key} · {client_ip}"},
+            "footer": {"text": f"key {user_key} · {client_ip}" + (f" · fp:{fingerprint}" if fingerprint else "")},
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -1752,12 +1807,26 @@ PROFANITY = [
 
 @app.post("/auth/guest")
 async def auth_guest(request: Request):
+    # Block banned/blocked IPs from using guest mode as a bypass
+    client_ip = request.client.host if request.client else ""
+    if client_ip in _BLOCKED_IPS:
+        return _JSONResponse({"ok": False, "error": "Your IP has been blocked."}, status_code=403)
+    banned_ips = _load_banned_ips()
+    if client_ip in banned_ips:
+        return _JSONResponse({"ok": False, "error": "Access denied."}, status_code=403)
+
     data = await request.json()
+
+    # Check device fingerprint against banned list
+    fp = (data.get("fingerprint") or "").strip()
+    if fp and fp in _load_banned_fps():
+        return _JSONResponse({"ok": False, "error": "Access denied."}, status_code=403)
+
     raw_name = data.get("name", "").strip()
-    
+
     if not raw_name or len(raw_name) > 20:
         return _JSONResponse({"error": "Name must be 1-20 characters."}, status_code=400)
-    
+
     # Profanity check (case insensitive, catch some basic replacements)
     test_name = raw_name.lower().replace("@", "a").replace("0", "o").replace("1", "i").replace("!", "i").replace("3", "e").replace("$", "s")
     for bad in PROFANITY:
