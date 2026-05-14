@@ -252,11 +252,12 @@
                         <div class="board-empty">No scores submitted yet for this board.<br>Be the first — sign in, play, submit.</div>`;
                     return;
                 }
-                const rows = data.entries.map(e => {
-                    const trophy = e.rank === 1 ? 'top1' : e.rank === 2 ? 'top2' : e.rank === 3 ? 'top3' : '';
+                const rows = data.entries.map((e, i) => {
+                    const rank = e.rank || (i + 1);
+                    const trophy = rank === 1 ? 'top1' : rank === 2 ? 'top2' : rank === 3 ? 'top3' : '';
                     return `
                     <div class="board-row ${trophy}">
-                        <div class="row-rank">#${e.rank}</div>
+                        <div class="row-rank">#${rank}</div>
                         <div class="row-handle">${escapeHTML(e.handle)}</div>
                         <div class="row-score">${e.score.toLocaleString()}</div>
                         <div class="row-time">${fmtTime(e.ts)}</div>
