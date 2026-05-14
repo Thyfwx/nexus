@@ -444,6 +444,67 @@
     </div>
 
 
+    <script>
+    // Align sidebar bars to the actual pixel positions of +/✓/− items
+    requestAnimationFrame(() => {
+        document.querySelectorAll('.release').forEach(rel => {
+            const box = rel.getBoundingClientRect();
+            const h = box.height;
+            if (!h) return;
+            const items = rel.querySelectorAll('ul.changes li');
+            if (!items.length) return;
+
+            let addedTop = null, addedBot = null;
+            let fixedTop = null, fixedBot = null;
+            let removedTop = null, removedBot = null;
+
+            items.forEach(li => {
+                const r = li.getBoundingClientRect();
+                const top = r.top - box.top;
+                const bot = r.bottom - box.top;
+                if (li.classList.contains('added')) {
+                    if (addedTop === null || top < addedTop) addedTop = top;
+                    if (addedBot === null || bot > addedBot) addedBot = bot;
+                } else if (li.classList.contains('fixed')) {
+                    if (fixedTop === null || top < fixedTop) fixedTop = top;
+                    if (fixedBot === null || bot > fixedBot) fixedBot = bot;
+                } else if (li.classList.contains('removed')) {
+                    if (removedTop === null || top < removedTop) removedTop = top;
+                    if (removedBot === null || bot > removedBot) removedBot = bot;
+                }
+            });
+
+            const g = '#00ff88', o = '#ff9500', r = '#ff3333';
+            const pct = v => (v / h * 100).toFixed(1) + '%';
+            const stops = [];
+
+            const sections = [];
+            if (addedTop !== null) sections.push({ c: g, t: addedTop, b: addedBot });
+            if (fixedTop !== null) sections.push({ c: o, t: fixedTop, b: fixedBot });
+            if (removedTop !== null) sections.push({ c: r, t: removedTop, b: removedBot });
+            if (!sections.length) return;
+
+            // First color from top of box to first item
+            stops.push(sections[0].c + ' 0%');
+
+            for (let i = 0; i < sections.length; i++) {
+                const s = sections[i];
+                // Hard transition at the start of each new section
+                if (i > 0) {
+                    stops.push(sections[i-1].c + ' ' + pct(s.t));
+                    stops.push(s.c + ' ' + pct(s.t));
+                }
+                stops.push(s.c + ' ' + pct(s.b));
+            }
+
+            // Last color to bottom
+            stops.push(sections[sections.length-1].c + ' 100%');
+
+            rel.style.setProperty('--bar-gradient', 'linear-gradient(to bottom, ' + stops.join(', ') + ')');
+        });
+    });
+    </script>
+
     <!-- Footer nav -->
     <div style="position:fixed; bottom:0; left:0; right:0; padding:10px 16px; background:rgba(0,0,0,0.7); border-top:1px solid rgba(255,255,255,0.06); text-align:center; font-family:'Fira Code',monospace; font-size:0.65rem; color:#666; letter-spacing:1.5px; z-index:50; backdrop-filter:blur(4px);">
         <a href="privacy" style="color:#888; text-decoration:none; padding:0 10px; border-right:1px solid #333;">PRIVACY</a>
