@@ -165,19 +165,7 @@
             border: 1px solid var(--accent);
         }
 
-        .release.major .release-tag {
-            background: rgba(0, 255, 136, 0.15);
-            color: var(--green);
-            border-color: var(--green);
-        }
-
-        .release.fix .release-tag {
-            background: rgba(255, 149, 0, 0.15);
-            color: var(--orange);
-            border-color: var(--orange);
-        }
-
-        /* Individual tag colors — override parent when specific classes used */
+        /* Each tag gets its own color via tag-green, tag-orange, etc. */
         .release-tag.tag-green {
             background: rgba(0, 255, 136, 0.15);
             color: var(--green);
@@ -430,7 +418,7 @@
         </div>
 
         <!-- v5.4.x — placeholder for older releases, to be backfilled -->
-        <div class="release">
+        <div class="release" style="--bar-gradient: var(--accent)">
             <div class="release-head">
                 <span class="release-version">v5.4.x</span>
                 <span>
