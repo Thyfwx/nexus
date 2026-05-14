@@ -443,6 +443,66 @@
         <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
     </div>
 
+    <script>
+    // Dynamically align sidebar color bars to actual content positions
+    document.querySelectorAll('.release').forEach(rel => {
+        const h = rel.offsetHeight;
+        if (!h) return;
+        const items = rel.querySelectorAll('ul.changes li');
+        if (!items.length) return;
+
+        // Find the pixel position of the first item of each type relative to the release div
+        let firstAdded = null, lastAdded = null, firstFixed = null, lastFixed = null, firstRemoved = null, lastRemoved = null;
+        items.forEach(li => {
+            const top = li.offsetTop - rel.offsetTop;
+            const bot = top + li.offsetHeight;
+            if (li.classList.contains('added')) {
+                if (firstAdded === null) firstAdded = top;
+                lastAdded = bot;
+            } else if (li.classList.contains('fixed')) {
+                if (firstFixed === null) firstFixed = top;
+                lastFixed = bot;
+            } else if (li.classList.contains('removed')) {
+                if (firstRemoved === null) firstRemoved = top;
+                lastRemoved = bot;
+            }
+        });
+
+        // Build gradient stops based on what exists
+        const stops = [];
+        const green = 'var(--green)', orange = 'var(--orange)', red = 'var(--red)', transparent = 'transparent';
+
+        // Before content starts — no color
+        const contentStart = (firstAdded ?? firstFixed ?? firstRemoved ?? 0);
+        if (contentStart > 0) {
+            stops.push(`${transparent} 0%`, `${transparent} ${(contentStart / h * 100).toFixed(1)}%`);
+        }
+
+        if (firstAdded !== null) {
+            stops.push(`${green} ${(firstAdded / h * 100).toFixed(1)}%`);
+            stops.push(`${green} ${(lastAdded / h * 100).toFixed(1)}%`);
+        }
+        if (firstFixed !== null) {
+            stops.push(`${orange} ${(firstFixed / h * 100).toFixed(1)}%`);
+            stops.push(`${orange} ${(lastFixed / h * 100).toFixed(1)}%`);
+        }
+        if (firstRemoved !== null) {
+            stops.push(`${red} ${(firstRemoved / h * 100).toFixed(1)}%`);
+            stops.push(`${red} ${(lastRemoved / h * 100).toFixed(1)}%`);
+        }
+
+        // After content ends — no color
+        const contentEnd = lastRemoved ?? lastFixed ?? lastAdded ?? h;
+        if (contentEnd < h) {
+            stops.push(`${transparent} ${(contentEnd / h * 100).toFixed(1)}%`);
+        }
+
+        if (stops.length) {
+            rel.style.setProperty('--bar-gradient', `linear-gradient(to bottom, ${stops.join(', ')})`);
+        }
+    });
+    </script>
+
     <!-- Footer nav -->
     <div style="position:fixed; bottom:0; left:0; right:0; padding:10px 16px; background:rgba(0,0,0,0.7); border-top:1px solid rgba(255,255,255,0.06); text-align:center; font-family:'Fira Code',monospace; font-size:0.65rem; color:#666; letter-spacing:1.5px; z-index:50; backdrop-filter:blur(4px);">
         <a href="privacy" style="color:#888; text-decoration:none; padding:0 10px; border-right:1px solid #333;">PRIVACY</a>
