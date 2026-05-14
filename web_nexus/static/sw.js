@@ -1,23 +1,12 @@
 // Nexus AI Terminal — Service Worker
 // Cache-first for static assets, network-first for API calls
-const CACHE_NAME = 'nexus-v1';
+const CACHE_NAME = 'nexus-v2';
+// Pre-cache only the HTML shell + icon. JS/CSS files use cache-busted URLs
+// (?v=xxx) which change on every deploy, so they're cached on-demand via
+// the fetch handler instead of pre-cached here.
 const STATIC_ASSETS = [
   '/nexus/login',
   '/nexus/',
-  '/nexus/style.css',
-  '/nexus/mobile.css',
-  '/nexus/nexus_globals.js',
-  '/nexus/nexus_brain.js',
-  '/nexus/config_core.js',
-  '/nexus/auth_core.js',
-  '/nexus/ai_core.js',
-  '/nexus/ai_config.js',
-  '/nexus/commands_core.js',
-  '/nexus/terminal.js',
-  '/nexus/games_core.js',
-  '/nexus/stats_core.js',
-  '/nexus/audio_core.js',
-  '/nexus/uplink_core.js',
   '/nexus/icon.svg',
   '/nexus/favicon.ico',
 ];
