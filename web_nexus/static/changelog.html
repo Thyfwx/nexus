@@ -114,7 +114,7 @@
             overflow: hidden;
         }
 
-        /* Gradient sidebar — green (features) → orange (patches) → red (removed) */
+        /* Sidebar color bar — set per-version via inline --bar-gradient on each .release div */
         .release::before {
             content: '';
             position: absolute;
@@ -122,19 +122,8 @@
             top: 0;
             bottom: 0;
             width: 3px;
-            /* Hard stops — distinct bands, no blending */
-            background: linear-gradient(to bottom,
-                var(--green) 0%, var(--green) 50%,
-                var(--orange) 50%, var(--orange) 80%,
-                var(--red) 80%, var(--red) 100%);
+            background: var(--bar-gradient, var(--green));
             border-radius: 4px 0 0 4px;
-        }
-
-        /* Patch-only versions — orange + red bands only */
-        .release.fix::before {
-            background: linear-gradient(to bottom,
-                var(--orange) 0%, var(--orange) 75%,
-                var(--red) 75%, var(--red) 100%);
         }
 
         .release-head {
@@ -284,8 +273,8 @@
             For the full git history, see <a href="https://github.com/Thyfwx/nexus" target="_blank" rel="noopener" style="color:var(--accent);">github.com/Thyfwx/nexus</a>.
         </p>
 
-        <!-- v5.6.2 -->
-        <div class="release major">
+        <!-- v5.6.2: 12 added, 4 fixed, 2 removed -->
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, var(--green) 0%, var(--green) 67%, var(--orange) 67%, var(--orange) 89%, var(--red) 89%, var(--red) 100%)">
             <div class="release-head">
                 <span class="release-version">v5.6.2</span>
                 <span>
@@ -321,8 +310,8 @@
             </ul>
         </div>
 
-        <!-- v5.6.1 -->
-        <div class="release major">
+        <!-- v5.6.1: 10 added, 4 fixed, 1 removed -->
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, var(--green) 0%, var(--green) 67%, var(--orange) 67%, var(--orange) 93%, var(--red) 93%, var(--red) 100%)">
             <div class="release-head">
                 <span class="release-version">v5.6.1</span>
                 <span>
@@ -354,8 +343,8 @@
             </ul>
         </div>
 
-        <!-- v5.6.0 -->
-        <div class="release major">
+        <!-- v5.6.0: 8 added, 4 fixed, 1 removed -->
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, var(--green) 0%, var(--green) 62%, var(--orange) 62%, var(--orange) 92%, var(--red) 92%, var(--red) 100%)">
             <div class="release-head">
                 <span class="release-version">v5.6.0</span>
                 <span>
@@ -385,8 +374,8 @@
             </ul>
         </div>
 
-        <!-- v5.5.1 -->
-        <div class="release fix">
+        <!-- v5.5.1: 4 added, 5 fixed, 1 removed -->
+        <div class="release fix" style="--bar-gradient: linear-gradient(to bottom, var(--green) 0%, var(--green) 40%, var(--orange) 40%, var(--orange) 90%, var(--red) 90%, var(--red) 100%)">
             <div class="release-head">
                 <span class="release-version">v5.5.1</span>
                 <span>
@@ -413,8 +402,8 @@
             </ul>
         </div>
 
-        <!-- v5.5.0 -->
-        <div class="release major">
+        <!-- v5.5.0: 6 added, 0 fixed, 3 removed (no orange — no patches) -->
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, var(--green) 0%, var(--green) 67%, var(--red) 67%, var(--red) 100%)">
             <div class="release-head">
                 <span class="release-version">v5.5.0</span>
                 <span>
