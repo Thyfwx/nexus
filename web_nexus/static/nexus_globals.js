@@ -17,18 +17,18 @@ window.isLocal = (function() {
     const h = window.location.hostname;
     return h === 'localhost' || h === '127.0.0.1' || h.startsWith('192.168.') || h.startsWith('10.') || h.startsWith('172.');
 })();
-// API host — moved 2026-05-08 from nexus-terminalnexus.onrender.com (3rd-party,
-// cookies blocked by Chrome) to api.thyfwxit.com (same-site as thyfwxit.com root,
-// cookies flow correctly). DNS CNAME → onrender.com, Render handles SSL.
+// API host — Cloudflare Worker at api.thyfwxit.com (migrated from Render 2026-05-14).
+// REST-only — WebSocket not used. Worker handles all AI chat, auth, leaderboards, etc.
 window.API_HOST   = 'api.thyfwxit.com';
-window.RENDER_HOST = 'nexus-terminalnexus.onrender.com';  // legacy reference
-window.PACIFIC_HUB = ''; // deleted — relay worker no longer used
-window.isRender = window.location.hostname.includes('onrender.com');
+window.RENDER_HOST = '';  // Render decommissioned
+window.PACIFIC_HUB = '';
+window.isRender = false;
 window.proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-window.BACKEND_URL = (window.isLocal || window.isRender) ? window.location.host : window.API_HOST;
-window.API_BASE = (window.isLocal || window.isRender) ? '' : `https://${window.API_HOST}`;
-window.WS_URL = `${window.proto}//${window.BACKEND_URL}/ws/terminal`;
-window.STATS_URL = `${window.proto}//${window.BACKEND_URL}/ws/stats`;
+window.BACKEND_URL = window.isLocal ? window.location.host : window.API_HOST;
+window.API_BASE = window.isLocal ? '' : `https://${window.API_HOST}`;
+// WebSocket disabled — Worker uses REST. Frontend falls back to REST automatically.
+window.WS_URL = null;
+window.STATS_URL = null;
 
 // Shared UI Elements
 window.cpuStat = null;
