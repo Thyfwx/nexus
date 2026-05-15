@@ -220,13 +220,6 @@
             } catch (e) { alert('Owner login error: ' + e.message); }
         };
     </script>
-    <script>
-        // Register service worker for PWA install
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/nexus/sw.js', { scope: '/nexus/' })
-                .then(() => console.log('[PWA] Service worker registered'))
-                .catch(e => console.warn('[PWA] SW registration failed:', e));
-        }
-    </script>
+    <script src="pwa.js?v=7215ec"></script>
 </body>
 </html>
