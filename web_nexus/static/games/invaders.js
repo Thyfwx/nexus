@@ -16,6 +16,31 @@ function startInvaders() {
     let playerX = 180, bullets = [], enemies = [], particles = [];
     let score = 0, wave = 1, gameOver = false, moveDir = 1;
     let enemyBulletTimer = 0, enemyBullets = [];
+    let scoreSubmitted = false;
+
+    function shootBullet() {
+        if (gameOver) return;
+        if (bullets.length < 3) {
+            bullets.push({ x: playerX + 10, y: 320 });
+            SoundManager.playBloop(400, 0.02);
+        }
+    }
+    function aimAtClientX(clientX) {
+        if (gameOver) return;
+        const rect = nexusCanvas.getBoundingClientRect();
+        const cx = ((clientX - rect.left) / rect.width) * 400;
+        playerX = Math.max(10, Math.min(370, cx - 10));
+    }
+    nexusCanvas.onmousemove = (e) => aimAtClientX(e.clientX);
+    nexusCanvas.ontouchmove = (e) => { e.preventDefault(); if (e.touches[0]) aimAtClientX(e.touches[0].clientX); };
+    nexusCanvas.onclick = () => {
+        if (gameOver) { nexusCanvas.onclick = null; startInvaders(); return; }
+        shootBullet();
+    };
+    nexusCanvas.ontouchstart = (e) => {
+        if (gameOver) { startInvaders(); return; }
+        shootBullet();
+    };
 
     function initEnemies() {
         enemies = [];
@@ -183,9 +208,9 @@ function startInvaders() {
             ctx.font = '14px monospace';
             ctx.fillText('CLICK TO RESTART', 200, 210);
             ctx.textAlign = 'left';
-            if (!nexusCanvas.onclick) {
+            if (!scoreSubmitted) {
+                scoreSubmitted = true;
                 if (window.submitScore) window.submitScore('invaders', score);
-                nexusCanvas.onclick = () => { nexusCanvas.onclick = null; startInvaders(); };
             }
         }
     }

@@ -225,9 +225,11 @@ function launchBreakout(difficulty) {
 
         breakoutRaf = requestAnimationFrame(frame);
     }
+
+    breakoutRaf = requestAnimationFrame(frame);
 }
 
 function stopBreakout() {
     breakoutActive = false;
-    cancelAnimationFrame(breakoutFrame);
+    cancelAnimationFrame(breakoutRaf);
 }

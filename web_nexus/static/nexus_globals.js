@@ -1,5 +1,5 @@
-// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.6.2 — PWA, fingerprinting, typing expansion, Cloudflare security
-window.NEXUS_VERSION = 'v5.6.2';
+// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.6.3 — game bug fixes, frameless modal, Breach removed
+window.NEXUS_VERSION = 'v5.6.3';
 
 // AD KILL SWITCHES — flip any to true to disable that block at runtime.
 // Master NEXUS_DISABLE_ADS overrides all. All disabled until AdSense
