@@ -278,8 +278,8 @@
             For the full git history, see <a href="https://github.com/Thyfwx/nexus" target="_blank" rel="noopener" style="color:var(--accent);">github.com/Thyfwx/nexus</a>.
         </p>
 
-        <!-- v5.6.2: 12 added, 4 fixed, 2 removed -->
-        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 66%, #ff9500 66%, #ff9500 89%, #ff3333 89%, #ff3333 100%)">
+        <!-- v5.6.2: 13 added, 9 fixed, 4 removed -->
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 50%, #ff9500 50%, #ff9500 85%, #ff3333 85%, #ff3333 100%)">
             <div class="release-head">
                 <span class="release-version">v5.6.2</span>
                 <span>
@@ -288,14 +288,15 @@
                     <span class="release-tag tag-orange">PATCHES</span>
                     <span class="release-tag tag-red">CLEANED UP</span>
                 </span>
-                <span class="release-date">2026-05-14</span>
+                <span class="release-date">2026-05-15</span>
             </div>
             <div class="release-summary">
-                PWA install support, typing test expansion, device fingerprinting, Cloudflare security hardening, Worker migration progress, Discord bot integration.
+                PWA install support, typing test expansion, device fingerprinting, Cloudflare security hardening, Worker migration complete, Discord bot integration. Plus instant PWA update propagation and edge-cache stale-page fixes.
             </div>
             <div class="section-label sl-green">— FEATURES</div>
             <ul class="changes">
                 <li class="added">PWA support — Nexus can now be installed as a desktop app. Manifest, service worker, and icons added. Works on Chrome, Edge, Safari.</li>
+                <li class="added">PWA self-updating — every standalone page (changelog, about, terms, privacy, leaderboard, speedtest, typing, etc.) now auto-checks for service worker updates and reloads when a new SW takes over. Future updates roll out instantly with no hard-refresh needed.</li>
                 <li class="added">Typing test: "impossible" difficulty — literary prose, legal language, scientific text, complex punctuation. 368 total sentences across 4 difficulties.</li>
                 <li class="added">Typing test: 200-word count option. Auto-finish when last word is typed. Visible "submit to leaderboard" button on results screen.</li>
                 <li class="added">Cloudflare Worker: 48+ endpoints now live — image generation proxy, lockout system, moderation alerts, rate limiting (15/min browser, 10/min bot), origin gate.</li>
@@ -315,13 +316,20 @@
             <ul class="changes">
                 <li class="fixed">Ban bypass closed — guest mode, network switching, and cookie clearing no longer bypass account bans. Three-layer enforcement: email + IP + device fingerprint.</li>
                 <li class="fixed">Duplicate Discord logs — dedup guard prevents the same message from being logged twice within 5 seconds.</li>
-                <li class="fixed">Render backend security headers — added HSTS, Referrer-Policy, Permissions-Policy, X-Robots-Tag (were missing).</li>
-                <li class="fixed">Worker API responses now include X-Robots-Tag (noindex) and X-Content-Type-Options (nosniff).</li>
+                <li class="fixed">Worker API responses now include X-Robots-Tag (noindex), X-Content-Type-Options (nosniff), HSTS, Referrer-Policy, and Permissions-Policy headers.</li>
+                <li class="fixed">Nexus AI Core ping diagnostic rewritten for Cloudflare Worker — portfolio was still showing Render-era "cold start / spinning down" copy.</li>
+                <li class="fixed">Proxmox status dot + last-checked timestamp restored — security pass had blocked the uptime.thyfwxit.com fetch via CSP.</li>
+                <li class="fixed">Normal-refresh always shows fresh content now. Service worker rewritten as network-first for HTML; HTML pages set to no-cache; pwa.js bootstrap forces SW update on every page load.</li>
+                <li class="fixed">sw.js and manifest.json now exempt from 30-day edge cache. Prevents future PWA updates from getting stuck behind stale Cloudflare cache entries.</li>
+                <li class="fixed">Cloudflare edge cache purged for previously-stuck sw.js (was serving the old cache-first SW for 19+ hours after the fix was deployed).</li>
+                <li class="fixed">Portfolio main.js, style.css, and adblock_recovery.js gained cache busters — were holding old code in browsers for 30 days.</li>
             </ul>
             <div class="section-label sl-red">— CLEANED UP</div>
             <ul class="changes">
                 <li class="removed">nexus-evil-proxy Worker deleted from Cloudflare. All references cleaned from code and CSP.</li>
                 <li class="removed">Stale "thyfwxit" Pages project deleted (old manual deploy, 2 months unused).</li>
+                <li class="removed">Keepalive GitHub workflow deleted — Workers have zero cold start. Was a Render-only workaround that was firing exit-22 failures every 14 minutes from Bot Fight Mode.</li>
+                <li class="removed">Every Render reference scrubbed from project docs, internal memory, ping diagnostics, and about page. Backend has been Cloudflare-only since 2026-05-14.</li>
             </ul>
         </div>
 
