@@ -14,7 +14,6 @@ let breakoutRaf = null;
 let matrixRaf = null;
 
 // Activity flags — set by start*, cleared in stopAllGames so games can early-exit on tick.
-let breachActive = false;
 let snakeActive = false;
 let invadersActive = false;
 let flappyActive = false;
@@ -43,7 +42,6 @@ function stopAllGames() {
     if (typeof stopBreakout === 'function')     stopBreakout();
     if (typeof stopInvaders === 'function')     stopInvaders();
     mineActive = false;
-    breachActive = false;
     typeTestActive = false;
     clearInterval(typeTimerInterval);
     clearInterval(monitorInterval);
@@ -233,8 +231,8 @@ window._hideGameSideAd = function() {
     style.id = 'gui-side-ad-style';
     style.textContent = `
         #game-gui-container.gui-side-ad-wide {
-            max-width: 780px !important;
-            width: min(780px, calc(100vw - 32px)) !important;
+            max-width: 1040px !important;
+            width: min(1040px, calc(100vw - 32px)) !important;
         }
         @media (max-width: 820px) {
             #game-gui-container.gui-side-ad-wide #game-side-ad-host {
@@ -244,10 +242,47 @@ window._hideGameSideAd = function() {
                 flex-direction: column !important;
             }
         }
-        /* Wider modal for action games — Snake bumped from 400×360 to 600×480 */
+        /* Frameless game look — translucent body, slim header, floating close */
         #game-gui-container.gui-game-wide {
-            max-width: 660px !important;
-            width: min(660px, calc(100vw - 24px)) !important;
+            max-width: 880px !important;
+            width: min(880px, calc(100vw - 24px)) !important;
+            background: rgba(8, 12, 22, 0.92) !important;
+            border: 1px solid rgba(0, 255, 255, 0.18) !important;
+            border-radius: 10px !important;
+            box-shadow: 0 10px 60px rgba(0, 0, 0, 0.6) !important;
+            backdrop-filter: blur(12px) !important;
+        }
+        #game-gui-container.gui-game-wide #gui-header {
+            background: transparent !important;
+            color: var(--accent) !important;
+            padding: 10px 14px 8px !important;
+            border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+            border-radius: 0 !important;
+            font-size: 0.7rem !important;
+            letter-spacing: 3px !important;
+        }
+        #game-gui-container.gui-game-wide #gui-title {
+            color: var(--accent) !important;
+            text-shadow: 0 0 12px var(--accent);
+            opacity: 0.85;
+        }
+        #game-gui-container.gui-game-wide #gui-close {
+            color: rgba(255,255,255,0.55) !important;
+            background: transparent !important;
+            border: 1px solid rgba(255,255,255,0.14) !important;
+            border-radius: 4px !important;
+            padding: 1px 9px !important;
+            font-size: 0.78rem !important;
+            line-height: 1.2;
+            transition: 0.18s;
+        }
+        #game-gui-container.gui-game-wide #gui-close:hover {
+            color: #fff !important;
+            border-color: var(--accent) !important;
+            box-shadow: 0 0 12px var(--accent);
+        }
+        #game-gui-container.gui-game-wide #gui-content {
+            padding: 14px 16px !important;
         }
         #game-gui-container.gui-game-wide #nexus-canvas {
             display: block !important;
