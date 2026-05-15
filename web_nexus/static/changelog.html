@@ -278,6 +278,36 @@
             For the full git history, see <a href="https://github.com/Thyfwx/nexus" target="_blank" rel="noopener" style="color:var(--accent);">github.com/Thyfwx/nexus</a>.
         </p>
 
+        <!-- v5.6.3: 2 added, 2 fixed, 1 removed -->
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 40%, #ff9500 40%, #ff9500 80%, #ff3333 80%, #ff3333 100%)">
+            <div class="release-head">
+                <span class="release-version">v5.6.3</span>
+                <span>
+                    <span class="release-tag tag-green">FEATURES</span>
+                    <span class="release-tag tag-orange">PATCHES</span>
+                    <span class="release-tag tag-red">CLEANED UP</span>
+                </span>
+                <span class="release-date">2026-05-15</span>
+            </div>
+            <div class="release-summary">
+                Game modal redesigned with a frameless, wider look — more room for the canvas and side ad rail. Invaders gets mouse-aim + click-to-shoot. Breakout fixed (was launching but never rendering). Breach Protocol retired.
+            </div>
+            <div class="section-label sl-green">— FEATURES</div>
+            <ul class="changes">
+                <li class="added">Game modal redesigned — frameless translucent shell, slim header, floating close button. Max width bumped from 660 → 880 px (1040 px when an ad rail is showing) so canvases breathe and ads have real estate.</li>
+                <li class="added">Invaders — mouse aim and click-to-shoot. Move the mouse to slide the player, click to fire. Arrow keys + spacebar still work as a fallback.</li>
+            </ul>
+            <div class="section-label sl-orange">— PATCHES</div>
+            <ul class="changes">
+                <li class="fixed">Breakout — game launches and actually plays now. The render loop was never being kicked off after the difficulty pick (missing requestAnimationFrame call).</li>
+                <li class="fixed">Breakout — stop function now cancels the correct animation frame handle. Was leaving the old loop running across game switches.</li>
+            </ul>
+            <div class="section-label sl-red">— CLEANED UP</div>
+            <ul class="changes">
+                <li class="removed">Breach Protocol retired. The hex-code memory game had a 300-point score ceiling and didn't add much to the lineup. Sidebar drops from 8 games to 7. Leaderboard tab removed.</li>
+            </ul>
+        </div>
+
         <!-- v5.6.2: 13 added, 9 fixed, 4 removed -->
         <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 50%, #ff9500 50%, #ff9500 85%, #ff3333 85%, #ff3333 100%)">
             <div class="release-head">
