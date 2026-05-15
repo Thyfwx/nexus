@@ -1,9 +1,7 @@
 // Nexus AI Terminal — Service Worker
-// Cache-first for static assets, network-first for API calls
-const CACHE_NAME = 'nexus-v2';
-// Pre-cache only the HTML shell + icon. JS/CSS files use cache-busted URLs
-// (?v=xxx) which change on every deploy, so they're cached on-demand via
-// the fetch handler instead of pre-cached here.
+// HTML: network-first (always fresh, cache as offline fallback)
+// JS/CSS/images: cache-first (URLs are versioned with ?v=xxx busters)
+const CACHE_NAME = 'nexus-v3';
 const STATIC_ASSETS = [
   '/nexus/login',
   '/nexus/',
@@ -11,7 +9,6 @@ const STATIC_ASSETS = [
   '/nexus/favicon.ico',
 ];
 
-// Install — pre-cache the app shell
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -23,7 +20,6 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate — clean old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
@@ -35,11 +31,10 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch — network-first for API, cache-first for static
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Never cache API calls, auth, or POST requests
+  // Never intercept API, auth, POST, or cross-origin requests
   if (event.request.method !== 'GET' ||
       url.pathname.startsWith('/api/') ||
       url.pathname.startsWith('/auth/') ||
@@ -48,23 +43,38 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets — cache-first with network fallback
+  const isHTML = event.request.mode === 'navigate' ||
+                 (event.request.headers.get('accept') || '').includes('text/html');
+
+  if (isHTML) {
+    // Network-first: always try fresh, fall back to cache if offline
+    event.respondWith(
+      fetch(event.request).then((response) => {
+        if (response.ok && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return response;
+      }).catch(() => {
+        return caches.match(event.request).then((cached) => {
+          return cached || caches.match('/nexus/login');
+        });
+      })
+    );
+    return;
+  }
+
+  // Static assets — cache-first (?v=xxx cache busters change the URL on each deploy)
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
       return fetch(event.request).then((response) => {
-        // Only cache successful responses
         if (response.ok && response.status === 200) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }
         return response;
       });
-    }).catch(() => {
-      // Offline fallback — serve the login page
-      if (event.request.mode === 'navigate') {
-        return caches.match('/nexus/login');
-      }
     })
   );
 });
