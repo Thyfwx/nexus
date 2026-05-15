@@ -10,7 +10,7 @@ function handleCommand(cmd) {
     const silent = [
         'clear', 'history', 'sudo hack', 'sudo override', 'telemetry',
         'play wordle', 'play snake', 'play pong', 'play mines',
-        'play flappy', 'play breakout', 'play invaders', 'play breach',
+        'play flappy', 'play breakout', 'play invaders',
         'matrix', 'monitor', 'type test',
         'leaderboard', 'changelog', 'privacy', 'terms', 'about',
     ];
@@ -85,7 +85,6 @@ function handleCommand(cmd) {
     if (lc === 'play flappy')         { startFlappy(); return; }
     if (lc === 'play breakout')       { startBreakout(); return; }
     if (lc === 'play invaders')       { startInvaders(); return; }
-    if (lc === 'play breach')         { startBreach(); return; }
     if (lc === 'leaderboard')         { window.location.href = 'leaderboard'; return; }
     if (lc === 'changelog')           { window.location.href = 'changelog'; return; }
     if (lc === 'privacy')             { window.location.href = 'privacy'; return; }
