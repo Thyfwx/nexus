@@ -10,12 +10,6 @@
 /*.html
   Cache-Control: public, max-age=0, must-revalidate
 
-/sw.js
-  Cache-Control: public, max-age=0, must-revalidate
-
-/manifest.json
-  Cache-Control: public, max-age=0, must-revalidate
-
 /*.css
   Cache-Control: public, max-age=2592000
 
@@ -27,4 +21,12 @@
 
 /*.ico
   Cache-Control: public, max-age=2592000
+
+# These two files MUST update on every deploy or PWAs serve stale code.
+# Specific paths must come AFTER glob patterns so they take precedence.
+/sw.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/manifest.json
+  Cache-Control: public, max-age=0, must-revalidate
 
