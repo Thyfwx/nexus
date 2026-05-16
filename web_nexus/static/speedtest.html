@@ -193,6 +193,35 @@
             Bottlenecks (Wi-Fi, ISP, server) all reflect honestly in the number.
         </p>
 
+        <!-- Educational content: what your results mean -->
+        <div style="margin-top:36px; padding-top:24px; border-top:1px solid rgba(255,255,255,0.06);">
+            <h3 style="color:#0ff; font-size:0.75rem; letter-spacing:2px; font-weight:700; margin:0 0 16px; text-align:center;">WHAT YOUR RESULTS MEAN</h3>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; font-size:0.65rem; color:#888; line-height:1.6;">
+                <div>
+                    <div style="color:#0f0; font-weight:700; letter-spacing:1px; margin-bottom:4px;">DOWNLOAD</div>
+                    <p style="margin:0;">How fast data reaches your device. This affects streaming quality, page load times, and file downloads. Under 25 Mbps and you'll feel it on video calls. Over 100 Mbps and most things are instant.</p>
+                </div>
+                <div>
+                    <div style="color:#0ff; font-weight:700; letter-spacing:1px; margin-bottom:4px;">UPLOAD</div>
+                    <p style="margin:0;">How fast your device sends data out. Matters for video calls, cloud backups, and live streaming. Most ISPs give you less upload than download. If yours is under 10 Mbps, large file uploads will crawl.</p>
+                </div>
+                <div>
+                    <div style="color:#ff0; font-weight:700; letter-spacing:1px; margin-bottom:4px;">LATENCY</div>
+                    <p style="margin:0;">The round-trip time for a single packet. Lower is better. Under 20ms is great for gaming. Under 50ms is good for everything. Over 100ms and you'll notice lag on anything real-time.</p>
+                </div>
+                <div>
+                    <div style="color:#fa0; font-weight:700; letter-spacing:1px; margin-bottom:4px;">JITTER</div>
+                    <p style="margin:0;">How consistent your latency is. Low jitter means a stable connection. High jitter means your ping is bouncing around, which causes stuttering in games and choppy audio on calls.</p>
+                </div>
+            </div>
+
+            <div style="margin-top:20px; font-size:0.62rem; color:#666; line-height:1.7;">
+                <div style="color:#888; font-weight:700; letter-spacing:1px; margin-bottom:6px;">HOW THIS TEST WORKS</div>
+                <p style="margin:0;">This test sends real data between your browser and the Nexus backend on Cloudflare's edge network. Download speed is measured by streaming random bytes from the server. Upload speed is measured by pushing random bytes back. Latency is the fastest round-trip ping out of multiple attempts. Jitter is calculated from the variation between those pings. No tricks, no inflated numbers. What your connection can actually do is what shows up.</p>
+            </div>
+        </div>
+
         <!-- Ad slot: bottom (mobile only) -->
         <div class="ad-slot ad-mobile" style="margin-top:28px;">
             <ins class="adsbygoogle"
