@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nexus AI Terminal — AI Chat, Games & Tools by Xavier Scott</title>
-    <meta name="description" content="Nexus AI Terminal by Xavier Scott. 4 AI chat modes, 7 browser games, image generation, speed test, typing test, leaderboards, and 16 AI tools. Sign in or play as guest.">
-    <meta property="og:title" content="Nexus AI Terminal — AI Chat, Games & Tools">
-    <meta property="og:description" content="4 AI chat modes, 7 browser games, image generation, speed test, typing test, and leaderboards. Built by Xavier Scott.">
+    <title>Nexus AI — Terminal by Xavier Scott</title>
+    <meta name="description" content="Nexus is an AI-powered terminal with chat, games, image generation, and a bunch of tools crammed into a retro interface. Built from scratch by Xavier Scott.">
+    <meta property="og:title" content="Nexus AI — Terminal by Xavier Scott">
+    <meta property="og:description" content="AI chat, browser games, image gen, and tools — all in a retro terminal. Built from scratch by Xavier Scott.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://thyfwxit.com/nexus/login">
     <link rel="canonical" href="https://thyfwxit.com/nexus/login">
@@ -37,7 +37,7 @@
     </script>
 
     <!-- Login Wall -->
-    <div id="auth-screen" class="auth-overlay" style="overflow-y:auto;">
+    <div id="auth-screen" class="auth-overlay" style="overflow-y:auto; flex-direction:column; align-items:center;">
         <div class="auth-box">
             <div class="auth-header">NEXUS AI</div>
             <p class="auth-desc">Neural synchronization required for grid access.</p>
@@ -69,29 +69,36 @@
             </div>
         </div>
 
-        <!-- SEO content section — gives Google real text about what Nexus is.
-             Scrollable inside the auth overlay. Visible to crawlers + users who scroll past login. -->
-        <section id="nexus-about-seo" style="max-width:680px; margin:40px auto 80px; padding:0 20px; font-family:'Fira Code',monospace; color:#999; font-size:0.78rem; line-height:1.8; letter-spacing:0.3px;">
-            <h2 style="color:#0ff; font-size:1rem; letter-spacing:3px; margin-bottom:16px; font-weight:700;">What is Nexus AI?</h2>
-            <p>Nexus AI is a cyberpunk-themed web terminal built by <strong style="color:#ccc;">Xavier Scott (THYFWX)</strong>. It combines AI-powered chat with browser games, productivity tools, and real-time diagnostics — all inside a retro terminal interface running on Cloudflare's edge network.</p>
+        <!-- SEO content section — centered below the login box, inside a subtle card.
+             Gives Google real text about Nexus. Scrollable within the auth overlay. -->
+        <section id="nexus-about-seo" style="max-width:560px; width:90%; margin:0 auto 80px; padding:28px 32px; font-family:'Fira Code',monospace; color:#888; font-size:0.72rem; line-height:1.75; letter-spacing:0.3px; background:rgba(255,255,255,0.02); border:1px solid rgba(0,255,255,0.08); border-radius:10px; backdrop-filter:blur(6px);">
+            <h2 style="color:#0ff; font-size:0.88rem; letter-spacing:3px; margin:0 0 14px; font-weight:700; text-align:center;">WHAT IS THIS?</h2>
+            <p style="margin:0 0 14px;">Nexus started as a side project to see what I could actually build with AI. It turned into a full terminal — chat, games, image generation, tools, the whole thing. Runs on Cloudflare's edge, no frameworks, just vanilla JS. Built and maintained by me, Xavier Scott.</p>
 
-            <h3 style="color:#0ff; font-size:0.82rem; letter-spacing:2px; margin:20px 0 8px; font-weight:600;">AI Chat Modes</h3>
-            <p>Four distinct AI personalities: <strong style="color:#ccc;">Nexus</strong> for general conversation, <strong style="color:#ccc;">Coder</strong> for programming help and debugging, <strong style="color:#ccc;">Education</strong> for structured learning with study tools, and <strong style="color:#ccc;">Unfiltered</strong> for casual 18+ chat (requires Google sign-in and age verification). All modes are powered by rotating AI models for reliability.</p>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:14px 0;">
+                <div style="padding:12px; background:rgba(0,255,255,0.03); border:1px solid rgba(0,255,255,0.06); border-radius:6px;">
+                    <div style="color:#0ff; font-size:0.68rem; font-weight:700; letter-spacing:2px; margin-bottom:6px;">AI CHAT</div>
+                    <p style="margin:0; color:#777; font-size:0.68rem; line-height:1.6;">Four different personalities you can talk to. General chat, a coding partner, a study helper, and an unfiltered mode for when you want the filter off.</p>
+                </div>
+                <div style="padding:12px; background:rgba(0,255,255,0.03); border:1px solid rgba(0,255,255,0.06); border-radius:6px;">
+                    <div style="color:#0ff; font-size:0.68rem; font-weight:700; letter-spacing:2px; margin-bottom:6px;">7 GAMES</div>
+                    <p style="margin:0; color:#777; font-size:0.68rem; line-height:1.6;">Wordle, Snake, Pong, Flappy, Breakout, Invaders, Minesweeper. All playable right in the terminal. Leaderboards track your scores.</p>
+                </div>
+                <div style="padding:12px; background:rgba(0,255,255,0.03); border:1px solid rgba(0,255,255,0.06); border-radius:6px;">
+                    <div style="color:#0ff; font-size:0.68rem; font-weight:700; letter-spacing:2px; margin-bottom:6px;">IMAGE GEN</div>
+                    <p style="margin:0; color:#777; font-size:0.68rem; line-height:1.6;">Type a description, get an image back. Clean output only — nothing explicit. Sign in with Google to use it.</p>
+                </div>
+                <div style="padding:12px; background:rgba(0,255,255,0.03); border:1px solid rgba(0,255,255,0.06); border-radius:6px;">
+                    <div style="color:#0ff; font-size:0.68rem; font-weight:700; letter-spacing:2px; margin-bottom:6px;">TOOLS</div>
+                    <p style="margin:0; color:#777; font-size:0.68rem; line-height:1.6;">Speed test, typing test, a bunch of AI quick-tools, system diagnostics. Plus accessibility options if you need them.</p>
+                </div>
+            </div>
 
-            <h3 style="color:#0ff; font-size:0.82rem; letter-spacing:2px; margin:20px 0 8px; font-weight:600;">Browser Games</h3>
-            <p>Seven built-in games with leaderboards: Wordle (word guessing), Snake (4 modes: Classic, Speed, Endless, Stealth), Pong (4 difficulties), Flappy (tap to fly), Breakout (brick breaking with power-ups), Space Invaders (mouse-aim + click-to-shoot), and Minesweeper. High scores are tracked per game with public leaderboards.</p>
-
-            <h3 style="color:#0ff; font-size:0.82rem; letter-spacing:2px; margin:20px 0 8px; font-weight:600;">Tools & Features</h3>
-            <p>AI-powered image generation (SFW only), internet speed test, typing test with 4 difficulty levels, 16 inline AI tools (summarize, search, math, Wikipedia), system diagnostics, and a maintenance hub. Desktop-optimized with 11 accessibility toggles including high contrast, dyslexic font, CRT scanlines, and reduced motion.</p>
-
-            <nav style="margin-top:24px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.06);">
-                <a href="about" style="color:#0ff; text-decoration:none; margin-right:16px; font-size:0.7rem; letter-spacing:1.5px;">ABOUT</a>
-                <a href="changelog" style="color:#0ff; text-decoration:none; margin-right:16px; font-size:0.7rem; letter-spacing:1.5px;">CHANGELOG</a>
-                <a href="leaderboard" style="color:#0ff; text-decoration:none; margin-right:16px; font-size:0.7rem; letter-spacing:1.5px;">LEADERBOARD</a>
-                <a href="privacy" style="color:#0ff; text-decoration:none; margin-right:16px; font-size:0.7rem; letter-spacing:1.5px;">PRIVACY</a>
-                <a href="terms" style="color:#0ff; text-decoration:none; margin-right:16px; font-size:0.7rem; letter-spacing:1.5px;">TERMS</a>
-                <a href="speedtest" style="color:#0ff; text-decoration:none; margin-right:16px; font-size:0.7rem; letter-spacing:1.5px;">SPEED TEST</a>
-                <a href="typing" style="color:#0ff; text-decoration:none; font-size:0.7rem; letter-spacing:1.5px;">TYPING TEST</a>
+            <nav style="margin-top:16px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.05); display:flex; flex-wrap:wrap; gap:6px 16px; justify-content:center;">
+                <a href="about" style="color:rgba(0,255,255,0.6); text-decoration:none; font-size:0.65rem; letter-spacing:1.5px;">ABOUT</a>
+                <a href="changelog" style="color:rgba(0,255,255,0.6); text-decoration:none; font-size:0.65rem; letter-spacing:1.5px;">CHANGELOG</a>
+                <a href="privacy" style="color:rgba(0,255,255,0.6); text-decoration:none; font-size:0.65rem; letter-spacing:1.5px;">PRIVACY</a>
+                <a href="terms" style="color:rgba(0,255,255,0.6); text-decoration:none; font-size:0.65rem; letter-spacing:1.5px;">TERMS</a>
             </nav>
         </section>
     </div>
