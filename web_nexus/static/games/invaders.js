@@ -70,8 +70,30 @@ function startInvaders() {
     }
 
     // ── FORMATIONS ──
+    // Wave color palettes
+    var WAVE_COLORS = [
+        { bg: '#04040c', star: '255,255,255', accent: '0,255,255' },   // deep blue
+        { bg: '#0a0408', star: '255,200,200', accent: '255,100,100' }, // red nebula
+        { bg: '#040a04', star: '200,255,200', accent: '100,255,100' }, // green grid
+        { bg: '#08040a', star: '220,200,255', accent: '180,100,255' }, // purple void
+        { bg: '#0a0804', star: '255,230,180', accent: '255,170,0' },   // amber storm
+        { bg: '#040808', star: '180,255,255', accent: '0,255,200' },   // teal deep
+    ];
+
     function makeEnemy(x, y, type, hp, kind) {
-        return { x: x, y: y, alive: true, type: type % 4, hp: hp || 1, maxHp: hp || 1, kind: kind || 'standard', diveState: 0, diveTarget: 0 };
+        return { x: x, y: y, targetX: x, targetY: y, alive: true, type: type % 4, hp: hp || 1, maxHp: hp || 1, kind: kind || 'standard', diveState: 0, diveTarget: 0, entering: true, enterDelay: 0 };
+    }
+
+    function staggerEntrance(list) {
+        for (var i = 0; i < list.length; i++) {
+            list[i].targetX = list[i].x;
+            list[i].targetY = list[i].y;
+            list[i].y = -30 - Math.random() * 80;
+            list[i].x = list[i].targetX + (Math.random() - 0.5) * 60;
+            list[i].entering = true;
+            list[i].enterDelay = i * 4 + Math.random() * 10;
+        }
+        return list;
     }
 
     function formation_grid(rows, cols) {
@@ -79,22 +101,22 @@ function startInvaders() {
         for (var r = 0; r < rows; r++)
             for (var c = 0; c < cols; c++)
                 out.push(makeEnemy(50 + c * 55, 50 + r * 42, r, 1));
-        return out;
+        return staggerEntrance(out);
     }
     function formation_v() {
         var out = [], pts = [[3,0],[2,1],[4,1],[1,2],[5,2],[0,3],[6,3]];
         pts.forEach(function(p) { out.push(makeEnemy(50 + p[0] * 55, 45 + p[1] * 42, p[1], 1)); });
-        return out;
+        return staggerEntrance(out);
     }
     function formation_diamond() {
         var out = [], pts = [[3,0],[2,1],[4,1],[1,2],[3,2],[5,2],[2,3],[4,3],[3,4]];
         pts.forEach(function(p) { out.push(makeEnemy(70 + p[0] * 50, 40 + p[1] * 38, p[1], 1)); });
-        return out;
+        return staggerEntrance(out);
     }
     function formation_scatter(n) {
         var out = [];
         for (var i = 0; i < n; i++) out.push(makeEnemy(30 + Math.random() * (W - 80), 30 + Math.random() * 140, Math.floor(Math.random() * 4), 1));
-        return out;
+        return staggerEntrance(out);
     }
 
     function addDivers(list, count) {
@@ -246,10 +268,21 @@ function startInvaders() {
         });
 
         // Move enemies
-        var speed = 1 + wave * 0.12;
+        var speed = 0.5 + wave * 0.15;
         var edge = false;
         enemies.forEach(function(e) {
             if (!e.alive) return;
+
+            // Entrance animation: fly to target position
+            if (e.entering) {
+                if (e.enterDelay > 0) { e.enterDelay--; return; }
+                e.x += (e.targetX - e.x) * 0.08;
+                e.y += (e.targetY - e.y) * 0.08;
+                if (Math.abs(e.x - e.targetX) < 1 && Math.abs(e.y - e.targetY) < 1) {
+                    e.x = e.targetX; e.y = e.targetY; e.entering = false;
+                }
+                return;
+            }
 
             if (e.kind === 'diver') {
                 // Divers swoop down then back up
@@ -281,9 +314,9 @@ function startInvaders() {
             enemies.forEach(function(e) { if (e.kind !== 'boss' && e.kind !== 'miniboss' && e.kind !== 'diver') e.y += 8 + Math.min(wave, 10); });
         }
 
-        // Enemy firing
+        // Enemy firing (wave 1 = very slow, ramps up gradually)
         enemyBulletTimer++;
-        var fireRate = Math.max(12, 45 - wave * 3);
+        var fireRate = wave === 1 ? 120 : wave === 2 ? 80 : Math.max(15, 55 - wave * 3);
         if (enemyBulletTimer > fireRate) {
             var living = enemies.filter(function(e) { return e.alive; });
             if (living.length > 0) {
@@ -365,13 +398,14 @@ function startInvaders() {
         ctx.save();
         ctx.translate(shakeX, shakeY);
 
-        ctx.fillStyle = '#04040c';
+        var palette = WAVE_COLORS[(wave - 1) % WAVE_COLORS.length];
+        ctx.fillStyle = palette.bg;
         ctx.fillRect(-5, -5, W + 10, H + 10);
 
-        // Stars
+        // Stars (tinted per wave)
         stars.forEach(function(s) {
             s.y += s.sp; if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
-            ctx.fillStyle = 'rgba(255,255,255,' + (0.15 + s.s * 0.2) + ')';
+            ctx.fillStyle = 'rgba(' + palette.star + ',' + (0.15 + s.s * 0.2) + ')';
             ctx.fillRect(s.x, s.y, s.s, s.s);
         });
 
