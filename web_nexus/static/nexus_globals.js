@@ -1,5 +1,5 @@
-// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.6.3 — game bug fixes, frameless modal, Breach removed
-window.NEXUS_VERSION = 'v5.6.3';
+// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.6.4 — Invaders rebuild, AdSense SEO, lobby redesign, security fix
+window.NEXUS_VERSION = 'v5.6.4';
 
 // AD KILL SWITCHES — flip any to true to disable that block at runtime.
 // Master NEXUS_DISABLE_ADS overrides all. All disabled until AdSense
