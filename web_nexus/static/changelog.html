@@ -120,15 +120,15 @@
             overflow: hidden;
         }
 
-        /* Sidebar color bar — set per-version via inline --bar-gradient on each .release div */
+        /* Sidebar color bar — subtle accent line, not a traffic light */
         .release::before {
             content: '';
             position: absolute;
             left: 0;
             top: 0;
             bottom: 0;
-            width: 3px;
-            background: var(--bar-gradient, var(--green));
+            width: 2px;
+            background: rgba(0, 180, 255, 0.25);
             border-radius: 4px 0 0 4px;
         }
 
@@ -148,8 +148,8 @@
             letter-spacing: 2px;
         }
 
-        .release.major .release-version { color: var(--green); }
-        .release.fix   .release-version { color: var(--orange); }
+        .release.major .release-version { color: rgba(0, 255, 136, 0.8); }
+        .release.fix   .release-version { color: rgba(255, 149, 0, 0.8); }
 
         .release-date {
             color: var(--fg-dim);
@@ -171,31 +171,31 @@
             border: 1px solid var(--accent);
         }
 
-        /* Each tag gets its own color via tag-green, tag-orange, etc. */
+        /* Muted tag colors that blend with dark theme */
         .release-tag.tag-green {
-            background: rgba(0, 255, 136, 0.15);
-            color: var(--green);
-            border-color: var(--green);
+            background: rgba(0, 255, 136, 0.08);
+            color: rgba(0, 255, 136, 0.7);
+            border-color: rgba(0, 255, 136, 0.2);
         }
         .release-tag.tag-orange {
-            background: rgba(255, 149, 0, 0.15);
-            color: var(--orange);
-            border-color: var(--orange);
+            background: rgba(255, 149, 0, 0.08);
+            color: rgba(255, 149, 0, 0.7);
+            border-color: rgba(255, 149, 0, 0.2);
         }
         .release-tag.tag-red {
-            background: rgba(255, 51, 51, 0.15);
-            color: var(--red);
-            border-color: var(--red);
+            background: rgba(255, 51, 51, 0.08);
+            color: rgba(255, 51, 51, 0.7);
+            border-color: rgba(255, 51, 51, 0.2);
         }
         .release-tag.tag-cyan {
-            background: rgba(0, 180, 255, 0.15);
-            color: var(--accent);
-            border-color: var(--accent);
+            background: rgba(0, 180, 255, 0.08);
+            color: rgba(0, 180, 255, 0.7);
+            border-color: rgba(0, 180, 255, 0.2);
         }
         .release-tag.tag-purple {
-            background: rgba(180, 0, 255, 0.15);
-            color: #b44dff;
-            border-color: #b44dff;
+            background: rgba(180, 0, 255, 0.08);
+            color: rgba(180, 100, 255, 0.7);
+            border-color: rgba(180, 0, 255, 0.2);
         }
 
         .release-summary {
@@ -216,11 +216,11 @@
             opacity: 0.7;
         }
         .section-label:first-child { margin-top: 0; }
-        .section-label.sl-green   { color: var(--green); }
-        .section-label.sl-orange  { color: var(--orange); }
-        .section-label.sl-red     { color: var(--red); }
-        .section-label.sl-purple  { color: #b44dff; }
-        .section-label.sl-cyan    { color: var(--accent); }
+        .section-label.sl-green   { color: rgba(0, 255, 136, 0.55); }
+        .section-label.sl-orange  { color: rgba(255, 149, 0, 0.55); }
+        .section-label.sl-red     { color: rgba(255, 51, 51, 0.55); }
+        .section-label.sl-purple  { color: rgba(180, 100, 255, 0.55); }
+        .section-label.sl-cyan    { color: rgba(0, 180, 255, 0.55); }
 
         ul.changes {
             list-style: none;
