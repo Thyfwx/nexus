@@ -159,33 +159,122 @@ function startInvaders() {
         invadersRaf = requestAnimationFrame(tick);
     }
 
+    // Starfield
+    let stars = [];
+    for (let i = 0; i < 60; i++) stars.push({ x: Math.random() * 400, y: Math.random() * 360, s: Math.random() * 1.5 + 0.5, sp: Math.random() * 0.3 + 0.1 });
+
+    // Pixel-art alien sprites (each row = different shape + color)
+    const ALIEN_SPRITES = [
+        // Row 0: squid (cyan)
+        { color: '#0ff', glow: 'rgba(0,255,255,0.3)', pixels: [
+            [0,0,1,0,0,0,1,0,0],
+            [0,0,0,1,0,1,0,0,0],
+            [0,0,1,1,1,1,1,0,0],
+            [0,1,1,0,1,0,1,1,0],
+            [1,1,1,1,1,1,1,1,1],
+            [1,0,1,1,1,1,1,0,1],
+            [1,0,1,0,0,0,1,0,1],
+            [0,0,0,1,0,1,0,0,0],
+        ]},
+        // Row 1: crab (green)
+        { color: '#0f0', glow: 'rgba(0,255,0,0.3)', pixels: [
+            [0,1,0,0,0,0,0,1,0],
+            [0,0,1,0,0,0,1,0,0],
+            [0,1,1,1,1,1,1,1,0],
+            [1,1,0,1,1,1,0,1,1],
+            [1,1,1,1,1,1,1,1,1],
+            [0,1,1,1,1,1,1,1,0],
+            [0,1,0,0,0,0,0,1,0],
+            [0,0,1,0,0,0,1,0,0],
+        ]},
+        // Row 2: skull (magenta)
+        { color: '#f0f', glow: 'rgba(255,0,255,0.3)', pixels: [
+            [0,0,1,1,1,1,1,0,0],
+            [0,1,1,1,1,1,1,1,0],
+            [1,1,0,1,1,1,0,1,1],
+            [1,1,1,1,1,1,1,1,1],
+            [0,0,1,0,0,0,1,0,0],
+            [0,1,0,1,1,1,0,1,0],
+            [0,1,0,0,0,0,0,1,0],
+            [0,0,1,1,0,1,1,0,0],
+        ]},
+    ];
+
+    function drawAlien(x, y, type) {
+        const sprite = ALIEN_SPRITES[type] || ALIEN_SPRITES[0];
+        const px = 2; // pixel size
+        ctx.fillStyle = sprite.color;
+        ctx.shadowColor = sprite.glow;
+        ctx.shadowBlur = 6;
+        const rows = sprite.pixels;
+        for (let r = 0; r < rows.length; r++) {
+            for (let c = 0; c < rows[r].length; c++) {
+                if (rows[r][c]) ctx.fillRect(x + c * px, y + r * px, px, px);
+            }
+        }
+        ctx.shadowBlur = 0;
+    }
+
     function draw() {
-        ctx.fillStyle = '#050510';
+        // Background
+        ctx.fillStyle = '#06060f';
         ctx.fillRect(0, 0, 400, 360);
 
-        // Grid lines
-        ctx.strokeStyle = 'rgba(0, 255, 255, 0.05)';
-        ctx.lineWidth = 1;
-        for(let i=0; i<400; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,360); ctx.stroke(); }
-
-        // Player
-        ctx.fillStyle = '#0ff';
-        ctx.fillRect(playerX, 330, 20, 10);
-        ctx.fillRect(playerX + 8, 325, 4, 5);
-
-        // Enemies
-        enemies.forEach(e => {
-            if (!e.alive) return;
-            ctx.fillStyle = e.type === 0 ? '#0ff' : e.type === 1 ? '#0ff' : '#0f0';
-            ctx.font = '16px monospace';
-            ctx.fillText('W', e.x, e.y + 15);
+        // Scrolling starfield
+        stars.forEach(s => {
+            s.y += s.sp;
+            if (s.y > 360) { s.y = 0; s.x = Math.random() * 400; }
+            ctx.fillStyle = `rgba(255,255,255,${0.2 + s.s * 0.3})`;
+            ctx.fillRect(s.x, s.y, s.s, s.s);
         });
 
-        // Bullets
+        // Subtle scan lines
+        ctx.fillStyle = 'rgba(0,0,0,0.08)';
+        for (let y = 0; y < 360; y += 3) ctx.fillRect(0, y, 400, 1);
+
+        // Player ship (more detailed)
+        ctx.fillStyle = '#0ff';
+        ctx.shadowColor = 'rgba(0,255,255,0.5)';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.moveTo(playerX + 10, 322);
+        ctx.lineTo(playerX + 20, 340);
+        ctx.lineTo(playerX + 16, 338);
+        ctx.lineTo(playerX + 16, 342);
+        ctx.lineTo(playerX + 4, 342);
+        ctx.lineTo(playerX + 4, 338);
+        ctx.lineTo(playerX, 340);
+        ctx.closePath();
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        // Engine glow
+        ctx.fillStyle = `rgba(0,255,255,${0.3 + Math.random() * 0.2})`;
+        ctx.fillRect(playerX + 6, 342, 8, 2 + Math.random() * 3);
+
+        // Enemies (pixel-art sprites)
+        enemies.forEach(e => {
+            if (!e.alive) return;
+            drawAlien(e.x, e.y, e.type);
+        });
+
+        // Player bullets (bright cyan laser)
+        ctx.shadowColor = 'rgba(0,255,255,0.6)';
+        ctx.shadowBlur = 4;
         ctx.fillStyle = '#fff';
-        bullets.forEach(b => ctx.fillRect(b.x, b.y, 2, 6));
+        bullets.forEach(b => {
+            ctx.fillRect(b.x, b.y, 2, 8);
+            ctx.fillStyle = 'rgba(0,255,255,0.4)';
+            ctx.fillRect(b.x - 1, b.y, 4, 8);
+            ctx.fillStyle = '#fff';
+        });
+        ctx.shadowBlur = 0;
+
+        // Enemy bullets (red)
         ctx.fillStyle = '#f44';
+        ctx.shadowColor = 'rgba(255,68,68,0.5)';
+        ctx.shadowBlur = 4;
         enemyBullets.forEach(b => ctx.fillRect(b.x, b.y, 2, 6));
+        ctx.shadowBlur = 0;
 
         // Particles
         particles.forEach(p => {
@@ -196,17 +285,32 @@ function startInvaders() {
         ctx.globalAlpha = 1;
 
         // HUD
-        ctx.fillStyle = '#0ff'; ctx.font = '10px monospace';
-        ctx.fillText(`THREAT LEVEL: ${wave}`, 10, 20);
-        ctx.fillText(`SCORE: ${score}`, 320, 20);
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(0, 0, 400, 24);
+        ctx.fillStyle = '#0ff'; ctx.font = 'bold 10px monospace';
+        ctx.fillText(`WAVE ${wave}`, 10, 16);
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'right';
+        ctx.fillText(`SCORE ${score}`, 390, 16);
+        ctx.textAlign = 'left';
+
+        // Defense line
+        ctx.strokeStyle = 'rgba(0,255,255,0.15)';
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(0, 318); ctx.lineTo(400, 318); ctx.stroke();
+        ctx.setLineDash([]);
 
         if (gameOver) {
-            ctx.fillStyle = 'rgba(255,0,0,0.4)'; ctx.fillRect(0, 0, 400, 360);
-            ctx.fillStyle = '#fff'; ctx.font = 'bold 24px monospace';
+            ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, 400, 360);
             ctx.textAlign = 'center';
-            ctx.fillText('SYSTEM BREACHED', 200, 180);
-            ctx.font = '14px monospace';
-            ctx.fillText('CLICK TO RESTART', 200, 210);
+            ctx.fillStyle = '#f44'; ctx.font = 'bold 22px monospace';
+            ctx.shadowColor = 'rgba(255,68,68,0.5)'; ctx.shadowBlur = 12;
+            ctx.fillText('MAINFRAME BREACHED', 200, 160);
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#888'; ctx.font = '12px monospace';
+            ctx.fillText(`Final score: ${score}`, 200, 190);
+            ctx.fillStyle = '#0ff'; ctx.font = '11px monospace';
+            ctx.fillText('CLICK TO TRY AGAIN', 200, 220);
             ctx.textAlign = 'left';
             if (!scoreSubmitted) {
                 scoreSubmitted = true;
