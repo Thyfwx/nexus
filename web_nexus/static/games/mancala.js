@@ -104,7 +104,7 @@ function startMancala() {
                 <button class="man-diff" data-diff="hard"
                     style="--mode-color:#0ff; --mode-bg:rgba(0,255,255,0.06); --mode-bg-hov:rgba(0,255,255,0.18);">
                     <span class="diff-name">HARD</span>
-                    <span class="diff-desc">8 deep · streak counted</span>
+                    <span class="diff-desc">6 deep · streak counted</span>
                 </button>
             </div>
             <div style="color:#666; font-size:0.62rem; margin-top:18px; letter-spacing:1.5px;">
@@ -136,7 +136,7 @@ function launchMancala(difficulty) {
         mancalaHardStreak = 0;
     }
 
-    const accent = difficulty === 'easy' ? '#0f0' : difficulty === 'medium' ? '#ff0' : '#0ff';
+    const accent = difficulty === 'easy' ? '#00ff00' : difficulty === 'medium' ? '#ffff00' : '#00ffff';
     const streakTag = difficulty === 'hard'
         ? `<span style="color:#0ff;">STREAK ${mancalaHardStreak}</span>`
         : `<span style="color:#888;">UNRANKED</span>`;
@@ -226,7 +226,7 @@ function mancalaDrawBoard() {
 
     for (const p of mancalaPitGeom) {
         const isPlayer = p.side === 'player';
-        const accent = isPlayer ? '#0ff' : '#f88';
+        const accent = isPlayer ? '#00ffff' : '#ff8888';
         const stones = mancalaBoard[p.idx];
         const isClickable = !mancalaInputLocked && !mancalaGameOver && p.side === 'player' && !p.isStore && stones > 0 && mancalaTurn === 'player';
         const flashing = mancalaCaptureFlash && mancalaCaptureFlash.idx === p.idx && Date.now() < mancalaCaptureFlash.until;
@@ -436,7 +436,7 @@ function mancalaAITurn() {
     mancalaStatusColor = '#f88';
     mancalaDrawBoard();
 
-    const depth = mancalaDifficulty === 'easy' ? 1 : mancalaDifficulty === 'medium' ? 4 : 8;
+    const depth = mancalaDifficulty === 'easy' ? 1 : mancalaDifficulty === 'medium' ? 4 : 6;
     const move = mancalaChooseAIMove(mancalaBoard.slice(), depth);
 
     if (move === -1 || mancalaBoard[move] === 0) {
@@ -449,9 +449,6 @@ function mancalaAITurn() {
 }
 
 function mancalaChooseAIMove(board, depth) {
-    const startTime = Date.now();
-    const timeBudget = 800;
-    let useDepth = depth;
     let bestMove = -1;
     let bestScore = -Infinity;
 
@@ -461,13 +458,10 @@ function mancalaChooseAIMove(board, depth) {
     for (const m of moves) {
         const newBoard = board.slice();
         const extraTurn = mancalaSimulateSow(newBoard, m, true);
-        const score = mancalaMinimax(newBoard, useDepth - 1, extraTurn, -Infinity, Infinity);
+        const score = mancalaMinimax(newBoard, depth - 1, extraTurn, -Infinity, Infinity);
         if (score > bestScore) {
             bestScore = score;
             bestMove = m;
-        }
-        if (depth >= 8 && useDepth > 6 && Date.now() - startTime > timeBudget) {
-            useDepth = 6;
         }
     }
     return bestMove;
@@ -579,7 +573,7 @@ function mancalaEndGame() {
     ctx.fillStyle = playerWon ? 'rgba(0,30,10,0.86)' : draw ? 'rgba(20,20,30,0.86)' : 'rgba(30,0,10,0.86)';
     ctx.fillRect(0, 0, mancalaW, mancalaH);
 
-    const borderCol = playerWon ? '#0f0' : draw ? '#ff0' : '#f44';
+    const borderCol = playerWon ? '#00ff00' : draw ? '#ffff00' : '#ff4444';
     const cx = mancalaW / 2, cy = mancalaH / 2;
     ctx.strokeStyle = borderCol;
     ctx.lineWidth = 2;
