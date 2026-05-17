@@ -120,16 +120,17 @@
             overflow: hidden;
         }
 
-        /* Sidebar color bar — subtle accent line, not a traffic light */
+        /* Sidebar color bar — follows the content sections with smooth blending */
         .release::before {
             content: '';
             position: absolute;
             left: 0;
             top: 0;
             bottom: 0;
-            width: 2px;
-            background: rgba(0, 180, 255, 0.25);
+            width: 3px;
+            background: var(--bar-gradient, rgba(0, 180, 255, 0.3));
             border-radius: 4px 0 0 4px;
+            opacity: 0.5;
         }
 
         .release-head {
