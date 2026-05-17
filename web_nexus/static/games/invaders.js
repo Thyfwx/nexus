@@ -240,8 +240,8 @@ function startInvaders() {
         // Enemy bullets
         var playerHitY = H - 40;
         enemyBullets = enemyBullets.filter(function(b) {
-            b.y += 3 + wave * 0.15;
-            if (b.tx !== undefined) b.x += (b.tx - b.x) * 0.015;
+            b.y += 2 + wave * 0.1;
+            if (b.tx !== undefined) b.x += (b.tx - b.x) * 0.008;
             if (b.y > playerHitY && b.y < playerHitY + 25 && b.x > playerX && b.x < playerX + 20) {
                 if (pu_state.shield) { pu_state.shield = false; addFloat(playerX + 10, H - 60, 'SHIELD BREAK', '#0ff'); SoundManager.playBloop(250, 0.05); }
                 else { gameOver = true; createExplosion(playerX + 10, H - 35, '#0ff', true); SoundManager.playBloop(100, 0.2); }
@@ -264,14 +264,14 @@ function startInvaders() {
 
         // Enemy firing
         enemyBulletTimer++;
-        var fireRate = wave === 1 ? 120 : wave === 2 ? 80 : Math.max(15, 50 - wave * 3);
+        var fireRate = wave === 1 ? 180 : wave === 2 ? 120 : wave === 3 ? 90 : wave === 4 ? 70 : Math.max(30, 60 - wave * 2);
         if (enemyBulletTimer > fireRate) {
             var living = enemies.filter(function(e) { return e.alive && !e.entering; });
             if (living.length > 0) {
                 var s = living[Math.floor(Math.random() * living.length)];
                 if (s.kind === 'boss') { for (var i = -1; i <= 1; i++) enemyBullets.push({ x: s.x + 20 + i * 15, y: s.y + 20, tx: playerX + i * 40 }); }
-                else if (s.kind === 'miniboss') { enemyBullets.push({ x: s.x + 9, y: s.y + 16 }); enemyBullets.push({ x: s.x + 9, y: s.y + 16, tx: playerX }); }
-                else enemyBullets.push({ x: s.x + 9, y: s.y + 16 });
+                else if (s.kind === 'miniboss') { enemyBullets.push({ x: s.x + 9, y: s.y + 16 }); if (wave >= 6) enemyBullets.push({ x: s.x + 9, y: s.y + 16, tx: playerX }); }
+                else { enemyBullets.push({ x: s.x + 9, y: s.y + 16 }); }
             }
             enemyBulletTimer = 0;
         }
