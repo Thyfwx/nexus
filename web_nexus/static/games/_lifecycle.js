@@ -41,6 +41,7 @@ function stopAllGames() {
     if (typeof stopFlappy === 'function')       stopFlappy();
     if (typeof stopBreakout === 'function')     stopBreakout();
     if (typeof stopInvaders === 'function')     stopInvaders();
+    if (typeof stopMancala === 'function')      stopMancala();
     mineActive = false;
     typeTestActive = false;
     clearInterval(typeTimerInterval);
