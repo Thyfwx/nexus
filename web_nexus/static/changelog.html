@@ -625,10 +625,12 @@
 
             for (let i = 0; i < sections.length; i++) {
                 const s = sections[i];
-                // Hard transition at the start of each new section
+                // Smooth blend between sections
                 if (i > 0) {
-                    stops.push(sections[i-1].c + ' ' + pct(s.t));
-                    stops.push(s.c + ' ' + pct(s.t));
+                    const blendStart = sections[i-1].b;
+                    const blendEnd = s.t;
+                    stops.push(sections[i-1].c + ' ' + pct(blendStart));
+                    stops.push(s.c + ' ' + pct(blendEnd));
                 }
                 stops.push(s.c + ' ' + pct(s.b));
             }
