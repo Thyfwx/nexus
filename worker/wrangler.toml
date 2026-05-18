@@ -1,0 +1,30 @@
+# Nexus AI Backend — Cloudflare Worker
+# Replaces the FastAPI/Render backend at api.thyfwxit.com
+name = "nexus-api"
+main = "src/index.js"
+compatibility_date = "2024-12-01"
+workers_dev = true
+
+# Custom domain — Worker handles all api.thyfwxit.com traffic
+routes = [{ pattern = "api.thyfwxit.com/*", zone_name = "thyfwxit.com" }]
+
+# KV namespaces for persistent storage
+# Create these first: npx wrangler kv:namespace create <NAME>
+# [[kv_namespaces]]
+# binding = "NEXUS_KV"
+# id = "xxx"  # fill after creation
+
+[[kv_namespaces]]
+binding = "NEXUS_KV"
+id = "f3746c745ddf48758316c44306ca1b5b"
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+invocation_logs = true
+
+[vars]
+ENVIRONMENT = "production"
+NEXUS_VERSION = "v5.6.5"
