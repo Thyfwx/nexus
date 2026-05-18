@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus AI — Invaders</title>
+    <meta name="description" content="Pixel-art Space Invaders inside Nexus AI Terminal. Power-up drops, boss waves, leaderboard scoring. Built solo by Xavier Scott. Free to play.">
+    <link rel="canonical" href="https://thyfwxit.com/nexus/invaders">
+    <meta property="og:title" content="Nexus Invaders">
+    <meta property="og:description" content="Pixel-art Space Invaders with power-ups, boss waves, and leaderboard scoring. Browser-based, no install, free.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://thyfwxit.com/nexus/invaders">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="favicon.ico">
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3034789470490055" crossorigin="anonymous"></script>
+    <script async src="https://fundingchoicesmessages.google.com/i/pub-3034789470490055?ers=1"></script>
+    <script>(function(){function signalGooglefcPresent(){if(!window.frames['googlefcPresent']){if(document.body){const iframe=document.createElement('iframe');iframe.style='width: 0; height: 0; border: none; z-index: -1000; left: -1000px; top: -1000px;';iframe.style.display='none';iframe.name='googlefcPresent';document.body.appendChild(iframe);}else{setTimeout(signalGooglefcPresent,0);}}}signalGooglefcPresent();})();</script>
+    <!-- JSON-LD: this page describes a free playable browser game -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "VideoGame",
+      "name": "Nexus Invaders",
+      "url": "https://thyfwxit.com/nexus/invaders",
+      "applicationCategory": "Game",
+      "operatingSystem": "Web Browser",
+      "genre": ["Arcade", "Shooter"],
+      "playMode": "SinglePlayer",
+      "description": "Pixel-art Space Invaders rebuild with power-up drops, boss waves, and a Nexus AI Terminal aesthetic. Browser-based. No install. Free.",
+      "isAccessibleForFree": true,
+      "author": {
+        "@type": "Person",
+        "name": "Xavier Scott",
+        "alternateName": "THYFWX"
+      },
+      "publisher": {
+        "@type": "Person",
+        "name": "Xavier Scott"
+      }
+    }
+    </script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #0a0a0f;
+            --accent: #00ffff;
+            --accent-glow: rgba(0,255,255,0.4);
+            --fg: #c9c9d4;
+            --fg-dim: #6a6a7a;
+            --border: rgba(255,255,255,0.07);
+        }
+        html, body {
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: 'Fira Code', monospace;
+        }
+        body::before {
+            content: '';
+            position: fixed; inset: 0;
+            background: repeating-linear-gradient(0deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
+            pointer-events: none;
+            z-index: 1;
+        }
+        .topbar {
+            position: relative; z-index: 2;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 14px 24px;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.72rem; letter-spacing: 2px; color: var(--fg-dim);
+        }
+        .topbar .brand { color: var(--accent); font-weight: 700; }
+        .topbar a {
+            color: var(--fg-dim); text-decoration: none;
+            border-bottom: 1px dotted var(--fg-dim);
+        }
+        .topbar a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+        .layout {
+            position: relative; z-index: 2;
+            display: grid; grid-template-columns: 1fr 300px;
+            gap: 18px;
+            padding: 16px 24px;
+            max-width: 1400px; margin: 0 auto;
+        }
+
+        .monitor {
+            background: rgba(0,0,0,0.45);
+            border: 1px solid rgba(0,255,255,0.18);
+            border-radius: 8px;
+            box-shadow: 0 0 32px rgba(0,255,255,0.08);
+            min-height: 78vh;
+            position: relative;
+            overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+
+        .side-rail {
+            display: flex; flex-direction: column; gap: 12px;
+        }
+        .side-rail .ad-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px dashed rgba(255,255,255,0.10);
+            border-radius: 4px;
+            min-height: 600px;
+            display: flex; align-items: center; justify-content: center;
+            overflow: hidden;
+        }
+
+        .seo-pitch {
+            position: relative; z-index: 2;
+            max-width: 1400px; margin: 0 auto;
+            padding: 8px 24px 40px;
+            color: var(--fg-dim);
+            font-size: 0.85rem;
+            line-height: 1.7;
+        }
+        .seo-pitch h2 {
+            color: var(--accent); font-size: 0.95rem;
+            letter-spacing: 1px; margin: 18px 0 8px;
+        }
+        .seo-pitch strong { color: var(--fg); }
+
+        .footer-nav {
+            position: relative; z-index: 2;
+            text-align: center; padding: 18px 24px 28px;
+            font-size: 0.7rem; color: var(--fg-dim); letter-spacing: 2px;
+            border-top: 1px solid var(--border);
+        }
+        .footer-nav a {
+            color: var(--fg-dim); text-decoration: none;
+            padding: 0 10px; border-right: 1px solid #222;
+        }
+        .footer-nav a:last-child { border-right: none; }
+        .footer-nav a:hover { color: var(--accent); }
+
+        @media (max-width: 900px) {
+            .layout { grid-template-columns: 1fr; }
+            .side-rail { display: none; }
+            .monitor { min-height: 70vh; }
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <span class="brand">● NEXUS AI · INVADERS</span>
+        <a href="./">← BACK TO TERMINAL</a>
+    </div>
+
+    <div class="layout">
+        <!-- Invaders game canvas renders here. invaders.js targets .monitor -->
+        <div class="monitor"></div>
+
+        <aside class="side-rail">
+            <div class="ad-card">
+                <ins class="adsbygoogle"
+                    style="display:block; width:300px; height:600px"
+                    data-ad-client="ca-pub-3034789470490055"
+                    data-ad-slot="6916029228"
+                    data-ad-format="vertical"
+                    data-full-width-responsive="false"></ins>
+                <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+            </div>
+        </aside>
+    </div>
+
+    <div class="seo-pitch">
+        <h2>What is Nexus Invaders?</h2>
+        <p>Nexus Invaders is a free, browser-based Space Invaders rebuild built from scratch for the Nexus AI Terminal. <strong>Pixel-art alien sprites</strong> in four types, six rotating wave formations, starfield backgrounds that change per wave, and entrance animations on every enemy.</p>
+        <p><strong>Power-up drops</strong> when you kill enemies: Rapid Fire, Spread Shot, Shield, Score x2, Pulse. Grab the same power-up twice during a run to make it permanent for the rest of the game. Mini-bosses appear every three waves; full boss fights every nine waves with health bars and aimed shots.</p>
+        <p>Mouse moves your ship, click or tap to shoot. Submit your high score to the <a href="leaderboard" style="color:var(--accent);">Nexus leaderboard</a> once you sign in with Google.</p>
+    </div>
+
+    <nav class="footer-nav">
+        <a href="leaderboard">LEADERBOARD</a>
+        <a href="about">ABOUT</a>
+        <a href="changelog">CHANGELOG</a>
+        <a href="privacy">PRIVACY</a>
+        <a href="terms">TERMS</a>
+    </nav>
+
+    <!-- Game scripts -->
+    <script src="nexus_globals.js?v=8b4ce2"></script>
+    <script src="audio_core.js?v=8b4ce2"></script>
+    <script src="games/_lifecycle.js?v=8b4ce2"></script>
+    <script src="games/invaders.js?v=8b4ce2"></script>
+    <script>
+        // Auto-start Invaders on page load. invaders.js takes over .monitor.
+        window.addEventListener('DOMContentLoaded', () => {
+            window.NEXUS_DISABLE_ADS = typeof window.NEXUS_DISABLE_ADS === 'undefined' ? true : window.NEXUS_DISABLE_ADS;
+            window.OWNER_MODE = false;
+            startInvaders();
+            // Replace the in-game close button: navigate back to terminal instead of an empty .monitor
+            setTimeout(() => {
+                const closeBtn = document.getElementById('invaders-close');
+                if (closeBtn) {
+                    closeBtn.onclick = () => { window.location.href = './'; };
+                    closeBtn.textContent = 'EXIT';
+                }
+            }, 120);
+        });
+    </script>
+</body>
+</html>
