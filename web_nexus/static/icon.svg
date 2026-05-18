@@ -1,8 +1,32 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="64" fill="#0a0a0f"/>
-  <rect x="16" y="16" width="480" height="480" rx="48" fill="none" stroke="#00ffff" stroke-width="4" opacity="0.3"/>
-  <text x="256" y="200" text-anchor="middle" font-family="monospace" font-weight="700" font-size="180" fill="#00ffff">N</text>
-  <text x="256" y="340" text-anchor="middle" font-family="monospace" font-weight="400" font-size="60" fill="#00ffff" opacity="0.7">NEXUS</text>
-  <rect x="100" y="380" width="312" height="3" fill="#00ffff" opacity="0.2"/>
-  <text x="256" y="430" text-anchor="middle" font-family="monospace" font-size="30" fill="#00ffff" opacity="0.4">AI TERMINAL</text>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Nexus AI Terminal icon">
+  <title>Nexus AI Terminal</title>
+  <!-- Background: dark with subtle radial glow toward center -->
+  <defs>
+    <radialGradient id="bg" cx="0.5" cy="0.5" r="0.7">
+      <stop offset="0%" stop-color="#0f1525"/>
+      <stop offset="100%" stop-color="#070710"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+
+  <!-- Hairline outer border for definition at small sizes -->
+  <rect x="14" y="14" width="484" height="484" rx="84"
+        fill="none" stroke="#00ffff" stroke-width="3" opacity="0.20"/>
+
+  <!-- Subtle scan-line motif behind the glyph (kept faint) -->
+  <g opacity="0.06" fill="#00ffff">
+    <rect x="0" y="120" width="512" height="2"/>
+    <rect x="0" y="200" width="512" height="2"/>
+    <rect x="0" y="280" width="512" height="2"/>
+    <rect x="0" y="360" width="512" height="2"/>
+  </g>
+
+  <!-- The > chevron (terminal prompt) -->
+  <path d="M 156 168 L 264 256 L 156 344"
+        fill="none" stroke="#00ffff" stroke-width="44"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- The _ cursor (underscore block) -->
+  <rect x="290" y="316" width="120" height="34" rx="6" fill="#00ffff"/>
 </svg>
