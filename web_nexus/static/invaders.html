@@ -86,11 +86,7 @@
         }
 
         .monitor {
-            background: rgba(0,0,0,0.45);
-            border: 1px solid rgba(0,255,255,0.18);
-            border-radius: 8px;
-            box-shadow: 0 0 32px rgba(0,255,255,0.08);
-            min-height: 78vh;
+            min-height: 82vh;
             position: relative;
             overflow: hidden;
             display: flex; flex-direction: column;
@@ -181,10 +177,10 @@
     </nav>
 
     <!-- Game scripts -->
-    <script src="nexus_globals.js?v=9c5fd3"></script>
-    <script src="audio_core.js?v=9c5fd3"></script>
-    <script src="games/_lifecycle.js?v=9c5fd3"></script>
-    <script src="games/invaders.js?v=9c5fd3"></script>
+    <script src="nexus_globals.js?v=ab2d4f"></script>
+    <script src="audio_core.js?v=ab2d4f"></script>
+    <script src="games/_lifecycle.js?v=ab2d4f"></script>
+    <script src="games/invaders.js?v=ab2d4f"></script>
     <script>
         // Auto-start Invaders on page load. invaders.js takes over .monitor.
         window.addEventListener('DOMContentLoaded', () => {
@@ -194,13 +190,14 @@
             // Replace the in-game close button: navigate back to terminal instead of an empty .monitor
             setTimeout(() => {
                 const closeBtn = document.getElementById('invaders-close');
-                if (closeBtn) {
-                    closeBtn.onclick = () => { window.location.href = './'; };
-                    closeBtn.textContent = 'EXIT';
-                    // The page header already shows "NEXUS AI · INVADERS" — hide the duplicate in-game title
-                    const titleSpan = closeBtn.parentElement.querySelector('span');
-                    if (titleSpan) titleSpan.style.display = 'none';
-                }
+                if (!closeBtn) return;
+                // Hide the entire in-game top strip (title + EXIT). The page header
+                // is the only navigation needed — page back-link gets you out.
+                const topBar = closeBtn.parentElement;
+                if (topBar) topBar.style.display = 'none';
+                // Strip gameHost padding so canvas fills its container edge-to-edge
+                const host = document.getElementById('invaders-host');
+                if (host) host.style.padding = '0';
             }, 120);
         });
     </script>
