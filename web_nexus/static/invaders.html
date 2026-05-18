@@ -158,7 +158,7 @@
                     style="display:block; width:300px; height:600px"
                     data-ad-client="ca-pub-3034789470490055"
                     data-ad-slot="6916029228"
-                    data-ad-format="vertical"
+                    data-ad-format="auto"
                     data-full-width-responsive="false"></ins>
                 <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
             </div>
@@ -181,10 +181,10 @@
     </nav>
 
     <!-- Game scripts -->
-    <script src="nexus_globals.js?v=8b4ce2"></script>
-    <script src="audio_core.js?v=8b4ce2"></script>
-    <script src="games/_lifecycle.js?v=8b4ce2"></script>
-    <script src="games/invaders.js?v=8b4ce2"></script>
+    <script src="nexus_globals.js?v=9c5fd3"></script>
+    <script src="audio_core.js?v=9c5fd3"></script>
+    <script src="games/_lifecycle.js?v=9c5fd3"></script>
+    <script src="games/invaders.js?v=9c5fd3"></script>
     <script>
         // Auto-start Invaders on page load. invaders.js takes over .monitor.
         window.addEventListener('DOMContentLoaded', () => {
@@ -197,6 +197,9 @@
                 if (closeBtn) {
                     closeBtn.onclick = () => { window.location.href = './'; };
                     closeBtn.textContent = 'EXIT';
+                    // The page header already shows "NEXUS AI · INVADERS" — hide the duplicate in-game title
+                    const titleSpan = closeBtn.parentElement.querySelector('span');
+                    if (titleSpan) titleSpan.style.display = 'none';
                 }
             }, 120);
         });
