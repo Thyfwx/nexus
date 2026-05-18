@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Nexus AI Terminal icon (maskable)">
+  <title>Nexus AI Terminal — maskable</title>
+  <!-- Maskable variant: solid full-bleed background so platform crop doesn't reveal a hole.
+       Important content (the > and _) is sized + positioned to fit within the
+       inner 80% safe area, so circular/squircle crops keep the glyph intact. -->
+  <defs>
+    <radialGradient id="bg" cx="0.5" cy="0.5" r="0.7">
+      <stop offset="0%" stop-color="#0f1525"/>
+      <stop offset="100%" stop-color="#070710"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+
+  <!-- Glyph fits in safe area: inset 51px (10%) from each edge → 410×410 zone, centered.
+       That means the > and _ live between x=51..461 and y=51..461. -->
+  <g>
+    <!-- > chevron, shrunk to fit safe area -->
+    <path d="M 176 186 L 272 256 L 176 326"
+          fill="none" stroke="#00ffff" stroke-width="38"
+          stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- _ cursor block -->
+    <rect x="296" y="304" width="100" height="30" rx="5" fill="#00ffff"/>
+  </g>
+</svg>
