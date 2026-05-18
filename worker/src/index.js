@@ -9,12 +9,14 @@
  */
 
 // ── CORS ────────────────────────────────────────────────────────────────────
+// Production origins only. Local dev runs against wrangler dev / Pages
+// preview URLs, not localhost:8000. Allowing localhost in production CORS
+// with credentials lets any malicious page on the user's loopback steal
+// session cookies — removed 2026-05-18.
 const ALLOWED_ORIGINS = [
   'https://thyfwxit.com',
   'https://sandbox.thyfwxit.com',
   'https://api.thyfwxit.com',
-  'http://localhost:8000',
-  'http://127.0.0.1:8000',
 ];
 
 function corsHeaders(request) {
@@ -43,6 +45,7 @@ function json(data, status = 200, request = null) {
 
 // ── JWT helpers ─────────────────────────────────────────────────────────────
 async function signJWT(payload, secret) {
+  if (!secret) throw new Error('JWT secret missing — SECRET_KEY env var unbound');
   const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).replace(/=/g, '');
   const body = btoa(JSON.stringify(payload)).replace(/=/g, '');
   const key = await crypto.subtle.importKey(
@@ -54,6 +57,7 @@ async function signJWT(payload, secret) {
 }
 
 async function verifyJWT(token, secret) {
+  if (!secret) return null;
   try {
     const [header, body, sig] = token.split('.');
     const key = await crypto.subtle.importKey(
@@ -73,12 +77,17 @@ function getSession(request, env) {
   const match = cookies.match(/nexus_session=([^;]+)/);
   if (!match) return null;
   // JWT verification is async — caller must await
-  return verifyJWT(match[1], env.SECRET_KEY || 'nexus-dev');
+  return verifyJWT(match[1], env.SECRET_KEY);
 }
 
 function isOwner(session, env) {
   if (!session) return false;
-  return (session.email || '').toLowerCase() === (env.OWNER_EMAIL || '').toLowerCase();
+  // Fail-closed: if OWNER_EMAIL is unbound, never grant owner — even to sessions
+  // whose email is also empty. Prevents '' === '' privilege-escalation on
+  // misconfigured deployments.
+  if (!env.OWNER_EMAIL) return false;
+  if (!session.email) return false;
+  return session.email.toLowerCase() === env.OWNER_EMAIL.toLowerCase();
 }
 
 // ── System prompts — Nexus personality ─────────────────────────────────────
@@ -546,6 +555,11 @@ export default {
           const idinfo = await verifyRes.json();
 
           if (idinfo.aud !== clientId) return json({ error: 'Audience mismatch' }, 401, request);
+          // Reject sessions whose Google email is not verified — defense-in-depth
+          // against owner-email forgery via untrusted Workspace accounts.
+          if (idinfo.email_verified !== 'true' && idinfo.email_verified !== true) {
+            return json({ error: 'Email not verified by Google' }, 401, request);
+          }
 
           const payload = {
             sub: idinfo.sub,
@@ -555,7 +569,7 @@ export default {
             exp: Math.floor(Date.now() / 1000) + (30 * 24 * 3600),
           };
 
-          const token = await signJWT(payload, env.SECRET_KEY || 'nexus-dev');
+          const token = await signJWT(payload, env.SECRET_KEY);
           const ownerCheck = (payload.email.toLowerCase() === (env.OWNER_EMAIL || '').toLowerCase());
 
           console.log(`[AUTH] Login: ${payload.name} (${payload.email}) owner=${ownerCheck}`);
@@ -619,13 +633,17 @@ export default {
         if (!verifyRes.ok) return json({ error: 'Verification failed' }, 401, request);
         const idinfo = await verifyRes.json();
         if (idinfo.aud !== clientId) return json({ error: 'Audience mismatch' }, 401, request);
+        // Reject sessions whose Google email is not verified.
+        if (idinfo.email_verified !== 'true' && idinfo.email_verified !== true) {
+          return json({ error: 'Email not verified by Google' }, 401, request);
+        }
 
         const payload = {
           sub: idinfo.sub, name: idinfo.name || 'Player',
           email: idinfo.email || '', picture: idinfo.picture || '',
           exp: Math.floor(Date.now() / 1000) + (30 * 24 * 3600),
         };
-        const token = await signJWT(payload, env.SECRET_KEY || 'nexus-dev');
+        const token = await signJWT(payload, env.SECRET_KEY);
         const ownerCheck = payload.email.toLowerCase() === (env.OWNER_EMAIL || '').toLowerCase();
         const userBlob = encodeURIComponent(JSON.stringify({ sub: payload.sub, name: payload.name, email: payload.email, picture: payload.picture, is_owner: ownerCheck }));
 
@@ -665,7 +683,7 @@ export default {
           picture: '',
           exp: Math.floor(Date.now() / 1000) + (24 * 3600),
         };
-        const token = await signJWT(payload, env.SECRET_KEY || 'nexus-dev');
+        const token = await signJWT(payload, env.SECRET_KEY);
         const resp = json({ ok: true, name: 'Guest', email: 'guest@local', picture: '', is_owner: false }, 200, request);
         resp.headers.set('Set-Cookie', `nexus_session=${token}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${24*3600}; Domain=.thyfwxit.com`);
         return resp;
@@ -695,7 +713,7 @@ export default {
           fetch(webhook, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ embeds: [embed] }),
+            body: JSON.stringify({ embeds: [embed], allowed_mentions: { parse: [] } }),
           }).catch(() => {})
         );
 
@@ -1038,6 +1056,7 @@ export default {
         const payload = {
           username: botNames[severity] || 'NEXUS · MODERATION',
           embeds: [embed],
+          allowed_mentions: { parse: [] },
         };
 
         ctx.waitUntil(
@@ -1072,7 +1091,7 @@ export default {
           fetch(webhook, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: 'NEXUS · REPORTS', embeds: [embed] }),
+            body: JSON.stringify({ username: 'NEXUS · REPORTS', embeds: [embed], allowed_mentions: { parse: [] } }),
           }).catch(() => {})
         );
 
@@ -1093,7 +1112,7 @@ export default {
           picture: '',
           exp: Math.floor(Date.now() / 1000) + (30 * 24 * 3600),
         };
-        const token = await signJWT(payload, env.SECRET_KEY || 'nexus-dev');
+        const token = await signJWT(payload, env.SECRET_KEY);
         console.log(`[AUTH] Dev-owner login: ${payload.name}`);
         const resp = json({ ok: true, name: payload.name, email: payload.email, picture: '', is_owner: true }, 200, request);
         resp.headers.set('Set-Cookie', `nexus_session=${token}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${30*24*3600}; Domain=.thyfwxit.com`);
