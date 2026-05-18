@@ -28,6 +28,10 @@ GEMINI.md
 .claude/
 .gemini/
 
-# Cloudflare Worker — deployed separately via wrangler, not part of Pages
-worker/
+# Cloudflare Worker — source IS tracked (auto-deployed via GitHub Action on
+# push to main). Secrets live in CF Worker Secrets (env.* in code), never
+# in source. Local state directories stay ignored.
+worker/.wrangler/
+worker/node_modules/
+worker/package-lock.json
 .wrangler/
