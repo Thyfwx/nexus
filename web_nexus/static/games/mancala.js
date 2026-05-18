@@ -23,6 +23,9 @@ let mancalaGameOver = false;
 let mancalaHardStreak = 0;
 let mancalaCaptureFlash = null;
 let mancalaPostCaptureRedraw = null;
+let mancalaDropFlash = null;        // { idx, until } — destination pit highlight per drop
+let mancalaBanner = null;           // { text, color, until } — large overlay banner (extra turn, capture)
+let mancalaAnimRedraw = null;       // setTimeout handle for active animation redraws
 
 const MANCALA_PLAYER_PITS = [0, 1, 2, 3, 4, 5];
 const MANCALA_PLAYER_STORE = 6;
@@ -127,8 +130,11 @@ function launchMancala(difficulty) {
     mancalaInputLocked = false;
     mancalaGameOver = false;
     mancalaCaptureFlash = null;
+    mancalaDropFlash = null;
+    mancalaBanner = null;
     mancalaTimeoutQueue.forEach(t => clearTimeout(t));
     mancalaTimeoutQueue = [];
+    clearTimeout(mancalaAnimRedraw);
 
     try {
         mancalaHardStreak = parseInt(localStorage.getItem('mancala_hard_streak') || '0', 10) || 0;
@@ -254,36 +260,49 @@ function mancalaDrawBoard() {
             ctx.font = '9px monospace';
             ctx.fillText(isPlayer ? 'YOUR STORE' : 'AI STORE', p.cx, p.cy + p.h / 2 - 12);
         } else {
+            const dropping = mancalaDropFlash && mancalaDropFlash.idx === p.idx && Date.now() < mancalaDropFlash.until;
+
             ctx.beginPath();
             ctx.arc(p.cx, p.cy, p.r, 0, Math.PI * 2);
-            ctx.fillStyle = flashing ? `${accent}40` : `${accent}10`;
+            ctx.fillStyle = flashing ? `${accent}40` : dropping ? `${accent}28` : `${accent}10`;
             ctx.fill();
-            ctx.strokeStyle = isClickable ? accent : `${accent}55`;
-            ctx.lineWidth = isClickable ? 2 : 1;
-            if (isClickable) {
-                ctx.shadowBlur = 14;
-                ctx.shadowColor = accent;
+            ctx.strokeStyle = dropping ? '#ffffff' : isClickable ? accent : `${accent}55`;
+            ctx.lineWidth = dropping ? 2.5 : isClickable ? 2 : 1;
+            if (isClickable || dropping) {
+                ctx.shadowBlur = dropping ? 22 : 14;
+                ctx.shadowColor = dropping ? '#ffffff' : accent;
             }
             ctx.stroke();
             ctx.shadowBlur = 0;
 
-            ctx.fillStyle = accent;
-            ctx.font = 'bold 18px monospace';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(String(stones), p.cx, p.cy);
-
+            // Stones as small gradient spheres around the perimeter
             if (stones > 0 && stones <= 12) {
-                ctx.fillStyle = `${accent}88`;
                 for (let i = 0; i < stones; i++) {
-                    const angle = (i / stones) * Math.PI * 2;
-                    const sx = p.cx + Math.cos(angle) * (p.r * 0.62);
-                    const sy = p.cy + Math.sin(angle) * (p.r * 0.62);
+                    const angle = (i / stones) * Math.PI * 2 - Math.PI / 2;
+                    const sx = p.cx + Math.cos(angle) * (p.r * 0.6);
+                    const sy = p.cy + Math.sin(angle) * (p.r * 0.6);
+                    const grad = ctx.createRadialGradient(sx - 1.2, sy - 1.2, 0, sx, sy, 4.5);
+                    grad.addColorStop(0, '#ffffff');
+                    grad.addColorStop(0.45, accent);
+                    grad.addColorStop(1, `${accent}55`);
+                    ctx.fillStyle = grad;
                     ctx.beginPath();
-                    ctx.arc(sx, sy, 2.4, 0, Math.PI * 2);
+                    ctx.arc(sx, sy, 3.6, 0, Math.PI * 2);
                     ctx.fill();
                 }
             }
+
+            // Pit count number with subtle glow
+            ctx.fillStyle = stones === 0 ? `${accent}66` : accent;
+            ctx.font = `bold ${stones === 0 ? 18 : 22}px monospace`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            if (stones > 0) {
+                ctx.shadowBlur = 6;
+                ctx.shadowColor = accent;
+            }
+            ctx.fillText(String(stones), p.cx, p.cy);
+            ctx.shadowBlur = 0;
         }
     }
 
@@ -296,10 +315,30 @@ function mancalaDrawBoard() {
     ctx.fillText(mancalaStatusText, mancalaW / 2, 12);
     ctx.shadowBlur = 0;
 
-    if (mancalaCaptureFlash && Date.now() < mancalaCaptureFlash.until) {
-        clearTimeout(mancalaPostCaptureRedraw);
-        mancalaPostCaptureRedraw = setTimeout(() => mancalaDrawBoard(), 80);
-        mancalaTimeoutQueue.push(mancalaPostCaptureRedraw);
+    // Banner overlay (extra turn, etc.) with a soft pulse
+    if (mancalaBanner && Date.now() < mancalaBanner.until) {
+        const t = (mancalaBanner.until - Date.now()) / 950;
+        const pulse = 0.65 + 0.35 * Math.sin((Date.now() / 110));
+        const alpha = Math.min(1, t * 1.6) * pulse;
+        const a2 = Math.round(Math.max(0, Math.min(1, alpha)) * 255).toString(16).padStart(2, '0');
+        ctx.fillStyle = `${mancalaBanner.color}${a2}`;
+        ctx.font = 'bold 26px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowBlur = 22;
+        ctx.shadowColor = mancalaBanner.color;
+        ctx.fillText(mancalaBanner.text, mancalaW / 2, 38);
+        ctx.shadowBlur = 0;
+    }
+
+    // Schedule a follow-up redraw if any animation is still active
+    const needAnim = (mancalaCaptureFlash && Date.now() < mancalaCaptureFlash.until)
+        || (mancalaDropFlash && Date.now() < mancalaDropFlash.until)
+        || (mancalaBanner && Date.now() < mancalaBanner.until);
+    if (needAnim) {
+        clearTimeout(mancalaAnimRedraw);
+        mancalaAnimRedraw = setTimeout(() => mancalaDrawBoard(), 60);
+        mancalaTimeoutQueue.push(mancalaAnimRedraw);
     }
 }
 
@@ -373,7 +412,13 @@ function mancalaExecuteSow(startIdx, isAI) {
             if (isOwnStore) {
                 mancalaStatusText = isAI ? 'AI EXTRA TURN' : 'EXTRA TURN';
                 mancalaStatusColor = isAI ? '#f88' : '#0f0';
-                try { SoundManager.playBloop(440, 0.06); } catch (_) {}
+                mancalaBanner = {
+                    text: isAI ? 'AI · EXTRA TURN' : 'EXTRA TURN',
+                    color: isAI ? '#ff8888' : '#00ff88',
+                    until: Date.now() + 950,
+                };
+                try { SoundManager.playBloop(520, 0.08); } catch (_) {}
+                try { setTimeout(() => SoundManager.playBloop(700, 0.06), 80); } catch (_) {}
                 mancalaDrawBoard();
                 const t = setTimeout(() => {
                     mancalaInputLocked = false;
@@ -417,11 +462,12 @@ function mancalaExecuteSow(startIdx, isAI) {
         pos = (pos + 1) % 14;
         if (pos === skipStore) pos = (pos + 1) % 14;
         mancalaBoard[pos]++;
+        mancalaDropFlash = { idx: pos, until: Date.now() + 220 };
         stones--;
-        try { SoundManager.playBloop(280, 0.02); } catch (_) {}
+        try { SoundManager.playBloop(280 + (stones * 6), 0.025); } catch (_) {}
         mancalaDrawBoard();
 
-        const t = setTimeout(sowOne, 140);
+        const t = setTimeout(sowOne, 180);
         mancalaTimeoutQueue.push(t);
     };
 
