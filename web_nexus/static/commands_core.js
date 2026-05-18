@@ -10,7 +10,7 @@ function handleCommand(cmd) {
     const silent = [
         'clear', 'history', 'sudo hack', 'sudo override', 'telemetry',
         'play wordle', 'play snake', 'play pong', 'play mines',
-        'play flappy', 'play breakout', 'play invaders',
+        'play flappy', 'play breakout', 'play invaders', 'play mancala',
         'matrix', 'monitor', 'type test',
         'leaderboard', 'changelog', 'privacy', 'terms', 'about',
     ];
@@ -84,7 +84,8 @@ function handleCommand(cmd) {
     if (lc === 'play mines')          { startMinesweeper(); return; }
     if (lc === 'play flappy')         { startFlappy(); return; }
     if (lc === 'play breakout')       { startBreakout(); return; }
-    if (lc === 'play invaders')       { startInvaders(); return; }
+    if (lc === 'play invaders')       { window.location.href = 'invaders'; return; }
+    if (lc === 'play mancala')        { startMancala(); return; }
     if (lc === 'leaderboard')         { window.location.href = 'leaderboard'; return; }
     if (lc === 'changelog')           { window.location.href = 'changelog'; return; }
     if (lc === 'privacy')             { window.location.href = 'privacy'; return; }
@@ -159,7 +160,7 @@ function showHelp() {
         "  forget all    wipe every mode's history",
         "  clear         wipe terminal output (history is untouched)",
         "  whoami        show active identity",
-        "  play <game>   wordle · snake · pong · invaders · flappy · breakout · mines",
+        "  play <game>   wordle · snake · pong · invaders · flappy · breakout · mines · mancala",
         "  logout        end session",
     ];
     if (window.OWNER_MODE) lines.push("  diag          [OWNER] DEV PANEL — diagnostics + source viewer");

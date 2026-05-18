@@ -14,6 +14,25 @@
     <link rel="icon" href="favicon.ico">
     <!-- Google AdSense — fills any <ins class="adsbygoogle"> tags. -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3034789470490055" crossorigin="anonymous"></script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": "Nexus AI Changelog",
+      "url": "https://thyfwxit.com/nexus/changelog",
+      "description": "Full version history of Nexus AI Terminal. Every feature, fix, and removal documented with dates.",
+      "isPartOf": {
+        "@type": "WebApplication",
+        "name": "Nexus AI Terminal",
+        "url": "https://thyfwxit.com/nexus"
+      },
+      "author": {
+        "@type": "Person",
+        "name": "Xavier Scott",
+        "alternateName": "THYFWX"
+      }
+    }
+    </script>
     <script async src="https://fundingchoicesmessages.google.com/i/pub-3034789470490055?ers=1"></script>
     <script>(function(){function signalGooglefcPresent(){if(!window.frames['googlefcPresent']){if(document.body){const iframe=document.createElement('iframe');iframe.style='width: 0; height: 0; border: none; z-index: -1000; left: -1000px; top: -1000px;';iframe.style.display='none';iframe.name='googlefcPresent';document.body.appendChild(iframe);}else{setTimeout(signalGooglefcPresent,0);}}}signalGooglefcPresent();})();</script>
     <script src="adblock_recovery.js"></script>
@@ -284,6 +303,24 @@
             A live record of every shipped change — features, fixes, and behind-the-scenes work.
             For the full git history, see <a href="https://github.com/Thyfwx/nexus" target="_blank" rel="noopener" style="color:var(--accent);">github.com/Thyfwx/nexus</a>.
         </p>
+
+        <!-- v5.6.5: 1 added -->
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 100%)">
+            <div class="release-head">
+                <span class="release-version">v5.6.5</span>
+                <span>
+                    <span class="release-tag tag-green">FEATURE</span>
+                </span>
+                <span class="release-date">2026-05-17</span>
+            </div>
+            <div class="release-summary">
+                Mancala lands as the eighth Nexus game. Vs an AI opponent at three depths, with a hard-mode win-streak leaderboard.
+            </div>
+            <div class="section-label sl-green">— FEATURES</div>
+            <ul class="changes">
+                <li class="added">Mancala (Kalah variant) added. Click a pit on your side to sow stones counter-clockwise, capture when you land in your own empty pit opposite a loaded enemy pit, and keep going when the last stone drops in your store. AI uses minimax with alpha-beta pruning at depths 1 (Easy), 4 (Medium), and 6 (Hard). Win on Hard to extend your streak — losses or draws reset it. Hard-mode streak is its own tab on the public leaderboard.</li>
+            </ul>
+        </div>
 
         <!-- v5.6.4: 8 added, 4 fixed, 2 removed -->
         <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 55%, #ff9500 55%, #ff9500 80%, #ff3333 80%, #ff3333 100%)">
