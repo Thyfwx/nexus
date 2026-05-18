@@ -84,7 +84,7 @@ function handleCommand(cmd) {
     if (lc === 'play mines')          { startMinesweeper(); return; }
     if (lc === 'play flappy')         { startFlappy(); return; }
     if (lc === 'play breakout')       { startBreakout(); return; }
-    if (lc === 'play invaders')       { startInvaders(); return; }
+    if (lc === 'play invaders')       { window.location.href = 'invaders'; return; }
     if (lc === 'play mancala')        { startMancala(); return; }
     if (lc === 'leaderboard')         { window.location.href = 'leaderboard'; return; }
     if (lc === 'changelog')           { window.location.href = 'changelog'; return; }
