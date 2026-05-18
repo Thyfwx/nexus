@@ -1,12 +1,10 @@
 name: Deploy Cloudflare Worker
 
-# Trigger on EVERY push to main, not just worker/** changes. This guarantees
-# the Worker re-deploys whenever the frontend version is bumped — so the
-# portfolio's "Nexus AI Core" status badge always reflects the current build.
+# Runs on every push to main. Bumps wrangler.toml's NEXUS_VERSION inline
+# from the canonical source in nexus_globals.js, then deploys via wrangler.
 #
-# Security: no github.event.* untrusted inputs are used in any run: command.
-# Only repo secrets (CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID) flow into
-# the action.
+# Security: no github.event.* untrusted strings reach any run: command. Only
+# repo secrets (CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID) flow in.
 on:
   push:
     branches: [main]
@@ -18,17 +16,30 @@ jobs:
     name: Deploy nexus-api Worker
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '24'
 
-      # Pull NEXUS_VERSION from the single source of truth (nexus_globals.js)
-      # so wrangler.toml never drifts out of sync with what the frontend says.
-      - name: Extract NEXUS_VERSION from nexus_globals.js
-        id: extract_version
+      - name: Verify Cloudflare secrets are configured
+        env:
+          HAS_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+          HAS_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
+        run: |
+          set -e
+          if [ "$HAS_TOKEN" != "true" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN is not set. Add it under Settings → Secrets and variables → Actions → Repository secrets."
+            exit 1
+          fi
+          if [ "$HAS_ACCOUNT" != "true" ]; then
+            echo "::error::CLOUDFLARE_ACCOUNT_ID is not set. Add it under Settings → Secrets and variables → Actions → Repository secrets."
+            exit 1
+          fi
+          echo "Both Cloudflare secrets are present."
+
+      - name: Sync NEXUS_VERSION in wrangler.toml from nexus_globals.js
         run: |
           set -eo pipefail
           VER="$(grep -oE "window\.NEXUS_VERSION\s*=\s*'v[0-9]+\.[0-9]+\.[0-9]+'" web_nexus/static/nexus_globals.js | head -n 1 | grep -oE "v[0-9]+\.[0-9]+\.[0-9]+")"
@@ -37,14 +48,16 @@ jobs:
             exit 1
           fi
           echo "Detected NEXUS_VERSION: $VER"
-          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          # Replace the NEXUS_VERSION line in worker/wrangler.toml in place.
+          # Uses portable sed (works on GNU and BSD sed).
+          sed -i.bak "s|^NEXUS_VERSION = \".*\"|NEXUS_VERSION = \"$VER\"|" worker/wrangler.toml
+          rm -f worker/wrangler.toml.bak
+          echo "wrangler.toml after sync:"
+          grep NEXUS_VERSION worker/wrangler.toml
 
-      - name: Deploy Worker via wrangler with synced version
+      - name: Deploy Worker via wrangler
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: worker
-          vars: NEXUS_VERSION
-        env:
-          NEXUS_VERSION: ${{ steps.extract_version.outputs.version }}
