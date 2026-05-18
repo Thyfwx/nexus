@@ -1,0 +1,50 @@
+name: Deploy Cloudflare Worker
+
+# Trigger on EVERY push to main, not just worker/** changes. This guarantees
+# the Worker re-deploys whenever the frontend version is bumped — so the
+# portfolio's "Nexus AI Core" status badge always reflects the current build.
+#
+# Security: no github.event.* untrusted inputs are used in any run: command.
+# Only repo secrets (CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID) flow into
+# the action.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy nexus-api Worker
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Pull NEXUS_VERSION from the single source of truth (nexus_globals.js)
+      # so wrangler.toml never drifts out of sync with what the frontend says.
+      - name: Extract NEXUS_VERSION from nexus_globals.js
+        id: extract_version
+        run: |
+          set -eo pipefail
+          VER="$(grep -oE "window\.NEXUS_VERSION\s*=\s*'v[0-9]+\.[0-9]+\.[0-9]+'" web_nexus/static/nexus_globals.js | head -n 1 | grep -oE "v[0-9]+\.[0-9]+\.[0-9]+")"
+          if [ -z "$VER" ]; then
+            echo "::error file=web_nexus/static/nexus_globals.js::Could not parse window.NEXUS_VERSION (expected e.g. v1.2.3)"
+            exit 1
+          fi
+          echo "Detected NEXUS_VERSION: $VER"
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy Worker via wrangler with synced version
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: worker
+          vars: NEXUS_VERSION
+        env:
+          NEXUS_VERSION: ${{ steps.extract_version.outputs.version }}
