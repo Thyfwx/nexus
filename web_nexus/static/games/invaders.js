@@ -20,28 +20,16 @@ function startInvaders() {
     gameHost.style.cssText = 'position:relative; width:100%; height:100%; min-height:500px; display:flex; flex-direction:column; align-items:center; padding:8px;';
     monitor.appendChild(gameHost);
 
-    // Title + close button
-    var topBar = document.createElement('div');
-    topBar.style.cssText = 'width:100%; display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-family:"Fira Code",monospace;';
-    topBar.innerHTML = '<span style="color:#0ff; font-size:0.75rem; font-weight:700; letter-spacing:3px;">NEXUS INVADERS</span><button id="invaders-close" style="background:transparent; border:1px solid rgba(255,255,255,0.15); color:#888; font-family:inherit; font-size:0.75rem; padding:2px 10px; border-radius:4px; cursor:pointer; letter-spacing:1px;">X</button>';
-    gameHost.appendChild(topBar);
+    // No in-game title or close button. The standalone page handles navigation
+    // via its own header link. Closing the game from inside the game makes no
+    // sense — there's nothing to close to. (Removed 2026-05-18 per Xavier.)
 
-    document.getElementById('invaders-close').onclick = function() {
-        stopInvaders();
-        var host = document.getElementById('invaders-host');
-        if (host) host.remove();
-        if (output) output.style.display = '';
-        if (inputWrap) inputWrap.style.display = '';
-        if (tipBar) tipBar.style.display = '';
-        if (window.guiContainer) guiContainer.classList.add('gui-hidden');
-    };
-
-    // Canvas — fills the terminal area
+    // Canvas — fills the host container edge-to-edge, no inner framing
     var canvas = document.createElement('canvas');
-    var W = Math.min(monitor.clientWidth - 20, 700);
-    var H = Math.min(monitor.clientHeight - 50, 520);
+    var W = Math.min(monitor.clientWidth - 8, 1100);
+    var H = Math.min(monitor.clientHeight - 8, 760);
     canvas.width = W; canvas.height = H;
-    canvas.style.cssText = 'border-radius:4px; border:1px solid rgba(0,255,255,0.15); box-shadow:0 0 20px rgba(0,255,255,0.1); cursor:crosshair;';
+    canvas.style.cssText = 'display:block; cursor:crosshair;';
     gameHost.appendChild(canvas);
     var ctx = canvas.getContext('2d');
 
@@ -240,7 +228,7 @@ function startInvaders() {
         // Enemy bullets
         var playerHitY = H - 40;
         enemyBullets = enemyBullets.filter(function(b) {
-            b.y += 2 + wave * 0.1;
+            b.y += 1.6 + Math.min(wave, 6) * 0.08;
             if (b.tx !== undefined) b.x += (b.tx - b.x) * 0.008;
             if (b.y > playerHitY && b.y < playerHitY + 25 && b.x > playerX && b.x < playerX + 20) {
                 if (pu_state.shield) { pu_state.shield = false; addFloat(playerX + 10, H - 60, 'SHIELD BREAK', '#0ff'); SoundManager.playBloop(250, 0.05); }
@@ -250,21 +238,21 @@ function startInvaders() {
         });
 
         // Move enemies
-        var speed = 0.5 + wave * 0.13, edge = false;
+        var speed = 0.5 + Math.min(wave, 6) * 0.13, edge = false;
         enemies.forEach(function(e) {
             if (!e.alive) return;
             if (e.entering) { if (e.enterDelay > 0) { e.enterDelay--; return; } e.x += (e.targetX - e.x) * 0.07; e.y += (e.targetY - e.y) * 0.07; if (Math.abs(e.x - e.targetX) < 1 && Math.abs(e.y - e.targetY) < 1) { e.x = e.targetX; e.y = e.targetY; e.entering = false; } return; }
-            if (e.kind === 'diver') { if (e.diveState === 0) { e.x += moveDir * speed; if (Math.random() < 0.004 + wave * 0.001) e.diveState = 1; } else if (e.diveState === 1) { e.y += 4; e.x += (playerX - e.x) * 0.025; if (e.y >= H - 80) e.diveState = 2; } else { e.y -= 3; if (e.y < 60) { e.diveState = 0; e.y = 50; } } }
+            if (e.kind === 'diver') { if (e.diveState === 0) { e.x += moveDir * speed; if (Math.random() < 0.0022 + Math.min(wave, 6) * 0.0006) e.diveState = 1; } else if (e.diveState === 1) { e.y += 2.4; e.x += (playerX - e.x) * 0.022; if (e.y >= H - 80) e.diveState = 2; } else { e.y -= 2.2; if (e.y < 60) { e.diveState = 0; e.y = 50; } } }
             else if (e.kind === 'boss' || e.kind === 'miniboss') { e.x = W / 2 - 20 + Math.sin(tick_count * 0.012) * (W / 3); e.y = 30 + Math.sin(tick_count * 0.008) * 20; }
             else { e.x += moveDir * speed; if (wave >= 3) e.x += Math.sin(tick_count * 0.02 + e.y * 0.06) * 0.5; }
             if (e.x > W - 30 || e.x < 10) edge = true;
             if (e.y > H - 60 && e.kind !== 'diver') gameOver = true;
         });
-        if (edge) { moveDir *= -1; enemies.forEach(function(e) { if (e.kind !== 'boss' && e.kind !== 'miniboss' && e.kind !== 'diver' && !e.entering) e.y += 6 + Math.min(wave, 8); }); }
+        if (edge) { moveDir *= -1; enemies.forEach(function(e) { if (e.kind !== 'boss' && e.kind !== 'miniboss' && e.kind !== 'diver' && !e.entering) e.y += 5 + Math.min(wave * 0.6, 5); }); }
 
         // Enemy firing
         enemyBulletTimer++;
-        var fireRate = wave === 1 ? 180 : wave === 2 ? 120 : wave === 3 ? 90 : wave === 4 ? 70 : Math.max(30, 60 - wave * 2);
+        var fireRate = wave === 1 ? 200 : wave === 2 ? 140 : wave === 3 ? 110 : wave === 4 ? 95 : Math.max(60, 95 - wave * 2);
         if (enemyBulletTimer > fireRate) {
             var living = enemies.filter(function(e) { return e.alive && !e.entering; });
             if (living.length > 0) {
