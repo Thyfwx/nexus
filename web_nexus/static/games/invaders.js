@@ -20,21 +20,9 @@ function startInvaders() {
     gameHost.style.cssText = 'position:relative; width:100%; height:100%; min-height:500px; display:flex; flex-direction:column; align-items:center; padding:8px;';
     monitor.appendChild(gameHost);
 
-    // Title + close button
-    var topBar = document.createElement('div');
-    topBar.style.cssText = 'width:100%; display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-family:"Fira Code",monospace;';
-    topBar.innerHTML = '<span style="color:#0ff; font-size:0.75rem; font-weight:700; letter-spacing:3px;">NEXUS INVADERS</span><button id="invaders-close" style="background:transparent; border:1px solid rgba(255,255,255,0.15); color:#888; font-family:inherit; font-size:0.75rem; padding:2px 10px; border-radius:4px; cursor:pointer; letter-spacing:1px;">X</button>';
-    gameHost.appendChild(topBar);
-
-    document.getElementById('invaders-close').onclick = function() {
-        stopInvaders();
-        var host = document.getElementById('invaders-host');
-        if (host) host.remove();
-        if (output) output.style.display = '';
-        if (inputWrap) inputWrap.style.display = '';
-        if (tipBar) tipBar.style.display = '';
-        if (window.guiContainer) guiContainer.classList.add('gui-hidden');
-    };
+    // No in-game title or close button. The standalone page handles navigation
+    // via its own header link. Closing the game from inside the game makes no
+    // sense — there's nothing to close to. (Removed 2026-05-18 per Xavier.)
 
     // Canvas — fills the host container edge-to-edge, no inner framing
     var canvas = document.createElement('canvas');
