@@ -1,18 +1,15 @@
 name: Deploy Cloudflare Worker
 
-# Trigger: every push to main that touches worker/ files, plus manual dispatch.
-# Pages frontend is auto-deployed by Cloudflare Pages itself — this workflow
-# only handles the api.thyfwxit.com Worker.
+# Trigger on EVERY push to main, not just worker/** changes. This guarantees
+# the Worker re-deploys whenever the frontend version is bumped — so the
+# portfolio's "Nexus AI Core" status badge always reflects the current build.
 #
-# Security: this workflow does not consume any github.event.* untrusted inputs.
-# It only references repo secrets (CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID).
-# No command-injection surface.
+# Security: no github.event.* untrusted inputs are used in any run: command.
+# Only repo secrets (CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID) flow into
+# the action.
 on:
   push:
     branches: [main]
-    paths:
-      - 'worker/**'
-      - '.github/workflows/deploy-worker.yml'
   workflow_dispatch: {}
 
 jobs:
@@ -28,9 +25,26 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Deploy Worker via wrangler
+      # Pull NEXUS_VERSION from the single source of truth (nexus_globals.js)
+      # so wrangler.toml never drifts out of sync with what the frontend says.
+      - name: Extract NEXUS_VERSION from nexus_globals.js
+        id: extract_version
+        run: |
+          set -eo pipefail
+          VER="$(grep -oE "window\.NEXUS_VERSION\s*=\s*'v[0-9]+\.[0-9]+\.[0-9]+'" web_nexus/static/nexus_globals.js | head -n 1 | grep -oE "v[0-9]+\.[0-9]+\.[0-9]+")"
+          if [ -z "$VER" ]; then
+            echo "::error file=web_nexus/static/nexus_globals.js::Could not parse window.NEXUS_VERSION (expected e.g. v1.2.3)"
+            exit 1
+          fi
+          echo "Detected NEXUS_VERSION: $VER"
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy Worker via wrangler with synced version
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: worker
+          vars: NEXUS_VERSION
+        env:
+          NEXUS_VERSION: ${{ steps.extract_version.outputs.version }}
