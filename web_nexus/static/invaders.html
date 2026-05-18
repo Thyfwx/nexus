@@ -177,10 +177,10 @@
     </nav>
 
     <!-- Game scripts -->
-    <script src="nexus_globals.js?v=bc3e51"></script>
-    <script src="audio_core.js?v=bc3e51"></script>
-    <script src="games/_lifecycle.js?v=bc3e51"></script>
-    <script src="games/invaders.js?v=bc3e51"></script>
+    <script src="nexus_globals.js?v=cd4f62"></script>
+    <script src="audio_core.js?v=cd4f62"></script>
+    <script src="games/_lifecycle.js?v=cd4f62"></script>
+    <script src="games/invaders.js?v=cd4f62"></script>
     <script>
         // Auto-start Invaders on page load. invaders.js takes over .monitor.
         window.addEventListener('DOMContentLoaded', () => {
@@ -188,17 +188,12 @@
             window.OWNER_MODE = false;
             startInvaders();
             // Replace the in-game close button: navigate back to terminal instead of an empty .monitor
+            // Strip gameHost padding so canvas fills its container edge-to-edge.
+            // (invaders.js no longer creates the in-game top bar / X button.)
             setTimeout(() => {
-                const closeBtn = document.getElementById('invaders-close');
-                if (!closeBtn) return;
-                // Hide the entire in-game top strip (title + EXIT). The page header
-                // is the only navigation needed — page back-link gets you out.
-                const topBar = closeBtn.parentElement;
-                if (topBar) topBar.style.display = 'none';
-                // Strip gameHost padding so canvas fills its container edge-to-edge
                 const host = document.getElementById('invaders-host');
                 if (host) host.style.padding = '0';
-            }, 120);
+            }, 60);
         });
     </script>
 </body>
