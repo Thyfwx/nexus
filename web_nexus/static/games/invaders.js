@@ -36,12 +36,12 @@ function startInvaders() {
         if (window.guiContainer) guiContainer.classList.add('gui-hidden');
     };
 
-    // Canvas — fills the terminal area
+    // Canvas — fills the host container edge-to-edge, no inner framing
     var canvas = document.createElement('canvas');
-    var W = Math.min(monitor.clientWidth - 20, 700);
-    var H = Math.min(monitor.clientHeight - 50, 520);
+    var W = Math.min(monitor.clientWidth - 8, 1100);
+    var H = Math.min(monitor.clientHeight - 8, 760);
     canvas.width = W; canvas.height = H;
-    canvas.style.cssText = 'border-radius:4px; border:1px solid rgba(0,255,255,0.15); box-shadow:0 0 20px rgba(0,255,255,0.1); cursor:crosshair;';
+    canvas.style.cssText = 'display:block; cursor:crosshair;';
     gameHost.appendChild(canvas);
     var ctx = canvas.getContext('2d');
 
