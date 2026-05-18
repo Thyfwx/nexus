@@ -1,0 +1,8 @@
+# Defensive — repo-root .gitignore already excludes these, but a local
+# .gitignore makes it crystal clear nothing here ships to GitHub.
+.wrangler/
+node_modules/
+package-lock.json
+.env
+.dev.vars
+*.log
