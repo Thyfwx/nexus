@@ -291,19 +291,24 @@ export default {
         }, 200, request);
       }
 
-      // ── Session info ────────────────────────────────────────────────
+      // ── Session info (debug) ────────────────────────────────────────
+      // Owner-only. Returns 404 to non-owners so the endpoint is invisible
+      // to anyone but Xavier. Never leak OWNER_EMAIL in the response body.
       if (path === '/api/me/whoami-debug') {
         const session = await getSession(request, env);
-        const email = session ? (session.email || '').toLowerCase() : null;
+        if (!isOwner(session, env)) {
+          return json({ error: 'Not found' }, 404, request);
+        }
+        const email = (session.email || '').toLowerCase();
         return json({
           cookie_present: !!(request.headers.get('Cookie') || '').includes('nexus_session'),
-          session_decoded: !!session,
+          session_decoded: true,
           session_email: email,
-          session_name: session ? session.name : null,
-          session_picture: session ? session.picture : null,
-          owner_email_const: env.OWNER_EMAIL || '',
-          is_owner_check: email === (env.OWNER_EMAIL || '').toLowerCase(),
-          _is_owner_result: isOwner(session, env),
+          session_name: session.name || null,
+          session_picture: session.picture || null,
+          owner_email_const: '***set***',
+          is_owner_check: true,
+          _is_owner_result: true,
         }, 200, request);
       }
 
@@ -691,6 +696,11 @@ export default {
 
       // ── Conversation Logging (Discord) ──────────────────────────────
       if (path === '/api/log-conversation' && method === 'POST') {
+        // Origin gate: prevent anyone from spamming the Discord webhook.
+        const origin = request.headers.get('Origin') || '';
+        if (!ALLOWED_ORIGINS.includes(origin)) {
+          return json({ ok: false, error: 'Unauthorized — invalid origin' }, 403, request);
+        }
         const body = await request.json();
         const webhook = env.DISCORD_WEBHOOK || '';
         if (!webhook.startsWith('https://')) return json({ ok: false, error: 'no webhook' }, 200, request);
@@ -870,12 +880,6 @@ export default {
         return json({ ok: true }, 200, request);
       }
 
-      if (path === '/api/dev/locked-users') {
-        const session = await getSession(request, env);
-        if (!isOwner(session, env)) return json({ error: 'owner only' }, 403, request);
-        return json({ ok: true, locked: [] }, 200, request);
-      }
-
       if (path === '/api/tools/manifest') {
         return json({ ok: true, tools: [] }, 200, request);
       }
@@ -1024,6 +1028,11 @@ export default {
 
       // ── Moderation alert ────────────────────────────────────────────
       if (path === '/api/moderation-alert' && method === 'POST') {
+        // Origin gate: prevent anyone from spamming fake moderation alerts.
+        const origin = request.headers.get('Origin') || '';
+        if (!ALLOWED_ORIGINS.includes(origin)) {
+          return json({ ok: false, error: 'Unauthorized — invalid origin' }, 403, request);
+        }
         const body = await request.json();
         const webhook = env.DISCORD_WEBHOOK || '';
         if (!webhook.startsWith('https://')) return json({ ok: false, error: 'no webhook' }, 200, request);
@@ -1072,6 +1081,11 @@ export default {
 
       // ── Report endpoint ─────────────────────────────────────────────
       if (path === '/api/report' && method === 'POST') {
+        // Origin gate: prevent anyone from sending fake user reports.
+        const origin = request.headers.get('Origin') || '';
+        if (!ALLOWED_ORIGINS.includes(origin)) {
+          return json({ ok: false, error: 'Unauthorized — invalid origin' }, 403, request);
+        }
         const body = await request.json();
         const webhook = env.DISCORD_WEBHOOK || '';
         if (!webhook.startsWith('https://')) return json({ ok: false, error: 'no webhook' }, 200, request);
