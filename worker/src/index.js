@@ -700,21 +700,22 @@ export default {
       }
 
       // ── Page Summarizer (Gemini) ────────────────────────────────────
-      // Powers the "TL;DR" button on portfolio pages. Takes the page text,
-      // returns a 3 to 4 sentence summary. Rate limited per IP per day to
-      // bound the Gemini bill against spam clicks.
+      // Powers the AI summary button on portfolio pages. Takes the page
+      // text, returns a 3 to 4 sentence summary. Rate limited per IP per
+      // day to bound the Gemini bill against spam clicks.
       if (path === '/api/summarize' && method === 'POST') {
         const origin = request.headers.get('Origin') || '';
         if (!ALLOWED_ORIGINS.includes(origin)) {
           return json({ error: 'Unauthorized' }, 403, request);
         }
 
-        // Rate limit: 15 summaries per IP per day.
+        // Rate limit: 100 summaries per IP per day.
         const clientIp = request.headers.get('CF-Connecting-IP') || 'unknown';
         const day = new Date().toISOString().slice(0, 10);
         const rateKey = `summary:ip:${clientIp}:${day}`;
         const count = parseInt(await env.NEXUS_KV.get(rateKey) || '0', 10);
-        if (count >= 15) {
+        const SUMMARY_DAILY_CAP = 100;
+        if (count >= SUMMARY_DAILY_CAP) {
           return json({ error: 'Daily limit reached. Try again tomorrow.' }, 429, request);
         }
 
@@ -751,7 +752,7 @@ export default {
           }
           // Increment counter only on success
           await env.NEXUS_KV.put(rateKey, String(count + 1), { expirationTtl: 86400 * 2 });
-          return json({ summary: summary.trim(), remaining: 14 - count }, 200, request);
+          return json({ summary: summary.trim(), remaining: SUMMARY_DAILY_CAP - 1 - count }, 200, request);
         } catch (e) {
           console.log('[SUMMARIZE ERROR]', e.message);
           return json({ error: 'Summarization failed.' }, 500, request);
