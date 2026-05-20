@@ -383,7 +383,8 @@ export default {
           }
         }
 
-        const cmd = (body.command || body.cmd || '').trim();
+        // Cap individual message length to prevent single-shot token burn within rate limit.
+        const cmd = (body.command || body.cmd || '').trim().slice(0, 8000);
         if (!cmd || cmd === '__ban_check__') {
           return json({ ok: true, text: '' }, 200, request);
         }
@@ -409,10 +410,12 @@ export default {
         for (const h of history.slice(-10)) {
           if (!h || !h.role) continue;
           const role = ['assistant', 'model', 'ai', 'nexus'].includes(h.role.toLowerCase()) ? 'assistant' : 'user';
+          // Cap each history message to prevent token-burn via inflated history entries.
+          const histContent = (h.content || '').slice(0, 8000);
           if (chatMessages.length && chatMessages[chatMessages.length - 1].role === role) {
-            chatMessages[chatMessages.length - 1].content += '\n' + (h.content || '');
+            chatMessages[chatMessages.length - 1].content += '\n' + histContent;
           } else {
-            chatMessages.push({ role, content: h.content || '' });
+            chatMessages.push({ role, content: histContent });
           }
         }
         if (chatMessages[chatMessages.length - 1]?.role === 'user') {
@@ -815,6 +818,9 @@ export default {
         const game = (body.game || '').trim();
         const score = parseInt(body.score || '0');
         if (!game || !score) return json({ ok: false, error: 'missing game or score' }, 400, request);
+        // Allowlist: stop attackers polluting KV with arbitrary lb:* keys.
+        const allowedLbGames = ['wordle','snake_classic','snake_speed','snake_endless','snake_stealth','pong','flappy','breakout','invaders','mines','typing','mancala_hard_streak'];
+        if (!allowedLbGames.includes(game)) return json({ ok: false, error: 'unknown game' }, 400, request);
 
         const handle = session ? (await env.NEXUS_KV.get(`handle:${session.sub}`) || session.name || 'Anonymous') : 'Guest';
         const entries = JSON.parse(await env.NEXUS_KV.get(`lb:${game}`) || '[]');
