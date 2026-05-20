@@ -16,6 +16,8 @@
 const ALLOWED_ORIGINS = [
   'https://thyfwxit.com',
   'https://sandbox.thyfwxit.com',
+  'https://sandbox.thyfwxit-git.pages.dev',
+  'https://thyfwxit-git.pages.dev',
   'https://api.thyfwxit.com',
 ];
 
@@ -692,6 +694,65 @@ export default {
         const resp = json({ ok: true, name: 'Guest', email: 'guest@local', picture: '', is_owner: false }, 200, request);
         resp.headers.set('Set-Cookie', `nexus_session=${token}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${24*3600}; Domain=.thyfwxit.com`);
         return resp;
+      }
+
+      // ── Page Summarizer (Gemini) ────────────────────────────────────
+      // Powers the "TL;DR" button on portfolio pages. Takes the page text,
+      // returns a 3 to 4 sentence summary. Rate limited per IP per day to
+      // bound the Gemini bill against spam clicks.
+      if (path === '/api/summarize' && method === 'POST') {
+        const origin = request.headers.get('Origin') || '';
+        if (!ALLOWED_ORIGINS.includes(origin)) {
+          return json({ error: 'Unauthorized' }, 403, request);
+        }
+
+        // Rate limit: 15 summaries per IP per day.
+        const clientIp = request.headers.get('CF-Connecting-IP') || 'unknown';
+        const day = new Date().toISOString().slice(0, 10);
+        const rateKey = `summary:ip:${clientIp}:${day}`;
+        const count = parseInt(await env.NEXUS_KV.get(rateKey) || '0', 10);
+        if (count >= 15) {
+          return json({ error: 'Daily limit reached. Try again tomorrow.' }, 429, request);
+        }
+
+        const body = await request.json().catch(() => ({}));
+        const content = (body.content || '').slice(0, 50000);
+        const pageUrl = (body.url || '').slice(0, 200);
+        if (!content || content.length < 50) {
+          return json({ error: 'Not enough content to summarize.' }, 400, request);
+        }
+
+        if (!env.GEMINI_API_KEY) {
+          return json({ error: 'Summary service not configured.' }, 503, request);
+        }
+
+        const prompt = `Summarize this page from thyfwxit.com in 3 to 4 short sentences. Plain conversational language. No marketing fluff. No AI tells like "this page covers" or "in summary". Just say what the page is actually about, like you would tell a friend who asked.\n\nURL: ${pageUrl}\n\nPAGE CONTENT:\n${content}`;
+
+        try {
+          const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent', {
+            method: 'POST',
+            headers: {
+              'x-goog-api-key': env.GEMINI_API_KEY,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { temperature: 0.4, maxOutputTokens: 300 },
+            }),
+          });
+          const data = await r.json();
+          const summary = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (!summary) {
+            console.log('[SUMMARIZE] empty response from Gemini');
+            return json({ error: 'No summary returned.' }, 500, request);
+          }
+          // Increment counter only on success
+          await env.NEXUS_KV.put(rateKey, String(count + 1), { expirationTtl: 86400 * 2 });
+          return json({ summary: summary.trim(), remaining: 14 - count }, 200, request);
+        } catch (e) {
+          console.log('[SUMMARIZE ERROR]', e.message);
+          return json({ error: 'Summarization failed.' }, 500, request);
+        }
       }
 
       // ── Conversation Logging (Discord) ──────────────────────────────
