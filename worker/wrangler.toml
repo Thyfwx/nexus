@@ -27,4 +27,4 @@ invocation_logs = true
 
 [vars]
 ENVIRONMENT = "production"
-NEXUS_VERSION = "v5.6.6"
+NEXUS_VERSION = "v5.6.7"

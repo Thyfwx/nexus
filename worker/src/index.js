@@ -769,7 +769,11 @@ ${content}`;
             },
             body: JSON.stringify({
               contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: { temperature: 0.5, maxOutputTokens: 260 },
+              generationConfig: {
+                temperature: 0.5,
+                maxOutputTokens: 512,
+                thinkingConfig: { thinkingBudget: 0 },
+              },
             }),
           });
           const data = await r.json();
