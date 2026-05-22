@@ -719,7 +719,10 @@ export default {
         }
 
         const body = await request.json().catch(() => ({}));
-        const content = (body.content || '').slice(0, 50000);
+        // Reduced input cap from 50000 to 8000 chars. The TL;DR is 3-4
+        // sentences; extra content past 8K rarely changes the output but
+        // multiplies token cost 6x.
+        const content = (body.content || '').slice(0, 8000);
         const pageUrl = (body.url || '').slice(0, 200);
         if (!content || content.length < 50) {
           return json({ error: 'Not enough content to summarize.' }, 400, request);
@@ -727,6 +730,20 @@ export default {
 
         if (!env.GEMINI_API_KEY) {
           return json({ error: 'Summary service not configured.' }, 503, request);
+        }
+
+        // Cost optimization: cache the summary by URL+content hash for 24h.
+        // Repeat visitors to the same page pay zero Gemini cost. Most TL;DR
+        // clicks on a stable site are duplicates.
+        async function sha1(s) {
+          const data = new TextEncoder().encode(s);
+          const buf = await crypto.subtle.digest('SHA-1', data);
+          return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        const cacheKey = `summary:cache:${await sha1(pageUrl + '|' + content.slice(0, 4000))}`;
+        const cached = await env.NEXUS_KV.get(cacheKey);
+        if (cached) {
+          return json({ summary: cached, remaining: 15 - count, cached: true }, 200, request);
         }
 
         const prompt = `Summarize this page from thyfwxit.com in 3 to 4 short sentences. Plain conversational language. No marketing fluff. No AI tells like "this page covers" or "in summary". Just say what the page is actually about, like you would tell a friend who asked.\n\nURL: ${pageUrl}\n\nPAGE CONTENT:\n${content}`;
@@ -740,7 +757,7 @@ export default {
             },
             body: JSON.stringify({
               contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: { temperature: 0.4, maxOutputTokens: 300 },
+              generationConfig: { temperature: 0.4, maxOutputTokens: 200 },
             }),
           });
           const data = await r.json();
@@ -749,9 +766,11 @@ export default {
             console.log('[SUMMARIZE] empty response from Gemini');
             return json({ error: 'No summary returned.' }, 500, request);
           }
-          // Increment counter only on success
+          const cleanSummary = summary.trim();
+          // Cache the result for 24h. Increment user counter only on success.
+          await env.NEXUS_KV.put(cacheKey, cleanSummary, { expirationTtl: 86400 });
           await env.NEXUS_KV.put(rateKey, String(count + 1), { expirationTtl: 86400 * 2 });
-          return json({ summary: summary.trim(), remaining: 14 - count }, 200, request);
+          return json({ summary: cleanSummary, remaining: 14 - count, cached: false }, 200, request);
         } catch (e) {
           console.log('[SUMMARIZE ERROR]', e.message);
           return json({ error: 'Summarization failed.' }, 500, request);
