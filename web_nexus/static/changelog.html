@@ -305,6 +305,24 @@
             For the full git history, see <a href="https://github.com/Thyfwx/nexus" target="_blank" rel="noopener" style="color:var(--accent);">github.com/Thyfwx/nexus</a>.
         </p>
 
+        <!-- v5.6.7: 1 fixed (hotfix) -->
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #ff9500 0%, #ff9500 100%)">
+            <div class="release-head">
+                <span class="release-version">v5.6.7</span>
+                <span>
+                    <span class="release-tag tag-orange">HOTFIX</span>
+                </span>
+                <span class="release-date">2026-05-22</span>
+            </div>
+            <div class="release-summary">
+                v5.6.6 shipped with the TL;DR summarize button still broken. The fix needed one more piece: Gemini 2.5 Flash has dynamic thinking enabled by default, which eats the maxOutputTokens budget before any visible text comes out. Set thinkingBudget to 0 to disable thinking for summarize calls (no chain-of-thought needed for a 5-sentence summary), bumped maxOutputTokens to 512 as safety margin.
+            </div>
+            <div class="section-label sl-orange">— PATCHES</div>
+            <ul class="changes">
+                <li class="fixed">Worker /api/summarize now passes thinkingConfig.thinkingBudget=0 to Gemini 2.5 Flash so the model spends tokens on actual output, not on internal reasoning. Summaries now return the full 4 to 5 sentences instead of cutting off after one fragment.</li>
+            </ul>
+        </div>
+
         <!-- v5.6.6: 3 fixed -->
         <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #ff9500 0%, #ff9500 100%)">
             <div class="release-head">
