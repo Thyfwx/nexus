@@ -305,6 +305,26 @@
             For the full git history, see <a href="https://github.com/Thyfwx/nexus" target="_blank" rel="noopener" style="color:var(--accent);">github.com/Thyfwx/nexus</a>.
         </p>
 
+        <!-- v5.6.6: 3 fixed -->
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #ff9500 0%, #ff9500 100%)">
+            <div class="release-head">
+                <span class="release-version">v5.6.6</span>
+                <span>
+                    <span class="release-tag tag-orange">PATCHES</span>
+                </span>
+                <span class="release-date">2026-05-22</span>
+            </div>
+            <div class="release-summary">
+                TL;DR summarize button no longer outputs "okay, so this post is called ...". Daily cap on portfolio summaries lifted from 30 to 100 per IP now that Gemini 2.5 Flash runs on the free tier.
+            </div>
+            <div class="section-label sl-orange">— PATCHES</div>
+            <ul class="changes">
+                <li class="fixed">TL;DR button output cleaned up. Frontend now extracts the H1 (or document.title) and sends it to the Worker as a dedicated title field. Worker prompt rewritten with hard rules forbidding conversational openers ("okay", "so", "alright", "basically", "well") and the "this post is called ..." pattern. Cache key now includes the title so different pages with similar bodies do not collide.</li>
+                <li class="fixed">Daily summarize cap lifted from 30 to 100 requests per IP per day. Cache hits still cost zero. Free Gemini 2.5 Flash quota is comfortable at this rate.</li>
+                <li class="fixed">JSON-LD blocks, &lt;nav&gt;, &lt;header&gt;, and &lt;footer&gt; now stripped from the page content before sending to the model. The 8K input budget goes to actual article text instead of structured metadata.</li>
+            </ul>
+        </div>
+
         <!-- v5.6.5: 1 added -->
         <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 100%)">
             <div class="release-head">
