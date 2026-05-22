@@ -709,21 +709,19 @@ export default {
           return json({ error: 'Unauthorized' }, 403, request);
         }
 
-        // Rate limit: 30 summaries per IP per day. Cache hits don't count.
+        // Rate limit: 100 summaries per IP per day. Cache hits don't count.
         const clientIp = request.headers.get('CF-Connecting-IP') || 'unknown';
         const day = new Date().toISOString().slice(0, 10);
         const rateKey = `summary:ip:${clientIp}:${day}`;
         const count = parseInt(await env.NEXUS_KV.get(rateKey) || '0', 10);
-        if (count >= 30) {
+        if (count >= 100) {
           return json({ error: 'Daily limit reached. Try again tomorrow.' }, 429, request);
         }
 
         const body = await request.json().catch(() => ({}));
-        // Reduced input cap from 50000 to 8000 chars. The TL;DR is 3-4
-        // sentences; extra content past 8K rarely changes the output but
-        // multiplies token cost 6x.
         const content = (body.content || '').slice(0, 8000);
         const pageUrl = (body.url || '').slice(0, 200);
+        const title = (body.title || '').slice(0, 150);
         if (!content || content.length < 50) {
           return json({ error: 'Not enough content to summarize.' }, 400, request);
         }
@@ -732,29 +730,30 @@ export default {
           return json({ error: 'Summary service not configured.' }, 503, request);
         }
 
-        // Cost optimization: cache the summary by URL+content hash for 24h.
-        // Repeat visitors to the same page pay zero Gemini cost. Most TL;DR
-        // clicks on a stable site are duplicates.
         async function sha1(s) {
           const data = new TextEncoder().encode(s);
           const buf = await crypto.subtle.digest('SHA-1', data);
           return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
         }
-        const cacheKey = `summary:cache:${await sha1(pageUrl + '|' + content.slice(0, 4000))}`;
+        const cacheKey = `summary:cache:${await sha1(pageUrl + '|' + title + '|' + content.slice(0, 4000))}`;
         const cached = await env.NEXUS_KV.get(cacheKey);
         if (cached) {
-          return json({ summary: cached, remaining: 30 - count, cached: true }, 200, request);
+          return json({ summary: cached, remaining: 100 - count, cached: true }, 200, request);
         }
 
-        const prompt = `You are summarizing a page from thyfwxit.com, a solo developer's portfolio. Write 4 to 5 short sentences in plain conversational language, like you're telling a friend what the page is about.
+        const prompt = `You are summarizing a page from thyfwxit.com.
 
-RULES:
-- Lead with the most specific, concrete thing on the page (project name, post title, real fact)
-- Use the developer's voice: direct, lowercase okay, no corporate spin
-- NEVER use phrases like "this page covers", "in summary", "delves into", "explores", "showcases", "is dedicated to"
-- NEVER start with "The page" or "This page"
-- If the page has technical details (tools, stack, numbers), include at least one
-- Avoid bullet points; prose only
+The page title is: ${title || '(no title provided)'}
+
+Write 4 to 5 short sentences in direct, plain English. No filler, no openers, no quotes around the title.
+
+HARD RULES (failure conditions):
+- NEVER start with "okay", "so", "alright", "basically", "well", "this post", "this page", "the page", or any conversational opener
+- NEVER wrap the title in quotes or say "this post is called ..."
+- NEVER use AI tells: "delves into", "explores", "showcases", "is dedicated to", "in summary", "this page covers"
+- Lead with a concrete fact or specific name from the page
+- Use the developer's lowercase-friendly voice. No corporate spin.
+- Prose only, no bullets
 
 URL: ${pageUrl}
 
@@ -783,7 +782,7 @@ ${content}`;
           // Cache the result for 24h. Increment user counter only on success.
           await env.NEXUS_KV.put(cacheKey, cleanSummary, { expirationTtl: 86400 });
           await env.NEXUS_KV.put(rateKey, String(count + 1), { expirationTtl: 86400 * 2 });
-          return json({ summary: cleanSummary, remaining: 29 - count, cached: false }, 200, request);
+          return json({ summary: cleanSummary, remaining: 99 - count, cached: false }, 200, request);
         } catch (e) {
           console.log('[SUMMARIZE ERROR]', e.message);
           return json({ error: 'Summarization failed.' }, 500, request);
