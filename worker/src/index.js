@@ -709,12 +709,12 @@ export default {
           return json({ error: 'Unauthorized' }, 403, request);
         }
 
-        // Rate limit: 15 summaries per IP per day.
+        // Rate limit: 30 summaries per IP per day. Cache hits don't count.
         const clientIp = request.headers.get('CF-Connecting-IP') || 'unknown';
         const day = new Date().toISOString().slice(0, 10);
         const rateKey = `summary:ip:${clientIp}:${day}`;
         const count = parseInt(await env.NEXUS_KV.get(rateKey) || '0', 10);
-        if (count >= 15) {
+        if (count >= 30) {
           return json({ error: 'Daily limit reached. Try again tomorrow.' }, 429, request);
         }
 
@@ -743,10 +743,23 @@ export default {
         const cacheKey = `summary:cache:${await sha1(pageUrl + '|' + content.slice(0, 4000))}`;
         const cached = await env.NEXUS_KV.get(cacheKey);
         if (cached) {
-          return json({ summary: cached, remaining: 15 - count, cached: true }, 200, request);
+          return json({ summary: cached, remaining: 30 - count, cached: true }, 200, request);
         }
 
-        const prompt = `Summarize this page from thyfwxit.com in 3 to 4 short sentences. Plain conversational language. No marketing fluff. No AI tells like "this page covers" or "in summary". Just say what the page is actually about, like you would tell a friend who asked.\n\nURL: ${pageUrl}\n\nPAGE CONTENT:\n${content}`;
+        const prompt = `You are summarizing a page from thyfwxit.com, a solo developer's portfolio. Write 4 to 5 short sentences in plain conversational language, like you're telling a friend what the page is about.
+
+RULES:
+- Lead with the most specific, concrete thing on the page (project name, post title, real fact)
+- Use the developer's voice: direct, lowercase okay, no corporate spin
+- NEVER use phrases like "this page covers", "in summary", "delves into", "explores", "showcases", "is dedicated to"
+- NEVER start with "The page" or "This page"
+- If the page has technical details (tools, stack, numbers), include at least one
+- Avoid bullet points; prose only
+
+URL: ${pageUrl}
+
+PAGE CONTENT:
+${content}`;
 
         try {
           const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent', {
@@ -757,7 +770,7 @@ export default {
             },
             body: JSON.stringify({
               contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: { temperature: 0.4, maxOutputTokens: 200 },
+              generationConfig: { temperature: 0.5, maxOutputTokens: 260 },
             }),
           });
           const data = await r.json();
@@ -770,7 +783,7 @@ export default {
           // Cache the result for 24h. Increment user counter only on success.
           await env.NEXUS_KV.put(cacheKey, cleanSummary, { expirationTtl: 86400 });
           await env.NEXUS_KV.put(rateKey, String(count + 1), { expirationTtl: 86400 * 2 });
-          return json({ summary: cleanSummary, remaining: 14 - count, cached: false }, 200, request);
+          return json({ summary: cleanSummary, remaining: 29 - count, cached: false }, 200, request);
         } catch (e) {
           console.log('[SUMMARIZE ERROR]', e.message);
           return json({ error: 'Summarization failed.' }, 500, request);
