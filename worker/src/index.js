@@ -431,7 +431,7 @@ export default {
           { id: 'NousResearch/Hermes-3-Llama-3.1-8B',   provider: 'hf',     label: 'NEXUS-3', key: 'HF_API_KEY' },
           { id: 'deepseek-ai/DeepSeek-Coder-V2-Instruct', provider: 'hf',   label: 'NEXUS-4', key: 'HF_API_KEY' },
           { id: 'Qwen/Qwen2.5-72B-Instruct',            provider: 'hf',     label: 'NEXUS-5', key: 'HF_API_KEY' },
-          { id: 'gemini-2.0-flash',                      provider: 'gemini', label: 'NEXUS-6', key: 'GEMINI_API_KEY' },
+          { id: 'gemini-2.5-flash',                      provider: 'gemini', label: 'NEXUS-6', key: 'GEMINI_API_KEY' },
         ];
 
         // Build try order: forced model first (if specified), then default rotation
@@ -700,27 +700,29 @@ export default {
       }
 
       // ── Page Summarizer (Gemini) ────────────────────────────────────
-      // Powers the AI summary button on portfolio pages. Takes the page
-      // text, returns a 3 to 4 sentence summary. Rate limited per IP per
-      // day to bound the Gemini bill against spam clicks.
+      // Powers the "TL;DR" button on portfolio pages. Takes the page text,
+      // returns a 3 to 4 sentence summary. Rate limited per IP per day to
+      // bound the Gemini bill against spam clicks.
       if (path === '/api/summarize' && method === 'POST') {
         const origin = request.headers.get('Origin') || '';
         if (!ALLOWED_ORIGINS.includes(origin)) {
           return json({ error: 'Unauthorized' }, 403, request);
         }
 
-        // Rate limit: 100 summaries per IP per day.
+        // Rate limit: 30 summaries per IP per day. Cache hits don't count.
         const clientIp = request.headers.get('CF-Connecting-IP') || 'unknown';
         const day = new Date().toISOString().slice(0, 10);
         const rateKey = `summary:ip:${clientIp}:${day}`;
         const count = parseInt(await env.NEXUS_KV.get(rateKey) || '0', 10);
-        const SUMMARY_DAILY_CAP = 100;
-        if (count >= SUMMARY_DAILY_CAP) {
+        if (count >= 30) {
           return json({ error: 'Daily limit reached. Try again tomorrow.' }, 429, request);
         }
 
         const body = await request.json().catch(() => ({}));
-        const content = (body.content || '').slice(0, 50000);
+        // Reduced input cap from 50000 to 8000 chars. The TL;DR is 3-4
+        // sentences; extra content past 8K rarely changes the output but
+        // multiplies token cost 6x.
+        const content = (body.content || '').slice(0, 8000);
         const pageUrl = (body.url || '').slice(0, 200);
         if (!content || content.length < 50) {
           return json({ error: 'Not enough content to summarize.' }, 400, request);
@@ -730,10 +732,37 @@ export default {
           return json({ error: 'Summary service not configured.' }, 503, request);
         }
 
-        const prompt = `Summarize this page from thyfwxit.com in 3 to 4 short sentences. Plain conversational language. No marketing fluff. No AI tells like "this page covers" or "in summary". Just say what the page is actually about, like you would tell a friend who asked.\n\nURL: ${pageUrl}\n\nPAGE CONTENT:\n${content}`;
+        // Cost optimization: cache the summary by URL+content hash for 24h.
+        // Repeat visitors to the same page pay zero Gemini cost. Most TL;DR
+        // clicks on a stable site are duplicates.
+        async function sha1(s) {
+          const data = new TextEncoder().encode(s);
+          const buf = await crypto.subtle.digest('SHA-1', data);
+          return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        const cacheKey = `summary:cache:${await sha1(pageUrl + '|' + content.slice(0, 4000))}`;
+        const cached = await env.NEXUS_KV.get(cacheKey);
+        if (cached) {
+          return json({ summary: cached, remaining: 30 - count, cached: true }, 200, request);
+        }
+
+        const prompt = `You are summarizing a page from thyfwxit.com, a solo developer's portfolio. Write 4 to 5 short sentences in plain conversational language, like you're telling a friend what the page is about.
+
+RULES:
+- Lead with the most specific, concrete thing on the page (project name, post title, real fact)
+- Use the developer's voice: direct, lowercase okay, no corporate spin
+- NEVER use phrases like "this page covers", "in summary", "delves into", "explores", "showcases", "is dedicated to"
+- NEVER start with "The page" or "This page"
+- If the page has technical details (tools, stack, numbers), include at least one
+- Avoid bullet points; prose only
+
+URL: ${pageUrl}
+
+PAGE CONTENT:
+${content}`;
 
         try {
-          const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent', {
+          const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {
             method: 'POST',
             headers: {
               'x-goog-api-key': env.GEMINI_API_KEY,
@@ -741,7 +770,7 @@ export default {
             },
             body: JSON.stringify({
               contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: { temperature: 0.4, maxOutputTokens: 300 },
+              generationConfig: { temperature: 0.5, maxOutputTokens: 260 },
             }),
           });
           const data = await r.json();
@@ -750,9 +779,11 @@ export default {
             console.log('[SUMMARIZE] empty response from Gemini');
             return json({ error: 'No summary returned.' }, 500, request);
           }
-          // Increment counter only on success
+          const cleanSummary = summary.trim();
+          // Cache the result for 24h. Increment user counter only on success.
+          await env.NEXUS_KV.put(cacheKey, cleanSummary, { expirationTtl: 86400 });
           await env.NEXUS_KV.put(rateKey, String(count + 1), { expirationTtl: 86400 * 2 });
-          return json({ summary: summary.trim(), remaining: SUMMARY_DAILY_CAP - 1 - count }, 200, request);
+          return json({ summary: cleanSummary, remaining: 29 - count, cached: false }, 200, request);
         } catch (e) {
           console.log('[SUMMARIZE ERROR]', e.message);
           return json({ error: 'Summarization failed.' }, 500, request);
