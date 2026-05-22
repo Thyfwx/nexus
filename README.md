@@ -32,3 +32,18 @@ Xavier Scott (THYFWX) with Claude.
 - Site: [thyfwxit.com](https://thyfwxit.com)
 - Email: xavier@thyfwxit.com
 - Tip jar: [buymeacoffee.com/thyfwx](https://buymeacoffee.com/thyfwx)
+
+## Using this code
+
+This repo is MIT licensed. Fork it, learn from it, lift patterns into your own
+projects, use it as a starting point for something of your own.
+
+Two things the license does not cover:
+
+- **The names.** Do not reuse "Xavier Scott," "THYFWX," "thyfwxit," or "Nexus"
+  as your own project's identity. Those refer to me and to this site.
+- **The brand.** Strip my name, my domain, and my contact details before you
+  deploy your version somewhere else.
+
+The code is yours to learn from. The identity is not. If you build something
+on top of this, send me a link. I want to see it.
