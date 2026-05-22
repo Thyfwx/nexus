@@ -305,6 +305,25 @@
             For the full git history, see <a href="https://github.com/Thyfwx/nexus" target="_blank" rel="noopener" style="color:var(--accent);">github.com/Thyfwx/nexus</a>.
         </p>
 
+        <!-- v5.6.8: retry + fallback (hotfix series) -->
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #ff9500 0%, #ff9500 100%)">
+            <div class="release-head">
+                <span class="release-version">v5.6.8</span>
+                <span>
+                    <span class="release-tag tag-orange">HOTFIX</span>
+                </span>
+                <span class="release-date">2026-05-22</span>
+            </div>
+            <div class="release-summary">
+                Worker /api/summarize now retries on Gemini free-tier 503s and falls back to gemini-2.5-flash-lite if the primary model stays unavailable. Verified end-to-end on the Gemini 2.5 blog post: 64-word summary returned in 8 seconds with no chatty opener and no empty title quotes.
+            </div>
+            <div class="section-label sl-orange">— PATCHES</div>
+            <ul class="changes">
+                <li class="fixed">/api/summarize wraps the Gemini call in a retry chain: 1 retry with 1 second backoff on 503/429, then fall back to gemini-2.5-flash-lite (also free tier). The free Gemini 2.5 Flash endpoint frequently returns 503 UNAVAILABLE under load; lite has lower latency and is rarely throttled.</li>
+                <li class="fixed">Clearer error to users when both models are exhausted: "Summary service is busy. Try again in a minute." instead of "No summary returned."</li>
+            </ul>
+        </div>
+
         <!-- v5.6.7: 1 fixed (hotfix) -->
         <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #ff9500 0%, #ff9500 100%)">
             <div class="release-head">

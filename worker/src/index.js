@@ -760,8 +760,11 @@ URL: ${pageUrl}
 PAGE CONTENT:
 ${content}`;
 
-        try {
-          const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {
+        // Gemini 2.5 Flash free tier hits 503 UNAVAILABLE under load. Retry once
+        // on 503/429, then fall back to gemini-2.5-flash-lite (also free, less
+        // crowded). Lite doesn't "think" by default so thinkingConfig is a no-op there.
+        async function callGemini(model) {
+          const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
             method: 'POST',
             headers: {
               'x-goog-api-key': env.GEMINI_API_KEY,
@@ -776,17 +779,33 @@ ${content}`;
               },
             }),
           });
-          const data = await r.json();
-          const summary = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (!summary) {
-            console.log('[SUMMARIZE] empty response from Gemini');
-            return json({ error: 'No summary returned.' }, 500, request);
+          return { status: r.status, data: await r.json() };
+        }
+
+        try {
+          const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+          let lastStatus = 0;
+          for (const model of models) {
+            for (let attempt = 0; attempt < 2; attempt++) {
+              const resp = await callGemini(model);
+              lastStatus = resp.status;
+              const text = resp.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (text) {
+                const cleanSummary = text.trim();
+                await env.NEXUS_KV.put(cacheKey, cleanSummary, { expirationTtl: 86400 });
+                await env.NEXUS_KV.put(rateKey, String(count + 1), { expirationTtl: 86400 * 2 });
+                return json({ summary: cleanSummary, remaining: 99 - count, cached: false }, 200, request);
+              }
+              const retryable = resp.status === 503 || resp.status === 429;
+              if (!retryable) {
+                console.log(`[SUMMARIZE] ${model} attempt ${attempt} non-retryable status=${resp.status}`, JSON.stringify(resp.data).slice(0, 200));
+                break;
+              }
+              if (attempt === 0) await new Promise(r => setTimeout(r, 1000));
+            }
           }
-          const cleanSummary = summary.trim();
-          // Cache the result for 24h. Increment user counter only on success.
-          await env.NEXUS_KV.put(cacheKey, cleanSummary, { expirationTtl: 86400 });
-          await env.NEXUS_KV.put(rateKey, String(count + 1), { expirationTtl: 86400 * 2 });
-          return json({ summary: cleanSummary, remaining: 99 - count, cached: false }, 200, request);
+          console.log(`[SUMMARIZE] all models exhausted, last status=${lastStatus}`);
+          return json({ error: 'Summary service is busy. Try again in a minute.' }, 503, request);
         } catch (e) {
           console.log('[SUMMARIZE ERROR]', e.message);
           return json({ error: 'Summarization failed.' }, 500, request);
