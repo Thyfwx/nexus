@@ -1,5 +1,5 @@
-// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.6.5 — Mancala game with minimax AI added
-window.NEXUS_VERSION = 'v5.6.5';
+// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.6.6 — Summarize TL;DR title fix and cap raised to 100/day
+window.NEXUS_VERSION = 'v5.6.6';
 
 // AD KILL SWITCHES — flip any to true to disable that block at runtime.
 // Master NEXUS_DISABLE_ADS overrides all. All disabled until AdSense
