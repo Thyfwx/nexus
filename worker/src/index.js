@@ -431,7 +431,7 @@ export default {
           { id: 'NousResearch/Hermes-3-Llama-3.1-8B',   provider: 'hf',     label: 'NEXUS-3', key: 'HF_API_KEY' },
           { id: 'deepseek-ai/DeepSeek-Coder-V2-Instruct', provider: 'hf',   label: 'NEXUS-4', key: 'HF_API_KEY' },
           { id: 'Qwen/Qwen2.5-72B-Instruct',            provider: 'hf',     label: 'NEXUS-5', key: 'HF_API_KEY' },
-          { id: 'gemini-2.0-flash',                      provider: 'gemini', label: 'NEXUS-6', key: 'GEMINI_API_KEY' },
+          { id: 'gemini-2.5-flash',                      provider: 'gemini', label: 'NEXUS-6', key: 'GEMINI_API_KEY' },
         ];
 
         // Build try order: forced model first (if specified), then default rotation
@@ -762,7 +762,7 @@ PAGE CONTENT:
 ${content}`;
 
         try {
-          const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent', {
+          const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {
             method: 'POST',
             headers: {
               'x-goog-api-key': env.GEMINI_API_KEY,
