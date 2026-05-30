@@ -630,7 +630,7 @@ async function initiateBootSequence() {
                 ? `Guest session — no persistent memory.`
                 : `Welcome back, ${nexusUser.name}.`;
             // Print all three lines IMMEDIATELY — no setTimeout race that can lose them.
-            printToTerminal(tag('BOOT', '#0f0', `Nexus AI ${NEXUS_VERSION} online · latency <span id="boot-latency">measuring…</span>`), 'conn-ok');
+            printToTerminal(tag('BOOT', '#0f0', `Nexus AI <span id="boot-version">${NEXUS_VERSION}</span> online · latency <span id="boot-latency">measuring…</span>`), 'conn-ok');
             printToTerminal(tag('AUTH', '#0f0', authLine), 'conn-ok');
             printToTerminal(tag('SYS',  '#7a8a9a', `Type <strong style="color:var(--accent);">help</strong>, <strong style="color:var(--accent);">tips</strong>, or <strong style="color:var(--accent);">clear</strong>.`), 'sys-msg');
         } catch (e) {
@@ -645,12 +645,24 @@ async function initiateBootSequence() {
         (async () => {
             const t0 = performance.now();
             let latency = 'offline';
+            let realVer = '';
             try {
                 const r = await fetch(`${window.API_BASE}/ping`, { cache: 'no-store' });
-                if (r.ok) latency = `${Math.round(performance.now() - t0)}ms`;
+                if (r.ok) {
+                    latency = `${Math.round(performance.now() - t0)}ms`;
+                    const data = await r.json().catch(() => null);
+                    if (data && data.version) realVer = data.version;
+                }
             } catch (_) {}
             const el = document.getElementById('boot-latency');
             if (el) el.textContent = latency;
+            // Real deployed version from the backend (/ping). Keeps the boot line from
+            // lagging behind the worker when the frontend NEXUS_VERSION constant is stale.
+            const vEl = document.getElementById('boot-version');
+            if (vEl && realVer) vEl.textContent = realVer;
+            // Sync the whole frontend to the real version so later displays
+            // (whoami, info, crash report) never lag behind the worker either.
+            if (realVer) window.NEXUS_VERSION = realVer;
         })();
     };
     // Fire it now AND on multiple later ticks — hard refreshes sometimes lose the first call
