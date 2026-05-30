@@ -610,7 +610,7 @@ async function renderInlineNER(text) {
 }
 
 async function renderInlineSearch(query) {
-    printToTerminal(`[SEARCH] "${query}"…`, 'sys-msg');
+    printToTerminal(`[SEARCH] "${escapeHTML(query)}"…`, 'sys-msg');
     try {
         const r = await window.NexusTools.callTool('search', { query });
         const items = (r.results || []).slice(0, 5).map(it =>
@@ -834,7 +834,7 @@ function _renderWeakPromptCoaching(prompt) {
         },
     };
     const cfg = modeStyles[mode] || modeStyles.nexus;
-    const text = `${pick(cfg.tone)} "${trimmed}" is pretty bare — try ${pick(cfg.kits)}. More descriptors = better images.`;
+    const text = `${pick(cfg.tone)} "${escapeHTML(trimmed)}" is pretty bare — try ${pick(cfg.kits)}. More descriptors = better images.`;
     if (window.printToTerminal) {
         window.printToTerminal(text, `ai-msg ${mode}-msg`);
     }
