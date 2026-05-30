@@ -234,6 +234,25 @@ function _checkRateLimit(ip, maxPerMinute = 15) {
   return bucket.count <= maxPerMinute;
 }
 
+// ── KV-backed rate limiter (shared across isolates) ────────────────────────
+// _checkRateLimit above only counts within ONE Worker isolate, so a flood
+// spread across Cloudflare's edge can slip past it. This per-minute KV counter
+// is shared, so it also catches cross-isolate floods. Not perfectly atomic (KV
+// is eventually consistent) but bounds abuse far tighter than memory alone. For
+// hard guarantees, move to a Durable Object or the native Rate Limiting binding.
+async function _kvRateLimit(env, key, maxPerMinute) {
+  try {
+    const minute = Math.floor(Date.now() / 60000);
+    const rlKey = `rl:${key}:${minute}`;
+    const cur = parseInt(await env.NEXUS_KV.get(rlKey) || '0', 10);
+    if (cur >= maxPerMinute) return false;
+    await env.NEXUS_KV.put(rlKey, String(cur + 1), { expirationTtl: 120 });
+    return true;
+  } catch {
+    return true; // never let a KV hiccup hard-block a legit user
+  }
+}
+
 // ── Router ──────────────────────────────────────────────────────────────────
 export default {
   async fetch(request, env, ctx) {
@@ -353,6 +372,11 @@ export default {
         const isBotRequest = hasValidBotSecret;
         const rateLimit = isBotRequest ? 10 : 15; // 10/min for bots, 15/min for browser
         if (!_checkRateLimit(isBotRequest ? 'bot:' + clientIp : clientIp, rateLimit)) {
+          return json({ ok: false, error: `Rate limited. Max ${rateLimit} messages per minute.` }, 429, request);
+        }
+        // Cross-isolate backstop: the in-memory limiter only sees one isolate,
+        // so also enforce the per-minute cap in KV (shared across the edge).
+        if (!(await _kvRateLimit(env, (isBotRequest ? 'chatbot:' : 'chat:') + clientIp, rateLimit))) {
           return json({ ok: false, error: `Rate limited. Max ${rateLimit} messages per minute.` }, 429, request);
         }
 
@@ -792,7 +816,10 @@ ${content}`;
               const text = resp.data?.candidates?.[0]?.content?.parts?.[0]?.text;
               if (text) {
                 const cleanSummary = text.trim();
-                await env.NEXUS_KV.put(cacheKey, cleanSummary, { expirationTtl: 86400 });
+                // Cache summary for 48h. Long enough to save tokens on repeat
+                // visits within ~2 days, short enough that summaries still feel
+                // fresh after page edits (cache key already hashes content too).
+                await env.NEXUS_KV.put(cacheKey, cleanSummary, { expirationTtl: 86400 * 2 });
                 await env.NEXUS_KV.put(rateKey, String(count + 1), { expirationTtl: 86400 * 2 });
                 return json({ summary: cleanSummary, remaining: 99 - count, cached: false }, 200, request);
               }
@@ -868,15 +895,50 @@ ${content}`;
 
       if (path === '/api/leaderboard/submit' && method === 'POST') {
         const session = await getSession(request, env);
+        // NOTE: a session is NOT required (guests can still submit) so this
+        // never breaks a game page that didn't establish a cookie. To tighten
+        // later, add: if (!session) return json({ ok:false, error:'sign in' }, 401, request);
+
+        const submitIp = request.headers.get('CF-Connecting-IP') || 'unknown';
+        const lbBlockedIps = JSON.parse(await env.NEXUS_KV.get('blocked_ips') || '[]');
+        if (lbBlockedIps.includes(submitIp)) return json({ ok: false, error: 'blocked' }, 403, request);
+
         const body = await request.json();
         const game = (body.game || '').trim();
-        const score = parseInt(body.score || '0');
-        if (!game || !score) return json({ ok: false, error: 'missing game or score' }, 400, request);
         // Allowlist: stop attackers polluting KV with arbitrary lb:* keys.
         const allowedLbGames = ['wordle','snake_classic','snake_speed','snake_endless','snake_stealth','pong','flappy','breakout','invaders','mines','typing','mancala_hard_streak'];
         if (!allowedLbGames.includes(game)) return json({ ok: false, error: 'unknown game' }, 400, request);
 
-        const handle = session ? (await env.NEXUS_KV.get(`handle:${session.sub}`) || session.name || 'Anonymous') : 'Guest';
+        // Score must be a clean positive integer within a per-game ceiling.
+        // These are SAFE-HIGH caps: far above any legit casual-game score, so
+        // they never reject real play, but still block the absurd (e.g. 1e9).
+        // Tighten any of these later once the real max for a game is known.
+        const MAX_SCORES = {
+          wordle: 1000000, snake_classic: 10000000, snake_speed: 10000000, snake_endless: 10000000,
+          snake_stealth: 10000000, pong: 1000000, flappy: 1000000, breakout: 10000000,
+          invaders: 100000000, mines: 1000000, typing: 1000000, mancala_hard_streak: 1000000,
+        };
+        const rawScore = Number(body.score);
+        if (!Number.isFinite(rawScore) || !Number.isInteger(rawScore) || rawScore <= 0) {
+          return json({ ok: false, error: 'invalid score' }, 400, request);
+        }
+        const cap = MAX_SCORES[game] || 100000000;
+        if (rawScore > cap) {
+          console.log(`[LEADERBOARD REJECT] ${game} score ${rawScore} > cap ${cap} from ${submitIp}`);
+          return json({ ok: false, error: 'score out of range' }, 400, request);
+        }
+        const score = rawScore;
+
+        // Per-IP daily submit cap — bounds KV write spam. Owner exempt.
+        if (!isOwner(session, env)) {
+          const day = new Date().toISOString().slice(0, 10);
+          const subKey = `lbsubmit:${submitIp}:${day}`;
+          const subCount = parseInt(await env.NEXUS_KV.get(subKey) || '0', 10);
+          if (subCount >= 120) return json({ ok: false, error: 'too many submissions today' }, 429, request);
+          await env.NEXUS_KV.put(subKey, String(subCount + 1), { expirationTtl: 86400 * 2 });
+        }
+
+        const handle = session ? ((await env.NEXUS_KV.get(`handle:${session.sub}`)) || session.name || 'Anonymous') : 'Guest';
         const entries = JSON.parse(await env.NEXUS_KV.get(`lb:${game}`) || '[]');
         entries.push({ handle, score, ts: new Date().toISOString() });
         entries.sort((a, b) => b.score - a.score);
