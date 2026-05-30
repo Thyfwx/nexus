@@ -455,13 +455,19 @@ function printAIResponse(text) {
         thinking.removeAttribute('style');
         thinking.className = `ai-msg ${window.currentMode}-msg`;
         if (cleanText) {
-            thinking.innerHTML = cleanText.replace(/\n/g, '<br>');
+            // AI reply is untrusted text: build with safe DOM (text + <br>), never
+            // as HTML, so a model that emits markup cannot inject/execute it.
+            thinking.textContent = '';
+            cleanText.split('\n').forEach(function (line, i) {
+                if (i) thinking.appendChild(document.createElement('br'));
+                thinking.appendChild(document.createTextNode(line));
+            });
         } else {
             thinking.remove();
         }
         if (window.output) window.output.scrollTop = window.output.scrollHeight;
     } else if (window.printToTerminal && cleanText) {
-        window.printToTerminal(cleanText, `ai-msg ${window.currentMode}-msg`);
+        window.printToTerminal(escapeHTML(cleanText), `ai-msg ${window.currentMode}-msg`);
     }
     if (window.speakAIResponse && cleanText) window.speakAIResponse(cleanText);
     // Fire AI tool tags AGAINST THE ORIGINAL text (so [IMAGE: ...] still extracts correctly)

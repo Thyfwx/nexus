@@ -172,7 +172,7 @@ function connectTerminalWS() {
             // Suppress the boot greeting entirely; let other system notes through quietly
             if (/Uplink established|Nexus Core ready/i.test(messageText)) return;
             window._clearThinking();
-            printToTerminal(`<span style="font-size:0.74rem; color:#7a8a9a;">${messageText}</span>`, 'sys-msg');
+            printToTerminal(`<span style="font-size:0.74rem; color:#7a8a9a;">${escapeHTML(messageText)}</span>`, 'sys-msg');
             return;
         }
 
@@ -183,10 +183,15 @@ function connectTerminalWS() {
             thinking.removeAttribute('id');
             thinking.removeAttribute('style');
             thinking.className = `ai-msg ${window.currentMode}-msg`;
-            thinking.innerHTML = messageText.replace(/\n/g, '<br>');
+            // Untrusted message: safe DOM (text + <br>), never HTML (XSS guard).
+            thinking.textContent = '';
+            messageText.split('\n').forEach(function (line, i) {
+                if (i) thinking.appendChild(document.createElement('br'));
+                thinking.appendChild(document.createTextNode(line));
+            });
             window.output.scrollTop = window.output.scrollHeight;
         } else {
-            printToTerminal(messageText, `ai-msg ${window.currentMode}-msg`);
+            printToTerminal(escapeHTML(messageText), `ai-msg ${window.currentMode}-msg`);
         }
 
         if (audioB64 && window.playNeuralVoice) window.playNeuralVoice(audioB64);
@@ -2735,7 +2740,7 @@ function printTypewriter(text, className = 'ai-msg', speed = 15) {
     let i = 0;
     function tick() {
         if (i < text.length) {
-            p.innerHTML += text[i];
+            p.textContent += text[i];   // textContent, not innerHTML: never execute markup in streamed AI text
             i++;
             setTimeout(tick, speed);
         } else {
