@@ -519,11 +519,21 @@ window._submitScoreToLeaderboard = async function() {
             throw new Error(data.error || `HTTP ${r.status}`);
         }
 
-        // Success
+        // Success — build with safe DOM (no innerHTML with server values)
         if (msg) {
             msg.style.display = '';
             msg.classList.remove('err');
-            msg.innerHTML = `<b>${data.handle}</b> submitted at rank <b>#${data.rank || '?'}</b>. Game on.`;
+            msg.textContent = '';
+            const who = (data && data.handle) ? String(data.handle) : 'Score';
+            const b1 = document.createElement('b'); b1.textContent = who;
+            msg.appendChild(b1);
+            msg.appendChild(document.createTextNode(' submitted'));
+            if (data && data.rank) {
+                msg.appendChild(document.createTextNode(' at rank '));
+                const b2 = document.createElement('b'); b2.textContent = '#' + data.rank;
+                msg.appendChild(b2);
+            }
+            msg.appendChild(document.createTextNode('. Game on.'));
         }
         if (btn) { btn.style.display = 'none'; }
         // Refresh the visible top 3 with the new entry
