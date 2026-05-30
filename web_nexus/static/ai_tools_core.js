@@ -14,6 +14,7 @@
 
     // ---------- helpers ----------
     function $(id) { return document.getElementById(id); }
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
     function el(tag, attrs = {}, html = '') {
         const e = document.createElement(tag);
         for (const k in attrs) {
@@ -246,7 +247,7 @@
                     const rows = (r.labels || []).map((lab, i) => {
                         const pct = ((r.scores[i] || 0) * 100).toFixed(1);
                         return `<div style="display:flex; gap:10px; align-items:center; margin:4px 0;">
-                            <span style="flex:0 0 120px;">${lab}</span>
+                            <span style="flex:0 0 120px;">${esc(lab)}</span>
                             <div style="flex:1; background:#111; height:14px; border:1px solid #333;"><div style="background:var(--accent); height:100%; width:${pct}%;"></div></div>
                             <span style="flex:0 0 50px; text-align:right;">${pct}%</span>
                         </div>`;
