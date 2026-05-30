@@ -112,7 +112,7 @@
                         <img src="data:image/png;base64,${r.image_b64}" style="max-width:100%; margin-top:10px; border:1px solid var(--accent); border-radius:6px;">
                         <a href="data:image/png;base64,${r.image_b64}" download="nexus_image.png" class="tool-btn-secondary" style="display:inline-block; margin-top:8px;">DOWNLOAD</a>
                     `;
-                    if (window.printToTerminal) window.printToTerminal(`[IMAGE] Rendered "${prompt}" via ${r.source}.`, 'sys-msg');
+                    if (window.printToTerminal) window.printToTerminal(`[IMAGE] Rendered "${esc(prompt)}" via ${esc(r.source)}.`, 'sys-msg');
                 } catch (e) { $('img-status').innerHTML = statusLine('err', `FAILED: ${e.message}`); }
                 setBusy($('img-go'), false);
             };

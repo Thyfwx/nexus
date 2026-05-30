@@ -112,7 +112,7 @@ function setupUplinkHandlers() {
 }
 
 function handleImageUplink(file) {
-    printToTerminal(`[SYSTEM] Syncing neural image: ${file.name}...`, 'sys-msg');
+    printToTerminal(`[SYSTEM] Syncing neural image: ${escapeHTML(file.name)}...`, 'sys-msg');
     const reader = new FileReader();
     reader.onload = (e) => {
         const base64 = e.target.result;

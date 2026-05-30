@@ -1,6 +1,9 @@
 // 🛠️ NEXUS COMMAND CORE v5.3.0
 // Logic for terminal commands, processing, and routing.
 
+// Escape user-controlled text before it reaches the HTML-rendering printToTerminal (XSS guard).
+function _esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+
 function handleCommand(cmd) {
     const lc = cmd.toLowerCase().trim();
     const nexusUser = JSON.parse(localStorage.getItem('nexus_user_data') || '{"name":"Guest"}');
@@ -15,7 +18,7 @@ function handleCommand(cmd) {
         'leaderboard', 'changelog', 'privacy', 'terms', 'about',
     ];
     if (!silent.includes(lc)) {
-        printToTerminal(`${pl} ${cmd}`, 'user-cmd');
+        printToTerminal(`${_esc(pl)} ${_esc(cmd)}`, 'user-cmd');
     }
 
     // 2. Overrides & Privileged Commands
@@ -206,7 +209,7 @@ function showTips() {
 function runWhoami() {
     const user = JSON.parse(localStorage.getItem('nexus_user_data') || '{"name":"Guest"}');
     const status = window.OWNER_MODE ? 'OWNER (ROOT ACCESS)' : 'NEURAL LINK ACTIVE';
-    printToTerminal(`IDENTITY: ${user.name}`, "conn-ok");
+    printToTerminal(`IDENTITY: ${_esc(user.name)}`, "conn-ok");
     printToTerminal(`EMAIL: ${user.email || "N/A"}`, "sys-msg");
     printToTerminal(`STATUS: ${status}`, "sys-msg");
 }
