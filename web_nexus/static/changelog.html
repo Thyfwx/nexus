@@ -305,6 +305,28 @@
             For the full git history, see <a href="https://github.com/Thyfwx/nexus" target="_blank" rel="noopener" style="color:var(--accent);">github.com/Thyfwx/nexus</a>.
         </p>
 
+        <!-- v5.6.9: security hardening + live version display -->
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #ff9500 0%, #ff9500 100%)">
+            <div class="release-head">
+                <span class="release-version">v5.6.9</span>
+                <span>
+                    <span class="release-tag tag-orange">SECURITY</span>
+                </span>
+                <span class="release-date">2026-05-30</span>
+            </div>
+            <div class="release-summary">
+                A security hardening pass across the terminal and the backend, plus a fix so the boot line always shows the version that is actually deployed. No feature changes: the terminal looks and works the same, it is just harder to abuse and honest about its version.
+            </div>
+            <div class="section-label sl-orange">— PATCHES</div>
+            <ul class="changes">
+                <li class="fixed">Terminal output is locked down: AI replies and anything you type always render as plain text, never as live markup. Untrusted content can no longer inject code into the page.</li>
+                <li class="fixed">The AI is hardened against prompt injection. It treats all input and prior history as untrusted, refuses to reveal or change its own instructions, and ignores attempts to switch its rules or mode.</li>
+                <li class="fixed">Leaderboards now validate scores and cap how often they can be submitted, so the boards can no longer be flooded or stuffed with impossible numbers.</li>
+                <li class="fixed">Added rate limiting across chat and the report endpoints so no single source can hammer the service.</li>
+                <li class="fixed">The boot line reads the live deployed version straight from the backend, so it never lags behind the real version again.</li>
+            </ul>
+        </div>
+
         <!-- v5.6.8: retry + fallback (hotfix series) -->
         <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #ff9500 0%, #ff9500 100%)">
             <div class="release-head">
