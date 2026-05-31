@@ -1,6 +1,6 @@
 /**
  * NEXUS AI BACKEND — Cloudflare Worker
- * Replaces FastAPI/Render backend. Zero cold starts, edge performance.
+ * Zero cold starts, edge performance.
  *
  * API keys go in Cloudflare Secrets (encrypted env vars), NEVER in this file.
  * Required secrets: GROQ_API_KEY, GEMINI_API_KEY, GOOGLE_CLIENT_ID,

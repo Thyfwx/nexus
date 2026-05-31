@@ -1,5 +1,5 @@
 # Nexus AI Backend — Cloudflare Worker
-# Replaces the FastAPI/Render backend at api.thyfwxit.com
+# Serves all api.thyfwxit.com traffic
 name = "nexus-api"
 main = "src/index.js"
 compatibility_date = "2024-12-01"
