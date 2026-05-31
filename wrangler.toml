@@ -5,6 +5,3 @@ compatibility_date = "2024-01-01"
 
 [deployment]
 production_branch = "main"
-
-[vars]
-BACKEND_URL = "nexus-terminalnexus.onrender.com"
