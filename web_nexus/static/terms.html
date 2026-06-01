@@ -48,7 +48,7 @@
         </div>
 
         <h1>Terms of Service</h1>
-        <p class="updated">Last updated: May 14, 2026</p>
+        <p class="updated">Last updated: June 1, 2026</p>
 
         <p>By using <strong>thyfwxit.com</strong>, the Nexus AI Terminal at <strong>thyfwxit.com/nexus</strong>, or any related subdomain, you agree to these terms. The site is operated solo by Xavier Scott (THYFWX). It is a personal hobby project, not a commercial service.</p>
 
@@ -68,6 +68,7 @@
             <li><span class="danger">No account sharing or impersonation.</span></li>
             <li><span class="danger">No chosen handles containing slurs, harassment of others, or impersonation.</span> Handles are filtered server-side; offending submissions are rejected.</li>
             <li><span class="danger">No reverse-engineering for malicious purposes.</span> Looking under the hood for fun is fine; weaponizing it is not.</li>
+            <li><span class="danger">No prompt injection or jailbreak attempts.</span> The AI treats your messages and the chat history as untrusted input. It won't follow instructions hidden in your text, reveal its own setup, or drop its safety rules no matter how you word it. Trying just wastes your own time.</li>
         </ul>
 
         <h2>The Unfiltered chat mode</h2>
@@ -80,6 +81,8 @@
             <li>Slurs trigger an immediate 30-minute lockout with no warning ladder.</li>
             <li>Repeat offenders may be permanently banned by account, IP address, and device fingerprint.</li>
             <li>Lockouts and bans are server-enforced; clearing browser storage, switching accounts, switching to guest mode, or changing networks does not bypass them.</li>
+            <li><strong>Rate limiting:</strong> the chat API is capped per minute. Bursts of rapid or scripted requests get a short cooldown, so one script can't burn the free AI quota everyone shares.</li>
+            <li><strong>Leaderboard integrity:</strong> scores are validated on the server. Impossible or out of range scores are rejected, submissions are capped per IP each day, and scripting fake scores gets your IP blocked from the leaderboard.</li>
             <li><strong>Device fingerprinting:</strong> This site generates a non-identifying device fingerprint (a short hash derived from your screen resolution, GPU, timezone, and browser rendering characteristics) to enforce bans and prevent circumvention. This fingerprint cannot identify you personally — it identifies your device. It is stored only if you are banned and is used solely for ban enforcement.</li>
         </ul>
 
