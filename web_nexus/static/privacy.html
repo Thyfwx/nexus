@@ -54,7 +54,7 @@
         </div>
 
         <h1>Privacy Policy</h1>
-        <p class="updated">Last updated: May 17, 2026</p>
+        <p class="updated">Last updated: June 1, 2026</p>
 
         <p>This policy explains what data <strong>thyfwxit.com</strong> and the <strong>Nexus AI Terminal</strong> at <strong>thyfwxit.com/nexus</strong> collect, how it's used, and which third parties are involved. The site is operated solo by Xavier Scott (THYFWX). It is a personal project, not a commercial product.</p>
 
@@ -89,6 +89,7 @@
             <li><strong>I cannot control what AI providers do with your input.</strong> Once your prompt leaves my server, it is subject to that provider's own privacy policy and data handling practices. This is why you should never enter sensitive personal information.</li>
             <li><strong>Conversations live in your browser only.</strong> Chat history is stored in your browser's memory (RAM) during the session and in <code>localStorage</code> for signed-in users. Closing the tab clears session memory. Signed-in users can clear localStorage anytime via the AI Profile panel.</li>
             <li><strong>Moderation logging:</strong> if you trigger a critical-content moderation pattern (prompts involving violence toward specific people, CSAM, weapon synthesis, school violence, kidnapping, or body disposal), the offending prompt text and your IP address are forwarded to my private Discord channel for manual review. A temporary lockout is applied automatically. This is a safety measure, not advertising or data mining.</li>
+            <li><strong>Rate limiting:</strong> so one user or script can't burn the shared free AI quota, my server keeps a small request counter keyed to your IP that expires within the minute. It holds only a count, never your prompt text, and is not used for tracking or ads.</li>
             <li><strong>Guests:</strong> everything is session-only. Close the tab and it's gone. No account, no persistent data.</li>
             <li><strong>Signed-in users:</strong> the last several messages per chat mode persist in your browser's <code>localStorage</code> so the AI can maintain context across page reloads. You can wipe this anytime. It never leaves your browser.</li>
         </ul>
