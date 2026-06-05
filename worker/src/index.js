@@ -918,9 +918,13 @@ ${content}`;
 
       if (path === '/api/leaderboard/submit' && method === 'POST') {
         const session = await getSession(request, env);
-        // NOTE: a session is NOT required (guests can still submit) so this
-        // never breaks a game page that didn't establish a cookie. To tighten
-        // later, add: if (!session) return json({ ok:false, error:'sign in' }, 401, request);
+        // Anti-cheat: require a signed-in Google account to post a score. Scores
+        // come from the client (games run client-side), so the realistic defense
+        // is tying every entry to a ban-able account instead of accepting
+        // anonymous client-reported scores. The per-game caps below still apply.
+        if (!session || (session.email || '') === 'guest@local') {
+          return json({ ok: false, error: 'Sign in with Google to post a score.' }, 401, request);
+        }
 
         const submitIp = request.headers.get('CF-Connecting-IP') || 'unknown';
         const lbBlockedIps = JSON.parse(await env.NEXUS_KV.get('blocked_ips') || '[]');
@@ -1143,21 +1147,32 @@ ${content}`;
 
         // Image quota check (owner = unlimited, google = 15/day)
         const owner = isOwner(session, env);
+        const imgIp = request.headers.get('CF-Connecting-IP') || 'unknown';
+        // Per-minute rate cap on top of the daily quota, so a script can't hammer
+        // the paid image API in bursts. Owner exempt.
+        if (!owner && !_checkRateLimit(`img:${imgIp}`, 6)) {
+          return json({ ok: false, error: 'Too many image requests — wait a minute.' }, 429, request);
+        }
+        // Check the daily quota but do NOT increment yet: only a generation that
+        // actually succeeds should count, so a provider failure never burns quota.
+        let imgQuotaKey = null, imgUsed = 0;
         if (!owner) {
           const today = new Date().toISOString().slice(0, 10);
-          const quotaKey = `imgquota:${session.sub}:${today}`;
-          const used = parseInt(await env.NEXUS_KV.get(quotaKey) || '0');
-          if (used >= 15) {
+          imgQuotaKey = `imgquota:${session.sub}:${today}`;
+          imgUsed = parseInt(await env.NEXUS_KV.get(imgQuotaKey) || '0');
+          if (imgUsed >= 15) {
             return json({ ok: false, error: 'Daily image quota reached (15/day). Try again tomorrow.' }, 429, request);
           }
-          // Increment quota
-          await env.NEXUS_KV.put(quotaKey, String(used + 1), { expirationTtl: 86400 });
         }
+        const _countImage = async () => {
+          if (imgQuotaKey) await env.NEXUS_KV.put(imgQuotaKey, String(imgUsed + 1), { expirationTtl: 86400 });
+        };
 
         // Try Replicate first (paid SFW)
         if (env.REPLICATE_API_KEY) {
           try {
             const replicateResult = await _replicateGenerate(prompt, env.REPLICATE_API_KEY);
+            await _countImage();
             return json({ ok: true, image_b64: replicateResult.image_b64, source: replicateResult.source }, 200, request);
           } catch (e) {
             console.log(`[REPLICATE FAIL] ${e.message} — falling to Pollinations`);
@@ -1167,6 +1182,7 @@ ${content}`;
         // Fallback: Pollinations (free SFW)
         try {
           const pollResult = await _pollinationsGenerate(prompt);
+          await _countImage();
           return json({ ok: true, image_b64: pollResult.image_b64, source: pollResult.source }, 200, request);
         } catch (e) {
           console.log(`[POLLINATIONS FAIL] ${e.message}`);
@@ -1336,26 +1352,11 @@ ${content}`;
         return json({ ok: true }, 200, request);
       }
 
-      // ── Dev-owner auth (localhost only) ──────────────────────────────
-      if (path === '/auth/dev-owner' && method === 'POST') {
-        const clientIp = request.headers.get('CF-Connecting-IP') || '';
-        // On Workers, localhost requests come from 127.0.0.1 or ::1
-        if (!['127.0.0.1', '::1'].includes(clientIp)) {
-          return json({ error: 'Dev owner login is restricted to localhost' }, 403, request);
-        }
-        const payload = {
-          sub: 'owner_dev_local',
-          name: 'Xavier',
-          email: env.OWNER_EMAIL || '',
-          picture: '',
-          exp: Math.floor(Date.now() / 1000) + (30 * 24 * 3600),
-        };
-        const token = await signJWT(payload, env.SECRET_KEY);
-        console.log(`[AUTH] Dev-owner login: ${payload.name}`);
-        const resp = json({ ok: true, name: payload.name, email: payload.email, picture: '', is_owner: true }, 200, request);
-        resp.headers.set('Set-Cookie', `nexus_session=${token}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${30*24*3600}; Domain=.thyfwxit.com`);
-        return resp;
-      }
+      // ── Dev-owner localhost backdoor: REMOVED ────────────────────────
+      // Previously minted a full owner session for requests from 127.0.0.1/::1.
+      // Unreachable in production (Cloudflare sets CF-Connecting-IP at the edge,
+      // so nothing ever arrives from localhost), but a single-point-of-failure
+      // not worth keeping. Owner access is via Google OAuth + OWNER_EMAIL only.
 
       // ── Dev: environment info ───────────────────────────────────────
       if (path === '/api/dev/env') {
