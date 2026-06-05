@@ -46,10 +46,15 @@ function json(data, status = 200, request = null) {
 }
 
 // ── JWT helpers ─────────────────────────────────────────────────────────────
+// Unicode-safe base64. Plain btoa() throws on non-Latin1 input (accented or
+// CJK Google display names), which used to 500 the login. Encode UTF-8 first.
+function utf8ToB64(str) {
+  return btoa(String.fromCharCode(...new TextEncoder().encode(str)));
+}
 async function signJWT(payload, secret) {
   if (!secret) throw new Error('JWT secret missing — SECRET_KEY env var unbound');
-  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).replace(/=/g, '');
-  const body = btoa(JSON.stringify(payload)).replace(/=/g, '');
+  const header = utf8ToB64(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).replace(/=/g, '');
+  const body = utf8ToB64(JSON.stringify(payload)).replace(/=/g, '');
   const key = await crypto.subtle.importKey(
     'raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
   );
@@ -68,7 +73,7 @@ async function verifyJWT(token, secret) {
     const sigBytes = Uint8Array.from(atob(sig.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
     const valid = await crypto.subtle.verify('HMAC', key, sigBytes, new TextEncoder().encode(`${header}.${body}`));
     if (!valid) return null;
-    const payload = JSON.parse(atob(body));
+    const payload = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(body), c => c.charCodeAt(0))));
     if (payload.exp && payload.exp * 1000 < Date.now()) return null;
     return payload;
   } catch { return null; }
@@ -1098,6 +1103,12 @@ ${content}`;
         const body = await request.json();
         const handle = (body.handle || '').trim().slice(0, 20);
         if (!handle) return json({ error: 'empty handle' }, 400, request);
+        // Charset allowlist: letters, digits, space, _ and - only. Blocks HTML/script
+        // metacharacters at the source so a stored handle can never become XSS, even
+        // if a future render path forgets to escape it. (Defense in depth.)
+        if (!/^[\w \-]{1,20}$/.test(handle)) {
+          return json({ error: 'handle can only use letters, numbers, spaces, _ and -' }, 400, request);
+        }
         await env.NEXUS_KV.put(`handle:${session.sub}`, handle);
         return json({ ok: true, handle }, 200, request);
       }
