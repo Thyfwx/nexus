@@ -18,11 +18,12 @@ AI terminal with 4 chat modes, 8 browser games, image generation, leaderboards, 
 
 | Layer | Tech |
 |-------|------|
-| Frontend | Vanilla JS, CSS variables, WebSocket, HTML5 Canvas |
-| Backend | Python + FastAPI on Render |
+| Frontend | Vanilla JS, CSS variables, HTML5 Canvas |
+| Backend | Cloudflare Worker (JavaScript), ~48 endpoints |
+| Storage | Cloudflare KV (leaderboards, handles, bans) |
 | AI providers | Groq, Google Gemini, Hugging Face, Replicate, Pollinations |
 | Auth | Google OAuth + JWT session cookies |
-| Hosting | Cloudflare Pages (frontend), Render (backend) |
+| Hosting | Cloudflare Pages (frontend) + Cloudflare Workers (backend) |
 | Domain | api.thyfwxit.com (same-site cookies, no 3rd-party blocking) |
 
 ## Built by
