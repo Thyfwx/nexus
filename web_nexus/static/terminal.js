@@ -1775,41 +1775,9 @@ window.toggleDevPanel = function() {
 };
 
 // Per-file one-liner descriptions for the script viewer dropdown
-const _DEV_FILE_INFO = {
-    "main.py":                     "FastAPI app · all routes, WS, AI dispatch, telemetry",
-    "prompts.py":                  "CORE_RULES + per-mode system prompts + tool tag rules",
-    "nexus.py":                    "macOS Spotify/Music osascript bridge",
-    "providers/registry.py":       "TOOLS list + dispatcher entries (single source of truth)",
-    "providers/_keys.py":          "Reads API keys from .env, sanitizes whitespace",
-    "providers/groq.py":           "Groq chat completions (Llama 70B / 8B)",
-    "providers/gemini.py":         "Google Gemini chat + vision (image_b64 path)",
-    "providers/hf_chat.py":        "HF router chat (Hermes, etc.)",
-    "providers/hf_vision.py":      "HF vision + classify_intent + zero-shot + OCR",
-    "providers/hf_audio.py":       "HF Whisper STT + MMS-TTS (paid tier)",
-    "providers/hf_image.py":       "FLUX.1-schnell + Pollinations (unfiltered bypass)",
-    "providers/hf_text.py":        "Translate (Helsinki opus-mt) · summarize · sentiment · emotion · embed",
-    "providers/web_tools.py":      "Web search (DDG) · Wikipedia · math (SymPy) · chart (QuickChart)",
-    "static/index.html":           "Terminal page shell + script load order",
-    "static/login.html":           "Lobby + Google sign-in + dev-owner button + terms modal",
-    "static/style.css":            "Desktop styles, panel chrome, accessibility classes",
-    "static/mobile.css":           "≤700px overrides — drawer sidebar, touch sizing",
-    "static/nexus_globals.js":     "window.* state, MODE_COLORS, thinking indicator",
-    "static/nexus_brain.js":       "Boot orchestrator, focus, mobile drawer, draggable panels",
-    "static/config_core.js":       "MODES + boot words + history-key map",
-    "static/auth_core.js":         "Google sign-in, guest auth, terms modal, profile dropdown",
-    "static/ai_core.js":           "prompt_ai_proxy + AI tool tag dispatch + inline renderers",
-    "static/ai_tools_core.js":     "Per-tool modal handlers + tool registry fetch",
-    "static/commands_core.js":     "Slash commands: help/tips/export/play/diag/etc.",
-    "static/terminal.js":          "Boot sequence, WS, mode switcher, AI Profile, DEV PANEL",
-    "static/crash_core.js":        "window.onerror → diagnostic code + overlay + transmit",
-    "static/uplink_core.js":       "_px_transmit → workers.dev (chat + crash telemetry)",
-    "static/games_core.js":        "All 8 in-terminal games + matrix saver + typing test",
-    "static/audio_core.js":        "SoundManager (Web Audio)",
-    "static/tts_core.js":          "Browser SpeechSynthesis voice settings",
-    "static/stats_core.js":        "CPU/MEM telemetry display",
-    "static/core_modules/speedtest_logic.js": "Speed test UI",
-    "static/core_modules/hardware_logic.js":  "Maintenance hub UI",
-};
+// File-description map removed: it documented the decommissioned Python backend
+// in public client JS. The owner dev panel still lists files (shows "No description").
+const _DEV_FILE_INFO = {};
 
 // Tab switcher for the OWNER DEV PANEL — shows only sections matching `data-tab="<name>"`,
 // dims the tab buttons that don't match, persists last-used tab to localStorage so
