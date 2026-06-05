@@ -1,11 +1,13 @@
 version: 2
 updates:
-  - package-ecosystem: "pip"
-    directory: "/web_nexus"
+  # Backend is a Cloudflare Worker (npm). The old Python/pip backend was
+  # decommissioned, so there is no pip manifest left to watch.
+  - package-ecosystem: "npm"
+    directory: "/"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
-  - package-ecosystem: "npm"
+  - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
