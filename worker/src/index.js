@@ -324,7 +324,7 @@ export default {
       // live player count), the Local AI, and the Discord bot. Hostnames only
       // (mc.thyfwxit.com is already public DNS), no internal services. Cached 60s.
       if (path === '/api/homelab-status') {
-        const cached = await env.NEXUS_KV.get('homelab_status_v3', 'json');
+        const cached = await env.NEXUS_KV.get('homelab_status_v4', 'json');
         if (cached) return json(cached, 200, request);
         const httpTargets = [
           { key: 'ai',  name: 'Local AI',    url: 'https://nexus.thyfwxit.com' },
@@ -362,15 +362,38 @@ export default {
             return { key: 'mc', name: 'Minecraft', up: false, players: 0 };
           }
         })();
-        const [http, mc] = await Promise.all([httpChecks, mcCheck]);
-        const services = [mc].concat(http);
+        // Real lab infrastructure from the existing PUBLIC Uptime Kuma status page
+        // (status.thyfwxit.com, no auth). Mapped by monitor ID to generic labels, so
+        // the actual software names never appear in this public source, only labels.
+        const KUMA_LABEL = { '1': 'Hypervisor', '3': 'DNS Filtering', '4': 'Home Automation', '10': 'Network Storage' };
+        const kumaCheck = (async () => {
+          try {
+            const r = await fetch('https://status.thyfwxit.com/api/status-page/heartbeat/status', {
+              headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(7000), cf: { cacheTtl: 0 },
+            });
+            const hb = await r.json();
+            const beats = hb.heartbeatList || {};
+            const out = Object.keys(beats).map((id) => {
+              const arr = beats[id];
+              const last = arr && arr.length ? arr[arr.length - 1] : null;
+              return { key: 'kuma' + id, name: KUMA_LABEL[id] || 'Lab Service', up: !!(last && last.status === 1) };
+            });
+            if (out.length) await env.NEXUS_KV.put('kuma_last', JSON.stringify(out), { expirationTtl: 1800 });
+            return out;
+          } catch (_) {
+            const last = await env.NEXUS_KV.get('kuma_last', 'json');
+            return Array.isArray(last) ? last : [];
+          }
+        })();
+        const [http, mc, kuma] = await Promise.all([httpChecks, mcCheck, kumaCheck]);
+        const services = [mc].concat(http).concat(kuma);
         const up = services.filter((s) => s.up).length;
         const result = {
           ok: true,
           overall: up === services.length ? 'operational' : (up === 0 ? 'down' : 'degraded'),
           up, total: services.length, services, checked: Date.now(),
         };
-        await env.NEXUS_KV.put('homelab_status_v3', JSON.stringify(result), { expirationTtl: 60 });
+        await env.NEXUS_KV.put('homelab_status_v4', JSON.stringify(result), { expirationTtl: 60 });
         return json(result, 200, request);
       }
 
