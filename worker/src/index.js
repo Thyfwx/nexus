@@ -324,7 +324,7 @@ export default {
       // live player count), the Local AI, and the Discord bot. Hostnames only
       // (mc.thyfwxit.com is already public DNS), no internal services. Cached 60s.
       if (path === '/api/homelab-status') {
-        const cached = await env.NEXUS_KV.get('homelab_status_v2', 'json');
+        const cached = await env.NEXUS_KV.get('homelab_status_v3', 'json');
         if (cached) return json(cached, 200, request);
         const httpTargets = [
           { key: 'ai',  name: 'Local AI',    url: 'https://nexus.thyfwxit.com' },
@@ -343,12 +343,22 @@ export default {
         }));
         const mcCheck = (async () => {
           try {
-            const r = await fetch('https://api.mcsrvstat.us/3/mc.thyfwxit.com', {
-              signal: AbortSignal.timeout(6000), cf: { cacheTtl: 0 },
+            const r = await fetch('https://api.mcstatus.io/v2/status/java/mc.thyfwxit.com', {
+              headers: { 'User-Agent': 'thyfwxit-status/1.0 (+https://thyfwxit.com)', 'Accept': 'application/json' },
+              signal: AbortSignal.timeout(8000), cf: { cacheTtl: 0 },
             });
             const d = await r.json();
-            return { key: 'mc', name: 'Minecraft', up: !!d.online, players: (d.players && d.players.online) || 0 };
+            if (typeof d.online === 'boolean') {
+              const players = (d.players && d.players.online) || 0;
+              // remember the last definitive reading (30 min) so an API hiccup
+              // never flips the flagship to a false "down".
+              await env.NEXUS_KV.put('mc_last', JSON.stringify({ up: d.online, players }), { expirationTtl: 1800 });
+              return { key: 'mc', name: 'Minecraft', up: d.online, players };
+            }
+            throw new Error('unexpected response');
           } catch (_) {
+            const last = await env.NEXUS_KV.get('mc_last', 'json');
+            if (last) return { key: 'mc', name: 'Minecraft', up: !!last.up, players: last.players || 0 };
             return { key: 'mc', name: 'Minecraft', up: false, players: 0 };
           }
         })();
@@ -360,7 +370,7 @@ export default {
           overall: up === services.length ? 'operational' : (up === 0 ? 'down' : 'degraded'),
           up, total: services.length, services, checked: Date.now(),
         };
-        await env.NEXUS_KV.put('homelab_status_v2', JSON.stringify(result), { expirationTtl: 60 });
+        await env.NEXUS_KV.put('homelab_status_v3', JSON.stringify(result), { expirationTtl: 60 });
         return json(result, 200, request);
       }
 
