@@ -319,18 +319,18 @@ export default {
         }, 200, request);
       }
 
-      // Live home-lab status for the portfolio. HEAD-checks self-hosted public
-      // services by hostname only (no IPs, no internal services), so nothing
-      // private is exposed. Result cached 60s in KV to stay light.
+      // Live home-lab status for the portfolio. Reports the self-hosted services
+      // visitors can actually use: the Minecraft server (public status API, with
+      // live player count), the Local AI, and the Discord bot. Hostnames only
+      // (mc.thyfwxit.com is already public DNS), no internal services. Cached 60s.
       if (path === '/api/homelab-status') {
-        const cached = await env.NEXUS_KV.get('homelab_status', 'json');
+        const cached = await env.NEXUS_KV.get('homelab_status_v2', 'json');
         if (cached) return json(cached, 200, request);
-        const targets = [
-          { key: 'ai',   name: 'Local AI',    url: 'https://nexus.thyfwxit.com' },
-          { key: 'bot',  name: 'Discord Bot', url: 'https://bot.thyfwxit.com' },
-          { key: 'site', name: 'Portfolio',   url: 'https://thyfwxit.com' },
+        const httpTargets = [
+          { key: 'ai',  name: 'Local AI',    url: 'https://nexus.thyfwxit.com' },
+          { key: 'bot', name: 'Discord Bot', url: 'https://bot.thyfwxit.com' },
         ];
-        const services = await Promise.all(targets.map(async (t) => {
+        const httpChecks = Promise.all(httpTargets.map(async (t) => {
           try {
             const r = await fetch(t.url, {
               method: 'HEAD', redirect: 'manual',
@@ -341,13 +341,26 @@ export default {
             return { key: t.key, name: t.name, up: false };
           }
         }));
+        const mcCheck = (async () => {
+          try {
+            const r = await fetch('https://api.mcsrvstat.us/3/mc.thyfwxit.com', {
+              signal: AbortSignal.timeout(6000), cf: { cacheTtl: 0 },
+            });
+            const d = await r.json();
+            return { key: 'mc', name: 'Minecraft', up: !!d.online, players: (d.players && d.players.online) || 0 };
+          } catch (_) {
+            return { key: 'mc', name: 'Minecraft', up: false, players: 0 };
+          }
+        })();
+        const [http, mc] = await Promise.all([httpChecks, mcCheck]);
+        const services = [mc].concat(http);
         const up = services.filter((s) => s.up).length;
         const result = {
           ok: true,
           overall: up === services.length ? 'operational' : (up === 0 ? 'down' : 'degraded'),
           up, total: services.length, services, checked: Date.now(),
         };
-        await env.NEXUS_KV.put('homelab_status', JSON.stringify(result), { expirationTtl: 60 });
+        await env.NEXUS_KV.put('homelab_status_v2', JSON.stringify(result), { expirationTtl: 60 });
         return json(result, 200, request);
       }
 
