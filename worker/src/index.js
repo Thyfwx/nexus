@@ -319,6 +319,38 @@ export default {
         }, 200, request);
       }
 
+      // Live home-lab status for the portfolio. HEAD-checks self-hosted public
+      // services by hostname only (no IPs, no internal services), so nothing
+      // private is exposed. Result cached 60s in KV to stay light.
+      if (path === '/api/homelab-status') {
+        const cached = await env.NEXUS_KV.get('homelab_status', 'json');
+        if (cached) return json(cached, 200, request);
+        const targets = [
+          { key: 'ai',   name: 'Local AI',    url: 'https://nexus.thyfwxit.com' },
+          { key: 'bot',  name: 'Discord Bot', url: 'https://bot.thyfwxit.com' },
+          { key: 'site', name: 'Portfolio',   url: 'https://thyfwxit.com' },
+        ];
+        const services = await Promise.all(targets.map(async (t) => {
+          try {
+            const r = await fetch(t.url, {
+              method: 'HEAD', redirect: 'manual',
+              signal: AbortSignal.timeout(5000), cf: { cacheTtl: 0 },
+            });
+            return { key: t.key, name: t.name, up: r.status > 0 && r.status < 500 };
+          } catch (_) {
+            return { key: t.key, name: t.name, up: false };
+          }
+        }));
+        const up = services.filter((s) => s.up).length;
+        const result = {
+          ok: true,
+          overall: up === services.length ? 'operational' : (up === 0 ? 'down' : 'degraded'),
+          up, total: services.length, services, checked: Date.now(),
+        };
+        await env.NEXUS_KV.put('homelab_status', JSON.stringify(result), { expirationTtl: 60 });
+        return json(result, 200, request);
+      }
+
       if (path === '/api/server-info') {
         const cf = request.cf || {};
         return json({
