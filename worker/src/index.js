@@ -292,6 +292,25 @@ export default {
     }
 
     try {
+      // ── CSRF guard ──────────────────────────────────────────────────
+      // These endpoints authenticate via the SameSite=None session cookie, so they
+      // must also confirm the request came from our own origin (or the Discord bot).
+      // Without it, a malicious page could ride the cookie on a simple cross-site POST
+      // to submit scores, rename a user, lock someone out, or (as owner) hit the dev
+      // admin actions. Endpoints with their own origin gate (chat, image-gen, the
+      // webhook posters) are unaffected. Read-only dev GETs stay owner-gated + CORS.
+      if (method === 'POST' &&
+          (path.startsWith('/api/dev/') ||
+           path === '/api/leaderboard/submit' ||
+           path === '/api/me/handle' ||
+           path === '/api/lockout/register')) {
+        const _csrfOrigin = request.headers.get('Origin') || '';
+        const _csrfBot = request.headers.get('X-Bot-Secret') || '';
+        if (!ALLOWED_ORIGINS.includes(_csrfOrigin) && !(env.BOT_SECRET && _csrfBot === env.BOT_SECRET)) {
+          return json({ error: 'Unauthorized — invalid origin' }, 403, request);
+        }
+      }
+
       // ── Health / info endpoints ─────────────────────────────────────
       if (path === '/ping') {
         return json({ ok: true, version: env.NEXUS_VERSION || 'v5.6.2', build: 'cf-worker', ts: Date.now() }, 200, request);
@@ -654,6 +673,12 @@ export default {
 
       // ── Speed test ──────────────────────────────────────────────────
       if (path === '/api/speedtest-blob') {
+        // Per-IP cap so the bandwidth endpoint can't be scripted to burn the Worker's
+        // daily request budget. In-memory (no KV latency to skew the measurement);
+        // generous, since a real speed test only pulls a handful of blobs.
+        if (!_checkRateLimit('st:' + (request.headers.get('CF-Connecting-IP') || 'x'), 100)) {
+          return json({ error: 'rate limited' }, 429, request);
+        }
         const bytes = parseInt(url.searchParams.get('bytes') || '1000000');
         const capped = Math.min(bytes, 25000000);
         const data = new Uint8Array(capped);
@@ -672,6 +697,9 @@ export default {
       }
 
       if (path === '/api/speedtest-up' && method === 'POST') {
+        if (!_checkRateLimit('stu:' + (request.headers.get('CF-Connecting-IP') || 'x'), 100)) {
+          return json({ error: 'rate limited' }, 429, request);
+        }
         const body = await request.arrayBuffer();
         return json({ received: body.byteLength }, 200, request);
       }
