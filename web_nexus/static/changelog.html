@@ -305,6 +305,31 @@
             For the full git history, see <a href="https://github.com/Thyfwx/nexus" target="_blank" rel="noopener" style="color:var(--accent);">github.com/Thyfwx/nexus</a>.
         </p>
 
+        <!-- v5.6.10: tiered chat limits + Unfiltered sign-in gate + indexing cleanup -->
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #ff9500 0%, #ff9500 100%)">
+            <div class="release-head">
+                <span class="release-version">v5.6.10</span>
+                <span>
+                    <span class="release-tag tag-orange">SECURITY</span>
+                </span>
+                <span class="release-date">2026-06-09</span>
+            </div>
+            <div class="release-summary">
+                Tightened the AI chat limits and locked Unfiltered mode behind a real sign-in. Guests now have a message cap per minute and per day, so one script cannot drain the shared free AI quota, while signed in Google accounts get more room. Unfiltered needs a signed in account plus a one-time age confirmation, and its tone stays blunt without targeting people. Privacy and terms were updated to match.
+            </div>
+            <div class="section-label sl-green">— ADDED</div>
+            <ul class="changes">
+                <li class="added">Chat limits now scale by account: guests are capped per minute and per day, signed in accounts get more headroom, so no single source can burn the shared AI quota.</li>
+                <li class="added">Unfiltered mode now requires a signed in Google account and a one-time age confirmation. Guests are routed to Nexus Core instead.</li>
+            </ul>
+            <div class="section-label sl-orange">— PATCHES</div>
+            <ul class="changes">
+                <li class="fixed">Unfiltered tone refined: still candid and crude, but it no longer harasses or degrades real people.</li>
+                <li class="fixed">Guest pages corrected to reflect the new chat limits. They previously said guest chat was unlimited.</li>
+                <li class="fixed">Privacy and terms updated with the new limits, the Unfiltered sign-in requirement, and the rate limit counter.</li>
+            </ul>
+        </div>
+
         <!-- v5.6.9: security hardening + live version display -->
         <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #ff9500 0%, #ff9500 100%)">
             <div class="release-head">
