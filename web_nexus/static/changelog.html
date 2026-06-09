@@ -48,6 +48,7 @@
             --green: #00ff88;
             --orange: #ff9500;
             --red: #ff3333;
+            --purple: #b464ff;
             --border: rgba(255, 255, 255, 0.07);
         }
 
@@ -163,14 +164,16 @@
         }
 
         .release-version {
-            color: var(--accent);
             font-size: 1.1rem;
             font-weight: 700;
             letter-spacing: 2px;
+            /* version number carries a gradient of whatever colors are in that release */
+            background: var(--version-gradient, var(--bar-gradient));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: rgba(0, 255, 136, 0.8); /* fallback for browsers without background-clip:text */
         }
-
-        .release.major .release-version { color: rgba(0, 255, 136, 0.8); }
-        .release.fix   .release-version { color: rgba(255, 149, 0, 0.8); }
 
         .release-date {
             color: var(--fg-dim);
@@ -267,6 +270,8 @@
         ul.changes li.added::before { content: '+'; color: var(--green); font-weight: 700; }
         ul.changes li.fixed::before { content: '✓'; color: var(--orange); font-weight: 700; }
         ul.changes li.removed::before { content: '−'; color: var(--red); font-weight: 700; }
+        /* security sections: same added items, but the marker reads purple */
+        ul.changes.sec li::before { color: var(--purple); }
 
         .footer {
             margin-top: 40px;
@@ -325,7 +330,7 @@
                 <li class="added">Unfiltered moved behind a sign-in. You need a Google account and a one-time age check to get in, and guests land on Nexus Core instead.</li>
             </ul>
             <div class="section-label sl-purple">— SECURITY</div>
-            <ul class="changes">
+            <ul class="changes sec">
                 <li class="added">Image generation picked up its own rate cap, so it cannot be hammered the way an open endpoint could.</li>
                 <li class="added">Leaderboard writes sit behind an auth check now, on top of the score validation from v5.6.9.</li>
                 <li class="added">Session tokens handle unicode names correctly, handles get checked against an allowed character set, and the content security policy dropped unsafe-eval.</li>
@@ -352,7 +357,7 @@
                 A security hardening pass across the terminal and the backend, plus a fix so the boot line always shows the version that is actually deployed. Nothing changed on the surface, the terminal looks and works exactly the same. It just got a lot harder to abuse and honest about its own version.
             </div>
             <div class="section-label sl-purple">— SECURITY</div>
-            <ul class="changes">
+            <ul class="changes sec">
                 <li class="added">Terminal output is locked down. AI replies and anything you type always render as plain text, never as live markup, so untrusted content cannot slip code into the page.</li>
                 <li class="added">The AI got hardened against prompt injection. It treats every message and the whole history as untrusted, refuses to reveal or change its own instructions, and ignores any attempt to flip its rules or its mode.</li>
                 <li class="added">Leaderboards validate scores and cap how often you can submit now, so the boards cannot be flooded or stuffed with impossible numbers.</li>
@@ -543,7 +548,7 @@
                 <li class="added">Discord bot integration ready — Nexus Core personality available via API with shared-secret auth. Other modes redirect users to the website.</li>
             </ul>
             <div class="section-label sl-purple">— SECURITY</div>
-            <ul class="changes">
+            <ul class="changes sec">
                 <li class="added">Device fingerprinting — non-identifying device hash for ban enforcement. Prevents ban evasion via guest mode, network switching, or cookie clearing.</li>
                 <li class="added">Content Security Policy headers on both frontend sites (portfolio + Nexus).</li>
                 <li class="added">HSTS preload submitted — thyfwxit.com pending inclusion in browser preload lists.</li>
