@@ -1,5 +1,5 @@
-// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.6.9 — security hardening + live version display
-window.NEXUS_VERSION = 'v5.6.9';
+// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.6.10 — tiered chat limits + Unfiltered sign-in gate
+window.NEXUS_VERSION = 'v5.6.10';
 
 // AD KILL SWITCHES — flip any to true to disable that block at runtime.
 // Master NEXUS_DISABLE_ADS overrides all. All disabled until AdSense
