@@ -1,0 +1,5 @@
+# Deploy exclude for Cloudflare Pages / wrangler.
+# Keep local-only files off the public CDN. secrets.js is also gitignored,
+# and its values are placeholders (real secrets live in Cloudflare Worker Secrets).
+secrets.js
+.wrangler
