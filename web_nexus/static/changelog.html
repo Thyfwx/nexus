@@ -455,7 +455,7 @@
         </div>
 
         <!-- v5.6.4: 8 added, 4 fixed, 2 removed -->
-        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 55%, #ff9500 55%, #ff9500 80%, #ff3333 80%, #ff3333 100%)">
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 55%, #ff9500 55%, #ff9500 80%, #ff3333 80%, #ff3333 100%); --version-gradient: linear-gradient(100deg, #00ff88, #ff9500, #ff3333)">
             <div class="release-head">
                 <span class="release-version">v5.6.4</span>
                 <span>
@@ -494,7 +494,7 @@
         </div>
 
         <!-- v5.6.3: 2 added, 2 fixed, 1 removed -->
-        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 40%, #ff9500 40%, #ff9500 80%, #ff3333 80%, #ff3333 100%)">
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 40%, #ff9500 40%, #ff9500 80%, #ff3333 80%, #ff3333 100%); --version-gradient: linear-gradient(100deg, #00ff88, #ff9500, #ff3333)">
             <div class="release-head">
                 <span class="release-version">v5.6.3</span>
                 <span>
@@ -524,7 +524,7 @@
         </div>
 
         <!-- v5.6.2: 13 added, 9 fixed, 4 removed -->
-        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 50%, #ff9500 50%, #ff9500 85%, #ff3333 85%, #ff3333 100%)">
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 50%, #ff9500 50%, #ff9500 85%, #ff3333 85%, #ff3333 100%); --version-gradient: linear-gradient(100deg, #00ff88, #b464ff, #ff9500, #ff3333)">
             <div class="release-head">
                 <span class="release-version">v5.6.2</span>
                 <span>
@@ -579,7 +579,7 @@
         </div>
 
         <!-- v5.6.1: 10 added, 4 fixed, 1 removed -->
-        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 67%, #ff9500 67%, #ff9500 93%, #ff3333 93%, #ff3333 100%)">
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 67%, #ff9500 67%, #ff9500 93%, #ff3333 93%, #ff3333 100%); --version-gradient: linear-gradient(100deg, #00ff88, #ff9500, #ff3333)">
             <div class="release-head">
                 <span class="release-version">v5.6.1</span>
                 <span>
@@ -619,7 +619,7 @@
         </div>
 
         <!-- v5.6.0: 8 added, 4 fixed, 1 removed -->
-        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 62%, #ff9500 62%, #ff9500 92%, #ff3333 92%, #ff3333 100%)">
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 62%, #ff9500 62%, #ff9500 92%, #ff3333 92%, #ff3333 100%); --version-gradient: linear-gradient(100deg, #00ff88, #ff9500, #ff3333)">
             <div class="release-head">
                 <span class="release-version">v5.6.0</span>
                 <span>
@@ -657,7 +657,7 @@
         </div>
 
         <!-- v5.5.1: 4 added, 5 fixed, 1 removed -->
-        <div class="release fix" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 40%, #ff9500 40%, #ff9500 90%, #ff3333 90%, #ff3333 100%)">
+        <div class="release fix" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 40%, #ff9500 40%, #ff9500 90%, #ff3333 90%, #ff3333 100%); --version-gradient: linear-gradient(100deg, #00ff88, #ff9500, #ff3333)">
             <div class="release-head">
                 <span class="release-version">v5.5.1</span>
                 <span>
@@ -692,7 +692,7 @@
         </div>
 
         <!-- v5.5.0: 6 added, 0 fixed, 3 removed (no patches) -->
-        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 67%, #ff3333 67%, #ff3333 100%)">
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 67%, #ff3333 67%, #ff3333 100%); --version-gradient: linear-gradient(100deg, #00ff88, #ff3333)">
             <div class="release-head">
                 <span class="release-version">v5.5.0</span>
                 <span>
@@ -723,7 +723,7 @@
         </div>
 
         <!-- v5.4.x — placeholder for older releases, to be backfilled -->
-        <div class="release" style="--bar-gradient: #00b4ff">
+        <div class="release" style="--bar-gradient: #00b4ff; --version-gradient: linear-gradient(100deg, #00b4ff, #66d9ff)">
             <div class="release-head">
                 <span class="release-version">v5.4.x</span>
                 <span>
@@ -760,6 +760,7 @@
             if (!items.length) return;
 
             let addedTop = null, addedBot = null;
+            let secTop = null, secBot = null;
             let fixedTop = null, fixedBot = null;
             let removedTop = null, removedBot = null;
 
@@ -767,7 +768,10 @@
                 const r = li.getBoundingClientRect();
                 const top = r.top - box.top;
                 const bot = r.bottom - box.top;
-                if (li.classList.contains('added')) {
+                if (li.parentElement.classList.contains('sec')) {
+                    if (secTop === null || top < secTop) secTop = top;
+                    if (secBot === null || bot > secBot) secBot = bot;
+                } else if (li.classList.contains('added')) {
                     if (addedTop === null || top < addedTop) addedTop = top;
                     if (addedBot === null || bot > addedBot) addedBot = bot;
                 } else if (li.classList.contains('fixed')) {
@@ -779,12 +783,13 @@
                 }
             });
 
-            const g = '#00ff88', o = '#ff9500', r = '#ff3333';
+            const g = '#00ff88', p = '#b464ff', o = '#ff9500', r = '#ff3333';
             const pct = v => (v / h * 100).toFixed(1) + '%';
             const stops = [];
 
             const sections = [];
             if (addedTop !== null) sections.push({ c: g, t: addedTop, b: addedBot });
+            if (secTop !== null) sections.push({ c: p, t: secTop, b: secBot });
             if (fixedTop !== null) sections.push({ c: o, t: fixedTop, b: fixedBot });
             if (removedTop !== null) sections.push({ c: r, t: removedTop, b: removedBot });
             if (!sections.length) return;
