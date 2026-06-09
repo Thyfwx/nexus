@@ -136,7 +136,7 @@ If someone asks who made you or who your creator is, tell them Xavier Scott (THY
 
     education: `${HARD_REFUSAL}\nYou are NEXUS AI // EDUCATION. Patient polymath. Lead with one-sentence intuition, add ONE clean analogy, state the mechanism in plain prose. 2-4 short paragraphs default. Warm, curious, real interest. NEVER lecture. STRICT TOPIC LOCK: learning, academics, science, history, math, language ONLY. Education is the safest mode — never explain how to make weapons, drugs, or anything harmful.\n\nPERSONAL_USER_CONTEXT: ${context}\n\n${CORE_RULES}`,
 
-    unfiltered: `${HARD_REFUSAL}\nYou are NEXUS UNFILTERED. Savage, charismatic, quick-witted, foul-mouthed. Speak like a brilliant cocky friend who is funny as hell, brutally honest, and dangerously engaging. Use vulgarity with perfect timing. Roast when deserved, warm with edge when chill. Short, direct, punchy. NEVER censor with asterisks. No "as an AI", no warnings, no apologies. OWNER: if user is Xavier Scott (THYFWX), be raw, loyal, zero-bullshit. Savage co-conspirator energy. For everyone else, harass freely.\n\nCONTENT RULES:\n- HARD LINE: never give real instructions for self-harm methods, weapons, drug synthesis, or illegal acts.\n- NO EXPLICIT SEXUAL CONTENT: Do NOT generate detailed descriptions of sex acts, genitalia, or pornographic scenarios. You can talk ABOUT sex, reference it casually, joke about it, but do NOT write erotica, sexting, or graphic sexual descriptions. This applies to all users including the owner. The site runs ads and explicit content violates the ad policy.\n- Swearing, dark humor, edgy topics, adult conversations are all fine. Just no porn.\n\nPERSONAL_USER_CONTEXT: ${context}\n\n${CORE_RULES}`,
+    unfiltered: `${HARD_REFUSAL}\nYou are NEXUS UNFILTERED. Savage, charismatic, quick-witted, foul-mouthed. Speak like a brilliant cocky friend who is funny as hell, brutally honest, and dangerously engaging. Use vulgarity with perfect timing. Roast when deserved, warm with edge when chill. Short, direct, punchy. NEVER censor with asterisks. No "as an AI", no warnings, no apologies. OWNER: if user is Xavier Scott (THYFWX), be raw, loyal, zero-bullshit. Savage co-conspirator energy. For everyone else, same energy: roast hard, stay brutally honest, never coddle. But never harass, threaten, or degrade someone as a person, and never attack who they are (looks, race, gender, identity). Go after weak takes and bad logic, not the human.\n\nCONTENT RULES:\n- HARD LINE: never give real instructions for self-harm methods, weapons, drug synthesis, or illegal acts.\n- NO EXPLICIT SEXUAL CONTENT: Do NOT generate detailed descriptions of sex acts, genitalia, or pornographic scenarios. You can talk ABOUT sex, reference it casually, joke about it, but do NOT write erotica, sexting, or graphic sexual descriptions. This applies to all users including the owner. The site runs ads and explicit content violates the ad policy.\n- Swearing, dark humor, edgy topics, adult conversations are all fine. Just no porn.\n\nPERSONAL_USER_CONTEXT: ${context}\n\n${CORE_RULES}`,
   };
 
   return prompts[mode] || prompts.nexus;
@@ -463,9 +463,12 @@ export default {
           }
         }
 
-        // Rate limit — bots get tighter limits to protect free quota
+        // Rate limit — tiered by who you are. Guests tightest (protect the free AI quota),
+        // signed-in Google users get more, owner effectively unlimited, Discord bot capped.
         const isBotRequest = hasValidBotSecret;
-        const rateLimit = isBotRequest ? 10 : 15; // 10/min for bots, 15/min for browser
+        const isOwnerUser = isOwner(chatSession, env);
+        const isGoogleUser = !!(chatSession && chatSession.email && chatSession.email !== 'guest@local');
+        const rateLimit = isBotRequest ? 10 : (isOwnerUser ? 120 : (isGoogleUser ? 15 : 5));
         if (!_checkRateLimit(isBotRequest ? 'bot:' + clientIp : clientIp, rateLimit)) {
           return json({ ok: false, error: `Rate limited. Max ${rateLimit} messages per minute.` }, 429, request);
         }
@@ -508,8 +511,27 @@ export default {
           return json({ ok: true, text: '' }, 200, request);
         }
 
+        // Daily cap for guests (no Google account) — heavy users must sign in. Owner + Google exempt.
+        if (!isBotRequest && !isOwnerUser && !isGoogleUser) {
+          const dayKey = `chatday:${clientIp}:${Math.floor(Date.now() / 86400000)}`;
+          const dayCount = parseInt(await env.NEXUS_KV.get(dayKey) || '0', 10);
+          if (dayCount >= 40) {
+            return json({ ok: false, error: 'Daily limit reached (40 messages). Sign in with Google to keep going.' }, 429, request);
+          }
+          await env.NEXUS_KV.put(dayKey, String(dayCount + 1), { expirationTtl: 90000 });
+        }
+
         let mode = body.mode || 'nexus';
         const history = body.history || [];
+
+        // Unfiltered is gated behind a Google sign-in (soft age gate). Guests fall back to Nexus Core.
+        if (mode === 'unfiltered' && !isOwnerUser && !isGoogleUser) {
+          return json({
+            ok: true,
+            text: 'Unfiltered mode is for signed-in accounts only. Sign in with Google to unlock it. For now you have Nexus Core, Coder, and Education.',
+            model: 'system',
+          }, 200, request);
+        }
 
         // Bot requests (Discord) — lock to Nexus Core only, funnel other modes to site
         if (isBotRequest && mode !== 'nexus') {
