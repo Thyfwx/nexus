@@ -305,50 +305,62 @@
             For the full git history, see <a href="https://github.com/Thyfwx/nexus" target="_blank" rel="noopener" style="color:var(--accent);">github.com/Thyfwx/nexus</a>.
         </p>
 
-        <!-- v5.6.10: tiered chat limits + Unfiltered sign-in gate + indexing cleanup -->
-        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #ff9500 0%, #ff9500 100%)">
+        <!-- v5.6.10: chat limit tiers + Unfiltered sign-in gate + backend hardening + indexing cleanup -->
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 62%, #ff9500 62%, #ff9500 100%)">
             <div class="release-head">
                 <span class="release-version">v5.6.10</span>
                 <span>
-                    <span class="release-tag tag-orange">SECURITY</span>
+                    <span class="release-tag tag-green">FEATURES</span>
+                    <span class="release-tag tag-purple">SECURITY</span>
+                    <span class="release-tag tag-orange">PATCHES</span>
                 </span>
                 <span class="release-date">2026-06-09</span>
             </div>
             <div class="release-summary">
-                Tightened the AI chat limits and locked Unfiltered mode behind a real sign-in. Guests now have a message cap per minute and per day, so one script cannot drain the shared free AI quota, while signed in Google accounts get more room. Unfiltered needs a signed in account plus a one-time age confirmation, and its tone stays blunt without targeting people. Privacy and terms were updated to match.
+                Tightened up who can hit the AI and how hard, and moved Unfiltered behind a real sign-in. Guests get capped by the minute and by the day now so nobody scripts the free quota dry, signed in accounts get more room, and Unfiltered wants a Google account plus a one-time age check before it talks. A round of backend hardening landed alongside it, and the public pages got cleaned up so search engines read Nexus as the moderated site it is.
             </div>
-            <div class="section-label sl-green">— ADDED</div>
+            <div class="section-label sl-green">— FEATURES</div>
             <ul class="changes">
-                <li class="added">Chat limits now scale by account: guests are capped per minute and per day, signed in accounts get more headroom, so no single source can burn the shared AI quota.</li>
-                <li class="added">Unfiltered mode now requires a signed in Google account and a one-time age confirmation. Guests are routed to Nexus Core instead.</li>
+                <li class="added">Chat limits scale by who you are now. Guests are capped by the minute and by the day, signed in accounts get more room, and the owner runs unthrottled. No single script can torch the free quota everyone shares.</li>
+                <li class="added">Unfiltered moved behind a sign-in. You need a Google account and a one-time age check to get in, and guests land on Nexus Core instead.</li>
+            </ul>
+            <div class="section-label sl-purple">— SECURITY</div>
+            <ul class="changes">
+                <li class="added">Image generation picked up its own rate cap, so it cannot be hammered the way an open endpoint could.</li>
+                <li class="added">Leaderboard writes sit behind an auth check now, on top of the score validation from v5.6.9.</li>
+                <li class="added">Session tokens handle unicode names correctly, handles get checked against an allowed character set, and the content security policy dropped unsafe-eval.</li>
             </ul>
             <div class="section-label sl-orange">— PATCHES</div>
             <ul class="changes">
-                <li class="fixed">Unfiltered tone refined: still candid and crude, but it no longer harasses or degrades real people.</li>
-                <li class="fixed">Guest pages corrected to reflect the new chat limits. They previously said guest chat was unlimited.</li>
-                <li class="fixed">Privacy and terms updated with the new limits, the Unfiltered sign-in requirement, and the rate limit counter.</li>
+                <li class="fixed">Reined in the Unfiltered tone. Still crude, still blunt, it just stopped going after real people.</li>
+                <li class="fixed">Fixed the guest pages that still claimed unlimited chat. They do not anymore, because it is not true.</li>
+                <li class="fixed">Reframed the public pages: dropped the 18+ and adult labels but kept every safety and age gate line, so the indexed pages read clean. Privacy and terms caught up with the new caps, the sign-in requirement, and the daily rate counter.</li>
             </ul>
         </div>
 
         <!-- v5.6.9: security hardening + live version display -->
-        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #ff9500 0%, #ff9500 100%)">
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 80%, #ff9500 80%, #ff9500 100%)">
             <div class="release-head">
                 <span class="release-version">v5.6.9</span>
                 <span>
-                    <span class="release-tag tag-orange">SECURITY</span>
+                    <span class="release-tag tag-purple">SECURITY</span>
+                    <span class="release-tag tag-orange">PATCHES</span>
                 </span>
                 <span class="release-date">2026-05-30</span>
             </div>
             <div class="release-summary">
-                A security hardening pass across the terminal and the backend, plus a fix so the boot line always shows the version that is actually deployed. No feature changes: the terminal looks and works the same, it is just harder to abuse and honest about its version.
+                A security hardening pass across the terminal and the backend, plus a fix so the boot line always shows the version that is actually deployed. Nothing changed on the surface, the terminal looks and works exactly the same. It just got a lot harder to abuse and honest about its own version.
             </div>
+            <div class="section-label sl-purple">— SECURITY</div>
+            <ul class="changes">
+                <li class="added">Terminal output is locked down. AI replies and anything you type always render as plain text, never as live markup, so untrusted content cannot slip code into the page.</li>
+                <li class="added">The AI got hardened against prompt injection. It treats every message and the whole history as untrusted, refuses to reveal or change its own instructions, and ignores any attempt to flip its rules or its mode.</li>
+                <li class="added">Leaderboards validate scores and cap how often you can submit now, so the boards cannot be flooded or stuffed with impossible numbers.</li>
+                <li class="added">Rate limiting added across chat and the report endpoints, plus spam limits on the alert webhook, so no single source can hammer the service.</li>
+            </ul>
             <div class="section-label sl-orange">— PATCHES</div>
             <ul class="changes">
-                <li class="fixed">Terminal output is locked down: AI replies and anything you type always render as plain text, never as live markup. Untrusted content can no longer inject code into the page.</li>
-                <li class="fixed">The AI is hardened against prompt injection. It treats all input and prior history as untrusted, refuses to reveal or change its own instructions, and ignores attempts to switch its rules or mode.</li>
-                <li class="fixed">Leaderboards now validate scores and cap how often they can be submitted, so the boards can no longer be flooded or stuffed with impossible numbers.</li>
-                <li class="fixed">Added rate limiting across chat and the report endpoints so no single source can hammer the service.</li>
-                <li class="fixed">The boot line reads the live deployed version straight from the backend, so it never lags behind the real version again.</li>
+                <li class="fixed">The boot line reads the live deployed version straight from the backend now, so it never lags behind the real version again.</li>
             </ul>
         </div>
 
@@ -362,12 +374,12 @@
                 <span class="release-date">2026-05-22</span>
             </div>
             <div class="release-summary">
-                Worker /api/summarize now retries on Gemini free-tier 503s and falls back to gemini-2.5-flash-lite if the primary model stays unavailable. Verified end-to-end on the Gemini 2.5 blog post: 64-word summary returned in 8 seconds with no chatty opener and no empty title quotes.
+                The free Gemini 2.5 endpoint throws 503s when it is busy, so the summarizer retries once and then drops to the lighter Gemini 2.5 Flash Lite before it ever gives up. Verified end to end: a 64 word summary back in 8 seconds, no chatty opener, no empty title.
             </div>
             <div class="section-label sl-orange">— PATCHES</div>
             <ul class="changes">
-                <li class="fixed">/api/summarize wraps the Gemini call in a retry chain: 1 retry with 1 second backoff on 503/429, then fall back to gemini-2.5-flash-lite (also free tier). The free Gemini 2.5 Flash endpoint frequently returns 503 UNAVAILABLE under load; lite has lower latency and is rarely throttled.</li>
-                <li class="fixed">Clearer error to users when both models are exhausted: "Summary service is busy. Try again in a minute." instead of "No summary returned."</li>
+                <li class="fixed">Summary calls wrap in a retry chain: one retry with a one second backoff on a 503 or 429, then a fall back to Gemini 2.5 Flash Lite, also free and rarely throttled. The full Flash endpoint stalls under load, Lite picks up the slack.</li>
+                <li class="fixed">Clearer message when both models are tapped out: "Summary service is busy. Try again in a minute." instead of the old blank "No summary returned."</li>
             </ul>
         </div>
 
@@ -381,11 +393,11 @@
                 <span class="release-date">2026-05-22</span>
             </div>
             <div class="release-summary">
-                v5.6.6 shipped with the TL;DR summarize button still broken. The fix needed one more piece: Gemini 2.5 Flash has dynamic thinking enabled by default, which eats the maxOutputTokens budget before any visible text comes out. Set thinkingBudget to 0 to disable thinking for summarize calls (no chain-of-thought needed for a 5-sentence summary), bumped maxOutputTokens to 512 as safety margin.
+                v5.6.6 shipped with the TL;DR button still cutting off after one line. Turned out Gemini 2.5 Flash burns its token budget on hidden reasoning before it writes a word, so the fix was to switch that off for summaries.
             </div>
             <div class="section-label sl-orange">— PATCHES</div>
             <ul class="changes">
-                <li class="fixed">Worker /api/summarize now passes thinkingConfig.thinkingBudget=0 to Gemini 2.5 Flash so the model spends tokens on actual output, not on internal reasoning. Summaries now return the full 4 to 5 sentences instead of cutting off after one fragment.</li>
+                <li class="fixed">Summaries tell Gemini 2.5 Flash to skip its internal thinking step now and spend the whole budget on visible text. A five sentence summary does not need chain of thought. Full summaries come back instead of a single fragment, and the output ceiling went up to 512 for headroom.</li>
             </ul>
         </div>
 
@@ -399,31 +411,41 @@
                 <span class="release-date">2026-05-22</span>
             </div>
             <div class="release-summary">
-                TL;DR summarize button no longer outputs "okay, so this post is called ...". Daily cap on portfolio summaries lifted from 30 to 100 per IP now that Gemini 2.5 Flash runs on the free tier.
+                The TL;DR summarizer moved to free Gemini 2.5 Flash with a 24 hour cache, so portfolio summaries stopped costing anything and the daily cap jumped to 100. The prompt got tightened too, no more chatty openers.
             </div>
             <div class="section-label sl-orange">— PATCHES</div>
             <ul class="changes">
-                <li class="fixed">TL;DR button output cleaned up. Frontend now extracts the H1 (or document.title) and sends it to the Worker as a dedicated title field. Worker prompt rewritten with hard rules forbidding conversational openers ("okay", "so", "alright", "basically", "well") and the "this post is called ..." pattern. Cache key now includes the title so different pages with similar bodies do not collide.</li>
-                <li class="fixed">Daily summarize cap lifted from 30 to 100 requests per IP per day. Cache hits still cost zero. Free Gemini 2.5 Flash quota is comfortable at this rate.</li>
-                <li class="fixed">JSON-LD blocks, &lt;nav&gt;, &lt;header&gt;, and &lt;footer&gt; now stripped from the page content before sending to the model. The 8K input budget goes to actual article text instead of structured metadata.</li>
+                <li class="fixed">Summarizer swapped from paid Gemini 2.0 Flash to free Gemini 2.5 Flash. Same quality, zero cost per call, which is what made the higher cap possible.</li>
+                <li class="fixed">Summaries sit behind a 24 hour KV cache now, so re-summarizing the same page is instant and free. The input cap dropped from 50K to 8K characters to stay inside the model budget.</li>
+                <li class="fixed">TL;DR button stopped opening with "okay, so this post is called ...". The frontend hands the Worker the page's real H1 as a dedicated title field, and the prompt has hard rules against conversational openers like "okay", "so", "alright", "basically", and "well". The cache key includes the title now, so pages with similar bodies stop colliding.</li>
+                <li class="fixed">Daily summarize cap raised from 30 to 100 per visitor a day. Cache hits still cost nothing, and the free Gemini 2.5 quota is comfortable at that rate.</li>
+                <li class="fixed">JSON-LD, nav, header, and footer get stripped from the page before it reaches the model, so the 8K budget goes to the actual article instead of markup.</li>
             </ul>
         </div>
 
-        <!-- v5.6.5: 1 added -->
-        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 100%)">
+        <!-- v5.6.5: Mancala + Invaders cleanup + PWA icons + SEO/compliance -->
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 50%, #ff9500 50%, #ff9500 100%)">
             <div class="release-head">
                 <span class="release-version">v5.6.5</span>
                 <span>
                     <span class="release-tag tag-green">FEATURE</span>
+                    <span class="release-tag tag-orange">PATCHES</span>
                 </span>
                 <span class="release-date">2026-05-17</span>
             </div>
             <div class="release-summary">
-                Mancala lands as the eighth Nexus game. Vs an AI opponent at three depths, with a hard-mode win-streak leaderboard.
+                Mancala joins as the eighth game. Nexus Invaders gets a cleaner full bleed look, the PWA picks up a fresh icon set, and a JSON-LD and AdSense compliance pass tightens how the standalone pages show up in search.
             </div>
             <div class="section-label sl-green">— FEATURES</div>
             <ul class="changes">
-                <li class="added">Mancala (Kalah variant) added. Click a pit on your side to sow stones counter-clockwise, capture when you land in your own empty pit opposite a loaded enemy pit, and keep going when the last stone drops in your store. AI uses minimax with alpha-beta pruning at depths 1 (Easy), 4 (Medium), and 6 (Hard). Win on Hard to extend your streak — losses or draws reset it. Hard-mode streak is its own tab on the public leaderboard.</li>
+                <li class="added">Mancala, the eighth Nexus game. Click a pit on your side to sow the stones counter-clockwise, capture when your last stone lands in an empty pit of yours sitting across from a loaded enemy pit, and take another turn whenever it drops in your store. The AI runs minimax with alpha-beta pruning at three depths: 1 for Easy, 4 for Medium, 6 for Hard. Beat Hard to build a win streak, a loss or a draw resets it, and the Hard streak gets its own tab on the public leaderboard.</li>
+            </ul>
+            <div class="section-label sl-orange">— PATCHES</div>
+            <ul class="changes">
+                <li class="fixed">Nexus Invaders cleaned up. The canvas fills the whole frame now, with the close button, the exit bar, and the nested boxing all stripped out. Standalone difficulty caps at wave 6.</li>
+                <li class="fixed">PWA icons redesigned to match the magenta brand mark, across the manifest and the login page references.</li>
+                <li class="fixed">JSON-LD structured data added so search engines read the pages as real apps and articles, not loose text.</li>
+                <li class="fixed">Privacy policy expanded with explicit AdSense, Google Funding Choices, and CCPA plus US state disclosures, closing out the AdSense compliance pass.</li>
             </ul>
         </div>
 
