@@ -218,6 +218,16 @@ window._confirmAdultGate = function() {
     window._pendingGoogleUser = null;
     const modal = document.getElementById('adult-gate-modal');
     if (modal) modal.style.display = 'none';
+    // Stamp the confirmation server-side — the Unfiltered gate checks this.
+    try {
+        fetch((window.API_BASE || '') + '/api/me/confirm-adult', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{}'
+        }).then(function(r) {
+            if (r && r.ok) localStorage.setItem('nexus_adult_synced', 'true');
+        }).catch(function(){});
+    } catch(_) {}
     // Log the age confirmation to the backend
     try {
         fetch((window.API_BASE || '') + '/api/log-conversation', {
@@ -425,3 +435,23 @@ window.renderAuthSection = renderAuthSection;
 
 // Render user card immediately on terminal page (no Google script needed)
 if (document.getElementById('auth-section')) renderAuthSection();
+
+// Back-fill the server-side 18+ stamp. Users who confirmed before the stamp
+// existed only have the localStorage flag, so sync it to the backend once.
+// Without this they'd hit the Unfiltered confirmation wall despite having
+// already confirmed.
+(function() {
+    try {
+        var u = JSON.parse(localStorage.getItem('nexus_user_data') || 'null');
+        if (!u || !u.email || u.email === 'guest@local' || u.is_owner) return;
+        if (localStorage.getItem('nexus_adult_confirmed') !== 'true') return;
+        if (localStorage.getItem('nexus_adult_synced') === 'true') return;
+        fetch((window.API_BASE || '') + '/api/me/confirm-adult', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{}'
+        }).then(function(r) {
+            if (r && r.ok) localStorage.setItem('nexus_adult_synced', 'true');
+        }).catch(function(){});
+    } catch(_) {}
+})();

@@ -54,7 +54,7 @@
         </div>
 
         <h1>Privacy Policy</h1>
-        <p class="updated">Last updated: June 1, 2026</p>
+        <p class="updated">Last updated: June 10, 2026</p>
 
         <p>This policy explains what data <strong>thyfwxit.com</strong> and the <strong>Nexus AI Terminal</strong> at <strong>thyfwxit.com/nexus</strong> collect, how it's used, and which third parties are involved. The site is operated solo by Xavier Scott (THYFWX). It is a personal project, not a commercial product.</p>
 
@@ -79,6 +79,7 @@
             <li>Google sends me your <strong>name, email address, and profile picture</strong>. I never see or receive your Google password.</li>
             <li>Your name, email, and profile picture are stored in your browser's <code>localStorage</code> so the terminal can display your identity. They are NOT stored on my server in plain text.</li>
             <li>My server stores a <strong>hashed account ID</strong> (derived from your Google ID) linked to your leaderboard handle and image generation quota counter. This is how I track how many images you've generated today without storing your email on the server.</li>
+            <li>If you accept the one-time <strong>18+ confirmation</strong>, a simple yes flag is stored against your hashed account ID. It exists so you are never asked twice and so the Unfiltered mode can verify the confirmation server side. It holds no birthdate, no identity document, nothing beyond the fact that you confirmed.</li>
             <li>Google OAuth only requests the <strong>openid, email, and profile</strong> scopes. I cannot access your Google Drive, Gmail, contacts, calendar, or any other Google service.</li>
         </ul>
 
@@ -98,7 +99,7 @@
         <ul>
             <li><strong>Your text prompt is sent to the image provider.</strong> Depending on availability, this is Replicate (paid, higher quality), Pollinations (free), or Hugging Face (free fallback). The provider generates the image and returns it.</li>
             <li><strong>Generated images are stored in your browser only.</strong> The image data (base64 encoded) is saved to your browser's <code>localStorage</code> so you can view your generation history. Images are NOT uploaded to or stored on my server.</li>
-            <li><strong>Quota tracking:</strong> my server keeps a counter of how many images you've generated today, tied to your hashed account ID. This is how I enforce daily limits (15/day for signed-in users, 150/day for premium). The counter resets at midnight UTC. I do not store what you generated, just how many times.</li>
+            <li><strong>Quota tracking:</strong> my server keeps a counter of how many images you've generated today, tied to your hashed account ID, plus a second counter tied to your IP address. This is how I enforce daily limits (15/day per account, 30/day per network, 150/day for premium). Both counters reset daily and expire on their own. I do not store what you generated, just how many times.</li>
         </ul>
 
         <h2>What I collect when you play games</h2>
