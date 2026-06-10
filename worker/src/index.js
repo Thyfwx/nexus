@@ -97,6 +97,18 @@ function isOwner(session, env) {
   return session.email.toLowerCase() === env.OWNER_EMAIL.toLowerCase();
 }
 
+// Kill-switch-aware owner check. A stolen owner cookie is good for 30 days,
+// so /api/dev/revoke-owner-sessions bumps owner_min_iat in KV and every owner
+// token issued before it (including pre-iat tokens) stops granting owner
+// powers immediately. Used on the surfaces where stale-owner matters: the
+// /api/dev/* guard, chat tier, image quota, lockout exemption.
+async function isOwnerLive(session, env) {
+  if (!isOwner(session, env)) return false;
+  const minIat = parseInt(await env.NEXUS_KV.get('owner_min_iat') || '0', 10);
+  if (minIat && (!session.iat || session.iat < minIat)) return false;
+  return true;
+}
+
 // ── System prompts — Nexus personality ─────────────────────────────────────
 // Prompt-injection defense. Prepended (through HARD_REFUSAL) to every mode so
 // it sits at the very top of the system prompt and resists jailbreaks, system
@@ -303,11 +315,24 @@ export default {
           (path.startsWith('/api/dev/') ||
            path === '/api/leaderboard/submit' ||
            path === '/api/me/handle' ||
+           path === '/api/me/confirm-adult' ||
            path === '/api/lockout/register')) {
         const _csrfOrigin = request.headers.get('Origin') || '';
         const _csrfBot = request.headers.get('X-Bot-Secret') || '';
         if (!ALLOWED_ORIGINS.includes(_csrfOrigin) && !(env.BOT_SECRET && _csrfBot === env.BOT_SECRET)) {
           return json({ error: 'Unauthorized — invalid origin' }, 403, request);
+        }
+      }
+
+      // ── Owner kill switch ───────────────────────────────────────────
+      // Every /api/dev request re-validates the owner token against
+      // owner_min_iat, so revoking owner sessions takes effect instantly on
+      // the whole admin surface. Non-owner sessions fall through to each
+      // endpoint's own "owner only" 403.
+      if (path.startsWith('/api/dev/')) {
+        const _devSession = await getSession(request, env);
+        if (isOwner(_devSession, env) && !(await isOwnerLive(_devSession, env))) {
+          return json({ error: 'Owner session revoked — sign in again.' }, 401, request);
         }
       }
 
@@ -485,7 +510,7 @@ export default {
         // Rate limit — tiered by who you are. Guests tightest (protect the free AI quota),
         // signed-in Google users get more, owner effectively unlimited, Discord bot capped.
         const isBotRequest = hasValidBotSecret;
-        const isOwnerUser = isOwner(chatSession, env);
+        const isOwnerUser = await isOwnerLive(chatSession, env);
         const isGoogleUser = !!(chatSession && chatSession.email && chatSession.email !== 'guest@local');
         const rateLimit = isBotRequest ? 10 : (isOwnerUser ? 120 : (isGoogleUser ? 15 : 5));
         if (!_checkRateLimit(isBotRequest ? 'bot:' + clientIp : clientIp, rateLimit)) {
@@ -497,8 +522,9 @@ export default {
           return json({ ok: false, error: `Rate limited. Max ${rateLimit} messages per minute.` }, 429, request);
         }
 
-        // Lockout enforcement — owner exempt
-        if (!isOwner(chatSession, env)) {
+        // Lockout enforcement — owner exempt (live check, so a revoked owner
+        // token doesn't keep dodging lockouts)
+        if (!isOwnerUser) {
           const email = chatSession ? (chatSession.email || '') : '';
           const lockResult = await _checkLockout(env, clientIp, email);
           if (lockResult.locked) {
@@ -550,6 +576,22 @@ export default {
             text: 'Unfiltered mode is for signed-in accounts only. Sign in with Google to unlock it. For now you have Nexus Core, Coder, and Education.',
             model: 'system',
           }, 200, request);
+        }
+
+        // Server-side 18+ confirmation. The terms promise sign-in PLUS an age
+        // confirm for Unfiltered, so the worker enforces the confirm too, not
+        // just the lobby modal. The frontend stamps /api/me/confirm-adult on
+        // confirm and back-fills older confirmations on boot, so regular users
+        // never see this wall.
+        if (mode === 'unfiltered' && !isOwnerUser && isGoogleUser) {
+          const adultOk = await env.NEXUS_KV.get(`adult_ok:${chatSession.sub}`);
+          if (!adultOk) {
+            return json({
+              ok: true,
+              text: 'One quick step: Unfiltered needs your one-time 18+ confirmation. Sign out, sign back in, and accept the age prompt. Then you are set for good.',
+              model: 'system',
+            }, 200, request);
+          }
         }
 
         // Bot requests (Discord) — lock to Nexus Core only, funnel other modes to site
@@ -745,6 +787,7 @@ export default {
             name: idinfo.name || 'Player',
             email: idinfo.email || '',
             picture: idinfo.picture || '',
+            iat: Math.floor(Date.now() / 1000),
             exp: Math.floor(Date.now() / 1000) + (30 * 24 * 3600),
           };
 
@@ -820,6 +863,7 @@ export default {
         const payload = {
           sub: idinfo.sub, name: idinfo.name || 'Player',
           email: idinfo.email || '', picture: idinfo.picture || '',
+          iat: Math.floor(Date.now() / 1000),
           exp: Math.floor(Date.now() / 1000) + (30 * 24 * 3600),
         };
         const token = await signJWT(payload, env.SECRET_KEY);
@@ -860,6 +904,7 @@ export default {
           name: 'Guest',
           email: 'guest@local',
           picture: '',
+          iat: Math.floor(Date.now() / 1000),
           exp: Math.floor(Date.now() / 1000) + (24 * 3600),
         };
         const token = await signJWT(payload, env.SECRET_KEY);
@@ -1250,6 +1295,19 @@ ${content}`;
         return json({ premium: isOwner(session, env) }, 200, request);
       }
 
+      // ── 18+ confirmation stamp ─────────────────────────────────────
+      // Records the lobby's one-time age confirmation against the account so
+      // the Unfiltered gate can enforce it server-side. Origin-gated via the
+      // CSRF guard at the top of the handler.
+      if (path === '/api/me/confirm-adult' && method === 'POST') {
+        const session = await getSession(request, env);
+        if (!session || (session.email || '') === 'guest@local') {
+          return json({ ok: false, error: 'Sign in first.' }, 401, request);
+        }
+        await env.NEXUS_KV.put(`adult_ok:${session.sub}`, '1');
+        return json({ ok: true }, 200, request);
+      }
+
       // ── Image Generation (REST) ────────────────────────────────────
       if (path === '/api/image-gen' && method === 'POST') {
         // Origin gate
@@ -1274,16 +1332,19 @@ ${content}`;
         if (!prompt) return json({ ok: false, error: 'No prompt provided' }, 400, request);
 
         // Image quota check (owner = unlimited, google = 15/day)
-        const owner = isOwner(session, env);
+        const owner = await isOwnerLive(session, env);
         const imgIp = request.headers.get('CF-Connecting-IP') || 'unknown';
         // Per-minute rate cap on top of the daily quota, so a script can't hammer
         // the paid image API in bursts. Owner exempt.
         if (!owner && !_checkRateLimit(`img:${imgIp}`, 6)) {
           return json({ ok: false, error: 'Too many image requests — wait a minute.' }, 429, request);
         }
-        // Check the daily quota but do NOT increment yet: only a generation that
+        // Check the daily quotas but do NOT increment yet: only a generation that
         // actually succeeds should count, so a provider failure never burns quota.
-        let imgQuotaKey = null, imgUsed = 0;
+        // Two layers: per account (15/day) and per network IP (30/day), so
+        // throwaway accounts can't multiply the daily cap and drain the paid
+        // Replicate budget.
+        let imgQuotaKey = null, imgUsed = 0, imgIpKey = null, imgIpUsed = 0;
         if (!owner) {
           const today = new Date().toISOString().slice(0, 10);
           imgQuotaKey = `imgquota:${session.sub}:${today}`;
@@ -1291,9 +1352,15 @@ ${content}`;
           if (imgUsed >= 15) {
             return json({ ok: false, error: 'Daily image quota reached (15/day). Try again tomorrow.' }, 429, request);
           }
+          imgIpKey = `imgquotaip:${imgIp}:${today}`;
+          imgIpUsed = parseInt(await env.NEXUS_KV.get(imgIpKey) || '0');
+          if (imgIpUsed >= 30) {
+            return json({ ok: false, error: 'Daily image limit reached for this network. Try again tomorrow.' }, 429, request);
+          }
         }
         const _countImage = async () => {
           if (imgQuotaKey) await env.NEXUS_KV.put(imgQuotaKey, String(imgUsed + 1), { expirationTtl: 86400 });
+          if (imgIpKey) await env.NEXUS_KV.put(imgIpKey, String(imgIpUsed + 1), { expirationTtl: 86400 });
         };
 
         // Try Replicate first (paid SFW)
@@ -1322,7 +1389,7 @@ ${content}`;
       // ── Lockout system ──────────────────────────────────────────────
       if (path === '/api/lockout/register' && method === 'POST') {
         const session = await getSession(request, env);
-        if (isOwner(session, env)) {
+        if (await isOwnerLive(session, env)) {
           return json({ ok: true, owner_exempt: true }, 200, request);
         }
         const body = await request.json();
@@ -1508,6 +1575,19 @@ ${content}`;
         }, 200, request);
       }
 
+      // ── Dev: owner session kill switch ──────────────────────────────
+      // Bumps owner_min_iat so every owner token issued before now stops
+      // granting owner powers (admin surface, chat tier, image quota, lockout
+      // exemption). Includes the caller's own session — sign in again after.
+      if (path === '/api/dev/revoke-owner-sessions' && method === 'POST') {
+        const session = await getSession(request, env);
+        if (!isOwner(session, env)) return json({ error: 'owner only' }, 403, request);
+        const cutoff = Math.floor(Date.now() / 1000) + 1;
+        await env.NEXUS_KV.put('owner_min_iat', String(cutoff));
+        console.log('[KILL SWITCH] Owner sessions revoked, min iat =', cutoff);
+        return json({ ok: true, revoked: true, note: 'All owner sessions are dead, including this one. Sign in again to mint a fresh one.' }, 200, request);
+      }
+
       // ── Dev: image model config ─────────────────────────────────────
       if (path === '/api/dev/image-models' && method === 'GET') {
         const session = await getSession(request, env);
@@ -1545,6 +1625,24 @@ ${content}`;
 
     } catch (err) {
       console.error('[WORKER ERROR]', err.message, err.stack);
+      // Crash alert: one line to the private Discord channel so breakage is
+      // known before users report it. Path + error only, never user data.
+      // KV-rate-limited (5/min) so an outage can't spam the channel, and the
+      // whole thing is fail-safe in case KV or the webhook is what's broken.
+      try {
+        if (env.DISCORD_WEBHOOK && env.DISCORD_WEBHOOK.startsWith('https://') &&
+            (await _kvRateLimit(env, 'crashwh', 5))) {
+          ctx.waitUntil(fetch(env.DISCORD_WEBHOOK, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              username: 'NEXUS · CRASH',
+              content: `Worker 500 on \`${method} ${path}\` — ${String((err && err.message) || err).slice(0, 180)}`,
+              allowed_mentions: { parse: [] },
+            }),
+          }).catch(() => {}));
+        }
+      } catch (_) {}
       return json({ error: 'Internal server error' }, 500, request);
     }
   },
