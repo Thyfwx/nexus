@@ -19,7 +19,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Nexus">
     <style>
-        /* Accessibility CSS — driven by toggles in System Settings.
+        /* Accessibility CSS: driven by toggles in System Settings.
            Inline so we don't have to modify the lobby-locked style.css. */
         body.a11y-spaced *, body.a11y-spaced { letter-spacing: 0.08em !important; word-spacing: 0.12em !important; }
         body.a11y-tall *, body.a11y-tall { line-height: 1.85 !important; }
@@ -87,14 +87,14 @@
                 </div>
                 <div class="status-item" style="display:flex; align-items:center; gap:24px;">
                     <span id="header-quota" title="Daily image quota" style="font-family:'Fira Code',monospace; font-size:0.62rem; letter-spacing:1px; color:#888;"></span>
-                    <!-- header-latency element kept hidden — model name + msg count + latency live in
+                    <!-- header-latency element kept hidden: model name + msg count + latency live in
                          AI Profile, no need to duplicate them up here. JS still writes to it harmlessly. -->
                     <span id="header-latency" style="display:none;"></span>
                     <span><span class="stat-label">MODE</span> <span id="mode-indicator">NEXUS</span></span>
                 </div>
             </header>
 
-            <!-- AI disclaimer — legal protection, always visible -->
+            <!-- AI disclaimer: legal protection, always visible -->
             <div style="padding:4px 14px; background:rgba(0,0,0,0.2); border-bottom:1px solid rgba(255,255,255,0.04); font-family:'Fira Code',monospace; font-size:0.55rem; color:#444; letter-spacing:0.5px; text-align:center;">
                 AI responses may be inaccurate. Do not share passwords, personal info, or sensitive data.
             </div>
@@ -154,7 +154,7 @@
                 <button class="fp-close" onclick="window.toggleA11yPanel()" style="background:transparent; border:1px solid rgba(255,255,255,0.2); color:#aaa; padding:6px 14px; border-radius:6px; cursor:pointer; font-family:inherit; font-size:0.7rem; letter-spacing:2px; font-weight:700;">CLOSE</button>
             </div>
 
-            <!-- Settings tab bar — VISUAL · TEXT · INPUT · AUDIO. Mirrors DevPanel style. -->
+            <!-- Settings tab bar: VISUAL · TEXT · INPUT · AUDIO. Mirrors DevPanel style. -->
             <div id="settings-tabs" style="display:flex !important; flex-wrap:wrap; gap:0; margin:0 0 8px; padding:0; border-bottom:1px solid rgba(255,255,255,0.08);">
                 <button class="settings-tab" data-tab="visual" onclick="window._settingsSwitchTab('visual')" style="display:inline-flex !important; align-items:center; justify-content:center; gap:8px; flex:1 1 0; min-width:0; background:transparent !important; border:none; border-bottom:2px solid transparent; color:#888 !important; padding:9px 8px; margin-bottom:-1px; font-family:'Fira Code',monospace !important; font-weight:700 !important; font-size:0.66rem !important; letter-spacing:1.5px !important; text-transform:uppercase; cursor:pointer; white-space:nowrap; transition:0.18s;">
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="flex-shrink:0; pointer-events:none;"><circle cx="8" cy="8" r="3"/><circle cx="8" cy="8" r="6"/></svg>VISUAL
@@ -293,7 +293,7 @@
                 </table>
             </div>
 
-            <!-- Footer (always visible across all tabs) — system recovery -->
+            <!-- Footer (always visible across all tabs): system recovery -->
             <div class="fp-section" style="border-top:1px solid rgba(255,255,255,0.06); margin-top:14px; padding-top:14px;">
                 <h3 class="fp-section-title">SYSTEM RECOVERY</h3>
                 <p class="fp-section-help">If the terminal locks up or breaks, hard-reload everything from scratch.</p>
@@ -367,7 +367,7 @@
     <script src="terminal.js?v=774a92"></script>
 
     <script>
-        // OS-level accessibility — silently apply matching CSS classes when the OS reports a preference.
+        // OS-level accessibility: silently apply matching CSS classes when the OS reports a preference.
         (function() {
             function refresh() {
                 const m = (q) => window.matchMedia && window.matchMedia(q).matches;
@@ -386,7 +386,7 @@
             .forEach(q => { try { window.matchMedia(q).addEventListener('change', refresh); } catch(_) {} });
         })();
 
-        // Header quota — polls /api/image-quota every 60s + on focus. Owner sees ∞.
+        // Header quota: polls /api/image-quota every 60s + on focus. Owner sees ∞.
         (function() {
             async function refresh() {
                 const el = document.getElementById('header-quota'); if (!el) return;
@@ -394,7 +394,7 @@
                     const r = await fetch((window.API_BASE || '') + '/api/image-quota', { cache: 'no-store', credentials: 'include' });
                     const q = await r.json();
                     if (q.cap === -1) {
-                        // Owner — unlimited image gen. ComfyUI / local-GPU was retired
+                        // Owner: unlimited image gen. ComfyUI / local-GPU was retired
                         // 2026-05-06; the IMG ∞ now just means "unlimited via Replicate".
                         el.textContent = 'IMG ∞';
                         el.style.color = '#0f8';
@@ -414,13 +414,13 @@
             setInterval(refresh, 60000);
         })();
 
-        // Header connection-status indicator — pings the backend every 10s, shows latency.
+        // Header connection-status indicator: pings the backend every 10s, shows latency.
         // Plain English label so visitors don't need to know what "WS" means.
         (function() {
             function refresh() {
                 const el = document.getElementById('header-latency'); if (!el) return;
                 const ws = window.termWs;
-                // Build a richer header field — show ACTIVE MODEL + thread length + latency.
+                // Build a richer header field: show ACTIVE MODEL + thread length + latency.
                 // Tells you what AI you're talking to, how deep the convo is, AND that the link works.
                 const modelLabel = (window.activeModelLabel || 'AUTO');
                 const msgs = ((window.messageHistory || []).filter(m => m && m.role === 'user').length);
@@ -428,7 +428,7 @@
                 if (!ws || ws.readyState !== 1) {
                     el.textContent = 'RECONNECTING…';
                     el.style.color = '#f55';
-                    el.title = 'Backend connection lost — auto-retrying';
+                    el.title = 'Backend connection lost, auto-retrying';
                     return;
                 }
                 const t0 = performance.now();
@@ -460,7 +460,7 @@
             setInterval(refresh, 10000);
         })();
 
-        // Sound-theme preview — fires a tiny WebAudio sample so the user can hear the choice.
+        // Sound-theme preview: fires a tiny WebAudio sample so the user can hear the choice.
         window._previewSoundTheme = function(theme) {
             if (theme === 'silent') return;
             try {
@@ -484,10 +484,10 @@
             } catch(_) {}
         };
 
-        // Live mode-aware header — updates the centered title + tagline whenever mode switches.
+        // Live mode-aware header: updates the centered title + tagline whenever mode switches.
         // (The visible NEXUS AI title is hidden; this only repaints header-tagline / mode-indicator.)
         (function() {
-            // Header center is intentionally empty per Xavier's request — no brand text, no
+            // Header center is intentionally empty per Xavier's request: no brand text, no
             // per-mode tagline. (The LOCAL GPU live banner that used to render here was
             // retired 2026-05-06 with ComfyUI; nothing replaces it.)
             const TAGLINES = {
@@ -520,10 +520,10 @@
             window._paintHeaderMode = paintMode;
         })();
 
-        // ── AI tool buttons (Summarize / Search / Math / Wiki) — inline icons next to paperclip ──
+        // ── AI tool buttons (Summarize / Search / Math / Wiki): inline icons next to paperclip ──
         // Bottom-anchored themed modal replaces window.prompt(). Math + Wiki only show in Education.
         (function() {
-            // Themed input modal — small box at the BOTTOM of the chat (NOT a full-screen overlay)
+            // Themed input modal: small box at the BOTTOM of the chat (NOT a full-screen overlay)
             window._nexusInputPrompt = function(opts) {
                 return new Promise((resolve) => {
                     document.querySelectorAll('#nexus-prompt-modal').forEach(n => n.remove());
@@ -565,7 +565,7 @@
                 });
             };
 
-            // Rotating tip pools — pick a different one each time the modal opens
+            // Rotating tip pools: pick a different one each time the modal opens
             const _pickTip = (arr, key) => {
                 const last = window['_lastTip_'+key];
                 let pick = arr[Math.floor(Math.random() * arr.length)];
@@ -574,14 +574,14 @@
                 return pick;
             };
             // Each tool's modal label has TWO parts:
-            //   • a one-line WHAT IT DOES headline (always shown — clear, direct)
+            //   • a one-line WHAT IT DOES headline (always shown, clear and direct)
             //   • a rotating tip below it (varies, gives examples)
             // This is more useful than a single rotating tip that doesn't always explain the tool.
             const TOOL_HEADLINES = {
-                summarize: 'WHAT THIS DOES: Paste any block of text — Nexus condenses it to the key points using AI. Best for long articles, transcripts, email threads, or essays.',
-                search:    'WHAT THIS DOES: Searches DuckDuckGo and renders the top 5 raw web results inline. Results are unfiltered — DDG does not curate or moderate, so you may see slurs, NSFW, or low-quality pages depending on your query.',
-                math:      'WHAT THIS DOES: Symbolic math via SymPy — solve equations, take derivatives, compute integrals, simplify expressions. Works on algebra, calculus, and word problems.',
-                wiki:      'WHAT THIS DOES: Look up any topic on Wikipedia — get the article summary, thumbnail image, and a link to read the full article. Works for people, places, events, science, history, anything Wikipedia covers.',
+                summarize: 'WHAT THIS DOES: Paste any block of text and Nexus condenses it to the key points using AI. Best for long articles, transcripts, email threads, or essays.',
+                search:    'WHAT THIS DOES: Searches DuckDuckGo and renders the top 5 raw web results inline. Results are unfiltered. DDG does not curate or moderate, so you may see slurs, NSFW, or low-quality pages depending on your query.',
+                math:      'WHAT THIS DOES: Symbolic math via SymPy: solve equations, take derivatives, compute integrals, simplify expressions. Works on algebra, calculus, and word problems.',
+                wiki:      'WHAT THIS DOES: Look up any topic on Wikipedia: get the article summary, thumbnail image, and a link to read the full article. Works for people, places, events, science, history, anything Wikipedia covers.',
             };
             const TIPS = {
                 summarize: [
@@ -651,7 +651,7 @@
                 if (t && window.renderInlineWiki) window.renderInlineWiki(t);
             };
 
-            // SVG icons — no emoji
+            // SVG icons, no emoji
             const ICONS = {
                 summarize: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="4" y1="14" x2="14" y2="14"/><line x1="4" y1="18" x2="10" y2="18"/><polyline points="17 14 20 16 17 18"/></svg>`,
                 search:    `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>`,
@@ -782,7 +782,7 @@
         // kept. This colorful one is gone permanently. The nexus_brain.js
         // banner remains as the single source of build-update notifications.
 
-        // OAuth REDIRECT PICKUP — if the server-side OAuth flow set the
+        // OAuth REDIRECT PICKUP: if the server-side OAuth flow set the
         // nexus_user_pickup cookie (after Google consent → callback), copy its
         // contents into localStorage and clear the cookie. This is what lets the
         // redirect-flow login work as a stand-in for the GSI library.
@@ -836,7 +836,7 @@
                 if (window.initiateBootSequence) window.initiateBootSequence();
                 return;
             }
-            // No localStorage — try recovering from cookie via backend
+            // No localStorage: try recovering from cookie via backend
             try {
                 const r = await fetch((window.API_BASE || '') + '/api/me/whoami-debug', { credentials: 'include', cache: 'no-store' });
                 if (r.ok) {
