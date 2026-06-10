@@ -43,3 +43,4 @@ worker/package-lock.json
 nexus.py
 start.sh
 tmc/
+*.import
