@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus AI — Changelog</title>
-    <meta name="description" content="What's changed in Nexus — every update, bug fix, and feature logged with dates. The full build history.">
+    <title>Nexus AI · Changelog</title>
+    <meta name="description" content="What's changed in Nexus: every update, bug fix, and feature logged with dates. The full build history.">
     <link rel="canonical" href="https://thyfwxit.com/nexus/changelog">
-    <meta property="og:title" content="Changelog — Nexus AI">
+    <meta property="og:title" content="Changelog · Nexus AI">
     <meta property="og:description" content="Full version history of Nexus AI Terminal. Every feature, fix, and removal documented.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://thyfwxit.com/nexus/changelog">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="icon" type="image/svg+xml" href="icon.svg?v=vm1">
     <link rel="icon" href="favicon.ico">
-    <!-- Google AdSense — fills any <ins class="adsbygoogle"> tags. -->
+    <!-- Google AdSense: fills any <ins class="adsbygoogle"> tags. -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3034789470490055" crossorigin="anonymous"></script>
     <script type="application/ld+json">
     {
@@ -141,7 +141,7 @@
             overflow: hidden;
         }
 
-        /* Sidebar color bar — follows the content sections with smooth blending */
+        /* Sidebar color bar: follows the content sections with smooth blending */
         .release::before {
             content: '';
             position: absolute;
@@ -306,7 +306,7 @@
 
         <h1>What's new in Nexus</h1>
         <p class="subtitle">
-            A live record of every shipped change — features, fixes, and behind-the-scenes work.
+            A live record of every shipped change: features, fixes, and behind-the-scenes work.
             For the full git history, see <a href="https://github.com/Thyfwx/nexus" target="_blank" rel="noopener" style="color:var(--accent);">github.com/Thyfwx/nexus</a>.
         </p>
 
@@ -505,17 +505,17 @@
                 <span class="release-date">2026-05-15</span>
             </div>
             <div class="release-summary">
-                Game modal redesigned with a frameless, wider look — more room for the canvas and side ad rail. Invaders gets mouse-aim + click-to-shoot. Breakout fixed (was launching but never rendering). Breach Protocol retired.
+                Game modal redesigned with a frameless, wider look: more room for the canvas and side ad rail. Invaders gets mouse-aim + click-to-shoot. Breakout fixed (was launching but never rendering). Breach Protocol retired.
             </div>
             <div class="section-label sl-green">— FEATURES</div>
             <ul class="changes">
-                <li class="added">Game modal redesigned — frameless translucent shell, slim header, floating close button. Max width bumped from 660 → 880 px (1040 px when an ad rail is showing) so canvases breathe and ads have real estate.</li>
-                <li class="added">Invaders — mouse aim and click-to-shoot. Move the mouse to slide the player, click to fire. Arrow keys + spacebar still work as a fallback.</li>
+                <li class="added">Game modal redesigned: frameless translucent shell, slim header, floating close button. Max width bumped from 660 → 880 px (1040 px when an ad rail is showing) so canvases breathe and ads have real estate.</li>
+                <li class="added">Invaders: mouse aim and click-to-shoot. Move the mouse to slide the player, click to fire. Arrow keys + spacebar still work as a fallback.</li>
             </ul>
             <div class="section-label sl-orange">— PATCHES</div>
             <ul class="changes">
-                <li class="fixed">Breakout — game launches and actually plays now. The render loop was never being kicked off after the difficulty pick (missing requestAnimationFrame call).</li>
-                <li class="fixed">Breakout — stop function now cancels the correct animation frame handle. Was leaving the old loop running across game switches.</li>
+                <li class="fixed">Breakout: game launches and actually plays now. The render loop was never being kicked off after the difficulty pick (missing requestAnimationFrame call).</li>
+                <li class="fixed">Breakout: stop function now cancels the correct animation frame handle. Was leaving the old loop running across game switches.</li>
             </ul>
             <div class="section-label sl-red">— CLEANED UP</div>
             <ul class="changes">
@@ -540,40 +540,40 @@
             </div>
             <div class="section-label sl-green">— FEATURES</div>
             <ul class="changes">
-                <li class="added">PWA support — Nexus can now be installed as a desktop app. Manifest, service worker, and icons added. Works on Chrome, Edge, Safari.</li>
-                <li class="added">PWA self-updating — every standalone page (changelog, about, terms, privacy, leaderboard, speedtest, typing, etc.) now auto-checks for service worker updates and reloads when a new SW takes over. Future updates roll out instantly with no hard-refresh needed.</li>
-                <li class="added">Typing test: "impossible" difficulty — literary prose, legal language, scientific text, complex punctuation. 368 total sentences across 4 difficulties.</li>
+                <li class="added">PWA support: Nexus can now be installed as a desktop app. Manifest, service worker, and icons added. Works on Chrome, Edge, Safari.</li>
+                <li class="added">PWA self-updating: every standalone page (changelog, about, terms, privacy, leaderboard, speedtest, typing, etc.) now auto-checks for service worker updates and reloads when a new SW takes over. Future updates roll out instantly with no hard-refresh needed.</li>
+                <li class="added">Typing test: "impossible" difficulty: literary prose, legal language, scientific text, complex punctuation. 368 total sentences across 4 difficulties.</li>
                 <li class="added">Typing test: 200-word count option. Auto-finish when last word is typed. Visible "submit to leaderboard" button on results screen.</li>
-                <li class="added">Cloudflare Worker: 48+ endpoints now live — image generation proxy, lockout system, moderation alerts, rate limiting (15/min browser, 10/min bot), origin gate.</li>
-                <li class="added">Discord bot integration ready — Nexus Core personality available via API with shared-secret auth. Other modes redirect users to the website.</li>
+                <li class="added">Cloudflare Worker: 48+ endpoints now live: image generation proxy, lockout system, moderation alerts, rate limiting (15/min browser, 10/min bot), origin gate.</li>
+                <li class="added">Discord bot integration ready: Nexus Core personality available via API with shared-secret auth. Other modes redirect users to the website.</li>
             </ul>
             <div class="section-label sl-purple">— SECURITY</div>
             <ul class="changes sec">
-                <li class="added">Device fingerprinting — non-identifying device hash for ban enforcement. Prevents ban evasion via guest mode, network switching, or cookie clearing.</li>
+                <li class="added">Device fingerprinting: non-identifying device hash for ban enforcement. Prevents ban evasion via guest mode, network switching, or cookie clearing.</li>
                 <li class="added">Content Security Policy headers on both frontend sites (portfolio + Nexus).</li>
-                <li class="added">HSTS preload submitted — thyfwxit.com pending inclusion in browser preload lists.</li>
-                <li class="added">Certificate Transparency Monitoring enabled — alerts if someone issues a cert for thyfwxit.com.</li>
-                <li class="added">AI bot blocking — all known AI training crawlers blocked on all pages.</li>
-                <li class="added">AI Labyrinth enabled — traps scraper bots in generated content.</li>
-                <li class="added">Hotlink protection — prevents other sites from embedding images.</li>
+                <li class="added">HSTS preload submitted: thyfwxit.com pending inclusion in browser preload lists.</li>
+                <li class="added">Certificate Transparency Monitoring enabled: alerts if someone issues a cert for thyfwxit.com.</li>
+                <li class="added">AI bot blocking: all known AI training crawlers blocked on all pages.</li>
+                <li class="added">AI Labyrinth enabled: traps scraper bots in generated content.</li>
+                <li class="added">Hotlink protection: prevents other sites from embedding images.</li>
             </ul>
             <div class="section-label sl-orange">— PATCHES</div>
             <ul class="changes">
-                <li class="fixed">Ban bypass closed — guest mode, network switching, and cookie clearing no longer bypass account bans. Three-layer enforcement: email + IP + device fingerprint.</li>
-                <li class="fixed">Duplicate Discord logs — dedup guard prevents the same message from being logged twice within 5 seconds.</li>
+                <li class="fixed">Ban bypass closed: guest mode, network switching, and cookie clearing no longer bypass account bans. Three-layer enforcement: email + IP + device fingerprint.</li>
+                <li class="fixed">Duplicate Discord logs: dedup guard prevents the same message from being logged twice within 5 seconds.</li>
                 <li class="fixed">Worker API responses now include X-Robots-Tag (noindex), X-Content-Type-Options (nosniff), HSTS, Referrer-Policy, and Permissions-Policy headers.</li>
-                <li class="fixed">Nexus AI Core ping diagnostic rewritten for Cloudflare Worker — portfolio was still showing Render-era "cold start / spinning down" copy.</li>
-                <li class="fixed">Proxmox status dot + last-checked timestamp restored — security pass had blocked the uptime.thyfwxit.com fetch via CSP.</li>
+                <li class="fixed">Nexus AI Core ping diagnostic rewritten for Cloudflare Worker. The portfolio was still showing Render-era "cold start / spinning down" copy.</li>
+                <li class="fixed">Proxmox status dot + last-checked timestamp restored. A security pass had blocked the uptime.thyfwxit.com fetch via CSP.</li>
                 <li class="fixed">Normal-refresh always shows fresh content now. Service worker rewritten as network-first for HTML; HTML pages set to no-cache; pwa.js bootstrap forces SW update on every page load.</li>
                 <li class="fixed">sw.js and manifest.json now exempt from 30-day edge cache. Prevents future PWA updates from getting stuck behind stale Cloudflare cache entries.</li>
                 <li class="fixed">Cloudflare edge cache purged for previously-stuck sw.js (was serving the old cache-first SW for 19+ hours after the fix was deployed).</li>
-                <li class="fixed">Portfolio main.js, style.css, and adblock_recovery.js gained cache busters — were holding old code in browsers for 30 days.</li>
+                <li class="fixed">Portfolio main.js, style.css, and adblock_recovery.js gained cache busters. They were holding old code in browsers for 30 days.</li>
             </ul>
             <div class="section-label sl-red">— CLEANED UP</div>
             <ul class="changes">
                 <li class="removed">nexus-evil-proxy Worker deleted from Cloudflare. All references cleaned from code and CSP.</li>
                 <li class="removed">Stale "thyfwxit" Pages project deleted (old manual deploy, 2 months unused).</li>
-                <li class="removed">Keepalive GitHub workflow deleted — Workers have zero cold start. Was a Render-only workaround that was firing exit-22 failures every 14 minutes from Bot Fight Mode.</li>
+                <li class="removed">Keepalive GitHub workflow deleted: Workers have zero cold start. Was a Render-only workaround that was firing exit-22 failures every 14 minutes from Bot Fight Mode.</li>
                 <li class="removed">Every Render reference scrubbed from project docs, internal memory, ping diagnostics, and about page. Backend has been Cloudflare-only since 2026-05-14.</li>
             </ul>
         </div>
@@ -594,27 +594,27 @@
             </div>
             <div class="section-label sl-green">— FEATURES</div>
             <ul class="changes">
-                <li class="added">NEXUS TYPE — standalone typing test page with easy/normal/hard difficulty, real sentences, punctuation and numbers toggles, personal best tracking, leaderboard submission.</li>
-                <li class="added">Ban page (banned.html) — dedicated page for permanently banned users with explanation, appeal info, and AdSense ads.</li>
-                <li class="added">18+ age gate modal — non-owner Google users must confirm they are 18 or older before accessing the terminal. Logged to backend.</li>
-                <li class="added">DevPanel account ban tab — list, ban, and unban Google accounts by email directly from the owner panel.</li>
-                <li class="added">Ban check on page load — banned accounts automatically redirected to the ban page.</li>
-                <li class="added">Shared link redirect — anyone opening thyfwxit.com/nexus/ directly (bookmarks, shared links) goes through the lobby first.</li>
-                <li class="added">AI disclaimer bar in terminal — permanent warning about AI accuracy and personal data. Matches terminal theme.</li>
+                <li class="added">NEXUS TYPE: standalone typing test page with easy/normal/hard difficulty, real sentences, punctuation and numbers toggles, personal best tracking, leaderboard submission.</li>
+                <li class="added">Ban page (banned.html): dedicated page for permanently banned users with explanation, appeal info, and AdSense ads.</li>
+                <li class="added">18+ age gate modal: non-owner Google users must confirm they are 18 or older before accessing the terminal. Logged to backend.</li>
+                <li class="added">DevPanel account ban tab: list, ban, and unban Google accounts by email directly from the owner panel.</li>
+                <li class="added">Ban check on page load: banned accounts automatically redirected to the ban page.</li>
+                <li class="added">Shared link redirect: anyone opening thyfwxit.com/nexus/ directly (bookmarks, shared links) goes through the lobby first.</li>
+                <li class="added">AI disclaimer bar in terminal: permanent warning about AI accuracy and personal data. Matches terminal theme.</li>
                 <li class="added">AdSense on about, changelog, and leaderboard pages.</li>
                 <li class="added">robots.txt at domain root for AdSense crawler.</li>
-                <li class="added">Cloudflare Worker foundation deployed (nexus-api) — AI chat working, zero cold starts. Migration from Render in progress.</li>
+                <li class="added">Cloudflare Worker foundation deployed (nexus-api): AI chat working, zero cold starts. Migration from Render in progress.</li>
             </ul>
             <div class="section-label sl-orange">— PATCHES</div>
             <ul class="changes">
-                <li class="fixed">Cross-origin auth — revealTerminal() crash on login.html fixed for 18+ gate flow.</li>
-                <li class="fixed">Typing test restart — fixed state cleanup so tests can be repeated without page reload.</li>
-                <li class="fixed">Portfolio mobile — single-column status grid, accessibility bottom sheet with no scrollbar, tighter spacing.</li>
-                <li class="fixed">Nexus preview on portfolio — removed fake boot words, shows live data, "open full console" references removed.</li>
+                <li class="fixed">Cross-origin auth: revealTerminal() crash on login.html fixed for 18+ gate flow.</li>
+                <li class="fixed">Typing test restart: fixed state cleanup so tests can be repeated without page reload.</li>
+                <li class="fixed">Portfolio mobile: single-column status grid, accessibility bottom sheet with no scrollbar, tighter spacing.</li>
+                <li class="fixed">Nexus preview on portfolio: removed fake boot words, shows live data, "open full console" references removed.</li>
             </ul>
             <div class="section-label sl-red">— REMOVED</div>
             <ul class="changes">
-                <li class="removed">"Open Console" buttons from portfolio — entry point is now PING + Enter Nexus only.</li>
+                <li class="removed">"Open Console" buttons from portfolio: entry point is now PING + Enter Nexus only.</li>
             </ul>
         </div>
 
@@ -709,7 +709,7 @@
             <ul class="changes">
                 <li class="added">Replicate Flux-schnell as the primary paid SFW image provider ($0.003 per image, $15/mo cap).</li>
                 <li class="added">Dedicated lockout page (<code>/nexus/locked.html</code>) with countdown timer and access-restoration UI.</li>
-                <li class="added">Combined strike counter — NSFW + hostility tracked together. Three strikes triggers escalating lockout. Slurs hit 30-min lockout instantly.</li>
+                <li class="added">Combined strike counter: NSFW + hostility tracked together. Three strikes triggers escalating lockout. Slurs hit 30-min lockout instantly.</li>
                 <li class="added">Unfiltered chaos rage system with role-aware rates and smart lockout ladder.</li>
                 <li class="added">Discord moderation webhook severity routing (silent for low/medium, owner-mention for high/critical).</li>
                 <li class="added">Live commit-status indicator on portfolio Nexus preview (sandbox-ahead-of-main shows as ONGOING).</li>
@@ -722,7 +722,7 @@
             </ul>
         </div>
 
-        <!-- v5.4.x — placeholder for older releases, to be backfilled -->
+        <!-- v5.4.x: placeholder for older releases, to be backfilled -->
         <div class="release" style="--bar-gradient: #00b4ff; --version-gradient: linear-gradient(90deg, #00d4ff, #00b4ff)">
             <div class="release-head">
                 <span class="release-version">v5.4.x</span>
