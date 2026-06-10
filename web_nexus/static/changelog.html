@@ -310,6 +310,34 @@
             For the full git history, see <a href="https://github.com/Thyfwx/nexus" target="_blank" rel="noopener" style="color:var(--accent);">github.com/Thyfwx/nexus</a>.
         </p>
 
+        <!-- v5.6.11: owner kill switch + server-side age check + image caps + crash alerts -->
+        <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #b464ff 0%, #b464ff 70%, #ff9500 70%, #ff9500 100%); --version-gradient: linear-gradient(90deg, #b464ff 0%, #b464ff 60%, #ff9500 60%, #ff9500 100%)">
+            <div class="release-head">
+                <span class="release-version">v5.6.11</span>
+                <span>
+                    <span class="release-tag tag-purple">SECURITY</span>
+                    <span class="release-tag tag-orange">PATCHES</span>
+                </span>
+                <span class="release-date">2026-06-10</span>
+            </div>
+            <div class="release-summary">
+                A pure hardening drop. Nothing new to click, everything underneath got tougher. The owner account picked up a kill switch, the age check moved from the sign-in screen into the backend where it belongs, image generation got a second cap layer, and the backend now tells on itself the moment it breaks. The terms grew the standard protective clauses while we were in there.
+            </div>
+            <div class="section-label sl-purple">— SECURITY</div>
+            <ul class="changes sec">
+                <li class="added">Owner session kill switch. One call logs the owner out everywhere, instantly, on every device. If an owner login ever leaks, it dies on the spot instead of living out its 30 days.</li>
+                <li class="added">The 18+ confirmation is now enforced by the server, not just the sign-in screen. Unfiltered checks the recorded confirmation on every message. People who already confirmed are carried over automatically.</li>
+                <li class="added">Image generation gained a per network daily cap on top of the per account one, so a pile of throwaway accounts cannot drain the image budget everyone shares.</li>
+                <li class="added">The backend now sends a crash alert the moment anything 500s, so breakage gets fixed before anyone has to report it.</li>
+            </ul>
+            <div class="section-label sl-orange">— PATCHES</div>
+            <ul class="changes">
+                <li class="fixed">The terms picked up the standard protective clauses: a copyright takedown process, indemnification, governing law, and acceptance of risk.</li>
+                <li class="fixed">Removed a leftover dev sign-in button from the lobby that pointed at an endpoint that no longer exists.</li>
+                <li class="fixed">A writing pass across every page. Cleaner titles, cleaner punctuation, same content.</li>
+            </ul>
+        </div>
+
         <!-- v5.6.10: chat limit tiers + Unfiltered sign-in gate + backend hardening + indexing cleanup -->
         <div class="release major" style="--bar-gradient: linear-gradient(to bottom, #00ff88 0%, #00ff88 62%, #ff9500 62%, #ff9500 100%); --version-gradient: linear-gradient(90deg, #00ff88 0%, #00ff88 34%, #b464ff 34%, #b464ff 67%, #ff9500 67%, #ff9500 100%)">
             <div class="release-head">
