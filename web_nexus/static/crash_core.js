@@ -114,6 +114,9 @@ window.onerror = function(msg, url, line, col, error) {
     const overlay = document.createElement('div');
     overlay.id = 'nexus-crash-overlay';
     overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(10,0,0,0.98);backdrop-filter:blur(25px);display:flex;align-items:center;justify-content:center;z-index:999999;font-family:'Fira Code',monospace;color:#fff;padding:20px;";
+    // Self-contained HTML escape. crash_core loads before terminal.js, so it
+    // cannot depend on the global escapeHTML. A crash must never crash this.
+    const _cesc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     overlay.innerHTML = `
         <div style="max-width:600px; width:100%; border:2px solid #f00; border-radius:15px; background:rgba(20,0,0,0.9); padding:40px; box-shadow:0 0 50px rgba(255,0,0,0.2);">
             <div style="display:flex; align-items:center; gap:20px; margin-bottom:30px; border-bottom:1px solid #400; padding-bottom:20px;">
@@ -126,12 +129,12 @@ window.onerror = function(msg, url, line, col, error) {
                 <p style="color:#888; margin:0 0 18px;">Quote this diagnostic code to the developer. It has already been transmitted in the background.</p>
 
                 <div style="display:flex; align-items:stretch; gap:8px; margin:0 0 18px;">
-                    <code id="nexus-diag-code" style="flex:1; background:#000; border:1px solid #f00; color:#0ff; padding:14px 16px; font-size:1rem; letter-spacing:3px; text-align:center; border-radius:6px; user-select:all;">${code}</code>
+                    <code id="nexus-diag-code" style="flex:1; background:#000; border:1px solid #f00; color:#0ff; padding:14px 16px; font-size:1rem; letter-spacing:3px; text-align:center; border-radius:6px; user-select:all;">${_cesc(code)}</code>
                     <button id="nexus-diag-copy" style="background:#0ff; color:#000; border:none; padding:0 14px; cursor:pointer; font-weight:bold; border-radius:6px; font-family:inherit; font-size:0.65rem; letter-spacing:1px;">COPY</button>
                 </div>
 
                 <div style="background:#000; padding:12px; border:1px solid #311; color:#888; font-size:0.6rem; overflow-x:auto; border-radius:4px;">
-                    ${msg}<br>at ${fileName}:${line}
+                    ${_cesc(msg)}<br>at ${_cesc(fileName)}:${line}
                 </div>
             </div>
 
