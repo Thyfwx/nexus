@@ -363,12 +363,14 @@ export default {
         }, 200, request);
       }
 
-      // Live home-lab status for the portfolio. Reports the self-hosted services
-      // visitors can actually use: the Minecraft server (public status API, with
-      // live player count), the Local AI, and the Discord bot. Hostnames only
-      // (mc.thyfwxit.com is already public DNS), no internal services. Cached 60s.
+      // Live home-lab status for the portfolio. Reports liveness of the
+      // self-hosted services: Local AI and the Discord bot (outbound HTTPS
+      // checks), plus the lab infra and the public Minecraft world, both read
+      // from the internal Uptime Kuma status page (which monitors them on the
+      // LAN, so a stale home IP can never flip them to a false "down"). The
+      // response carries only generic labels, never internal hostnames. Cached 60s.
       if (path === '/api/homelab-status') {
-        const cached = await env.NEXUS_KV.get('homelab_status_v4', 'json');
+        const cached = await env.NEXUS_KV.get('homelab_status_v5', 'json');
         if (cached) return json(cached, 200, request);
         const httpTargets = [
           { key: 'ai',  name: 'Local AI',    url: 'https://nexus.thyfwxit.com' },
@@ -385,30 +387,16 @@ export default {
             return { key: t.key, name: t.name, up: false };
           }
         }));
-        const mcCheck = (async () => {
-          try {
-            const r = await fetch('https://api.mcstatus.io/v2/status/java/mc.thyfwxit.com', {
-              headers: { 'User-Agent': 'thyfwxit-status/1.0 (+https://thyfwxit.com)', 'Accept': 'application/json' },
-              signal: AbortSignal.timeout(8000), cf: { cacheTtl: 0 },
-            });
-            const d = await r.json();
-            if (typeof d.online === 'boolean') {
-              const players = (d.players && d.players.online) || 0;
-              // remember the last definitive reading (30 min) so an API hiccup
-              // never flips the flagship to a false "down".
-              await env.NEXUS_KV.put('mc_last', JSON.stringify({ up: d.online, players }), { expirationTtl: 1800 });
-              return { key: 'mc', name: 'Minecraft', up: d.online, players };
-            }
-            throw new Error('unexpected response');
-          } catch (_) {
-            const last = await env.NEXUS_KV.get('mc_last', 'json');
-            if (last) return { key: 'mc', name: 'Minecraft', up: !!last.up, players: last.players || 0 };
-            return { key: 'mc', name: 'Minecraft', up: false, players: 0 };
-          }
-        })();
+        // Minecraft liveness used to come from an external status API
+        // (api.mcstatus.io) pointed at mc.thyfwxit.com. That checks from outside,
+        // so a stale/rotated home IP made the flagship read "down" while the
+        // server was actually healthy on the LAN. MC is now monitor 15 on the
+        // internal Uptime Kuma status page below, alongside the lab infra.
+        //
         // Real lab infrastructure from the existing PUBLIC Uptime Kuma status page
         // (status.thyfwxit.com, no auth). Mapped by monitor ID to generic labels, so
         // the actual software names never appear in this public source, only labels.
+        // Monitor 15 is the public Minecraft world and is given its own 'mc' key.
         const KUMA_LABEL = { '1': 'Hypervisor', '3': 'DNS Filtering', '4': 'Home Automation', '10': 'Network Storage' };
         const kumaCheck = (async () => {
           try {
@@ -420,7 +408,12 @@ export default {
             const out = Object.keys(beats).map((id) => {
               const arr = beats[id];
               const last = arr && arr.length ? arr[arr.length - 1] : null;
-              return { key: 'kuma' + id, name: KUMA_LABEL[id] || 'Lab Service', up: !!(last && last.status === 1) };
+              const up = !!(last && last.status === 1);
+              // The public Minecraft world keeps its own 'mc' key so the
+              // portfolio gives it flagship treatment (and can show a player
+              // count later once an external count source is wired back in).
+              if (id === '15') return { key: 'mc', name: 'Minecraft', up, players: 0 };
+              return { key: 'kuma' + id, name: KUMA_LABEL[id] || 'Lab Service', up };
             });
             if (out.length) await env.NEXUS_KV.put('kuma_last', JSON.stringify(out), { expirationTtl: 1800 });
             return out;
@@ -429,15 +422,19 @@ export default {
             return Array.isArray(last) ? last : [];
           }
         })();
-        const [http, mc, kuma] = await Promise.all([httpChecks, mcCheck, kumaCheck]);
-        const services = [mc].concat(http).concat(kuma);
+        const [http, kuma] = await Promise.all([httpChecks, kumaCheck]);
+        // Keep the Minecraft world first (flagship), then the reachable web
+        // services, then the rest of the lab infra.
+        const mc = kuma.find((s) => s.key === 'mc');
+        const rest = kuma.filter((s) => s.key !== 'mc');
+        const services = (mc ? [mc] : []).concat(http).concat(rest);
         const up = services.filter((s) => s.up).length;
         const result = {
           ok: true,
           overall: up === services.length ? 'operational' : (up === 0 ? 'down' : 'degraded'),
           up, total: services.length, services, checked: Date.now(),
         };
-        await env.NEXUS_KV.put('homelab_status_v4', JSON.stringify(result), { expirationTtl: 60 });
+        await env.NEXUS_KV.put('homelab_status_v5', JSON.stringify(result), { expirationTtl: 60 });
         return json(result, 200, request);
       }
 
