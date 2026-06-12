@@ -762,6 +762,12 @@ export default {
 
       // ── Google Auth (popup flow) ───────────────────────────────────
       if (path === '/login/google/authorized' && method === 'POST') {
+        // Rate limit sign-in per IP: each call hits Google's tokeninfo API, so a
+        // bot could otherwise spam verification calls. Cross-edge via KV.
+        const _loginIp = request.headers.get('CF-Connecting-IP') || 'unknown';
+        if (!(await _kvRateLimit(env, 'login:' + _loginIp, 10))) {
+          return json({ error: 'Too many sign-in attempts. Wait a minute.' }, 429, request);
+        }
         const body = await request.json();
         const credential = (body.credential || '').trim();
         if (!credential) return json({ error: 'No credential' }, 400, request);
@@ -807,6 +813,10 @@ export default {
 
       // ── OAuth Redirect Flow (server-side fallback for blocked GSI) ──
       if (path === '/auth/google-redirect') {
+        const _redirIp = request.headers.get('CF-Connecting-IP') || 'unknown';
+        if (!(await _kvRateLimit(env, 'redir:' + _redirIp, 15))) {
+          return json({ error: 'Too many requests. Wait a minute.' }, 429, request);
+        }
         const clientId = (env.GOOGLE_CLIENT_ID || '').split(',')[0].split(' ')[0].trim();
         if (!clientId) return json({ error: 'Google auth not configured' }, 503, request);
         const state = crypto.randomUUID();
@@ -881,6 +891,11 @@ export default {
       if (path === '/auth/guest' && method === 'POST') {
         // Block banned/blocked IPs from using guest mode as a bypass
         const guestIp = request.headers.get('CF-Connecting-IP') || '';
+        // Rate limit guest-session minting per IP so a bot can't spin up endless
+        // guest tokens to burn the request budget. Cross-edge via KV.
+        if (!(await _kvRateLimit(env, 'guest:' + (guestIp || 'unknown'), 12))) {
+          return json({ ok: false, error: 'Too many requests. Wait a minute.' }, 429, request);
+        }
         const guestBlockedIps = JSON.parse(await env.NEXUS_KV.get('blocked_ips') || '[]');
         if (guestBlockedIps.includes(guestIp)) {
           return json({ ok: false, error: 'Your IP has been blocked.' }, 403, request);
