@@ -170,7 +170,7 @@ window._showGameSideAd = function(gameLabel) {
         <div style="flex: 1 1 auto; min-height:600px; padding:14px; background:rgba(255,255,255,0.02); border:1px dashed rgba(255,255,255,0.12); border-radius:4px; display:flex; align-items:center; justify-content:center; color:#6a6a7a; font-size:0.7rem; letter-spacing:2px; text-transform:uppercase; font-family:'Fira Code',monospace; text-align:center; line-height:1.5;">
             <div>
                 <div>AD SLOT · 300 × 600</div>
-                <div style="font-size:0.6rem; opacity:0.6; margin-top:6px;">[ ${(gameLabel || 'GAME').toUpperCase()} · side rail · vertical ]</div>
+                <div style="font-size:0.6rem; opacity:0.6; margin-top:6px;">[ ${String(gameLabel || 'GAME').toUpperCase().replace(/[<>&"']/g, '')} · side rail · vertical ]</div>
             </div>
         </div>
     `;

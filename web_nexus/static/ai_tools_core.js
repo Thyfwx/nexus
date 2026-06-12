@@ -87,7 +87,10 @@
 
     function statusLine(state, msg) {
         const colors = { info: '#0ff', ok: '#0f0', warn: '#fa0', err: '#f55' };
-        return `<p class="tool-status" style="color:${colors[state] || '#888'}; font-size:0.7rem; margin:8px 0;">${msg}</p>`;
+        // Escape the message: callers pass error/tool text (e.message etc.), so
+        // never let it render as HTML.
+        const safe = String(msg == null ? '' : msg).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        return `<p class="tool-status" style="color:${colors[state] || '#888'}; font-size:0.7rem; margin:8px 0;">${safe}</p>`;
     }
 
     // ---------- per-tool UIs ----------

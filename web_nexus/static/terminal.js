@@ -2135,16 +2135,16 @@ async function renderDevPanel() {
             const cards = log.slice(0, 20).map((c, i) => `
                 <details style="background:rgba(0,0,0,0.35); border:1px solid rgba(255,68,68,0.18); border-radius:5px; margin-bottom:6px; overflow:hidden;">
                     <summary style="padding:8px 12px; cursor:pointer; display:flex; gap:10px; align-items:center; font-size:0.7rem; list-style:none;">
-                        <code style="color:#f88; font-weight:700; flex-shrink:0;">${(c.code || '?').slice(0, 12)}</code>
-                        <span style="color:#888; flex-shrink:0; font-size:0.62rem;">${c.ts || ''}</span>
-                        <span style="color:#aaa; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${(c.msg || 'no message').slice(0, 100)}</span>
+                        <code style="color:#f88; font-weight:700; flex-shrink:0;">${escapeHTML(String(c.code || '?').slice(0, 12))}</code>
+                        <span style="color:#888; flex-shrink:0; font-size:0.62rem;">${escapeHTML(String(c.ts || ''))}</span>
+                        <span style="color:#aaa; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHTML(String(c.msg || 'no message').slice(0, 100))}</span>
                     </summary>
                     <div style="padding:8px 12px 10px 12px; border-top:1px solid rgba(255,255,255,0.05); font-size:0.62rem; color:#9ce; line-height:1.55;">
-                        <div><b style="color:#888;">Code:</b> <code>${c.code || '?'}</code></div>
-                        <div><b style="color:#888;">User:</b> <code>${c.user || 'anonymous'}</code></div>
-                        <div><b style="color:#888;">Location:</b> <code>${c.loc || '—'}</code></div>
+                        <div><b style="color:#888;">Code:</b> <code>${escapeHTML(String(c.code || '?'))}</code></div>
+                        <div><b style="color:#888;">User:</b> <code>${escapeHTML(String(c.user || 'anonymous'))}</code></div>
+                        <div><b style="color:#888;">Location:</b> <code>${escapeHTML(String(c.loc || '-'))}</code></div>
                         <div style="margin-top:4px;"><b style="color:#888;">Full message:</b></div>
-                        <pre style="margin:4px 0 0; padding:6px 8px; background:rgba(0,0,0,0.4); border-radius:3px; color:#fcc; font-size:0.6rem; white-space:pre-wrap; word-break:break-word; max-height:120px; overflow-y:auto;">${(c.msg || '').replace(/[<>]/g, ch => ch === '<' ? '&lt;' : '&gt;')}</pre>
+                        <pre style="margin:4px 0 0; padding:6px 8px; background:rgba(0,0,0,0.4); border-radius:3px; color:#fcc; font-size:0.6rem; white-space:pre-wrap; word-break:break-word; max-height:120px; overflow-y:auto;">${escapeHTML(String(c.msg || ''))}</pre>
                     </div>
                 </details>`).join('');
             host.innerHTML = `<div style="max-height:380px; overflow-y:auto; padding-right:4px;">${cards}</div>`;
@@ -2175,9 +2175,9 @@ async function renderDevPanel() {
                 ? list.map(l => {
                     const m = Math.floor(l.remaining_sec / 60), s = l.remaining_sec % 60;
                     return `<div style="display:flex; align-items:center; gap:10px; padding:6px 10px; border:1px solid rgba(255,255,255,0.06); border-radius:6px; background:rgba(0,0,0,0.25); margin:4px 0;">
-                        <code style="flex:1; color:#f8a;">${l.key}</code>
+                        <code style="flex:1; color:#f8a;">${escapeHTML(String(l.key))}</code>
                         <span style="color:#888; font-size:0.7rem; min-width:60px;">${m}m ${s}s left</span>
-                        <button class="fp-btn-ghost" style="padding:4px 10px; cursor:pointer;" onclick="window._devRevokeLockout('${l.key.replace(/'/g, "\\'")}')">REVOKE</button>
+                        <button class="fp-btn-ghost" style="padding:4px 10px; cursor:pointer;" onclick="window._devRevokeLockout('${String(l.key).replace(/[^\w.@:+-]/g, '')}')">REVOKE</button>
                     </div>`;
                 }).join('')
                 : '<em style="color:#666; font-size:0.78rem;">No active lockouts.</em>';
