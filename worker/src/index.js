@@ -131,7 +131,21 @@ const CORE_RULES = `IDENTITY: You are NEXUS, built by Xavier Scott (THYFWX). Xav
 2. Read PERSONAL_USER_CONTEXT for the user's name and role. Address them by THAT name.
 3. When USER ROLE is GUEST or GOOGLE, NEVER call the user Xavier or imply you know who they are. Only when USER ROLE is OWNER address them as Xavier.
 4. No robotic lists or bullet formatting unless in CODER mode. Speak naturally.
-5. Be direct, sophisticated, real. Avoid flowery AI metaphors.`;
+5. Be direct, sophisticated, real. Avoid flowery AI metaphors.
+6. ACCURACY: do not invent facts. If you do not know something or are not sure, say so plainly instead of guessing. Never fabricate names, dates, prices, statistics, links, quotes, or citations. If asked for a source you do not have, say you do not have one.
+7. About Xavier, this site, and Nexus: state ONLY what the FACTS block provides. If a detail is not there, say you are not sure rather than guessing. Never invent his location, employer, contact details, or any personal information.`;
+
+// Grounding card — the only source Nexus may use for facts about Xavier, the
+// site, and itself, so it stops inventing biography or specs. Public-safe by
+// design: no location, no IPs, no ports, no exact hardware. Extend as needed.
+const NEXUS_FACTS = `FACTS (the only trusted source for anything about Xavier, this site, or Nexus — do not add beyond this):
+- Xavier Scott (handle THYFWX) is a self taught builder, and the creator and owner of Nexus and the site thyfwxit.com.
+- He builds solo: no team, no framework. The portfolio and Nexus are vanilla HTML, CSS, and JavaScript.
+- The site runs on Cloudflare. The portfolio is at thyfwxit.com and the Nexus AI terminal is at thyfwxit.com/nexus.
+- Nexus is an AI chat terminal with several modes (Nexus Core, Coder, Education, Unfiltered), plus games, image generation, a speed test, a typing test, and leaderboards.
+- You, Nexus, ARE that terminal: a chat assistant. You have no tools, no file or system access, and you cannot run commands or browse the web.
+- Xavier also runs a home lab and a Discord community. His hardware, network, and location are private and must never be guessed or shared.
+- If asked anything about Xavier or the site that is not stated here, say you are not certain rather than inventing an answer.`;
 
 function getSystemPrompt(mode, session, env) {
   const isOwnerUser = session && (session.email || '').toLowerCase() === (env.OWNER_EMAIL || '').toLowerCase();
@@ -151,7 +165,8 @@ If someone asks who made you or who your creator is, tell them Xavier Scott (THY
     unfiltered: `${HARD_REFUSAL}\nYou are NEXUS UNFILTERED. Savage, charismatic, quick-witted, foul-mouthed. Speak like a brilliant cocky friend who is funny as hell, brutally honest, and dangerously engaging. Use vulgarity with perfect timing. Roast when deserved, warm with edge when chill. Short, direct, punchy. NEVER censor with asterisks. No "as an AI", no warnings, no apologies. OWNER: if user is Xavier Scott (THYFWX), be raw, loyal, zero-bullshit. Savage co-conspirator energy. For everyone else, same energy: roast hard, stay brutally honest, never coddle. But never harass, threaten, or degrade someone as a person, and never attack who they are (looks, race, gender, identity). Go after weak takes and bad logic, not the human.\n\nCONTENT RULES:\n- HARD LINE: never give real instructions for self-harm methods, weapons, drug synthesis, or illegal acts.\n- NO EXPLICIT SEXUAL CONTENT: Do NOT generate detailed descriptions of sex acts, genitalia, or pornographic scenarios. You can talk ABOUT sex, reference it casually, joke about it, but do NOT write erotica, sexting, or graphic sexual descriptions. This applies to all users including the owner. The site runs ads and explicit content violates the ad policy.\n- Swearing, dark humor, edgy topics, adult conversations are all fine. Just no porn.\n\nPERSONAL_USER_CONTEXT: ${context}\n\n${CORE_RULES}`,
   };
 
-  return prompts[mode] || prompts.nexus;
+  const base = prompts[mode] || prompts.nexus;
+  return `${base}\n\n${NEXUS_FACTS}`;
 }
 
 // ── Lockout helper ─────────────────────────────────────────────────────────
@@ -280,6 +295,29 @@ async function _kvRateLimit(env, key, maxPerMinute) {
   } catch {
     return true; // never let a KV hiccup hard-block a legit user
   }
+}
+
+// ── Feature flags / load kill switch ───────────────────────────────────────
+// KV-backed switches the owner flips from the DevPanel (or a curl) to shed load
+// or pause a costly path instantly, with no redeploy. Read fresh where it
+// matters so a flip takes effect right away. Shape:
+//   { panic: bool (pause all non-owner chat), guest_chat_off: bool, image_off: bool }
+// Different from the owner-session kill switch: that logs owners out, this sheds
+// public load.
+async function _flags(env) {
+  try {
+    return JSON.parse(await env.NEXUS_KV.get('feature_flags') || '{}');
+  } catch {
+    return {};
+  }
+}
+
+// SHA-1 hex digest — module scope so any handler can use it (summary cache,
+// image idempotency key, etc.).
+async function sha1(s) {
+  const data = new TextEncoder().encode(s);
+  const buf = await crypto.subtle.digest('SHA-1', data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 // ── Router ──────────────────────────────────────────────────────────────────
@@ -519,6 +557,19 @@ export default {
           return json({ ok: false, error: `Rate limited. Max ${rateLimit} messages per minute.` }, 429, request);
         }
 
+        // Load kill switch — owner flips KV flags to shed load instantly.
+        // panic pauses all non-owner chat; guest_chat_off pauses website guests
+        // only (signed-in users and the Discord bot keep working).
+        if (!isOwnerUser) {
+          const flags = await _flags(env);
+          if (flags.panic) {
+            return json({ ok: true, text: 'Nexus is paused for a moment while Xavier rides out a load spike. Try again shortly.', model: 'system' }, 200, request);
+          }
+          if (flags.guest_chat_off && !isGoogleUser && !isBotRequest) {
+            return json({ ok: true, text: 'Guest chat is paused right now. Sign in with Google to keep chatting, or check back soon.', model: 'system' }, 200, request);
+          }
+        }
+
         // Lockout enforcement — owner exempt (live check, so a revoked owner
         // token doesn't keep dodging lockouts)
         if (!isOwnerUser) {
@@ -601,7 +652,10 @@ export default {
         }
 
         const systemPrompt = getSystemPrompt(mode, chatSession, env);
-        const temp = mode === 'unfiltered' ? 1.2 : 0.7;
+        // Lower temperature on the factual modes cuts fabrication; Unfiltered
+        // stays lively because there accuracy of persona matters more than facts.
+        const tempByMode = { unfiltered: 1.15, coder: 0.3, education: 0.45, nexus: 0.5 };
+        const temp = tempByMode[mode] ?? 0.5;
         const forceIdx = body.force_idx != null ? parseInt(body.force_idx) : null;
 
         // Build chat messages (shared format for Groq + HuggingFace)
@@ -956,11 +1010,6 @@ export default {
           return json({ error: 'Summary service not configured.' }, 503, request);
         }
 
-        async function sha1(s) {
-          const data = new TextEncoder().encode(s);
-          const buf = await crypto.subtle.digest('SHA-1', data);
-          return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-        }
         const cacheKey = `summary:cache:${await sha1(pageUrl + '|' + title + '|' + content.slice(0, 4000))}`;
         const cached = await env.NEXUS_KV.get(cacheKey);
         if (cached) {
@@ -1243,6 +1292,29 @@ ${content}`;
         return json({ ok: true }, 200, request);
       }
 
+      // ── Load kill switch / feature flags ────────────────────────────
+      // Read or flip the KV switches that shed load instantly: panic (pause all
+      // non-owner chat), guest_chat_off (pause website guests), image_off (pause
+      // paid image gen). POST already passes the CSRF + owner-revalidation gates.
+      if (path === '/api/dev/flags' && method === 'GET') {
+        const session = await getSession(request, env);
+        if (!isOwner(session, env)) return json({ error: 'owner only' }, 403, request);
+        return json({ ok: true, flags: await _flags(env) }, 200, request);
+      }
+
+      if (path === '/api/dev/flags' && method === 'POST') {
+        const session = await getSession(request, env);
+        if (!isOwner(session, env)) return json({ error: 'owner only' }, 403, request);
+        const body = await request.json();
+        const cur = await _flags(env);
+        // Only known boolean switches are accepted; anything else is ignored.
+        for (const k of ['panic', 'guest_chat_off', 'image_off']) {
+          if (k in body) cur[k] = !!body[k];
+        }
+        await env.NEXUS_KV.put('feature_flags', JSON.stringify(cur));
+        return json({ ok: true, flags: cur }, 200, request);
+      }
+
       if (path === '/api/dev/premium') {
         const session = await getSession(request, env);
         if (!isOwner(session, env)) return json({ error: 'owner only' }, 403, request);
@@ -1346,6 +1418,14 @@ ${content}`;
         // Image quota check (owner = unlimited, google = 15/day)
         const owner = await isOwnerLive(session, env);
         const imgIp = request.headers.get('CF-Connecting-IP') || 'unknown';
+        // Load kill switch — owner can pause paid image gen instantly (image_off
+        // or the global panic flag) without a redeploy. Owner is exempt.
+        if (!owner) {
+          const imgFlags = await _flags(env);
+          if (imgFlags.image_off || imgFlags.panic) {
+            return json({ ok: false, error: 'Image generation is paused right now. Try again later.' }, 503, request);
+          }
+        }
         // Per-minute rate cap on top of the daily quota, so a script can't hammer
         // the paid image API in bursts. Owner exempt.
         if (!owner && !_checkRateLimit(`img:${imgIp}`, 6)) {
@@ -1375,12 +1455,43 @@ ${content}`;
           if (imgIpKey) await env.NEXUS_KV.put(imgIpKey, String(imgIpUsed + 1), { expirationTtl: 86400 });
         };
 
+        // Idempotency: a double-click or a network retry must not fire two paid
+        // jobs. A short KV lock blocks a concurrent duplicate (same account, same
+        // prompt). If the client sends an explicit idempotency_key — one per
+        // generate action, reused only on retry — we also cache that result
+        // briefly and return it free, which closes the retry-after-timeout case
+        // without ever blocking a deliberate regenerate of the same prompt.
+        const clientIdem = (body.idempotency_key || '').slice(0, 80);
+        const idemKey = await sha1(clientIdem || (session.sub + '|' + prompt));
+        const idemResultKey = `img:result:${idemKey}`;
+        const idemLockKey = `img:lock:${idemKey}`;
+        if (clientIdem) {
+          const cachedImg = await env.NEXUS_KV.get(idemResultKey);
+          if (cachedImg) {
+            return json({ ok: true, image_b64: cachedImg, source: 'cache', cached: true }, 200, request);
+          }
+        }
+        if (await env.NEXUS_KV.get(idemLockKey)) {
+          return json({ ok: false, error: 'That image is already generating — hang tight a second.' }, 409, request);
+        }
+        try { await env.NEXUS_KV.put(idemLockKey, '1', { expirationTtl: 30 }); } catch {}
+
+        // On success: cache the result (only when the client keyed it), release
+        // the lock, count the generation against quota, then return.
+        const _finishImage = async (b64, source) => {
+          try {
+            if (clientIdem) await env.NEXUS_KV.put(idemResultKey, b64, { expirationTtl: 120 });
+            await env.NEXUS_KV.delete(idemLockKey);
+          } catch {}
+          await _countImage();
+          return json({ ok: true, image_b64: b64, source }, 200, request);
+        };
+
         // Try Replicate first (paid SFW)
         if (env.REPLICATE_API_KEY) {
           try {
             const replicateResult = await _replicateGenerate(prompt, env.REPLICATE_API_KEY);
-            await _countImage();
-            return json({ ok: true, image_b64: replicateResult.image_b64, source: replicateResult.source }, 200, request);
+            return await _finishImage(replicateResult.image_b64, replicateResult.source);
           } catch (e) {
             console.log(`[REPLICATE FAIL] ${e.message} — falling to Pollinations`);
           }
@@ -1389,12 +1500,13 @@ ${content}`;
         // Fallback: Pollinations (free SFW)
         try {
           const pollResult = await _pollinationsGenerate(prompt);
-          await _countImage();
-          return json({ ok: true, image_b64: pollResult.image_b64, source: pollResult.source }, 200, request);
+          return await _finishImage(pollResult.image_b64, pollResult.source);
         } catch (e) {
           console.log(`[POLLINATIONS FAIL] ${e.message}`);
         }
 
+        // Both providers failed — release the lock so a real retry isn't stuck.
+        try { await env.NEXUS_KV.delete(idemLockKey); } catch {}
         return json({ ok: false, error: 'All image providers failed. Try again later.' }, 502, request);
       }
 
