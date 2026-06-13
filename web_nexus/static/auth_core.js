@@ -4,9 +4,13 @@ let _googleClientID = '616205887439-s1l0out61vlu0l81307q9g64oai3gnur.apps.google
 let _authInited = false;
 let _termsScrolled = false;
 
+// HTML-escape for values rendered into innerHTML on this page. terminal.js's
+// escapeHTML is not loaded on the login screen, and a Google display name is
+// attacker-settable, so escape before it touches the DOM.
+const _esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
 async function initGoogleAuth() {
     if (_authInited) return;
-    console.log("[AUTH] Initiating Identity Uplink...");
     // Only render the auth card if it isn't already in the DOM. Otherwise we wipe
     // the dropdown HTML mid-click on every 200ms/800ms/2000ms retry tick — which is
     // exactly what was making the dropdown disappear right after the user clicked it.
@@ -48,7 +52,6 @@ async function initGoogleAuth() {
             renderBtn('sidebar-g_id_signin');
             _authInited = true;
             window._gsiLoaded = true;
-            console.log("[AUTH] Google button rendered.");
             return true;
         } catch (e) {
             console.error("[AUTH] Google GSI Error:", e);
@@ -96,8 +99,8 @@ function renderAuthSection() {
     if (user && user.name) {
         const isGoogle = !!user.email && user.email !== 'guest@local';
         const avatarHtml = user.picture
-            ? `<img src="${user.picture}" class="auth-avatar" alt="User">`
-            : `<div class="auth-avatar-initials">${user.name[0].toUpperCase()}</div>`;
+            ? `<img src="${_esc(user.picture)}" class="auth-avatar" alt="User">`
+            : `<div class="auth-avatar-initials">${_esc(user.name[0].toUpperCase())}</div>`;
         // Async-fetch premium status and add badge if user is a supporter
         if (isGoogle) {
             fetch(`${window.API_BASE || ''}/api/me/premium`, { credentials: 'include' })
@@ -113,7 +116,7 @@ function renderAuthSection() {
             <div class="auth-user-card" onclick="window.toggleUserMenu(event)" style="margin-bottom: 5px;">
                 ${avatarHtml}
                 <div class="auth-info">
-                    <div class="auth-name">${user.name}</div>
+                    <div class="auth-name">${_esc(user.name)}</div>
                     <div class="auth-status" style="font-size: 0.5rem; margin-top: 2px;">[ ${isGoogle ? 'ACCOUNT_SYNCED' : 'EPHEMERAL_GUEST'} ]</div>
                 </div>
                 <div id="user-dropdown" class="user-dropdown">

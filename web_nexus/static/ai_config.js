@@ -88,13 +88,11 @@ STRICT TOPIC LOCK: This mode is for learning, academics, science, history, math,
     `,
 };
 
+// Mirrors the worker roster. The dead HuggingFace serverless models were removed.
 window.MODELS = [
-    { id: "llama-3.3-70b-versatile",         provider: "groq",   label: "NEXUS-1" },
-    { id: "llama-3.1-8b-instant",            provider: "groq",   label: "NEXUS-2" },
-    { id: "NousResearch/Hermes-3-Llama-3.1-8B", provider: "hf",   label: "NEXUS-3" },
-    { id: "deepseek-ai/DeepSeek-Coder-V2-Instruct", provider: "hf",     label: "NEXUS-4" },
-    { id: "Qwen/Qwen2.5-72B-Instruct",       provider: "hf",     label: "NEXUS-5" },
-    { id: "gemini-2.0-flash",                provider: "gemini", label: "NEXUS-6" },
+    { id: "llama-3.3-70b-versatile", provider: "groq",   label: "NEXUS-1" },
+    { id: "llama-3.1-8b-instant",    provider: "groq",   label: "NEXUS-2" },
+    { id: "gemini-2.5-flash",        provider: "gemini", label: "NEXUS-3" },
 ];
 
 window.MODES = {

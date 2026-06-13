@@ -510,7 +510,7 @@ function handleAITriggers(text) {
             // If we stripped down to nothing useful, use the user's original ask
             if (!cleanedPrompt || cleanedPrompt.length < 5) cleanedPrompt = userAsked;
             console.warn('[IMAGE SANITIZED] user asked:', userAsked, '· AI tried:', before, '· stripped to:', cleanedPrompt);
-            printToTerminal(`<span style="color:#fa0; font-size:0.7rem;">[SANITIZED] AI tried to add NSFW content you didn't ask for — rendering "${cleanedPrompt}" instead.</span>`, 'sys-msg');
+            printToTerminal(`<span style="color:#fa0; font-size:0.7rem;">[SANITIZED] AI tried to add NSFW content you didn't ask for. Rendering "${escapeHTML(cleanedPrompt)}" instead.</span>`, 'sys-msg');
         }
         renderInlineImage(cleanedPrompt);
         return '';
@@ -1065,7 +1065,7 @@ async function renderInlineTranslate(src, tgt, body) {
     printToTerminal(`[TRANSLATE] ${src} → ${tgt}…`, 'sys-msg');
     try {
         const r = await window.NexusTools.callTool('translate', { src, tgt, text: body });
-        printToTerminal(`<strong style="color:var(--accent);">${tgt.toUpperCase()}:</strong> ${r.text}`, 'ai-msg');
+        printToTerminal(`<strong style="color:var(--accent);">${escapeHTML(tgt.toUpperCase())}:</strong> ${escapeHTML(r.text)}`, 'ai-msg');
     } catch (e) { printToTerminal(`[TRANSLATE FAIL] ${e.message}`, 'sys-msg'); }
 }
 
@@ -1073,7 +1073,7 @@ async function renderInlineSummarize(body) {
     printToTerminal(`[SUMMARIZE] ${body.length} chars in…`, 'sys-msg');
     try {
         const r = await window.NexusTools.callTool('summarize', { text: body });
-        printToTerminal(`<strong style="color:var(--accent);">SUMMARY:</strong> ${r.text}`, 'ai-msg');
+        printToTerminal(`<strong style="color:var(--accent);">SUMMARY:</strong> ${escapeHTML(r.text)}`, 'ai-msg');
     } catch (e) { printToTerminal(`[SUMMARIZE FAIL] ${e.message}`, 'sys-msg'); }
 }
 

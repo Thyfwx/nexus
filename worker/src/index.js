@@ -677,14 +677,16 @@ export default {
           chatMessages.push({ role: 'user', content: cmd });
         }
 
-        // Model roster — matches frontend ai_config.js MODELS array
+        // Model roster, the live verified-working providers. The three HuggingFace
+        // serverless models were removed: HF dropped free serverless inference for
+        // large models (Qwen-72B, DeepSeek-Coder-V2, Hermes-3), so they only ever
+        // failed and fell through, masking as a 6-model roster that was really 3.
+        // Two Groq models plus Gemini cover chat across two providers. Add more
+        // Groq models here (each tested) for extra depth.
         const MODELS = [
-          { id: 'llama-3.3-70b-versatile',              provider: 'groq',   label: 'NEXUS-1', key: 'GROQ_API_KEY' },
-          { id: 'llama-3.1-8b-instant',                 provider: 'groq',   label: 'NEXUS-2', key: 'GROQ_API_KEY' },
-          { id: 'NousResearch/Hermes-3-Llama-3.1-8B',   provider: 'hf',     label: 'NEXUS-3', key: 'HF_API_KEY' },
-          { id: 'deepseek-ai/DeepSeek-Coder-V2-Instruct', provider: 'hf',   label: 'NEXUS-4', key: 'HF_API_KEY' },
-          { id: 'Qwen/Qwen2.5-72B-Instruct',            provider: 'hf',     label: 'NEXUS-5', key: 'HF_API_KEY' },
-          { id: 'gemini-2.5-flash',                      provider: 'gemini', label: 'NEXUS-6', key: 'GEMINI_API_KEY' },
+          { id: 'llama-3.3-70b-versatile',  provider: 'groq',   label: 'NEXUS-1', key: 'GROQ_API_KEY' },
+          { id: 'llama-3.1-8b-instant',     provider: 'groq',   label: 'NEXUS-2', key: 'GROQ_API_KEY' },
+          { id: 'gemini-2.5-flash',         provider: 'gemini', label: 'NEXUS-3', key: 'GEMINI_API_KEY' },
         ];
 
         // Build try order: forced model first (if specified), then default rotation
