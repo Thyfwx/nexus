@@ -185,6 +185,12 @@ async function _checkLockout(env, ip, email) {
   return { locked: maxRemaining > 0, remainingMs: maxRemaining };
 }
 
+// ── Image SFW gate ─────────────────────────────────────────────────────────
+// Image gen is SFW only, system wide (AdSense policy + the SFW promise). The
+// client filters too, but a direct call to /api/image-gen bypasses the browser,
+// so the Worker is the real gate. Term list mirrors NSFW_INTENT in ai_core.js.
+const _IMG_NSFW = /\b(pussy|pussies|vagina|vulva|titty|titties|tit|tits|boob|boobs|breast|breasts|nipple|nipples|cock|cocks|dick|dicks|penis|penises|balls|scrotum|nude|nudes|naked|topless|bottomless|bare|porn|pornographic|nsfw|xxx|cum|cumshot|orgasm|blowjob|handjob|anal|oral|deepthroat|sex|fucking|fuck|erotic|horny|busty|thicc|yiff|anthro|feral|hentai|ass|asses|butt|butts|anus|asshole)\b/i;
+
 // ── Replicate image gen helper ─────────────────────────────────────────────
 async function _replicateGenerate(prompt, apiKey) {
   const model = 'black-forest-labs/flux-schnell';
@@ -717,17 +723,6 @@ export default {
               text = data.choices?.[0]?.message?.content;
             }
 
-            else if (model.provider === 'hf') {
-              const res = await fetch(`https://router.huggingface.co/hf-inference/models/${model.id}/v1/chat/completions`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ model: model.id, messages: chatMessages, max_tokens: 1024, stream: false, temperature: temp, top_p: 0.9 }),
-              });
-              if (!res.ok) throw new Error(`HF ${res.status}`);
-              const data = await res.json();
-              text = data.choices?.[0]?.message?.content;
-            }
-
             else if (model.provider === 'gemini') {
               const gemHistory = [];
               for (const m of chatMessages.slice(1)) { // skip system
@@ -830,7 +825,7 @@ export default {
 
         // Verify token via Google's tokeninfo endpoint
         try {
-          const verifyRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
+          const verifyRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
           if (!verifyRes.ok) return json({ error: 'Token verification failed' }, 401, request);
           const idinfo = await verifyRes.json();
 
@@ -914,7 +909,7 @@ export default {
         if (!idToken) return json({ error: 'No ID token' }, 502, request);
 
         // Verify
-        const verifyRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+        const verifyRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`);
         if (!verifyRes.ok) return json({ error: 'Verification failed' }, 401, request);
         const idinfo = await verifyRes.json();
         if (idinfo.aud !== clientId) return json({ error: 'Audience mismatch' }, 401, request);
@@ -1424,6 +1419,11 @@ ${content}`;
         const body = await request.json();
         const prompt = (body.prompt || '').trim();
         if (!prompt) return json({ ok: false, error: 'No prompt provided' }, 400, request);
+        // SFW gate (system wide). A direct API call skips the client filter, so
+        // block explicit prompts here before any paid provider is ever touched.
+        if (_IMG_NSFW.test(prompt)) {
+          return json({ ok: false, error: 'That prompt was blocked. Nexus image generation is SFW only.' }, 400, request);
+        }
 
         // Image quota check (owner = unlimited, google = 15/day)
         const owner = await isOwnerLive(session, env);
