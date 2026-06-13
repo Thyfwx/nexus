@@ -54,13 +54,13 @@
         </div>
 
         <h1>Privacy Policy</h1>
-        <p class="updated">Last updated: June 10, 2026</p>
+        <p class="updated">Last updated: June 13, 2026</p>
 
         <p>This policy explains what data <strong>thyfwxit.com</strong> and the <strong>Nexus AI Terminal</strong> at <strong>thyfwxit.com/nexus</strong> collect, how it's used, and which third parties are involved. The site is operated solo by Xavier Scott (THYFWX). It is a personal project, not a commercial product.</p>
 
         <div style="background:rgba(255,50,50,0.06); border:1px solid rgba(255,50,50,0.2); border-radius:6px; padding:12px 16px; margin:16px 0;">
             <p style="color:#f55; font-weight:700; margin:0 0 6px; font-size:0.9rem;">Do not enter personal information</p>
-            <p style="margin:0; font-size:0.82rem; line-height:1.6;">Everything you type into the AI chat is sent to third-party providers (Groq, Google Gemini, Hugging Face) to generate responses. Never enter passwords, Social Security numbers, credit card numbers, medical information, or anything you wouldn't want a third party to see. I have no control over how AI providers handle your input once it leaves my server.</p>
+            <p style="margin:0; font-size:0.82rem; line-height:1.6;">Everything you type into the AI chat is sent to third-party providers (Groq, Google Gemini) to generate responses. Never enter passwords, Social Security numbers, credit card numbers, medical information, or anything you wouldn't want a third party to see. I have no control over how AI providers handle your input once it leaves my server.</p>
         </div>
 
         <h2>What I collect from every visitor</h2>
@@ -86,7 +86,7 @@
         <h2>What I collect when you chat with the AI</h2>
         <p>This is the most important section. Read it carefully.</p>
         <ul>
-            <li><strong>Your prompts leave my server.</strong> Every message you type is forwarded to a third-party AI provider (Groq, Google Gemini, or Hugging Face) to generate a response. I do not permanently store the full text of your conversations on my server.</li>
+            <li><strong>Your prompts leave my server.</strong> Every message you type is forwarded to a third-party AI provider (Groq or Google Gemini) to generate a response. I do not permanently store the full text of your conversations on my server.</li>
             <li><strong>I cannot control what AI providers do with your input.</strong> Once your prompt leaves my server, it is subject to that provider's own privacy policy and data handling practices. This is why you should never enter sensitive personal information.</li>
             <li><strong>Conversations live in your browser only.</strong> Chat history is stored in your browser's memory (RAM) during the session and in <code>localStorage</code> for signed-in users. Closing the tab clears session memory. Signed-in users can clear localStorage anytime via the AI Profile panel.</li>
             <li><strong>Moderation logging:</strong> if you trigger a critical-content moderation pattern (prompts involving violence toward specific people, CSAM, weapon synthesis, school violence, kidnapping, or body disposal), the offending prompt text and your IP address are forwarded to my private Discord channel for manual review. A temporary lockout is applied automatically. This is a safety measure, not advertising or data mining.</li>
@@ -97,7 +97,7 @@
 
         <h2>What I collect when you generate an image</h2>
         <ul>
-            <li><strong>Your text prompt is sent to the image provider.</strong> Depending on availability, this is Replicate (paid, higher quality), Pollinations (free), or Hugging Face (free fallback). The provider generates the image and returns it.</li>
+            <li><strong>Your text prompt is sent to the image provider.</strong> Depending on availability, this is Replicate (paid, higher quality) or Pollinations (free). The provider generates the image and returns it.</li>
             <li><strong>Generated images are stored in your browser only.</strong> The image data (base64 encoded) is saved to your browser's <code>localStorage</code> so you can view your generation history. Images are NOT uploaded to or stored on my server.</li>
             <li><strong>Quota tracking:</strong> my server keeps a counter of how many images you've generated today, tied to your hashed account ID, plus a second counter tied to your IP address. This is how I enforce daily limits (15/day per account, 30/day per network, 150/day for premium). Both counters reset daily and expire on their own. I do not store what you generated, just how many times.</li>
         </ul>
@@ -130,7 +130,6 @@
         <ul>
             <li><strong>Groq</strong> (groq.com): receives your chat prompts to generate AI text responses. Primary AI provider. Subject to <a href="https://groq.com/privacy-policy/" target="_blank" rel="noopener">Groq's privacy policy</a>.</li>
             <li><strong>Google Gemini</strong> (ai.google.dev): receives your chat prompts as a fallback AI provider. Subject to <a href="https://ai.google.dev/terms" target="_blank" rel="noopener">Google's AI terms</a>.</li>
-            <li><strong>Hugging Face</strong> (huggingface.co): receives prompts for intent classification, text-to-speech, and image generation fallback. Subject to <a href="https://huggingface.co/privacy" target="_blank" rel="noopener">HF's privacy policy</a>.</li>
             <li><strong>Replicate</strong> (replicate.com): receives image generation prompts. Paid provider with $15/month budget cap. Subject to <a href="https://replicate.com/privacy" target="_blank" rel="noopener">Replicate's privacy policy</a>.</li>
             <li><strong>Pollinations</strong> (pollinations.ai): receives image generation prompts as free fallback.</li>
             <li><strong>Google OAuth</strong> (accounts.google.com): handles sign-in authentication. I never receive your Google password. Only name, email, and profile picture are shared with me.</li>
