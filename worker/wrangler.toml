@@ -3,7 +3,9 @@
 name = "nexus-api"
 main = "src/index.js"
 compatibility_date = "2024-12-01"
-workers_dev = true
+# workers_dev off: the nexus-api.*.workers.dev origin would otherwise serve the
+# full API and sidestep any WAF / rate rules scoped to the api.thyfwxit.com route.
+workers_dev = false
 
 # Custom domain — Worker handles all api.thyfwxit.com traffic
 routes = [{ pattern = "api.thyfwxit.com/*", zone_name = "thyfwxit.com" }]
