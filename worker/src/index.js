@@ -1393,7 +1393,15 @@ ${content}`;
       }
 
       // ── Image Generation (REST) ────────────────────────────────────
-      if (path === '/api/image-gen' && method === 'POST') {
+      if ((path === '/api/image-gen' || path === '/api/tool/image_gen') && method === 'POST') {
+        // The AI-tools frontend posts to /api/tool/image_gen and reads data.result;
+        // the direct /api/image-gen API (and the Discord bot) read the fields flat.
+        // One handler serves both, and _imgOk wraps the success shape per caller so
+        // the image renders either way. Error shapes stay flat for both.
+        const isToolPath = path === '/api/tool/image_gen';
+        const _imgOk = (payload) => isToolPath
+          ? json({ ok: true, result: payload }, 200, request)
+          : json({ ok: true, ...payload }, 200, request);
         // Origin gate
         const imgOrigin = request.headers.get('Origin') || '';
         const imgBotSecret = request.headers.get('X-Bot-Secret') || '';
@@ -1468,7 +1476,7 @@ ${content}`;
         if (clientIdem) {
           const cachedImg = await env.NEXUS_KV.get(idemResultKey);
           if (cachedImg) {
-            return json({ ok: true, image_b64: cachedImg, source: 'cache', cached: true }, 200, request);
+            return _imgOk({ image_b64: cachedImg, source: 'cache', cached: true });
           }
         }
         if (await env.NEXUS_KV.get(idemLockKey)) {
@@ -1484,7 +1492,7 @@ ${content}`;
             await env.NEXUS_KV.delete(idemLockKey);
           } catch {}
           await _countImage();
-          return json({ ok: true, image_b64: b64, source }, 200, request);
+          return _imgOk({ image_b64: b64, source });
         };
 
         // Try Replicate first (paid SFW)
