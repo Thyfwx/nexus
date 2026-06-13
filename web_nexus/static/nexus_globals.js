@@ -1,5 +1,5 @@
-// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.6.11 — owner kill switch + server-side age check
-window.NEXUS_VERSION = 'v5.6.11';
+// 🛰️ NEXUS GLOBAL COMMAND CENTER v5.6.12 : AI grounding + accuracy guardrails + image idempotency
+window.NEXUS_VERSION = 'v5.6.12';
 
 // AD KILL SWITCHES — flip any to true to disable that block at runtime.
 // Master NEXUS_DISABLE_ADS overrides all. All disabled until AdSense
