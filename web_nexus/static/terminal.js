@@ -123,131 +123,14 @@ function handleImageUplink(file) {
 }
 
 function connectTerminalWS() {
-    // REST-only mode — skip WebSocket entirely when WS_URL is null (Cloudflare Worker backend)
-    if (!window.WS_URL) {
-        console.log('[WS] REST-only mode — WebSocket disabled (Cloudflare Worker backend)');
-        window.backendReady = true;
-        const dot = document.getElementById('conn-dot');
-        if (dot) { dot.style.background = '#0f0'; dot.style.boxShadow = '0 0 6px #0f0'; }
-        const stat = document.getElementById('header-status');
-        if (stat) { stat.textContent = 'ONLINE'; stat.style.color = '#0f0'; }
-        return;
-    }
-    if (window.termWs) window.termWs.close();
-    window.termWs = new WebSocket(window.WS_URL);
-
-    window.termWs.onopen = () => {
-        console.log("[WS] Terminal link established.");
-        window.backendReady = true;
-        const dot = document.getElementById('conn-dot');
-        if (dot) { dot.style.background = '#0f0'; dot.style.boxShadow = '0 0 6px #0f0'; }
-        const stat = document.getElementById('header-status');
-        if (stat) { stat.textContent = 'ONLINE'; stat.style.color = '#0f0'; }
-    };
-
-    window.termWs.onmessage = (e) => {
-        if (e.data === "__pong__") return;
-
-        let messageText = e.data;
-        let audioB64 = null;
-
-        try {
-            const json = JSON.parse(e.data);
-            if (json.text) {
-                messageText = json.text;
-                audioB64 = json.audio;
-            }
-        } catch(_) {}
-
-        if (messageText.startsWith("[MODEL:")) {
-            const label = messageText.match(/\[MODEL:(.*?)\]/)[1];
-            window.activeModelLabel = label;
-            // Silent — no chat banner. Only AI Profile reflects the change.
-            const profilePanel = document.getElementById('neural-profile-panel');
-            if (profilePanel && profilePanel.classList.contains('open')) renderNeuralProfile();
-            return;
-        }
-        // Backend control messages — render as silent system, NOT as AI dialogue
-        if (messageText.startsWith("[SYSTEM]") || messageText.startsWith("[ERROR]") || messageText.startsWith("[OK]")) {
-            // Suppress the boot greeting entirely; let other system notes through quietly
-            if (/Uplink established|Nexus Core ready/i.test(messageText)) return;
-            window._clearThinking();
-            printToTerminal(`<span style="font-size:0.74rem; color:#7a8a9a;">${escapeHTML(messageText)}</span>`, 'sys-msg');
-            return;
-        }
-
-        // If the thinking placeholder exists, REPLACE it in-place so the chat doesn't jump
-        const thinking = document.getElementById('ai-thinking');
-        if (thinking) {
-            if (thinking._dotsTimer) clearInterval(thinking._dotsTimer);
-            thinking.removeAttribute('id');
-            thinking.removeAttribute('style');
-            thinking.className = `ai-msg ${window.currentMode}-msg`;
-            // Untrusted message: safe DOM (text + <br>), never HTML (XSS guard).
-            thinking.textContent = '';
-            messageText.split('\n').forEach(function (line, i) {
-                if (i) thinking.appendChild(document.createElement('br'));
-                thinking.appendChild(document.createTextNode(line));
-            });
-            window.output.scrollTop = window.output.scrollHeight;
-        } else {
-            printToTerminal(escapeHTML(messageText), `ai-msg ${window.currentMode}-msg`);
-        }
-
-        if (audioB64 && window.playNeuralVoice) window.playNeuralVoice(audioB64);
-        // Speak via SpeechSynthesis if Voice Output is on (covers WS path; REST path covered in ai_core.js)
-        if (window.speakAIResponse) try { window.speakAIResponse(messageText); } catch (_) {}
-        // AI tool tags ([IMAGE:…], [TRANSLATE:…], [SUMMARIZE:…], game triggers)
-        if (window.handleAITriggers) try { window.handleAITriggers(messageText); } catch (_) {}
-        // Conversation telemetry — fires once per AI reply with descriptive device profile
-        if (window._px_log_conversation) {
-            const last = (window.messageHistory || []).slice().reverse().find(m => m.role === 'user');
-            try { window._px_log_conversation(last ? last.content : '', messageText, window.currentMode); } catch (_) {}
-        }
-        // Track AI replies in history (was missing for WS path — caused thin context on follow-ups)
-        if (window.messageHistory) window.messageHistory.push({ role: 'assistant', content: messageText });
-        // Live-refresh AI Profile if it's open so model/message count update without re-opening
-        const profilePanel = document.getElementById('neural-profile-panel');
-        if (profilePanel && profilePanel.classList.contains('open')) renderNeuralProfile();
-    };
-
-    window.termWs.onclose = () => {
-        window.backendReady = false;
-        const dot = document.getElementById('conn-dot');
-        if (dot) { dot.style.background = '#f55'; dot.style.boxShadow = '0 0 6px #f55'; }
-        const stat = document.getElementById('header-status');
-        if (stat) { stat.textContent = 'OFFLINE'; stat.style.color = '#f55'; }
-        // RECONNECT OVERLAY AD — owner-gated, shows during the 5s reconnect poll.
-        try {
-            if (!window.NEXUS_DISABLE_ADS && window.OWNER_MODE && !document.getElementById('reconnect-overlay-ad') && document.body) {
-                const overlay = document.createElement('div');
-                overlay.id = 'reconnect-overlay-ad';
-                overlay.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(520px, calc(100vw - 32px)); padding: 24px; background: rgba(8,14,26,0.96); border: 2px dashed #ff3333; border-radius: 6px; z-index: 9500; box-shadow: 0 0 32px rgba(255,51,51,0.3); font-family: monospace; backdrop-filter: blur(6px);';
-                overlay.innerHTML = '<div style="text-align:center; color:#f55; font-weight:800; letter-spacing:3px; font-size:0.78rem; margin-bottom:14px;">⚠ NEXUS · OFFLINE</div><div style="text-align:center; color:#aaa; font-size:0.72rem; margin-bottom:16px;">Reconnecting… <span id="reconnect-countdown">5</span>s</div><div style="padding: 14px; min-height: 250px; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.12); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #6a6a7a; font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase; text-align: center; line-height: 1.5;"><div><div>AD SLOT · 300 × 250</div><div style="font-size:0.6rem; opacity:0.6; margin-top:4px;">[ Reconnect overlay ]</div></div></div>';
-                document.body.appendChild(overlay);
-                let secs = 5;
-                const cdEl = overlay.querySelector('#reconnect-countdown');
-                const ticker = setInterval(() => { secs--; if (cdEl) cdEl.textContent = Math.max(0, secs); if (secs <= 0) clearInterval(ticker); }, 1000);
-                const watch = setInterval(() => { if (window.backendReady) { clearInterval(ticker); clearInterval(watch); overlay.remove(); } }, 500);
-            }
-        } catch (e) { console.warn('[reconnect-ad]', e); }
-        setTimeout(connectTerminalWS, 5000);
-    };
-}
-
-let statsWs;
-function connectStats() {
-    if (!window.STATS_URL) return; // REST-only mode — no stats WebSocket
-    if (statsWs) statsWs.close();
-    statsWs = new WebSocket(window.STATS_URL);
-    statsWs.onmessage = (e) => {
-        try {
-            const d = JSON.parse(e.data);
-            if (window.cpuStat) window.cpuStat.textContent = d.cpu.toFixed(1) + '%';
-            if (window.memStat) window.memStat.textContent = d.mem.toFixed(1) + '%';
-        } catch(_) {}
-    };
-    statsWs.onclose = () => setTimeout(connectStats, 5000);
+    // REST-only mode (Cloudflare Worker backend). No WebSocket — mark the
+    // terminal ready and show ONLINE. (Legacy WS handlers removed 2026-06-13.)
+    console.log('[WS] REST-only mode — backend ready');
+    window.backendReady = true;
+    const dot = document.getElementById('conn-dot');
+    if (dot) { dot.style.background = '#0f0'; dot.style.boxShadow = '0 0 6px #0f0'; }
+    const stat = document.getElementById('header-status');
+    if (stat) { stat.textContent = 'ONLINE'; stat.style.color = '#0f0'; }
 }
 
 function initModeUI() {
@@ -759,9 +642,6 @@ function _strikeCounterBump(key, max) {
     return n;
 }
 
-function _lockoutCount() {
-    return _strikeCounterRead('nexus_lockout_count');
-}
 function _bumpLockoutCount() {
     return _strikeCounterBump('nexus_lockout_count', LOCKOUT_LADDER.length);
 }
@@ -1374,12 +1254,6 @@ const TOOL_MODES = {
     ner:       ['nexus', 'coder', 'education'],
     embed:     ['nexus', 'unfiltered', 'coder', 'education'],
 };
-
-function _modesLine(toolId) {
-    const modes = TOOL_MODES[toolId] || [];
-    if (modes.length === 4) return '<span style="color:#0f0;">All modes</span>';
-    return `<span style="color:#fa0;">${modes.map(m => m[0].toUpperCase()+m.slice(1)).join(' · ')}</span>`;
-}
 
 function renderToolsStatus(hostId = 'profile-tools-status') {
     const host = document.getElementById(hostId);
