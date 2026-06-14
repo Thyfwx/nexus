@@ -303,12 +303,12 @@ If their message is fine, respond normally and do NOT mention strikes.]`;
             const data = await res.json().catch(() => ({}));
             window._clearThinking && window._clearThinking();
             if (data.lockout && data.remaining_ms > 0) {
-                printToTerminal(`<span style="color:#ff3333; font-weight:700;">[LOCKED · server-side] ${data.error}</span>`, 'sys-msg');
+                printToTerminal(`<span style="color:#ff3333; font-weight:700;">[LOCKED · server-side] ${escapeHTML(data.error)}</span>`, 'sys-msg');
                 // Re-mark the current mode locked locally so the input bar reflects it
                 if (window._lockedModes) window._lockedModes.add(window.currentMode);
                 if (typeof _enforceLockUI === 'function') _enforceLockUI();
             } else {
-                printToTerminal(`[ERROR] ${data.error || 'Too many requests'}`, 'sys-msg');
+                printToTerminal(`[ERROR] ${escapeHTML(data.error || 'Too many requests')}`, 'sys-msg');
             }
             return;
         }
@@ -569,34 +569,34 @@ async function renderInlineWeather(loc) {
     try {
         const r = await window.NexusTools.callTool('weather', { location: loc });
         printToTerminal(`<strong style="color:var(--accent);">🌤️ ${escapeHTML(r.location)}:</strong> ${escapeHTML(r.description)} · ${r.temp_c}°C / ${r.temp_f}°F · feels ${r.feels_like_c}°C · humidity ${r.humidity}% · wind ${r.wind_kph} km/h`, 'ai-msg');
-    } catch (e) { printToTerminal(`[WEATHER FAIL] ${e.message}`, 'sys-msg'); }
+    } catch (e) { printToTerminal(`[WEATHER FAIL] ${escapeHTML(e.message)}`, 'sys-msg'); }
 }
 async function renderInlineCurrency(amount, src, tgt) {
     try {
         const r = await window.NexusTools.callTool('currency', { amount, src, tgt });
         printToTerminal(`<strong style="color:var(--accent);">💱</strong> ${amount} ${src} = <strong>${(+r.result).toFixed(2)} ${tgt}</strong> <span style="color:#666;">(rate ${(+r.rate).toFixed(4)} on ${r.date})</span>`, 'ai-msg');
-    } catch (e) { printToTerminal(`[CURRENCY FAIL] ${e.message}`, 'sys-msg'); }
+    } catch (e) { printToTerminal(`[CURRENCY FAIL] ${escapeHTML(e.message)}`, 'sys-msg'); }
 }
 async function renderInlineQR(text) {
     try {
         const r = await window.NexusTools.callTool('qr', { text });
         const p = document.createElement('p'); p.className = 'ai-msg';
-        p.innerHTML = `<strong style="color:var(--accent);">🔲 QR for:</strong> ${escapeHTML(text)}<br><img src="${r.url}" style="background:#fff; padding:8px; border-radius:6px; margin-top:6px;">`;
+        p.innerHTML = `<strong style="color:var(--accent);">🔲 QR for:</strong> ${escapeHTML(text)}<br><img src="${escapeHTML(r.url)}" style="background:#fff; padding:8px; border-radius:6px; margin-top:6px;">`;
         window.output.appendChild(p); window.output.scrollTop = window.output.scrollHeight;
-    } catch (e) { printToTerminal(`[QR FAIL] ${e.message}`, 'sys-msg'); }
+    } catch (e) { printToTerminal(`[QR FAIL] ${escapeHTML(e.message)}`, 'sys-msg'); }
 }
 async function renderInlineTZ(tz) {
     try {
         const r = await window.NexusTools.callTool('timezone', { tz });
         printToTerminal(`<strong style="color:var(--accent);">⏰ ${escapeHTML(r.timezone)}:</strong> ${escapeHTML(r.datetime)} <span style="color:#666;">(${r.abbreviation} · UTC${r.utc_offset})</span>`, 'ai-msg');
-    } catch (e) { printToTerminal(`[TZ FAIL] ${e.message}`, 'sys-msg'); }
+    } catch (e) { printToTerminal(`[TZ FAIL] ${escapeHTML(e.message)}`, 'sys-msg'); }
 }
 async function renderInlinePalette(seed) {
     try {
         const r = await window.NexusTools.callTool('palette', { seed });
         const swatches = r.palette.map(c => `<span style="display:inline-block; width:50px; height:30px; background:${c}; margin-right:4px; border-radius:4px; border:1px solid #444; vertical-align:middle;"></span><code style="margin-right:14px; font-size:0.7rem; color:#aaa;">${c}</code>`).join('');
         printToTerminal(`<strong style="color:var(--accent);">🎨 Palette for "${escapeHTML(seed)}":</strong><br>${swatches}`, 'ai-msg');
-    } catch (e) { printToTerminal(`[PALETTE FAIL] ${e.message}`, 'sys-msg'); }
+    } catch (e) { printToTerminal(`[PALETTE FAIL] ${escapeHTML(e.message)}`, 'sys-msg'); }
 }
 async function renderInlineNER(text) {
     try {
@@ -604,19 +604,24 @@ async function renderInlineNER(text) {
         const ents = (r.entities || []).filter(e => e.score > 0.7);
         if (!ents.length) { printToTerminal(`[NER] no entities found.`, 'sys-msg'); return; }
         const grouped = ents.reduce((m, e) => { (m[e.entity_group || e.entity] = m[e.entity_group || e.entity] || []).push(e.word); return m; }, {});
-        const out = Object.entries(grouped).map(([k, vs]) => `<strong>${k}:</strong> ${vs.join(', ')}`).join('<br>');
+        const out = Object.entries(grouped).map(([k, vs]) => `<strong>${escapeHTML(k)}:</strong> ${vs.map(escapeHTML).join(', ')}`).join('<br>');
         printToTerminal(`<strong style="color:var(--accent);">🏷️ ENTITIES:</strong><br>${out}`, 'ai-msg');
-    } catch (e) { printToTerminal(`[NER FAIL] ${e.message}`, 'sys-msg'); }
+    } catch (e) { printToTerminal(`[NER FAIL] ${escapeHTML(e.message)}`, 'sys-msg'); }
 }
 
 async function renderInlineSearch(query) {
     printToTerminal(`[SEARCH] "${escapeHTML(query)}"…`, 'sys-msg');
     try {
         const r = await window.NexusTools.callTool('search', { query });
-        const items = (r.results || []).slice(0, 5).map(it =>
-            `<div style="margin:6px 0;"><a href="${it.url}" target="_blank" style="color:var(--accent); text-decoration:none; font-weight:600;">${escapeHTML(it.title)}</a><br><span style="color:#888; font-size:0.7rem;">${escapeHTML(it.snippet || '')}</span></div>`).join('');
+        const items = (r.results || []).slice(0, 5).map(it => {
+            const safeTitle = escapeHTML(it.title);
+            const titleHTML = /^https?:\/\//i.test(it.url || '')
+                ? `<a href="${escapeHTML(it.url)}" target="_blank" style="color:var(--accent); text-decoration:none; font-weight:600;">${safeTitle}</a>`
+                : `<span style="color:var(--accent); font-weight:600;">${safeTitle}</span>`;
+            return `<div style="margin:6px 0;">${titleHTML}<br><span style="color:#888; font-size:0.7rem;">${escapeHTML(it.snippet || '')}</span></div>`;
+        }).join('');
         printToTerminal(`<strong style="color:var(--accent);">SEARCH RESULTS:</strong>${items || ' <em>no results</em>'}`, 'ai-msg');
-    } catch (e) { printToTerminal(`[SEARCH FAIL] ${e.message}`, 'sys-msg'); }
+    } catch (e) { printToTerminal(`[SEARCH FAIL] ${escapeHTML(e.message)}`, 'sys-msg'); }
 }
 
 async function renderInlineWiki(topic) {
@@ -632,10 +637,10 @@ async function renderInlineWiki(topic) {
         card.style.cssText = `border-left:3px solid ${stripe}; padding:10px 14px; margin:8px 0; background:rgba(0,0,0,0.25); font-family:var(--font-main);`;
 
         const thumb = r.thumbnail
-            ? `<img src="${r.thumbnail}" style="float:right; width:96px; height:auto; max-height:140px; object-fit:cover; margin:0 0 6px 14px; border:1px solid rgba(255,255,255,0.12);">`
+            ? `<img src="${escapeHTML(r.thumbnail)}" style="float:right; width:96px; height:auto; max-height:140px; object-fit:cover; margin:0 0 6px 14px; border:1px solid rgba(255,255,255,0.12);">`
             : '';
         const link = r.url
-            ? `<a href="${r.url}" target="_blank" rel="noopener" style="color:${stripe}; text-decoration:none; font-size:0.7rem; letter-spacing:1.5px; opacity:0.85;">[ open article ↗ ]</a>`
+            ? `<a href="${escapeHTML(r.url)}" target="_blank" rel="noopener" style="color:${stripe}; text-decoration:none; font-size:0.7rem; letter-spacing:1.5px; opacity:0.85;">[ open article ↗ ]</a>`
             : '';
         card.innerHTML = `
             <div style="font-size:0.6rem; color:${stripe}; letter-spacing:3px; opacity:0.7; margin-bottom:4px;">[ WIKI :: ${escapeHTML(topic)} ]</div>
@@ -648,7 +653,7 @@ async function renderInlineWiki(topic) {
             window.output.appendChild(card);
             window.output.scrollTop = window.output.scrollHeight;
         }
-    } catch (e) { printToTerminal(`[WIKI FAIL] ${e.message}`, 'sys-msg'); }
+    } catch (e) { printToTerminal(`[WIKI FAIL] ${escapeHTML(e.message)}`, 'sys-msg'); }
 }
 
 async function renderInlineMath(expression) {
@@ -660,7 +665,7 @@ async function renderInlineMath(expression) {
         else if (r.kind === 'equation') out = `solutions: ${r.result}`;
         else out = `simplified: ${r.simplified}${r.value !== undefined ? ` ≈ ${r.value}` : ''}`;
         printToTerminal(`<strong style="color:var(--accent);">🧮 ${escapeHTML(expression)}</strong><br><span style="color:#fff;">${escapeHTML(out)}</span>`, 'ai-msg');
-    } catch (e) { printToTerminal(`[MATH FAIL] ${e.message}`, 'sys-msg'); }
+    } catch (e) { printToTerminal(`[MATH FAIL] ${escapeHTML(e.message)}`, 'sys-msg'); }
 }
 
 async function renderInlineChart(spec) {
@@ -676,10 +681,10 @@ async function renderInlineChart(spec) {
         });
         const r = await window.NexusTools.callTool('chart', { chart_type: chartType, labels, values, title });
         const p = document.createElement('p'); p.className = 'ai-msg';
-        p.innerHTML = `<img src="${r.url}" style="max-width:100%; border:1px solid var(--accent); border-radius:6px; margin-top:6px; background:rgba(255,255,255,0.95);">`;
+        p.innerHTML = `<img src="${escapeHTML(r.url)}" style="max-width:100%; border:1px solid var(--accent); border-radius:6px; margin-top:6px; background:rgba(255,255,255,0.95);">`;
         window.output.appendChild(p);
         window.output.scrollTop = window.output.scrollHeight;
-    } catch (e) { printToTerminal(`[CHART FAIL] ${e.message}`, 'sys-msg'); }
+    } catch (e) { printToTerminal(`[CHART FAIL] ${escapeHTML(e.message)}`, 'sys-msg'); }
 }
 
 async function renderInlineRunPy(code) {
@@ -691,7 +696,7 @@ async function renderInlineRunPy(code) {
         let html = `<pre style="background:#000; color:#0ff; padding:8px 10px; border:1px solid #333; border-radius:4px; font-size:0.7rem; white-space:pre-wrap; margin:6px 0;">${escapeHTML(out || '(no output)')}</pre>`;
         if (err) html += `<pre style="background:#200; color:#f55; padding:8px 10px; border:1px solid #500; border-radius:4px; font-size:0.7rem; white-space:pre-wrap; margin:6px 0;">${escapeHTML(err)}</pre>`;
         printToTerminal(`<strong style="color:var(--accent);">🐍 RUN:</strong>${html}`, 'ai-msg');
-    } catch (e) { printToTerminal(`[RUN_PY FAIL] ${e.message}`, 'sys-msg'); }
+    } catch (e) { printToTerminal(`[RUN_PY FAIL] ${escapeHTML(e.message)}`, 'sys-msg'); }
 }
 
 function escapeHTML(s) {
@@ -1027,7 +1032,7 @@ ${prompt}`;
             // Pollinations rate-limit — explain it clearly so it doesn't look like a real failure.
             printToTerminal(`<span style="color:#fa0;">[RATE LIMITED]</span> Pollinations has a 1-image-per-IP queue. Wait ~10s for the previous render to clear, then try again.`, 'sys-msg');
         } else {
-            printToTerminal(`[IMAGE FAIL] ${e.message}`, 'sys-msg');
+            printToTerminal(`[IMAGE FAIL] ${escapeHTML(e.message)}`, 'sys-msg');
         }
     } finally {
         // ALWAYS release the in-flight gate — success, error, or anything in between.
@@ -1047,7 +1052,7 @@ async function renderInlineSentiment(body) {
         const sorted = (Array.isArray(arr) ? arr : []).slice().sort((a,b)=>b.score-a.score);
         const summary = sorted.map(s => `${s.label}: ${(s.score*100).toFixed(0)}%`).join(' · ');
         printToTerminal(`<strong style="color:var(--accent);">SENTIMENT:</strong> ${summary || JSON.stringify(r.scores)}`, 'ai-msg');
-    } catch (e) { printToTerminal(`[SENTIMENT FAIL] ${e.message}`, 'sys-msg'); }
+    } catch (e) { printToTerminal(`[SENTIMENT FAIL] ${escapeHTML(e.message)}`, 'sys-msg'); }
 }
 
 async function renderInlineEmotion(body) {
@@ -1058,7 +1063,7 @@ async function renderInlineEmotion(body) {
         const sorted = (Array.isArray(arr) ? arr : []).slice().sort((a,b)=>b.score-a.score).slice(0,3);
         const summary = sorted.map(s => `${s.label}: ${(s.score*100).toFixed(0)}%`).join(' · ');
         printToTerminal(`<strong style="color:var(--accent);">EMOTION:</strong> ${summary}`, 'ai-msg');
-    } catch (e) { printToTerminal(`[EMOTION FAIL] ${e.message}`, 'sys-msg'); }
+    } catch (e) { printToTerminal(`[EMOTION FAIL] ${escapeHTML(e.message)}`, 'sys-msg'); }
 }
 
 async function renderInlineTranslate(src, tgt, body) {
@@ -1066,7 +1071,7 @@ async function renderInlineTranslate(src, tgt, body) {
     try {
         const r = await window.NexusTools.callTool('translate', { src, tgt, text: body });
         printToTerminal(`<strong style="color:var(--accent);">${escapeHTML(tgt.toUpperCase())}:</strong> ${escapeHTML(r.text)}`, 'ai-msg');
-    } catch (e) { printToTerminal(`[TRANSLATE FAIL] ${e.message}`, 'sys-msg'); }
+    } catch (e) { printToTerminal(`[TRANSLATE FAIL] ${escapeHTML(e.message)}`, 'sys-msg'); }
 }
 
 async function renderInlineSummarize(body) {
@@ -1074,7 +1079,7 @@ async function renderInlineSummarize(body) {
     try {
         const r = await window.NexusTools.callTool('summarize', { text: body });
         printToTerminal(`<strong style="color:var(--accent);">SUMMARY:</strong> ${escapeHTML(r.text)}`, 'ai-msg');
-    } catch (e) { printToTerminal(`[SUMMARIZE FAIL] ${e.message}`, 'sys-msg'); }
+    } catch (e) { printToTerminal(`[SUMMARIZE FAIL] ${escapeHTML(e.message)}`, 'sys-msg'); }
 }
 
 // Direct image command (fallback when used via /image)
