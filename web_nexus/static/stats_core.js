@@ -5,21 +5,6 @@ function connectStats() {
     console.log("[STATS] Monitoring service synchronized.");
 }
 
-function updateClientStats() {
-    // Shared pointers from nexus_globals.js
-    if (!window.cpuStat || !window.memStat) {
-        window.cpuStat = document.getElementById("cpu-stat");
-        window.memStat = document.getElementById("mem-stat");
-    }
-    
-    // Simulate real-time logic
-    const cpu = Math.floor(Math.random() * 15) + 5;
-    const mem = Math.floor(Math.random() * 10) + 40;
-    
-    if (window.cpuStat) window.cpuStat.textContent = `${cpu}%`;
-    if (window.memStat) window.memStat.textContent = `${mem}%`;
-}
-
 function startMonitor() {
     if (window.monitorInterval) clearInterval(window.monitorInterval);
     

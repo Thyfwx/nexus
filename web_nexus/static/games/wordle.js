@@ -210,6 +210,3 @@ function wordleIsOver() {
     if (wordleGuesses.length >= WORDLE_MAX) return true;
     return wordleGuesses.length > 0 && wordleGuesses[wordleGuesses.length - 1].result.every(r => r.state === 'correct');
 }
-
-// Called from WS when AI sends feedback during a wordle session (passthrough now)
-function updateWordleVisuals(text, grid) { /* handled by client-side wordle now */ }
