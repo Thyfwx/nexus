@@ -2,7 +2,7 @@
 // Logic for terminal commands, processing, and routing.
 
 // Escape user-controlled text before it reaches the HTML-rendering printToTerminal (XSS guard).
-function _esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+// _esc is declared globally in auth_core.js (loaded first) — not redeclared here.
 
 function handleCommand(cmd) {
     const lc = cmd.toLowerCase().trim();
