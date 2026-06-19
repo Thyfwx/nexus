@@ -116,7 +116,7 @@
                         <a href="data:image/png;base64,${r.image_b64}" download="nexus_image.png" class="tool-btn-secondary" style="display:inline-block; margin-top:8px;">DOWNLOAD</a>
                     `;
                     if (window.printToTerminal) window.printToTerminal(`[IMAGE] Rendered "${esc(prompt)}" via ${esc(r.source)}.`, 'sys-msg');
-                } catch (e) { $('img-status').innerHTML = statusLine('err', `FAILED: ${e.message}`); }
+                } catch (e) { $('img-status').innerHTML = (window._reportFail && window._reportFail('dock', e), statusLine('err', 'failed, try again')); }
                 setBusy($('img-go'), false);
             };
         })(),
@@ -138,7 +138,7 @@
                     const r = await callTool('stt', { audio_b64 });
                     $('stt-out').value = r.text;
                     $('stt-status').innerHTML = statusLine('ok', 'Transcribed.');
-                } catch (e) { $('stt-status').innerHTML = statusLine('err', `FAILED: ${e.message}`); }
+                } catch (e) { $('stt-status').innerHTML = (window._reportFail && window._reportFail('dock', e), statusLine('err', 'failed, try again')); }
                 setBusy($('stt-go'), false);
             };
         })(),
@@ -163,7 +163,7 @@
                     audio.style.display = 'block';
                     audio.play().catch(() => {});
                     $('tts-status').innerHTML = statusLine('ok', 'Done.');
-                } catch (e) { $('tts-status').innerHTML = statusLine('err', `FAILED: ${e.message}`); }
+                } catch (e) { $('tts-status').innerHTML = (window._reportFail && window._reportFail('dock', e), statusLine('err', 'failed, try again')); }
                 setBusy($('tts-go'), false);
             };
         })(),
@@ -200,7 +200,7 @@
                     const r = await callTool('translate', { text, src, tgt });
                     $('tr-out').value = r.text;
                     $('tr-status').innerHTML = statusLine('ok', `${src} → ${tgt}`);
-                } catch (e) { $('tr-status').innerHTML = statusLine('err', `FAILED: ${e.message}`); }
+                } catch (e) { $('tr-status').innerHTML = (window._reportFail && window._reportFail('dock', e), statusLine('err', 'failed, try again')); }
                 setBusy($('tr-go'), false);
             };
         },
@@ -225,7 +225,7 @@
                     const r = await callTool('summarize', { text, min_length: +$('sum-min').value, max_length: +$('sum-max').value });
                     $('sum-out').value = r.text;
                     $('sum-status').innerHTML = statusLine('ok', 'Done.');
-                } catch (e) { $('sum-status').innerHTML = statusLine('err', `FAILED: ${e.message}`); }
+                } catch (e) { $('sum-status').innerHTML = (window._reportFail && window._reportFail('dock', e), statusLine('err', 'failed, try again')); }
                 setBusy($('sum-go'), false);
             };
         })(),
@@ -257,7 +257,7 @@
                     }).join('');
                     $('cl-out').innerHTML = rows;
                     $('cl-status').innerHTML = statusLine('ok', 'Done.');
-                } catch (e) { $('cl-status').innerHTML = statusLine('err', `FAILED: ${e.message}`); }
+                } catch (e) { $('cl-status').innerHTML = (window._reportFail && window._reportFail('dock', e), statusLine('err', 'failed, try again')); }
                 setBusy($('cl-go'), false);
             };
         })(),
@@ -279,7 +279,7 @@
                     const r = await callTool('ocr', { image_b64 });
                     $('ocr-out').value = r.text;
                     $('ocr-status').innerHTML = statusLine('ok', 'Extracted.');
-                } catch (e) { $('ocr-status').innerHTML = statusLine('err', `FAILED: ${e.message}`); }
+                } catch (e) { $('ocr-status').innerHTML = (window._reportFail && window._reportFail('dock', e), statusLine('err', 'failed, try again')); }
                 setBusy($('ocr-go'), false);
             };
         })(),
@@ -303,7 +303,7 @@
                     const dims = Array.isArray(v[0]) ? `${v.length}×${v[0].length}` : v.length;
                     $('emb-out').textContent = `dims: ${dims}\n\nfirst 16 values:\n${JSON.stringify((Array.isArray(v[0]) ? v[0] : v).slice(0, 16), null, 2)}`;
                     $('emb-status').innerHTML = statusLine('ok', 'Done.');
-                } catch (e) { $('emb-status').innerHTML = statusLine('err', `FAILED: ${e.message}`); }
+                } catch (e) { $('emb-status').innerHTML = (window._reportFail && window._reportFail('dock', e), statusLine('err', 'failed, try again')); }
                 setBusy($('emb-go'), false);
             };
         })(),
