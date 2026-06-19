@@ -132,10 +132,6 @@ window.onerror = function(msg, url, line, col, error) {
                     <code id="nexus-diag-code" style="flex:1; background:#000; border:1px solid #f00; color:#0ff; padding:14px 16px; font-size:1rem; letter-spacing:3px; text-align:center; border-radius:6px; user-select:all;">${_cesc(code)}</code>
                     <button id="nexus-diag-copy" style="background:#0ff; color:#000; border:none; padding:0 14px; cursor:pointer; font-weight:bold; border-radius:6px; font-family:inherit; font-size:0.65rem; letter-spacing:1px;">COPY</button>
                 </div>
-
-                <div style="background:#000; padding:12px; border:1px solid #311; color:#888; font-size:0.6rem; overflow-x:auto; border-radius:4px;">
-                    ${_cesc(msg)}<br>at ${_cesc(fileName)}:${line}
-                </div>
             </div>
 
             <div style="display:flex; gap:12px;">
