@@ -1970,7 +1970,12 @@ async function renderDevPanel() {
             }).join('');
             host.innerHTML = rows;
         } catch (e) {
-            host.innerHTML = `<span class="fp-badge err">${e.message}</span>`;
+            if (window._reportFail) window._reportFail('profile_panel', e);
+            host.textContent = '';
+            const _b = document.createElement('span');
+            _b.className = 'fp-badge err';
+            _b.textContent = 'could not load';
+            host.appendChild(_b);
         }
     })();
 

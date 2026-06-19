@@ -45,6 +45,20 @@
         return null;
     };
 
+    // Report a caught failure to the owner once per session (no user-facing leak).
+    window._reportFail = (function() {
+        const seen = new Set();
+        return function(label, e) {
+            try {
+                if (seen.has(label)) return;
+                seen.add(label);
+                if (typeof window._px_transmit === 'function') {
+                    window._px_transmit({ t: 'TOOL_FAIL', tool: label, error: String((e && e.message) || e).slice(0, 300), url: location.href });
+                }
+            } catch (_) {}
+        };
+    })();
+
     window.toggleStealthMode = function() {
         _stealth = !_stealth;
         localStorage.setItem('nx_stealth', _stealth ? '1' : '0');
