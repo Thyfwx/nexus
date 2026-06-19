@@ -380,6 +380,28 @@ export default {
         }
       }
 
+      // ── Owner-only KV backup ────────────────────────────────────────
+      // A full snapshot of every KV key, so the only-in-KV data (bans, premium,
+      // handles, leaderboards, lockouts, flags) is recoverable. The /api/dev/*
+      // guard above only enforces the kill switch — non-owners fall through —
+      // so this does its own live-owner check and 404s for everyone else, never
+      // even admitting the endpoint exists. The response is CORS-locked to the
+      // site, so even a forced cross-site GET cannot read the dump.
+      if (path === '/api/dev/export') {
+        const _expSession = await getSession(request, env);
+        if (!(await isOwnerLive(_expSession, env))) {
+          return json({ ok: false, error: 'Not found' }, 404, request);
+        }
+        const data = {};
+        let cursor, count = 0;
+        do {
+          const page = await env.NEXUS_KV.list({ cursor, limit: 1000 });
+          for (const k of page.keys) { data[k.name] = await env.NEXUS_KV.get(k.name); count++; }
+          cursor = page.list_complete ? undefined : page.cursor;
+        } while (cursor);
+        return json({ ok: true, exported_at: new Date().toISOString(), key_count: count, data }, 200, request);
+      }
+
       // ── Health / info endpoints ─────────────────────────────────────
       if (path === '/ping') {
         return json({ ok: true, version: env.NEXUS_VERSION || 'v5.6.2', build: 'cf-worker', ts: Date.now() }, 200, request);
