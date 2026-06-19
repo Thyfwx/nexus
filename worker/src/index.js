@@ -380,6 +380,28 @@ export default {
         }
       }
 
+      // ── Owner-only KV backup ────────────────────────────────────────
+      // A full snapshot of every KV key, so the only-in-KV data (bans, premium,
+      // handles, leaderboards, lockouts, flags) is recoverable. The /api/dev/*
+      // guard above only enforces the kill switch — non-owners fall through —
+      // so this does its own live-owner check and 404s for everyone else, never
+      // even admitting the endpoint exists. The response is CORS-locked to the
+      // site, so even a forced cross-site GET cannot read the dump.
+      if (path === '/api/dev/export') {
+        const _expSession = await getSession(request, env);
+        if (!(await isOwnerLive(_expSession, env))) {
+          return json({ ok: false, error: 'Not found' }, 404, request);
+        }
+        const data = {};
+        let cursor, count = 0;
+        do {
+          const page = await env.NEXUS_KV.list({ cursor, limit: 1000 });
+          for (const k of page.keys) { data[k.name] = await env.NEXUS_KV.get(k.name); count++; }
+          cursor = page.list_complete ? undefined : page.cursor;
+        } while (cursor);
+        return json({ ok: true, exported_at: new Date().toISOString(), key_count: count, data }, 200, request);
+      }
+
       // ── Health / info endpoints ─────────────────────────────────────
       if (path === '/ping') {
         return json({ ok: true, version: env.NEXUS_VERSION || 'v5.6.2', build: 'cf-worker', ts: Date.now() }, 200, request);
@@ -407,19 +429,18 @@ export default {
         }, 200, request);
       }
 
-      // Live home-lab status for the portfolio. Reports liveness of the
-      // self-hosted services: Local AI and the Discord bot (outbound HTTPS
-      // checks), plus the lab infra and the public Minecraft world, both read
-      // from the internal Uptime Kuma status page (which monitors them on the
-      // LAN, so a stale home IP can never flip them to a false "down"). The
-      // response carries only generic labels, never internal hostnames. Cached 60s.
+      // Live home-lab status for the portfolio. Reports liveness of the lab
+      // infrastructure and the public Minecraft world, read from the public
+      // Uptime Kuma status page (monitored on the LAN, so a stale home IP can
+      // never flip them to a false "down"). Local AI and the Discord bot are
+      // intentionally excluded — the portfolio shows infra, not personal
+      // services. Only generic labels leave here, never hostnames or IPs. Cached 60s.
       if (path === '/api/homelab-status') {
         const cached = await env.NEXUS_KV.get('homelab_status_v5', 'json');
         if (cached) return json(cached, 200, request);
-        const httpTargets = [
-          { key: 'ai',  name: 'Local AI',    url: 'https://nexus.thyfwxit.com' },
-          { key: 'bot', name: 'Discord Bot', url: 'https://bot.thyfwxit.com' },
-        ];
+        // Local AI and the Discord bot are intentionally NOT surfaced publicly
+        // (Xavier's call). No outbound service checks; the list is infra + MC.
+        const httpTargets = [];
         const httpChecks = Promise.all(httpTargets.map(async (t) => {
           try {
             const r = await fetch(t.url, {
@@ -441,7 +462,7 @@ export default {
         // (status.thyfwxit.com, no auth). Mapped by monitor ID to generic labels, so
         // the actual software names never appear in this public source, only labels.
         // Monitor 15 is the public Minecraft world and is given its own 'mc' key.
-        const KUMA_LABEL = { '1': 'Hypervisor', '3': 'DNS Filtering', '4': 'Home Automation', '10': 'Network Storage' };
+        const KUMA_LABEL = { '1': 'Hypervisor', '3': 'DNS Filtering', '4': 'Home Automation', '6': 'VPN', '10': 'Network Storage', '11': 'Reverse Proxy', '12': 'Network Boot', '19': 'Container Management' };
         const kumaCheck = (async () => {
           try {
             const r = await fetch('https://status.thyfwxit.com/api/status-page/heartbeat/status', {
@@ -457,8 +478,11 @@ export default {
               // portfolio gives it flagship treatment (and can show a player
               // count later once an external count source is wired back in).
               if (id === '15') return { key: 'mc', name: 'Minecraft', up, players: 0 };
+              // 13 (Local AI) and 14 (Discord Bot) are covered by the outbound
+              // HTTPS checks above — skip here so they are not listed twice.
+              if (id === '13' || id === '14') return null;
               return { key: 'kuma' + id, name: KUMA_LABEL[id] || 'Lab Service', up };
-            });
+            }).filter(Boolean);
             if (out.length) await env.NEXUS_KV.put('kuma_last', JSON.stringify(out), { expirationTtl: 1800 });
             return out;
           } catch (_) {
