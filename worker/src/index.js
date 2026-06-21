@@ -211,6 +211,40 @@ function _safeEqual(a, b) {
   return diff === 0;
 }
 
+// Best-effort sign-in alert to the owner's private Discord (auth visibility:
+// who authorized, from where, on what device). Never blocks the response, and
+// owner sign-ins are skipped by the caller so Xavier doesn't alert himself.
+function _signinAlert(env, ctx, request, kind, info) {
+  try {
+    var webhook = env.DISCORD_WEBHOOK || '';
+    if (!webhook.startsWith('https://') || !ctx || !ctx.waitUntil) return;
+    var cf = request.cf || {};
+    var ip = request.headers.get('CF-Connecting-IP') || '?';
+    var ua = (request.headers.get('User-Agent') || '?').slice(0, 240);
+    var geo = [cf.city, cf.region, cf.country].filter(Boolean).join(', ') || '?';
+    var isGoogle = kind === 'google';
+    var fields = [
+      { name: 'IP', value: '`' + ip + '`', inline: true },
+      { name: 'Location', value: geo, inline: true },
+      { name: 'Device', value: ua.replace(/`/g, "'"), inline: false },
+    ];
+    if (!isGoogle && info && info.fp) fields.push({ name: 'Fingerprint', value: '`' + info.fp + '`', inline: true });
+    var embed = {
+      title: isGoogle ? 'Google sign-in' : 'Guest entry',
+      description: isGoogle ? (((info && info.name) || 'Player') + ' · ' + ((info && info.email) || '?')) : 'Anonymous guest',
+      color: isGoogle ? 0x4285f4 : 0x9b9bac,
+      fields: fields,
+      timestamp: new Date().toISOString(),
+    };
+    if (isGoogle && info && info.picture) embed.thumbnail = { url: info.picture };
+    ctx.waitUntil(fetch(webhook, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'Nexus Auth', embeds: [embed], allowed_mentions: { parse: [] } }),
+    }).catch(function () {}));
+  } catch (_) {}
+}
+
 // ── Replicate image gen helper ─────────────────────────────────────────────
 async function _replicateGenerate(prompt, apiKey) {
   const model = 'black-forest-labs/flux-schnell';
@@ -956,6 +990,7 @@ export default {
 
           const resp = json({ ok: true, name: payload.name, email: payload.email, picture: payload.picture, is_owner: ownerCheck }, 200, request);
           resp.headers.set('Set-Cookie', `nexus_session=${token}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${30*24*3600}; Domain=.thyfwxit.com`);
+          if (!ownerCheck) _signinAlert(env, ctx, request, 'google', payload);
           return resp;
         } catch (e) {
           console.log('[AUTH ERROR]', e.message);
@@ -1036,6 +1071,7 @@ export default {
         resp.headers.append('Set-Cookie', `nexus_session=${token}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${30*24*3600}; Domain=.thyfwxit.com`);
         resp.headers.append('Set-Cookie', `nexus_user_pickup=${userBlob}; Path=/; Secure; SameSite=None; Max-Age=60; Domain=.thyfwxit.com`);
         resp.headers.append('Set-Cookie', 'oauth_state=; Path=/auth; Max-Age=0');
+        if (!ownerCheck) _signinAlert(env, ctx, request, 'google', payload);
         return resp;
       }
 
@@ -1077,6 +1113,7 @@ export default {
         const token = await signJWT(payload, env.SECRET_KEY);
         const resp = json({ ok: true, name: 'Guest', email: 'guest@local', picture: '', is_owner: false }, 200, request);
         resp.headers.set('Set-Cookie', `nexus_session=${token}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${24*3600}; Domain=.thyfwxit.com`);
+        _signinAlert(env, ctx, request, 'guest', { fp: guestFp });
         return resp;
       }
 
