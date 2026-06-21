@@ -2,7 +2,7 @@
 // Logic for terminal commands, processing, and routing.
 
 // Escape user-controlled text before it reaches the HTML-rendering printToTerminal (XSS guard).
-function _esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+// _esc is declared globally in auth_core.js (loaded first) — not redeclared here.
 
 function handleCommand(cmd) {
     const lc = cmd.toLowerCase().trim();
@@ -210,7 +210,7 @@ function runWhoami() {
     const user = JSON.parse(localStorage.getItem('nexus_user_data') || '{"name":"Guest"}');
     const status = window.OWNER_MODE ? 'OWNER (ROOT ACCESS)' : 'NEURAL LINK ACTIVE';
     printToTerminal(`IDENTITY: ${_esc(user.name)}`, "conn-ok");
-    printToTerminal(`EMAIL: ${user.email || "N/A"}`, "sys-msg");
+    printToTerminal(`EMAIL: ${_esc(user.email || "N/A")}`, "sys-msg");
     printToTerminal(`STATUS: ${status}`, "sys-msg");
 }
 
@@ -249,7 +249,7 @@ function showDiagnostics() {
             <div style="margin:15px 0 10px; border-bottom:1px solid #141; padding-bottom:5px;">[ NEURAL ARCHITECTURE ]</div>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                 <div>MODE: <span style="color:${window.MODE_COLORS[window.currentMode]};">${window.currentMode.toUpperCase()}</span></div>
-                <div>IDENTITY: <span style="color:#fff;">${nexusUser.name || 'GUEST'}</span></div>
+                <div>IDENTITY: <span style="color:#fff;">${_esc(nexusUser.name || 'GUEST')}</span></div>
                 <div>OWNER: <span style="color:#fff;">${window.OWNER_MODE}</span></div>
                 <div>CACHE: <span style="color:#fff;">${window.messageHistory.length} NODES</span></div>
             </div>
