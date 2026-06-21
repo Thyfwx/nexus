@@ -1481,10 +1481,10 @@ function _renderNeuralProfileInner() {
             <div class="fp-section" data-tab="identity">
                 <h3 class="fp-section-title">IDENTITY</h3>
                 <div style="display:flex; align-items:center; gap:14px;">
-                    ${user.picture ? `<img src="${user.picture}" style="width:56px;height:56px;border-radius:50%;border:2px solid ${accent};">` : ''}
+                    ${(user.picture && /^https?:\/\//i.test(user.picture)) ? `<img src="${escapeHTML(user.picture)}" style="width:56px;height:56px;border-radius:50%;border:2px solid ${accent};">` : ''}
                     <div>
-                        <div style="font-size:1.1rem; font-weight:700;">${user.name || 'Guest'}</div>
-                        <div style="font-size:0.78rem; color:#888;">${user.email || 'guest@local'}</div>
+                        <div style="font-size:1.1rem; font-weight:700;">${escapeHTML(user.name || 'Guest')}</div>
+                        <div style="font-size:0.78rem; color:#888;">${escapeHTML(user.email || 'guest@local')}</div>
                         <div style="margin-top:6px;">
                             <span class="fp-badge${isOwner ? '' : ' warn'}">${isOwner ? 'OWNER' : (isGuest ? 'GUEST' : 'GOOGLE')}</span>
                             <span class="fp-badge" style="background:rgba(${accent === '#0ff' ? '0,255,255' : '255,255,255'},0.1);">MODE · ${mode}</span>
@@ -1511,7 +1511,7 @@ function _renderNeuralProfileInner() {
                 ${isGuest
                     ? `<p class="fp-section-help">Memory is reserved for Google-signed accounts. As a guest, your conversations end when this tab closes. <strong>Sign in</strong> to give the AI persistent context across sessions.</p>`
                     : `<p class="fp-section-help">Anything you put here is sent to the AI on every reply, so it knows you across sessions. Stored only in your browser.</p>
-                       <textarea id="neural-memory-input" class="fp-textarea" placeholder="e.g. I'm Xavier, I prefer concise answers, I work in security and infrastructure.">${savedMem}</textarea>
+                       <textarea id="neural-memory-input" class="fp-textarea" placeholder="e.g. I'm Xavier, I prefer concise answers, I work in security and infrastructure.">${escapeHTML(savedMem)}</textarea>
                        <div class="fp-action-row">
                            <button class="fp-btn-primary" onclick="saveNeuralMemory()">SAVE MEMORY</button>
                            <button class="fp-btn-ghost"   onclick="clearNeuralMemory()">CLEAR</button>
@@ -1934,7 +1934,7 @@ async function renderDevPanel() {
         try {
             const r = await fetch(`${window.API_BASE || ''}/api/dev/env`, { credentials: 'include' });
             const data = await r.json();
-            if (data.error) { host.innerHTML = `<span class="fp-badge err">${data.error}</span>`; return; }
+            if (data.error) { host.innerHTML = `<span class="fp-badge err">${escapeHTML(data.error)}</span>`; return; }
             const KEY_BLURBS = {
                 GEMINI_API_KEY:     'Google Gemini chat + vision · aistudio.google.com/apikey',
                 GROQ_API_KEY:       'Groq Llama chat (fastest LLM) · console.groq.com/keys',
@@ -2070,7 +2070,7 @@ async function renderDevPanel() {
         const sel  = document.getElementById('dev-file');
         const info = document.getElementById('dev-file-info');
         if (data.files) {
-            sel.innerHTML = data.files.map(f => `<option>${f}</option>`).join('');
+            sel.innerHTML = data.files.map(f => `<option>${escapeHTML(f)}</option>`).join('');
             const updateInfo = () => {
                 const desc = _DEV_FILE_INFO[sel.value] || 'No description.';
                 if (info) info.innerHTML = `<span style="color:#888;">${desc}</span>`;
@@ -2078,7 +2078,7 @@ async function renderDevPanel() {
             updateInfo();
             sel.onchange = updateInfo;
         } else {
-            sel.innerHTML = `<option>${data.error || 'none'}</option>`;
+            sel.innerHTML = `<option>${escapeHTML(data.error || 'none')}</option>`;
         }
     } catch (e) { /* keep loading text */ }
 }
@@ -2096,7 +2096,7 @@ window._devLoadPrompt = async function() {
         ta.value = data.error ? `// ERROR: ${data.error}` : data.prompt;
         if (mi && data.primary_model) {
             const chain = (data.fallback_chain || []).join(' → ');
-            mi.innerHTML = `<b style="color:#0ff;">Primary model:</b> <code style="color:#fff;">${data.primary_model.id}</code> via <b>${data.primary_model.provider}</b> (label: ${data.primary_model.label})<br><span style="color:#888; font-size:0.66rem;">Fallback chain: ${chain}</span>`;
+            mi.innerHTML = `<b style="color:#0ff;">Primary model:</b> <code style="color:#fff;">${escapeHTML(data.primary_model.id)}</code> via <b>${escapeHTML(data.primary_model.provider)}</b> (label: ${escapeHTML(data.primary_model.label)})<br><span style="color:#888; font-size:0.66rem;">Fallback chain: ${escapeHTML(chain)}</span>`;
         } else if (mi) {
             mi.textContent = '';
         }

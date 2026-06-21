@@ -320,12 +320,12 @@ If their message is fine, respond normally and do NOT mention strikes.]`;
             const data = await res.json().catch(() => ({}));
             window._clearThinking && window._clearThinking();
             if (data.lockout && data.remaining_ms > 0) {
-                printToTerminal(`<span style="color:#ff3333; font-weight:700;">[LOCKED · server-side] ${data.error}</span>`, 'sys-msg');
+                printToTerminal(`<span style="color:#ff3333; font-weight:700;">[LOCKED · server-side] ${escapeHTML(data.error)}</span>`, 'sys-msg');
                 // Re-mark the current mode locked locally so the input bar reflects it
                 if (window._lockedModes) window._lockedModes.add(window.currentMode);
                 if (typeof _enforceLockUI === 'function') _enforceLockUI();
             } else {
-                printToTerminal(`[ERROR] ${data.error || 'Too many requests'}`, 'sys-msg');
+                printToTerminal(`[ERROR] ${escapeHTML(data.error || 'Too many requests')}`, 'sys-msg');
             }
             return;
         }
@@ -598,7 +598,7 @@ async function renderInlineQR(text) {
     try {
         const r = await window.NexusTools.callTool('qr', { text });
         const p = document.createElement('p'); p.className = 'ai-msg';
-        p.innerHTML = `<strong style="color:var(--accent);">🔲 QR for:</strong> ${escapeHTML(text)}<br><img src="${r.url}" style="background:#fff; padding:8px; border-radius:6px; margin-top:6px;">`;
+        p.innerHTML = `<strong style="color:var(--accent);">🔲 QR for:</strong> ${escapeHTML(text)}<br><img src="${escapeHTML(r.url)}" style="background:#fff; padding:8px; border-radius:6px; margin-top:6px;">`;
         window.output.appendChild(p); window.output.scrollTop = window.output.scrollHeight;
     } catch (e) { _toolFail('QR', e); }
 }
@@ -621,7 +621,7 @@ async function renderInlineNER(text) {
         const ents = (r.entities || []).filter(e => e.score > 0.7);
         if (!ents.length) { printToTerminal(`[NER] no entities found.`, 'sys-msg'); return; }
         const grouped = ents.reduce((m, e) => { (m[e.entity_group || e.entity] = m[e.entity_group || e.entity] || []).push(e.word); return m; }, {});
-        const out = Object.entries(grouped).map(([k, vs]) => `<strong>${k}:</strong> ${vs.join(', ')}`).join('<br>');
+        const out = Object.entries(grouped).map(([k, vs]) => `<strong>${escapeHTML(k)}:</strong> ${vs.map(escapeHTML).join(', ')}`).join('<br>');
         printToTerminal(`<strong style="color:var(--accent);">🏷️ ENTITIES:</strong><br>${out}`, 'ai-msg');
     } catch (e) { _toolFail('NER', e); }
 }
@@ -630,8 +630,13 @@ async function renderInlineSearch(query) {
     printToTerminal(`[SEARCH] "${escapeHTML(query)}"…`, 'sys-msg');
     try {
         const r = await window.NexusTools.callTool('search', { query });
-        const items = (r.results || []).slice(0, 5).map(it =>
-            `<div style="margin:6px 0;"><a href="${it.url}" target="_blank" style="color:var(--accent); text-decoration:none; font-weight:600;">${escapeHTML(it.title)}</a><br><span style="color:#888; font-size:0.7rem;">${escapeHTML(it.snippet || '')}</span></div>`).join('');
+        const items = (r.results || []).slice(0, 5).map(it => {
+            const safeTitle = escapeHTML(it.title);
+            const titleHTML = /^https?:\/\//i.test(it.url || '')
+                ? `<a href="${escapeHTML(it.url)}" target="_blank" style="color:var(--accent); text-decoration:none; font-weight:600;">${safeTitle}</a>`
+                : `<span style="color:var(--accent); font-weight:600;">${safeTitle}</span>`;
+            return `<div style="margin:6px 0;">${titleHTML}<br><span style="color:#888; font-size:0.7rem;">${escapeHTML(it.snippet || '')}</span></div>`;
+        }).join('');
         printToTerminal(`<strong style="color:var(--accent);">SEARCH RESULTS:</strong>${items || ' <em>no results</em>'}`, 'ai-msg');
     } catch (e) { _toolFail('SEARCH', e); }
 }
@@ -649,10 +654,10 @@ async function renderInlineWiki(topic) {
         card.style.cssText = `border-left:3px solid ${stripe}; padding:10px 14px; margin:8px 0; background:rgba(0,0,0,0.25); font-family:var(--font-main);`;
 
         const thumb = r.thumbnail
-            ? `<img src="${r.thumbnail}" style="float:right; width:96px; height:auto; max-height:140px; object-fit:cover; margin:0 0 6px 14px; border:1px solid rgba(255,255,255,0.12);">`
+            ? `<img src="${escapeHTML(r.thumbnail)}" style="float:right; width:96px; height:auto; max-height:140px; object-fit:cover; margin:0 0 6px 14px; border:1px solid rgba(255,255,255,0.12);">`
             : '';
         const link = r.url
-            ? `<a href="${r.url}" target="_blank" rel="noopener" style="color:${stripe}; text-decoration:none; font-size:0.7rem; letter-spacing:1.5px; opacity:0.85;">[ open article ↗ ]</a>`
+            ? `<a href="${escapeHTML(r.url)}" target="_blank" rel="noopener" style="color:${stripe}; text-decoration:none; font-size:0.7rem; letter-spacing:1.5px; opacity:0.85;">[ open article ↗ ]</a>`
             : '';
         card.innerHTML = `
             <div style="font-size:0.6rem; color:${stripe}; letter-spacing:3px; opacity:0.7; margin-bottom:4px;">[ WIKI :: ${escapeHTML(topic)} ]</div>
@@ -693,7 +698,7 @@ async function renderInlineChart(spec) {
         });
         const r = await window.NexusTools.callTool('chart', { chart_type: chartType, labels, values, title });
         const p = document.createElement('p'); p.className = 'ai-msg';
-        p.innerHTML = `<img src="${r.url}" style="max-width:100%; border:1px solid var(--accent); border-radius:6px; margin-top:6px; background:rgba(255,255,255,0.95);">`;
+        p.innerHTML = `<img src="${escapeHTML(r.url)}" style="max-width:100%; border:1px solid var(--accent); border-radius:6px; margin-top:6px; background:rgba(255,255,255,0.95);">`;
         window.output.appendChild(p);
         window.output.scrollTop = window.output.scrollHeight;
     } catch (e) { _toolFail('CHART', e); }
