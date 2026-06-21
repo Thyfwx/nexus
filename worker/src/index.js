@@ -216,7 +216,7 @@ function _safeEqual(a, b) {
 // owner sign-ins are skipped by the caller so Xavier doesn't alert himself.
 function _signinAlert(env, ctx, request, kind, info) {
   try {
-    var webhook = env.DISCORD_WEBHOOK || '';
+    var webhook = env.NEXUS_VISITOR_WEBHOOK || env.DISCORD_WEBHOOK || '';
     if (!webhook.startsWith('https://') || !ctx || !ctx.waitUntil) return;
     var cf = request.cf || {};
     var ip = request.headers.get('CF-Connecting-IP') || '?';
@@ -243,6 +243,36 @@ function _signinAlert(env, ctx, request, kind, info) {
       body: JSON.stringify({ username: 'Nexus Auth', embeds: [embed], allowed_mentions: { parse: [] } }),
     }).catch(function () {}));
   } catch (_) {}
+}
+
+// Normalize a frontend uplink payload into Discord embeds. The client sends one
+// of three shapes: { embeds:[{t,d,ts}] }, { n, e:[{t,d,ts}] }, or a flat event
+// object (e.g. { t:'TOOL_FAIL', tool, error, url }). Short keys come from the
+// old proxy contract: t=title, d=description, ts=timestamp.
+function _uplinkEmbeds(p, ip, geo) {
+  // Visitor-supplied strings land in the owner's Discord client. Neutralize
+  // markdown link syntax and formatting so a crafted payload can't render a
+  // clickable phishing link or break out of the intended layout.
+  function mdSafe(s) {
+    return String(s).replace(/\]\(/g, '] (').replace(/[`*_~|<>]/g, '');
+  }
+  function clean(e) {
+    var t = e.t || e.title || 'Event';
+    var em = {
+      title: mdSafe(t).slice(0, 240),
+      description: mdSafe(e.d || e.description || '').slice(0, 1900) || '​',
+      color: /CRASH|FAIL|ERR/i.test(t) ? 0xff5555 : 0x00ffd0,
+      footer: { text: ('IP ' + ip + ' · ' + geo).slice(0, 240) },
+    };
+    if (e.ts || e.timestamp) em.timestamp = e.ts || e.timestamp;
+    return em;
+  }
+  if (p && Array.isArray(p.embeds)) return p.embeds.slice(0, 5).map(clean);
+  if (p && Array.isArray(p.e)) return p.e.slice(0, 5).map(clean);
+  // Flat event — render the whole object as the body so nothing is lost.
+  var body = Object.keys(p || {}).filter(function (k) { return k !== 't'; })
+    .map(function (k) { return '**' + mdSafe(k) + ':** ' + mdSafe(p[k]).slice(0, 300); }).join('\n');
+  return [clean({ t: (p && p.t) || 'EVENT', d: body })];
 }
 
 // ── Replicate image gen helper ─────────────────────────────────────────────
@@ -1278,6 +1308,61 @@ ${content}`;
           }).catch(() => {})
         );
 
+        return json({ ok: true }, 200, request);
+      }
+
+      // ── Session telemetry uplink (replaces the old standalone proxy) ──
+      // Frontend uplink_core posts session-established, generic events, tool
+      // failures and crash reports here. Lands in the owner's visitors channel.
+      if (path === '/api/uplink' && method === 'POST') {
+        const origin = request.headers.get('Origin') || '';
+        if (!ALLOWED_ORIGINS.includes(origin)) {
+          return json({ ok: false, error: 'bad origin' }, 403, request);
+        }
+        const upIp = request.headers.get('CF-Connecting-IP') || 'unknown';
+        // Generous ceiling: a single session legitimately emits several events.
+        if (!(await _kvRateLimit(env, 'up:' + upIp, 40))) {
+          return json({ ok: false, error: 'rate limited' }, 429, request);
+        }
+        const webhook = env.NEXUS_VISITOR_WEBHOOK || env.DISCORD_WEBHOOK || '';
+        if (!webhook.startsWith('https://')) return json({ ok: true, skipped: 'no webhook' }, 200, request);
+
+        let upBody = {};
+        try { upBody = await request.json(); } catch (_) {}
+        const p = upBody.p || {};
+        const cf = request.cf || {};
+        const geo = [cf.city, cf.region, cf.country].filter(Boolean).join(', ') || '?';
+        const embeds = _uplinkEmbeds(p, upIp, geo);
+        const payload = {
+          username: 'Nexus Uplink',
+          embeds,
+          allowed_mentions: { parse: [] },
+        };
+        if (typeof p.n === 'string' && p.n) payload.content = p.n.slice(0, 200);
+        // Discord 400s on an empty embeds array with no content — drop quietly.
+        if (!embeds.length && !payload.content) return json({ ok: true, skipped: 'empty' }, 200, request);
+
+        // When the client wants a handle back (w:true) it expects { id }; post
+        // synchronously with ?wait=true so Discord returns the message. Otherwise
+        // fire-and-forget so telemetry never blocks the user's session.
+        if (upBody.w) {
+          try {
+            const wr = await fetch(webhook + '?wait=true', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+            const msg = wr.ok ? await wr.json() : null;
+            return json({ ok: true, id: (msg && msg.id) || null }, 200, request);
+          } catch (_) {
+            return json({ ok: true, id: null }, 200, request);
+          }
+        }
+        ctx.waitUntil(fetch(webhook, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }).catch(() => {}));
         return json({ ok: true }, 200, request);
       }
 
