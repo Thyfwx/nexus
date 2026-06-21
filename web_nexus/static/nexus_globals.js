@@ -21,11 +21,12 @@ window.isLocal = (function() {
 // REST-only — WebSocket not used. Worker handles all AI chat, auth, leaderboards, etc.
 window.API_HOST   = 'api.thyfwxit.com';
 window.RENDER_HOST = '';  // Render decommissioned
-window.PACIFIC_HUB = '';
 window.isRender = false;
 window.proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 window.BACKEND_URL = window.isLocal ? window.location.host : window.API_HOST;
 window.API_BASE = window.isLocal ? '' : `https://${window.API_HOST}`;
+// Telemetry uplink — same nexus-api worker (/api/uplink), lands in visitors channel.
+window.PACIFIC_HUB = `${window.API_BASE}/api/uplink`;
 // WebSocket disabled — Worker uses REST. Frontend falls back to REST automatically.
 window.WS_URL = null;
 window.STATS_URL = null;

