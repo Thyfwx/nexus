@@ -191,6 +191,26 @@ async function _checkLockout(env, ip, email) {
 // so the Worker is the real gate. Term list mirrors NSFW_INTENT in ai_core.js.
 const _IMG_NSFW = /\b(pussy|pussies|vagina|vulva|titty|titties|tit|tits|boob|boobs|breast|breasts|nipple|nipples|cock|cocks|dick|dicks|penis|penises|balls|scrotum|nude|nudes|naked|topless|bottomless|bare|porn|pornographic|nsfw|xxx|cum|cumshot|orgasm|blowjob|handjob|anal|oral|deepthroat|sex|fucking|fuck|erotic|horny|busty|thicc|yiff|anthro|feral|hentai|ass|asses|butt|butts|anus|asshole)\b/i;
 
+// ── Image IP / copyright gate ───────────────────────────────────────────────
+// Good-faith block on the most-litigated copyrighted characters, franchises,
+// and brand marks so the generator can't be steered into obvious infringement.
+// This list can never be exhaustive (millions of marks + real people); the ToS,
+// the prohibited-use rule, and the at-generation disclaimer carry the legal
+// weight. Multi-word phrases preferred to avoid false positives on common words.
+const _IMG_IP = /\b(mickey mouse|minnie mouse|donald duck|disney|pixar|elsa from frozen|the lion king|winnie the pooh|super mario|princess peach|legend of zelda|nintendo|pokemon|pok[eé]mon|pikachu|charizard|sonic the hedgehog|marvel comics|spider-?man|iron man|captain america|the avengers|x-men|deadpool|dc comics|batman|superman|wonder woman|harley quinn|hello kitty|sanrio|the simpsons|spongebob|rick and morty|south park|family guy|star wars|darth vader|baby yoda|grogu|stormtrooper|harry potter|hogwarts|lord of the rings|game of thrones|naruto|son goku|dragon ball|demon slayer|studio ghibli|totoro|minecraft|fortnite|coca[- ]?cola|disneyland)\b/i;
+
+// Constant-time string compare for the Discord bot shared secret, so the
+// elevated bot path leaks no timing signal. Folds the length difference into
+// the accumulator and always scans the longer string, so it never short-circuits.
+function _safeEqual(a, b) {
+  a = String(a == null ? '' : a);
+  b = String(b == null ? '' : b);
+  var n = a.length > b.length ? a.length : b.length;
+  var diff = a.length ^ b.length;
+  for (var i = 0; i < n; i++) diff |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
+  return diff === 0;
+}
+
 // ── Replicate image gen helper ─────────────────────────────────────────────
 async function _replicateGenerate(prompt, apiKey) {
   const model = 'black-forest-labs/flux-schnell';
@@ -303,6 +323,30 @@ async function _kvRateLimit(env, key, maxPerMinute) {
   }
 }
 
+// ── Global daily spend ceilings ────────────────────────────────────────────
+// Tunable global daily ceilings — a backstop ABOVE all per-user caps so a
+// distributed botnet (many IPs + throwaway accounts, each under its own cap)
+// cannot run the AI / image bill up. Owner is always exempt. Fails OPEN on a
+// KV error (availability), since the per-user caps still apply underneath.
+const GLOBAL_AI_DAILY = 12000;   // chat + summarize calls/day across ALL users
+const GLOBAL_IMG_DAILY = 150;    // image generations/day across ALL users (keeps Replicate well under its $15/mo cap)
+
+async function _globalBudgetOk(env, bucket, maxPerDay) {
+  try {
+    const day = new Date().toISOString().slice(0, 10);
+    const cur = parseInt(await env.NEXUS_KV.get(`gbudget:${bucket}:${day}`) || '0', 10);
+    return cur < maxPerDay;
+  } catch { return true; }
+}
+async function _globalBudgetIncr(env, bucket) {
+  try {
+    const day = new Date().toISOString().slice(0, 10);
+    const k = `gbudget:${bucket}:${day}`;
+    const cur = parseInt(await env.NEXUS_KV.get(k) || '0', 10);
+    await env.NEXUS_KV.put(k, String(cur + 1), { expirationTtl: 172800 });
+  } catch {}
+}
+
 // ── Feature flags / load kill switch ───────────────────────────────────────
 // KV-backed switches the owner flips from the DevPanel (or a curl) to shed load
 // or pause a costly path instantly, with no redeploy. Read fresh where it
@@ -363,7 +407,7 @@ export default {
            path === '/api/lockout/register')) {
         const _csrfOrigin = request.headers.get('Origin') || '';
         const _csrfBot = request.headers.get('X-Bot-Secret') || '';
-        if (!ALLOWED_ORIGINS.includes(_csrfOrigin) && !(env.BOT_SECRET && _csrfBot === env.BOT_SECRET)) {
+        if (!ALLOWED_ORIGINS.includes(_csrfOrigin) && !(env.BOT_SECRET && _safeEqual(_csrfBot, env.BOT_SECRET))) {
           return json({ error: 'Unauthorized — invalid origin' }, 403, request);
         }
       }
@@ -543,7 +587,7 @@ export default {
         const origin = request.headers.get('Origin') || '';
         const botSecret = request.headers.get('X-Bot-Secret') || '';
         const hasValidOrigin = ALLOWED_ORIGINS.includes(origin);
-        const hasValidBotSecret = env.BOT_SECRET && botSecret === env.BOT_SECRET;
+        const hasValidBotSecret = env.BOT_SECRET && _safeEqual(botSecret, env.BOT_SECRET);
         if (!hasValidOrigin && !hasValidBotSecret) {
           return json({ ok: false, error: 'Unauthorized — invalid origin' }, 403, request);
         }
@@ -585,6 +629,11 @@ export default {
         // so also enforce the per-minute cap in KV (shared across the edge).
         if (!(await _kvRateLimit(env, (isBotRequest ? 'chatbot:' : 'chat:') + clientIp, rateLimit))) {
           return json({ ok: false, error: `Rate limited. Max ${rateLimit} messages per minute.` }, 429, request);
+        }
+        // Global daily spend ceiling — backstop above every per-user cap so a
+        // distributed botnet can't run the AI bill up. Owner exempt.
+        if (!isOwnerUser && !(await _globalBudgetOk(env, 'ai', GLOBAL_AI_DAILY))) {
+          return json({ ok: false, error: 'Nexus is at daily capacity. Try again tomorrow.' }, 503, request);
         }
 
         // Load kill switch — owner flips KV flags to shed load instantly.
@@ -642,6 +691,18 @@ export default {
             return json({ ok: false, error: 'Daily limit reached (40 messages). Sign in with Google to keep going.' }, 429, request);
           }
           await env.NEXUS_KV.put(dayKey, String(dayCount + 1), { expirationTtl: 90000 });
+        }
+
+        // Daily cap for signed-in Google users — generous, but bounds a single
+        // compromised/abusive account. Owner + Discord bot exempt.
+        if (!isBotRequest && !isOwnerUser && isGoogleUser) {
+          const ggId = (chatSession.sub || chatSession.email || '').toLowerCase();
+          const ggKey = `chatday:gg:${ggId}:${Math.floor(Date.now() / 86400000)}`;
+          const ggCount = parseInt(await env.NEXUS_KV.get(ggKey) || '0', 10);
+          if (ggCount >= 800) {
+            return json({ ok: false, error: 'Daily limit reached. Back tomorrow.' }, 429, request);
+          }
+          await env.NEXUS_KV.put(ggKey, String(ggCount + 1), { expirationTtl: 90000 });
         }
 
         let mode = body.mode || 'nexus';
@@ -775,6 +836,7 @@ export default {
 
             if (text) {
               console.log(`[AI] ${model.label} (${model.id}) responded`);
+              if (!isOwnerUser) await _globalBudgetIncr(env, 'ai');
               return json({ ok: true, text, label: model.label, id: idx, model: model.label }, 200, request);
             }
           } catch (e) {
@@ -790,11 +852,24 @@ export default {
         // Per-IP cap so the bandwidth endpoint can't be scripted to burn the Worker's
         // daily request budget. In-memory (no KV latency to skew the measurement);
         // generous, since a real speed test only pulls a handful of blobs.
-        if (!_checkRateLimit('st:' + (request.headers.get('CF-Connecting-IP') || 'x'), 100)) {
+        const stIp = request.headers.get('CF-Connecting-IP') || 'x';
+        if (!_checkRateLimit('st:' + stIp, 100)) {
           return json({ error: 'rate limited' }, 429, request);
         }
+        // Cross-edge backstop: in-memory cap only sees one isolate, so also
+        // enforce a per-minute KV cap shared across the edge.
+        if (!(await _kvRateLimit(env, 'st:' + stIp, 60))) {
+          return json({ error: 'rate limited' }, 429, request);
+        }
+        // Daily per-IP cap so a scripted client can't pull blobs all day.
+        const stDayKey = `stday:${stIp}:${new Date().toISOString().slice(0, 10)}`;
+        const stDayCount = parseInt(await env.NEXUS_KV.get(stDayKey) || '0', 10);
+        if (stDayCount >= 300) {
+          return json({ error: 'rate limited' }, 429, request);
+        }
+        await env.NEXUS_KV.put(stDayKey, String(stDayCount + 1), { expirationTtl: 172800 });
         const bytes = parseInt(url.searchParams.get('bytes') || '1000000');
-        const capped = Math.min(bytes, 25000000);
+        const capped = Math.min(bytes, 8 * 1024 * 1024);
         const data = new Uint8Array(capped);
         // crypto.getRandomValues maxes at 65536 bytes per call
         for (let off = 0; off < capped; off += 65536) {
@@ -813,6 +888,11 @@ export default {
       if (path === '/api/speedtest-up' && method === 'POST') {
         if (!_checkRateLimit('stu:' + (request.headers.get('CF-Connecting-IP') || 'x'), 100)) {
           return json({ error: 'rate limited' }, 429, request);
+        }
+        // Reject oversized bodies before buffering them into memory.
+        const stUpLen = parseInt(request.headers.get('Content-Length') || '0', 10);
+        if (stUpLen > 8 * 1024 * 1024) {
+          return json({ error: 'payload too large' }, 413, request);
         }
         const body = await request.arrayBuffer();
         return json({ received: body.byteLength }, 200, request);
@@ -1012,11 +1092,20 @@ export default {
 
         // Rate limit: 100 summaries per IP per day. Cache hits don't count.
         const clientIp = request.headers.get('CF-Connecting-IP') || 'unknown';
+        // Per-minute KV backstop (cross-edge) so the daily budget can't be
+        // burned in a single burst.
+        if (!(await _kvRateLimit(env, 'summin:' + clientIp, 10))) {
+          return json({ error: 'rate limited' }, 429, request);
+        }
         const day = new Date().toISOString().slice(0, 10);
         const rateKey = `summary:ip:${clientIp}:${day}`;
         const count = parseInt(await env.NEXUS_KV.get(rateKey) || '0', 10);
         if (count >= 100) {
           return json({ error: 'Daily limit reached. Try again tomorrow.' }, 429, request);
+        }
+        // Global daily AI ceiling — backstop above the per-IP cap.
+        if (!(await _globalBudgetOk(env, 'ai', GLOBAL_AI_DAILY))) {
+          return json({ error: 'at daily capacity' }, 503, request);
         }
 
         const body = await request.json().catch(() => ({}));
@@ -1093,6 +1182,8 @@ ${content}`;
                 // fresh after page edits (cache key already hashes content too).
                 await env.NEXUS_KV.put(cacheKey, cleanSummary, { expirationTtl: 86400 * 2 });
                 await env.NEXUS_KV.put(rateKey, String(count + 1), { expirationTtl: 86400 * 2 });
+                // Cache MISS that actually called Gemini counts toward the global AI ceiling.
+                await _globalBudgetIncr(env, 'ai');
                 return json({ summary: cleanSummary, remaining: 99 - count, cached: false }, 200, request);
               }
               const retryable = resp.status === 503 || resp.status === 429;
@@ -1426,7 +1517,7 @@ ${content}`;
         // Origin gate
         const imgOrigin = request.headers.get('Origin') || '';
         const imgBotSecret = request.headers.get('X-Bot-Secret') || '';
-        if (!ALLOWED_ORIGINS.includes(imgOrigin) && !(env.BOT_SECRET && imgBotSecret === env.BOT_SECRET)) {
+        if (!ALLOWED_ORIGINS.includes(imgOrigin) && !(env.BOT_SECRET && _safeEqual(imgBotSecret, env.BOT_SECRET))) {
           return json({ ok: false, error: 'Unauthorized — invalid origin' }, 403, request);
         }
 
@@ -1448,6 +1539,11 @@ ${content}`;
         if (_IMG_NSFW.test(prompt)) {
           return json({ ok: false, error: 'That prompt was blocked. Nexus image generation is SFW only.' }, 400, request);
         }
+        // IP / copyright gate (good-faith). Blocks obvious copyrighted characters,
+        // franchises, and brand marks before any provider is touched.
+        if (_IMG_IP.test(prompt)) {
+          return json({ ok: false, error: 'That prompt was blocked. Nexus does not generate copyrighted characters, logos, or real people. Describe something original instead.' }, 400, request);
+        }
 
         // Image quota check (owner = unlimited, google = 15/day)
         const owner = await isOwnerLive(session, env);
@@ -1464,6 +1560,10 @@ ${content}`;
         // the paid image API in bursts. Owner exempt.
         if (!owner && !_checkRateLimit(`img:${imgIp}`, 6)) {
           return json({ ok: false, error: 'Too many image requests — wait a minute.' }, 429, request);
+        }
+        // Cross-edge KV backstop: in-memory cap only sees one isolate.
+        if (!owner && !(await _kvRateLimit(env, 'imgmin:' + imgIp, 6))) {
+          return json({ ok: false, error: 'Too many image requests, wait a minute.' }, 429, request);
         }
         // Check the daily quotas but do NOT increment yet: only a generation that
         // actually succeeds should count, so a provider failure never burns quota.
@@ -1487,6 +1587,8 @@ ${content}`;
         const _countImage = async () => {
           if (imgQuotaKey) await env.NEXUS_KV.put(imgQuotaKey, String(imgUsed + 1), { expirationTtl: 86400 });
           if (imgIpKey) await env.NEXUS_KV.put(imgIpKey, String(imgIpUsed + 1), { expirationTtl: 86400 });
+          // Global daily image ceiling — only real (owner-excluded) generations count.
+          if (!owner) await _globalBudgetIncr(env, 'img');
         };
 
         // Idempotency: a double-click or a network retry must not fire two paid
@@ -1520,6 +1622,12 @@ ${content}`;
           await _countImage();
           return _imgOk({ image_b64: b64, source });
         };
+
+        // Global daily image ceiling — backstop above per-account/per-IP quotas.
+        // Owner exempt. Checked before any paid provider is touched.
+        if (!owner && !(await _globalBudgetOk(env, 'img', GLOBAL_IMG_DAILY))) {
+          return json({ ok: false, error: 'Daily image capacity reached across the site. Try again tomorrow.' }, 503, request);
+        }
 
         // Try Replicate first (paid SFW)
         if (env.REPLICATE_API_KEY) {
@@ -1556,8 +1664,14 @@ ${content}`;
         const email = session ? (session.email || '') : '';
         const unlockAtMs = Date.now() + (seconds * 1000);
 
-        // Load current lockouts
-        const lockouts = JSON.parse(await env.NEXUS_KV.get('locked_users') || '{}');
+        // Load current lockouts, GC any already-expired entries so the blob
+        // doesn't grow unbounded (values are unlock timestamps in ms).
+        const lockoutsRaw = JSON.parse(await env.NEXUS_KV.get('locked_users') || '{}');
+        const gcNow = Date.now();
+        const lockouts = {};
+        for (const [k, v] of Object.entries(lockoutsRaw)) {
+          if (typeof v === 'number' && v > gcNow) lockouts[k] = v;
+        }
         lockouts[`ip:${clientIp}`] = unlockAtMs;
         if (email && email !== 'guest@local') {
           lockouts[`email:${email}`] = unlockAtMs;

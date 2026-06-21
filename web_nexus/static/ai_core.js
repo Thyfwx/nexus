@@ -894,6 +894,11 @@ async function renderInlineImage(prompt) {
             return;
         }
     }
+    // One-time per-session notice at the point of generation — content + IP responsibility.
+    if (!window._imgDisclaimerShown) {
+        window._imgDisclaimerShown = true;
+        printToTerminal('[NOTICE] Images are AI-generated and synthetic. You are responsible for your prompt and how you use the result — no copyrighted characters, brand logos, or real people.', 'sys-msg-colored');
+    }
     localStorage.setItem('nexus_last_image_ts', String(Date.now()));
     window._imageInFlight = true;
     window._imageInFlightSince = Date.now();
