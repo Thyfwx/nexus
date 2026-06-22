@@ -20,6 +20,11 @@ routes = [{ pattern = "api.thyfwxit.com/*", zone_name = "thyfwxit.com" }]
 binding = "NEXUS_KV"
 id = "f3746c745ddf48758316c44306ca1b5b"
 
+# Daily cron (08:00 UTC) — posts the usage summary to the visitors channel and,
+# on Mondays, ships the off-platform KV backup. See _dailyCron in src/index.js.
+[triggers]
+crons = ["0 8 * * *"]
+
 [observability]
 enabled = true
 
