@@ -214,6 +214,33 @@ function _safeEqual(a, b) {
   return diff === 0;
 }
 
+// Post a webhook payload, transparently handling Discord FORUM channels — they
+// reject plain webhook posts (HTTP 400, code 220001) and require a thread_name.
+// We post normally first (works on text channels), and only on that specific
+// forum error do we retry with a thread_name (creating a forum post). Returns
+// the final Response (or null). `url` may already carry ?wait=true.
+async function _sendWebhook(url, payload, threadName) {
+  try {
+    let res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.status === 400) {
+      let body = '';
+      try { body = await res.clone().text(); } catch (_) {}
+      if (body.indexOf('220001') !== -1 || body.indexOf('thread_name') !== -1) {
+        res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(Object.assign({}, payload, { thread_name: String(threadName || 'Nexus').slice(0, 90) })),
+        });
+      }
+    }
+    return res;
+  } catch (_) { return null; }
+}
+
 // Best-effort sign-in alert to the owner's private Discord (auth visibility:
 // who authorized, from where, on what device). Never blocks the response, and
 // owner sign-ins are skipped by the caller so Xavier doesn't alert himself.
@@ -241,11 +268,8 @@ function _signinAlert(env, ctx, request, kind, info) {
     };
     if (isGoogle && info && info.picture) embed.thumbnail = { url: info.picture };
     ctx.waitUntil(_bumpStat(env, isGoogle ? 'signin_google' : 'signin_guest'));
-    ctx.waitUntil(fetch(webhook, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: 'Nexus Auth', embeds: [embed], allowed_mentions: { parse: [] } }),
-    }).catch(function () {}));
+    var threadName = (isGoogle ? 'Google sign-in' : 'Guest entry') + ' · ' + ((info && info.name) || 'visitor');
+    ctx.waitUntil(_sendWebhook(webhook, { username: 'Nexus Auth', embeds: [embed], allowed_mentions: { parse: [] } }, threadName));
   } catch (_) {}
 }
 
@@ -475,11 +499,7 @@ async function _dailyCron(env) {
         ],
         timestamp: new Date().toISOString(),
       };
-      await fetch(visitor, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: 'Nexus Daily', embeds: [embed], allowed_mentions: { parse: [] } }),
-      }).catch(() => {});
+      await _sendWebhook(visitor, { username: 'Nexus Daily', embeds: [embed], allowed_mentions: { parse: [] } }, 'Daily usage — ' + yday);
     }
     if (new Date().getUTCDay() === 1) await _kvBackup(env);
   } catch (_) {}
@@ -1447,32 +1467,22 @@ ${content}`;
         // When the client wants a handle back (w:true) it expects { id }; post
         // synchronously with ?wait=true so Discord returns the message. Otherwise
         // fire-and-forget so telemetry never blocks the user's session.
+        const upThread = (embeds && embeds[0] && embeds[0].title) || (typeof p.n === 'string' ? p.n : '') || 'Nexus uplink';
         if (upBody.w) {
-          try {
-            const wr = await fetch(webhook + '?wait=true', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload),
-            });
-            const msg = wr.ok ? await wr.json() : null;
-            const out = { ok: true, id: (msg && msg.id) || null };
-            // Gated diagnostic: surfaces WHY delivery fails (status + Discord's
-            // error text + which secret was used). Never echoes the webhook URL.
-            if (upBody.debug) {
-              out.discord_status = wr.status;
-              out.using = env.NEXUS_VISITOR_WEBHOOK ? 'NEXUS_VISITOR_WEBHOOK' : (env.DISCORD_WEBHOOK ? 'DISCORD_WEBHOOK' : 'none');
-              if (!wr.ok) { try { out.discord_error = (await wr.text()).slice(0, 200); } catch (_) {} }
-            }
-            return json(out, 200, request);
-          } catch (e) {
-            return json({ ok: true, id: null, debug_err: upBody.debug ? String(e).slice(0, 150) : undefined }, 200, request);
+          const wr = await _sendWebhook(webhook + '?wait=true', payload, upThread);
+          let msg = null;
+          try { msg = (wr && wr.ok) ? await wr.json() : null; } catch (_) {}
+          const out = { ok: true, id: (msg && msg.id) || null };
+          // Gated diagnostic: surfaces WHY delivery fails (status + Discord's
+          // error text + which secret was used). Never echoes the webhook URL.
+          if (upBody.debug) {
+            out.discord_status = wr ? wr.status : 0;
+            out.using = env.NEXUS_VISITOR_WEBHOOK ? 'NEXUS_VISITOR_WEBHOOK' : (env.DISCORD_WEBHOOK ? 'DISCORD_WEBHOOK' : 'none');
+            if (wr && !wr.ok) { try { out.discord_error = (await wr.text()).slice(0, 200); } catch (_) {} }
           }
+          return json(out, 200, request);
         }
-        ctx.waitUntil(fetch(webhook, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        }).catch(() => {}));
+        ctx.waitUntil(_sendWebhook(webhook, payload, upThread));
         return json({ ok: true }, 200, request);
       }
 
