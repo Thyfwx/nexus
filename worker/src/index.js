@@ -1455,9 +1455,17 @@ ${content}`;
               body: JSON.stringify(payload),
             });
             const msg = wr.ok ? await wr.json() : null;
-            return json({ ok: true, id: (msg && msg.id) || null }, 200, request);
-          } catch (_) {
-            return json({ ok: true, id: null }, 200, request);
+            const out = { ok: true, id: (msg && msg.id) || null };
+            // Gated diagnostic: surfaces WHY delivery fails (status + Discord's
+            // error text + which secret was used). Never echoes the webhook URL.
+            if (upBody.debug) {
+              out.discord_status = wr.status;
+              out.using = env.NEXUS_VISITOR_WEBHOOK ? 'NEXUS_VISITOR_WEBHOOK' : (env.DISCORD_WEBHOOK ? 'DISCORD_WEBHOOK' : 'none');
+              if (!wr.ok) { try { out.discord_error = (await wr.text()).slice(0, 200); } catch (_) {} }
+            }
+            return json(out, 200, request);
+          } catch (e) {
+            return json({ ok: true, id: null, debug_err: upBody.debug ? String(e).slice(0, 150) : undefined }, 200, request);
           }
         }
         ctx.waitUntil(fetch(webhook, {
