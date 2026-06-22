@@ -46,7 +46,7 @@
     <style>
         :root { --bg: #0a0a0f; --fg: #c9c9d4; --fg-dim: #6a6a7a; --accent: #00b4ff; --accent-glow: rgba(0,180,255,0.4); --green: #00ff88; --border: rgba(255,255,255,0.07); }
         * { box-sizing: border-box; }
-        html, body { margin: 0; padding: 0; min-height: 100vh; background: var(--bg); color: var(--fg); font-family: 'Inter', -apple-system, sans-serif; }
+        html, body { margin: 0; padding: 0; min-height: 100vh; overscroll-behavior-y: none; background: var(--bg); color: var(--fg); font-family: 'Inter', -apple-system, sans-serif; }
         body { background: radial-gradient(ellipse at top, rgba(0,180,255,0.04) 0%, transparent 50%), var(--bg); padding: 24px 16px 60px; line-height: 1.65; }
         body::before { content: ''; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px); pointer-events: none; z-index: 1; }
         .container { max-width: 760px; margin: 0 auto; position: relative; z-index: 2; }
@@ -136,7 +136,7 @@
     </div>
 
     <!-- Footer nav -->
-    <div style="position:fixed; bottom:0; left:0; right:0; padding:10px 16px; background:rgba(0,0,0,0.7); border-top:1px solid rgba(255,255,255,0.06); text-align:center; font-family:'Fira Code',monospace; font-size:0.65rem; color:#666; letter-spacing:1.5px; z-index:50; backdrop-filter:blur(4px);">
+    <div style="position:fixed; bottom:0; left:0; right:0; padding:10px 16px calc(10px + env(safe-area-inset-bottom)); background:rgba(0,0,0,0.7); border-top:1px solid rgba(255,255,255,0.06); text-align:center; font-family:'Fira Code',monospace; font-size:0.65rem; color:#666; letter-spacing:1.5px; z-index:50; backdrop-filter:blur(4px);">
         <a href="privacy" style="color:#888; text-decoration:none; padding:0 10px; border-right:1px solid #333;">PRIVACY</a>
         <a href="terms" style="color:#888; text-decoration:none; padding:0 10px; border-right:1px solid #333;">TERMS</a>
         <a href="about" style="color:#888; text-decoration:none; padding:0 10px; border-right:1px solid #333;">ABOUT</a>
