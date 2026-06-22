@@ -6,6 +6,9 @@
  * Required secrets: GROQ_API_KEY, GEMINI_API_KEY, GOOGLE_CLIENT_ID,
  *   GOOGLE_CLIENT_SECRET, SECRET_KEY, OWNER_EMAIL, DISCORD_WEBHOOK,
  *   REPLICATE_API_KEY, HF_API_KEY
+ * Optional secrets: NEXUS_VISITOR_WEBHOOK (sign-in/telemetry + daily summary;
+ *   falls back to DISCORD_WEBHOOK), NEXUS_BACKUP_WEBHOOK (private channel for
+ *   the weekly KV PII backup — fail-closed, no fallback).
  */
 
 // ── CORS ────────────────────────────────────────────────────────────────────
@@ -237,6 +240,7 @@ function _signinAlert(env, ctx, request, kind, info) {
       timestamp: new Date().toISOString(),
     };
     if (isGoogle && info && info.picture) embed.thumbnail = { url: info.picture };
+    ctx.waitUntil(_bumpStat(env, isGoogle ? 'signin_google' : 'signin_guest'));
     ctx.waitUntil(fetch(webhook, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -411,6 +415,18 @@ async function _globalBudgetIncr(env, bucket) {
   } catch {}
 }
 
+// Per-day event counter feeding the daily usage summary (best-effort; the
+// read-modify-write race is harmless at this scale). 2-day TTL so a day's
+// counts survive into the next morning's cron read.
+async function _bumpStat(env, metric) {
+  try {
+    const day = new Date().toISOString().slice(0, 10);
+    const k = `stat:${day}:${metric}`;
+    const cur = parseInt(await env.NEXUS_KV.get(k) || '0', 10);
+    await env.NEXUS_KV.put(k, String(cur + 1), { expirationTtl: 172800 });
+  } catch {}
+}
+
 // ── Feature flags / load kill switch ───────────────────────────────────────
 // KV-backed switches the owner flips from the DevPanel (or a curl) to shed load
 // or pause a costly path instantly, with no redeploy. Read fresh where it
@@ -434,8 +450,94 @@ async function sha1(s) {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// ── Scheduled jobs (daily cron) ─────────────────────────────────────────────
+// Posts a once-a-day usage rollup to the visitors channel and, on Mondays,
+// ships an off-platform KV backup (leaderboards, ban lists, handles) as a JSON
+// file to the owner's private Discord channel for disaster recovery.
+async function _dailyCron(env) {
+  try {
+    const yday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const num = async (k) => parseInt(await env.NEXUS_KV.get(k) || '0', 10);
+    const guests = await num(`stat:${yday}:signin_guest`);
+    const googles = await num(`stat:${yday}:signin_google`);
+    const ai = await num(`gbudget:ai:${yday}`);
+    const img = await num(`gbudget:img:${yday}`);
+    const visitor = env.NEXUS_VISITOR_WEBHOOK || env.DISCORD_WEBHOOK || '';
+    if (visitor.startsWith('https://')) {
+      const embed = {
+        title: 'Daily usage — ' + yday,
+        color: 0x00ffd0,
+        fields: [
+          { name: 'Guest entries', value: String(guests), inline: true },
+          { name: 'Google sign-ins', value: String(googles), inline: true },
+          { name: 'AI messages', value: String(ai), inline: true },
+          { name: 'Images generated', value: String(img), inline: true },
+        ],
+        timestamp: new Date().toISOString(),
+      };
+      await fetch(visitor, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'Nexus Daily', embeds: [embed], allowed_mentions: { parse: [] } }),
+      }).catch(() => {});
+    }
+    if (new Date().getUTCDay() === 1) await _kvBackup(env);
+  } catch (_) {}
+}
+
+async function _kvBackup(env) {
+  try {
+    // Fail-closed to a DEDICATED private webhook. Never fall back to
+    // DISCORD_WEBHOOK — that is the visitor-alert fallback channel, and this
+    // payload contains member PII (banned emails, IPs, fingerprints, handles).
+    const webhook = env.NEXUS_BACKUP_WEBHOOK || '';
+    if (!webhook.startsWith('https://')) return;
+    const backup = { ts: new Date().toISOString(), data: {} };
+    const lbGames = ['wordle','snake_classic','snake_speed','snake_endless','snake_stealth','pong','flappy','breakout','invaders','mines','typing','mancala_hard_streak'];
+    for (const g of lbGames) {
+      const v = await env.NEXUS_KV.get(`lb:${g}`);
+      if (v) backup.data[`lb:${g}`] = JSON.parse(v);
+    }
+    for (const k of ['banned_accounts','blocked_ips','banned_account_ips','banned_fingerprints','locked_users']) {
+      const v = await env.NEXUS_KV.get(k);
+      if (v) { try { backup.data[k] = JSON.parse(v); } catch { backup.data[k] = v; } }
+    }
+    backup.data.handles = {};
+    let cursor;
+    do {
+      const list = await env.NEXUS_KV.list({ prefix: 'handle:', cursor });
+      for (const key of list.keys) backup.data.handles[key.name] = await env.NEXUS_KV.get(key.name);
+      cursor = list.list_complete ? null : list.cursor;
+    } while (cursor);
+
+    const day = new Date().toISOString().slice(0, 10);
+    const json = JSON.stringify(backup, null, 2);
+    // gzip to stay well under Discord's 8 MB attachment cap as handles grow.
+    const gzBlob = await new Response(
+      new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'))
+    ).blob();
+    const fd = new FormData();
+    fd.append('payload_json', JSON.stringify({ content: 'Weekly KV backup — ' + day, username: 'Nexus Backup', allowed_mentions: { parse: [] } }));
+    fd.append('files[0]', gzBlob, `nexus-kv-backup-${day}.json.gz`);
+    const res = await fetch(webhook, { method: 'POST', body: fd });
+    // A backup that silently fails is worse than none — surface it so the gap
+    // is visible instead of assumed covered.
+    if (!res || !res.ok) {
+      await fetch(webhook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: '⚠️ KV backup FAILED: HTTP ' + (res ? res.status : '?'), username: 'Nexus Backup', allowed_mentions: { parse: [] } }),
+      }).catch(() => {});
+    }
+  } catch (_) {}
+}
+
 // ── Router ──────────────────────────────────────────────────────────────────
 export default {
+  async scheduled(_controller, env, ctx) {
+    ctx.waitUntil(_dailyCron(env));
+  },
+
   async fetch(request, env, ctx) {
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
