@@ -1991,10 +1991,10 @@ async function renderDevPanel() {
             host.innerHTML = list.length ? list.map(u => `
                 <div style="display:flex; align-items:center; gap:10px; padding:6px 10px; border:1px solid rgba(255,170,0,0.15); border-radius:6px; background:rgba(0,0,0,0.25); margin:4px 0;">
                     <span style="color:${u.active ? '#fa0' : '#666'}; font-weight:800; font-size:0.6rem; letter-spacing:1px;">${u.active ? '[ON]' : '[EXP]'}</span>
-                    <code style="flex:1; color:${u.active ? '#fff' : '#666'};">${u.email}</code>
+                    <code style="flex:1; color:${u.active ? '#fff' : '#666'};">${escapeHTML(u.email)}</code>
                     <span style="color:#888; font-size:0.65rem;">${u.expires_at === '(lifetime)' ? 'lifetime' : new Date(u.expires_at).toLocaleDateString()}</span>
-                    ${u.note ? `<span style="color:#9ce; font-size:0.65rem; font-style:italic;">${u.note}</span>` : ''}
-                    <button class="fp-btn-ghost" style="padding:4px 10px; cursor:pointer;" onclick="window._devRevokePremium('${u.email}')">REVOKE</button>
+                    ${u.note ? `<span style="color:#9ce; font-size:0.65rem; font-style:italic;">${escapeHTML(u.note)}</span>` : ''}
+                    <button class="fp-btn-ghost" style="padding:4px 10px; cursor:pointer;" onclick="window._devRevokePremium('${String(u.email).replace(/[^\w.@:+-]/g, '')}')">REVOKE</button>
                 </div>
             `).join('') : '<em style="color:#666; font-size:0.78rem;">No premium users yet. Donor at https://buymeacoffee.com/thyfwx? Grant them premium below.</em>';
         }
@@ -2038,7 +2038,7 @@ async function renderDevPanel() {
         if (host) {
             const ips = data.ips || [];
             host.innerHTML = ips.length
-                ? ips.map(ip => `<div style="display:flex; align-items:center; gap:10px; padding:6px 10px; border:1px solid rgba(255,255,255,0.06); border-radius:6px; background:rgba(0,0,0,0.25); margin:4px 0;"><code style="flex:1; color:#fa0;">${ip}</code><button class="fp-btn-ghost" style="padding:4px 10px; cursor:pointer;" onclick="window._devUnblockIp('${ip}')">UNBLOCK</button></div>`).join('')
+                ? ips.map(ip => `<div style="display:flex; align-items:center; gap:10px; padding:6px 10px; border:1px solid rgba(255,255,255,0.06); border-radius:6px; background:rgba(0,0,0,0.25); margin:4px 0;"><code style="flex:1; color:#fa0;">${escapeHTML(ip)}</code><button class="fp-btn-ghost" style="padding:4px 10px; cursor:pointer;" onclick="window._devUnblockIp('${String(ip).replace(/[^\w.@:+-]/g, '')}')">UNBLOCK</button></div>`).join('')
                 : '<em style="color:#666; font-size:0.78rem;">No IPs blocked.</em>';
         }
     } catch (e) { /* ignore */ }
@@ -2155,8 +2155,8 @@ window._devLoadBanned = async function() {
         }
         host.innerHTML = d.banned.map(email =>
             `<div style="display:flex; align-items:center; gap:10px; padding:6px 10px; border:1px solid rgba(255,68,68,0.15); border-radius:6px; background:rgba(255,68,68,0.04); margin:4px 0;">
-                <code style="flex:1; color:#f88; font-size:0.72rem;">${email}</code>
-                <button class="fp-btn-ghost" style="padding:4px 10px; cursor:pointer; color:#0f8; border-color:#0f8;" onclick="window._devUnbanAccount('${email}')">UNBAN</button>
+                <code style="flex:1; color:#f88; font-size:0.72rem;">${escapeHTML(email)}</code>
+                <button class="fp-btn-ghost" style="padding:4px 10px; cursor:pointer; color:#0f8; border-color:#0f8;" onclick="window._devUnbanAccount('${String(email).replace(/[^\w.@:+-]/g, '')}')">UNBAN</button>
             </div>`
         ).join('');
     } catch (e) {
