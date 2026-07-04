@@ -815,7 +815,12 @@ function _renderWeakPromptCoaching(prompt) {
     if (STYLE_DESCRIPTORS.test(trimmed)) return; // user already added a descriptor — leave them alone
 
     const mode = (window.currentMode || 'nexus').toLowerCase();
-    const subject = trimmed.toLowerCase();
+    // escapeHTML here (not just at the echo on the `text` line below): `subject` is
+    // interpolated raw into every kit suggestion, and those flow into printToTerminal
+    // (an HTML sink). Without this, a 1-3 word image prompt like `<img src=x onerror=…>`
+    // — typed OR emitted by a prompt-injected model reply — executes. subject is
+    // display-only, so escaping is complete and safe.
+    const subject = escapeHTML(trimmed.toLowerCase());
     const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 
     // Mode-specific coaching tone. All SFW. Each gives 2-3 concrete enrichment ideas tied

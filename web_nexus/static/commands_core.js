@@ -144,7 +144,7 @@ function exportConversation() {
     a.download = `nexus-${(u.name || 'guest').replace(/\s+/g, '_')}-${ts.slice(0,16).replace(/[:T]/g,'-')}.md`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    printToTerminal(`[EXPORT] Saved ${hist.length} messages as ${a.download}.`, 'sys-msg-colored');
+    printToTerminal(`[EXPORT] Saved ${hist.length} messages as ${_esc(a.download)}.`, 'sys-msg-colored');
 }
 
 function _box(title, lines, accent = false) {
@@ -176,7 +176,7 @@ function showHelp() {
 function showTips() {
     const u = JSON.parse(localStorage.getItem('nexus_user_data') || '{"name":"you"}');
     const isGuest = !u.email || u.email === 'guest@local';
-    _box(`HOW TO TALK TO NEXUS, ${u.name.toUpperCase()}`, [
+    _box(`HOW TO TALK TO NEXUS, ${_esc(u.name.toUpperCase())}`, [
         "  IMAGES — phrase your request with a verb + a subject:",
         '    "generate an image of a sunset"   "draw a cyberpunk city"   "show me a tiger"',
         "    or use the direct form:   \"image of: ...\"   \"picture of: ...\"",

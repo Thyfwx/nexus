@@ -502,7 +502,7 @@ async function initiateBootSequence() {
     if (window.renderAuthSection) window.renderAuthSection();
 
     const _bootIsGuest = !nexusUser.email || nexusUser.email === 'guest@local';
-    const NEXUS_VERSION = window.NEXUS_VERSION || 'v5.6.12';
+    const NEXUS_VERSION = window.NEXUS_VERSION || 'v5.6.13';
 
     // Boot lines — print SYNCHRONOUSLY first (so they always appear), then patch latency in.
     window.replayBootSummary = function() {
