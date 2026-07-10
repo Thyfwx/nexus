@@ -574,7 +574,7 @@ export default {
       if (accept.includes('text/html')) {
         return Response.redirect('https://thyfwxit.com/nexus/', 302);
       }
-      return json({ name: 'Nexus API', version: env.NEXUS_VERSION || 'v5.6.2', site: 'https://thyfwxit.com/nexus/' }, 200, request);
+      return json({ name: 'Nexus API', version: env.NEXUS_VERSION || 'v5.6.13', site: 'https://thyfwxit.com/nexus/' }, 200, request);
     }
 
     try {
@@ -634,7 +634,7 @@ export default {
 
       // ── Health / info endpoints ─────────────────────────────────────
       if (path === '/ping') {
-        return json({ ok: true, version: env.NEXUS_VERSION || 'v5.6.2', build: 'cf-worker', ts: Date.now() }, 200, request);
+        return json({ ok: true, version: env.NEXUS_VERSION || 'v5.6.13', build: 'cf-worker', ts: Date.now() }, 200, request);
       }
 
       if (path === '/api/build') {
@@ -643,7 +643,7 @@ export default {
 
       if (path === '/api/config') {
         return json({
-          version: env.NEXUS_VERSION || 'v5.6.1',
+          version: env.NEXUS_VERSION || 'v5.6.13',
           modes: ['nexus', 'coder', 'education', 'unfiltered'],
           image_gen: true,
           leaderboard: true,
