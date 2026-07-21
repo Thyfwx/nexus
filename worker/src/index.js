@@ -641,6 +641,79 @@ export default {
         return json({ build: 'cf-worker' }, 200, request);
       }
 
+      // Contact-form relay with server-side Turnstile verification.
+      // The portfolio form used to POST straight to Formspree, which does not
+      // validate Cloudflare Turnstile tokens — so the widget verified nothing
+      // and bots reached the inbox. Now the form posts here: we check the
+      // token against Cloudflare, and only a real human's submission is
+      // forwarded to Formspree. Needs the TURNSTILE_SECRET_KEY secret set on
+      // the Worker (the site key in the HTML is public; the secret is not).
+      if (path === '/api/contact' && method === 'POST') {
+        // Origin gate first — this endpoint only serves the portfolio.
+        const cOrigin = request.headers.get('Origin') || '';
+        if (!ALLOWED_ORIGINS.includes(cOrigin)) {
+          return json({ error: 'Unauthorized — invalid origin' }, 403, request);
+        }
+        let form;
+        try { form = await request.formData(); }
+        catch (e) { return json({ error: 'Bad request' }, 400, request); }
+
+        // Honeypot: a filled _gotcha is a bot. Return ok so it learns nothing,
+        // and never forward it.
+        if ((form.get('_gotcha') || '').toString().trim() !== '') {
+          return json({ ok: true }, 200, request);
+        }
+
+        // Turnstile verification. If the secret is not configured, fail
+        // CLOSED (reject) rather than silently forwarding unverified mail.
+        if (!env.TURNSTILE_SECRET_KEY) {
+          return json({ error: 'Contact form is temporarily unavailable.' }, 503, request);
+        }
+        const token = (form.get('cf-turnstile-response') || '').toString();
+        if (!token) {
+          return json({ error: 'Please complete the human check and try again.' }, 400, request);
+        }
+        const verifyBody = new FormData();
+        verifyBody.append('secret', env.TURNSTILE_SECRET_KEY);
+        verifyBody.append('response', token);
+        const remoteIp = request.headers.get('CF-Connecting-IP');
+        if (remoteIp) verifyBody.append('remoteip', remoteIp);
+        let verdict;
+        try {
+          const vres = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body: verifyBody });
+          verdict = await vres.json();
+        } catch (e) {
+          return json({ error: 'Verification failed, please try again.' }, 502, request);
+        }
+        if (!verdict || verdict.success !== true) {
+          return json({ error: 'Human check failed, please try again.' }, 403, request);
+        }
+
+        // Verified. Forward the real fields to Formspree (server to server, so
+        // the form endpoint is never exposed to the browser). Drop the token
+        // and honeypot from what we relay.
+        const formId = env.FORMSPREE_FORM || 'xbdzjbyo';
+        const payload = {};
+        for (const [k, v] of form.entries()) {
+          if (k === 'cf-turnstile-response' || k === '_gotcha') continue;
+          payload[k] = v;
+        }
+        let fres;
+        try {
+          fres = await fetch('https://formspree.io/f/' + formId, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        } catch (e) {
+          return json({ error: 'Could not send right now, please email directly.' }, 502, request);
+        }
+        if (!fres.ok) {
+          return json({ error: 'Could not send right now, please email directly.' }, 502, request);
+        }
+        return json({ ok: true }, 200, request);
+      }
+
       if (path === '/api/config') {
         return json({
           version: env.NEXUS_VERSION || 'v5.6.13',
@@ -734,6 +807,91 @@ export default {
         };
         await env.NEXUS_KV.put('homelab_status_v5', JSON.stringify(result), { expirationTtl: 60 });
         return json(result, 200, request);
+      }
+
+      // Public commit activity for the PRIVATE thyfwxit repo. The portfolio's
+      // "Built in Public" feed reads public repos straight from the GitHub API
+      // client-side, but thyfwxit was made private 2026-07-06, so that fetch
+      // 404s and the feed only ever shows 2 projects. This proxies it server
+      // side with a read-only token so the repo can stay private.
+      //
+      // Deliberately narrow: the repo is HARDCODED (never taken from the
+      // query string, so this can't be turned into an SSRF proxy for
+      // arbitrary URLs), and the response is an allowlist of fields. Author
+      // emails and names are dropped on purpose, Xavier scrubbed 300+ emails
+      // out of git history and they are not going back out through an API.
+      if (path === '/api/github-activity') {
+        const CACHE_KEY = 'gh_activity_thyfwxit_v2';
+        const cached = await env.NEXUS_KV.get(CACHE_KEY, 'json');
+        if (cached) return json(cached, 200, request);
+
+        // Rate limit BEFORE spending the upstream quota. Without this, a cache
+        // miss loop lets anyone burn the credential's 5000/hr GitHub ceiling
+        // and the feed stays dead until the hour rolls over.
+        const ghIp = request.headers.get('CF-Connecting-IP') || 'unknown';
+        if (!(await _kvRateLimit(env, 'ghact:' + ghIp, 20))) {
+          return json({ error: 'rate limited' }, 429, request);
+        }
+
+        // Cache failures too, not just successes. An uncached failure path
+        // means a broken upstream gets re-hit on every single request.
+        const ghFail = async (reason) => {
+          const body = { ok: false, reason, commits: [], count: 0 };
+          try { await env.NEXUS_KV.put(CACHE_KEY, JSON.stringify(body), { expirationTtl: 120 }); } catch (_) {}
+          return json(body, 200, request);
+        };
+
+        // No credential configured yet: honest empty result, not an error, so
+        // the frontend just renders nothing.
+        if (!env.GITHUB_TOKEN) {
+          return json({ ok: false, reason: 'not_configured', commits: [], count: 0 }, 200, request);
+        }
+
+        try {
+          const r = await fetch(
+            'https://api.github.com/repos/Thyfwx/thyfwxit/commits?sha=main&per_page=30',
+            {
+              headers: {
+                Accept: 'application/vnd.github+json',
+                Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+                'User-Agent': 'thyfwxit-worker',
+              },
+              // Never follow a redirect while carrying the Authorization
+              // header: a redirect off github.com would hand the credential
+              // to whatever host it points at.
+              redirect: 'manual',
+              signal: AbortSignal.timeout(7000),
+              cf: { cacheTtl: 0 },
+            },
+          );
+          // Never echo the upstream body, it can carry credential/scope detail.
+          if (!r.ok) return ghFail('upstream_' + r.status);
+          const arr = await r.json();
+          if (!Array.isArray(arr)) return ghFail('bad_shape');
+
+          // COMMIT SUBJECTS ARE DELIBERATELY NOT RETURNED. This repo is private
+          // and its log describes security work ("lock down Nexus behind holding
+          // page... status.json was never wired"). Publishing subjects would
+          // announce every future security fix, and what was weak before it,
+          // within one cache window of the push. The feed only needs to prove
+          // the repo is ALIVE, which dates and a count already do.
+          const commits = arr
+            .map((c) => {
+              const iso = c.commit && c.commit.author && c.commit.author.date;
+              return {
+                sha: String(c.sha || '').slice(0, 7),
+                // Normalized to UTC so the local offset does not disclose a timezone.
+                date: iso ? new Date(iso).toISOString() : null,
+              };
+            })
+            .filter((c) => c.sha && c.date);
+
+          const result = { ok: true, repo: 'thyfwxit', commits, count: commits.length, checked: Date.now() };
+          await env.NEXUS_KV.put(CACHE_KEY, JSON.stringify(result), { expirationTtl: 600 });
+          return json(result, 200, request);
+        } catch (_) {
+          return ghFail('fetch_failed');
+        }
       }
 
       if (path === '/api/server-info') {
@@ -2077,6 +2235,7 @@ ${content}`;
             GROQ_API_KEY: env.GROQ_API_KEY ? '***set***' : 'MISSING',
             GEMINI_API_KEY: env.GEMINI_API_KEY ? '***set***' : 'MISSING',
             HF_API_KEY: env.HF_API_KEY ? '***set***' : 'MISSING',
+            GITHUB_TOKEN: env.GITHUB_TOKEN ? '***set***' : 'MISSING',
             REPLICATE_API_KEY: env.REPLICATE_API_KEY ? '***set***' : 'MISSING',
             GOOGLE_CLIENT_ID: env.GOOGLE_CLIENT_ID ? '***set***' : 'MISSING',
             GOOGLE_CLIENT_SECRET: env.GOOGLE_CLIENT_SECRET ? '***set***' : 'MISSING',
