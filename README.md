@@ -1,50 +1,42 @@
-# Nexus AI Terminal
+# Nexus
 
-AI terminal with 4 chat modes, 8 browser games, image generation, leaderboards, and live diagnostics.
+Nexus is an AI terminal that runs in your browser, with four chat modes, browser games, image generation and per game leaderboards.
 
-**Live:** [thyfwxit.com/nexus](https://thyfwxit.com/nexus)
+Live at [thyfwxit.com/nexus](https://thyfwxit.com/nexus).
 
-## What's in it
+## What you can do
 
-- **4 AI chat modes** — Nexus (general), Coder (programming), Education (learning), Unfiltered (18+ casual)
-- **8 games** — Wordle, Snake, Pong, Flappy, Breakout, Invaders, Minesweeper, Breach Protocol
-- **Image generation** — Replicate Flux + Pollinations fallback, SFW only
-- **Leaderboards** — per-game high scores with custom handles
-- **16 AI tools** — translate, summarize, weather, currency, charts, and more
-- **Speed test** — real bandwidth measurement against the Nexus backend
-- **Maintenance hub** — live device diagnostics (CPU, RAM, network, battery, display)
+- Chat in one of four modes: Nexus (general), Coder (programming), Education (learning) and Unfiltered (18+). Each mode keeps its own chat history.
+- Play eight games from the terminal with `play <game>`: Wordle, Snake, Pong, Invaders, Flappy, Breakout, Minesweeper (`mines`) and Mancala.
+- Ask for an image in plain words, like "draw a cyberpunk city", or use "image of: ...".
+- Check your scores on the leaderboard page.
+- Run a speed test and a typing test from their own pages, and view device diagnostics from the maintenance hub.
+- Export a conversation as Markdown with `export`, or wipe it with `forget`.
 
-## Stack
+Type `help` in the terminal for the full command list. You can sign in with Google or continue as a guest.
 
-| Layer | Tech |
-|-------|------|
-| Frontend | Vanilla JS, CSS variables, HTML5 Canvas |
-| Backend | Cloudflare Worker (JavaScript), ~48 endpoints |
-| Storage | Cloudflare KV (leaderboards, handles, bans) |
-| AI providers | Groq, Google Gemini, Hugging Face, Replicate, Pollinations |
-| Auth | Google OAuth + JWT session cookies |
-| Hosting | Cloudflare Pages (frontend) + Cloudflare Workers (backend) |
-| Domain | api.thyfwxit.com (same-site cookies, no 3rd-party blocking) |
+## How it's built
 
-## Built by
+The frontend is plain HTML, CSS and JavaScript with no build step. It lives in `web_nexus/static/` and is served by Cloudflare Pages (see `wrangler.toml`).
 
-Xavier Scott (THYFWX) with Claude.
+The backend is a single Cloudflare Worker in `worker/src/index.js`. It serves `api.thyfwxit.com`, keeps leaderboards, handles and bans in Cloudflare KV, and calls Groq, Google Gemini, Hugging Face, Replicate and Pollinations. A GitHub Actions workflow deploys the Worker on every push to `main`.
 
-- Site: [thyfwxit.com](https://thyfwxit.com)
-- Email: xavier@thyfwxit.com
-- Tip jar: [buymeacoffee.com/thyfwx](https://buymeacoffee.com/thyfwx)
+## Running your own copy
 
-## Using this code
+1. Run `npm install` to get `wrangler` and TypeScript.
+2. Create your own KV namespace and put its id in `worker/wrangler.toml`.
+3. Add your own provider keys and Google sign in settings to the Worker as secrets. The names it reads are in `worker/src/index.js`.
+4. Change the route and domain in `worker/wrangler.toml` to your own.
 
-This repo is MIT licensed. Fork it, learn from it, lift patterns into your own
-projects, use it as a starting point for something of your own.
+These steps haven't been tested as a clean setup, and the repo has no automated tests.
 
-Two things the license does not cover:
+## Limits
 
-- **The names.** Do not reuse "Xavier Scott," "THYFWX," "thyfwxit," or "Nexus"
-  as your own project's identity. Those refer to me and to this site.
-- **The brand.** Strip my name, my domain, and my contact details before you
-  deploy your version somewhere else.
+- The Worker needs a Cloudflare account and your own API keys for each AI provider. Without them, chat and image generation won't work.
+- The code points at my domain and my KV namespace. Don't deploy it as is.
 
-The code is yours to learn from. The identity is not. If you build something
-on top of this, send me a link. I want to see it.
+## License
+
+MIT, see [LICENSE](LICENSE). The license covers the code. Please don't reuse the Nexus or thyfwxit names or my contact details as the identity of your own project. Security reports go through [SECURITY.md](SECURITY.md).
+
+Site: [thyfwxit.com](https://thyfwxit.com)
