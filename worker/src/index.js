@@ -553,6 +553,57 @@ async function _kvBackup(env) {
 }
 
 // ── Router ──────────────────────────────────────────────────────────────────
+// ── Lab status from the public Uptime Kuma page ────────────────────────────
+// Only generic labels, a state and a last-check time ever leave this file. The monitor
+// payload also carries free text (messages, hosts, ports), which is dropped on purpose.
+const KUMA_FEED = 'https://status.thyfwxit.com/api/status-page/heartbeat/status';
+const KUMA_LABEL = { '1': 'Hypervisor', '3': 'DNS Filtering', '4': 'Home Automation', '6': 'VPN', '10': 'Network Storage', '11': 'Reverse Proxy', '12': 'Network Boot', '19': 'Container Management' };
+const KUMA_STALE_MS = 15 * 60 * 1000;
+// Uptime Kuma heartbeat status: 0 down, 1 up, 2 pending (retrying), 3 maintenance.
+function kumaState(status) {
+  return status === 1 ? 'up' : status === 0 ? 'down' : status === 2 ? 'degraded' : status === 3 ? 'maintenance' : 'unknown';
+}
+// Kuma sends 'YYYY-MM-DD HH:MM:SS.mmm' in UTC.
+function kumaTime(s) {
+  const t = Date.parse(String(s || '').replace(' ', 'T') + 'Z');
+  return Number.isFinite(t) ? t : null;
+}
+// A monitor that has not reported for 15 minutes is stale, never green.
+function kumaStateNow(m, now) {
+  if (m.state === 'unknown') return 'unknown';
+  return !m.lastMs || now - m.lastMs > KUMA_STALE_MS ? 'stale' : m.state;
+}
+async function kumaSnapshot(env) {
+  const cacheKey = 'kuma_snapshot_v1';
+  try {
+    const r = await fetch(KUMA_FEED, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(7000), cf: { cacheTtl: 0 } });
+    if (!r.ok) throw new Error('kuma http ' + r.status);
+    const hb = await r.json();
+    if (!hb || !hb.heartbeatList || !Object.keys(hb.heartbeatList).length) throw new Error('kuma empty');
+    const beats = hb.heartbeatList;
+    const monitors = [];
+    for (const id of Object.keys(beats)) {
+      // Allowlist: only the monitors named here are public. Local AI (13), the Discord
+      // bot (14) and any future monitor stay hidden until added on purpose.
+      if (id !== '15' && !Object.hasOwn(KUMA_LABEL, id)) continue;
+      const arr = Array.isArray(beats[id]) ? beats[id] : [];
+      const last = arr.length ? arr[arr.length - 1] : null;
+      const label = id === '15' ? 'Minecraft' : KUMA_LABEL[id];
+      const key = id === '15' ? 'mc' : label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      monitors.push({
+        key, label,
+        state: last ? kumaState(last.status) : 'unknown',
+        lastMs: last ? kumaTime(last.time) : null,
+      });
+    }
+    if (monitors.length) await env.NEXUS_KV.put(cacheKey, JSON.stringify({ monitors, at: Date.now() }), { expirationTtl: 1800 });
+    return { monitors, at: Date.now(), live: true };
+  } catch (_) {
+    const saved = await env.NEXUS_KV.get(cacheKey, 'json');
+    return saved && Array.isArray(saved.monitors) ? { monitors: saved.monitors, at: saved.at, live: false } : { monitors: [], at: Date.now(), live: false };
+  }
+}
+
 export default {
   async scheduled(_controller, env, ctx) {
     ctx.waitUntil(_dailyCron(env));
@@ -666,73 +717,31 @@ export default {
       // intentionally excluded — the portfolio shows infra, not personal
       // services. Only generic labels leave here, never hostnames or IPs. Cached 60s.
       if (path === '/api/homelab-status') {
-        const cached = await env.NEXUS_KV.get('homelab_status_v5', 'json');
+        const cached = await env.NEXUS_KV.get('homelab_status_v6', 'json');
         if (cached) return json(cached, 200, request);
         // Local AI and the Discord bot are intentionally NOT surfaced publicly
-        // (Xavier's call). No outbound service checks; the list is infra + MC.
-        const httpTargets = [];
-        const httpChecks = Promise.all(httpTargets.map(async (t) => {
-          try {
-            const r = await fetch(t.url, {
-              method: 'HEAD', redirect: 'manual',
-              signal: AbortSignal.timeout(5000), cf: { cacheTtl: 0 },
-            });
-            return { key: t.key, name: t.name, up: r.status > 0 && r.status < 500 };
-          } catch (_) {
-            return { key: t.key, name: t.name, up: false };
-          }
-        }));
-        // Minecraft liveness used to come from an external status API
-        // (api.mcstatus.io) pointed at mc.thyfwxit.com. That checks from outside,
-        // so a stale/rotated home IP made the flagship read "down" while the
-        // server was actually healthy on the LAN. MC is now monitor 15 on the
-        // internal Uptime Kuma status page below, alongside the lab infra.
-        //
-        // Real lab infrastructure from the existing PUBLIC Uptime Kuma status page
-        // (status.thyfwxit.com, no auth). Mapped by monitor ID to generic labels, so
-        // the actual software names never appear in this public source, only labels.
-        // Monitor 15 is the public Minecraft world and is given its own 'mc' key.
-        const KUMA_LABEL = { '1': 'Hypervisor', '3': 'DNS Filtering', '4': 'Home Automation', '6': 'VPN', '10': 'Network Storage', '11': 'Reverse Proxy', '12': 'Network Boot', '19': 'Container Management' };
-        const kumaCheck = (async () => {
-          try {
-            const r = await fetch('https://status.thyfwxit.com/api/status-page/heartbeat/status', {
-              headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(7000), cf: { cacheTtl: 0 },
-            });
-            const hb = await r.json();
-            const beats = hb.heartbeatList || {};
-            const out = Object.keys(beats).map((id) => {
-              const arr = beats[id];
-              const last = arr && arr.length ? arr[arr.length - 1] : null;
-              const up = !!(last && last.status === 1);
-              // The public Minecraft world keeps its own 'mc' key so the
-              // portfolio gives it flagship treatment (and can show a player
-              // count later once an external count source is wired back in).
-              if (id === '15') return { key: 'mc', name: 'Minecraft', up, players: 0 };
-              // 13 (Local AI) and 14 (Discord Bot) are covered by the outbound
-              // HTTPS checks above — skip here so they are not listed twice.
-              if (id === '13' || id === '14') return null;
-              return { key: 'kuma' + id, name: KUMA_LABEL[id] || 'Lab Service', up };
-            }).filter(Boolean);
-            if (out.length) await env.NEXUS_KV.put('kuma_last', JSON.stringify(out), { expirationTtl: 1800 });
-            return out;
-          } catch (_) {
-            const last = await env.NEXUS_KV.get('kuma_last', 'json');
-            return Array.isArray(last) ? last : [];
-          }
-        })();
-        const [http, kuma] = await Promise.all([httpChecks, kumaCheck]);
-        // Keep the Minecraft world first (flagship), then the reachable web
-        // services, then the rest of the lab infra.
-        const mc = kuma.find((s) => s.key === 'mc');
-        const rest = kuma.filter((s) => s.key !== 'mc');
-        const services = (mc ? [mc] : []).concat(http).concat(rest);
+        // (Xavier's call). The list is lab infrastructure plus the Minecraft world,
+        // straight from the public Uptime Kuma page through kumaSnapshot().
+        const snap = await kumaSnapshot(env);
+        const now = Date.now();
+        const rows = snap.monitors.map((m) => {
+          const state = kumaStateNow(m, now);
+          const row = { key: m.key, name: m.label, up: state === 'up', state, last: m.lastMs };
+          return m.key === 'mc' ? Object.assign(row, { players: 0 }) : row;
+        });
+        // Keep the Minecraft world first (flagship), then the rest of the lab infra.
+        const mc = rows.find((s) => s.key === 'mc');
+        const services = (mc ? [mc] : []).concat(rows.filter((s) => s.key !== 'mc'));
         const up = services.filter((s) => s.up).length;
+        const newest = services.reduce((a, s) => (s.last && s.last > a ? s.last : a), 0);
         const result = {
           ok: true,
-          overall: up === services.length ? 'operational' : (up === 0 ? 'down' : 'degraded'),
-          up, total: services.length, services, checked: Date.now(),
+          overall: services.length === 0 ? 'unavailable' : (up === services.length ? 'operational' : (up === 0 ? 'down' : 'degraded')),
+          up, total: services.length, services,
+          // when the monitors last reported, not when this response was built
+          checked: newest || now,
         };
-        await env.NEXUS_KV.put('homelab_status_v5', JSON.stringify(result), { expirationTtl: 60 });
+        await env.NEXUS_KV.put('homelab_status_v6', JSON.stringify(result), { expirationTtl: 60 });
         return json(result, 200, request);
       }
 
